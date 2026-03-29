@@ -46,7 +46,7 @@ body {
     border-color:#ff00ff;
 }
 
-/* ================= AVATAR NEUROLUIS ================= */
+/* ================= AVATAR ================= */
 .avatar-glitch {
     position: fixed;
     top: 10px;
@@ -68,20 +68,10 @@ body {
     filter: contrast(1.2) saturate(1.3);
 }
 
-/* glow dinámico */
 @keyframes pulseGlow {
     0% { filter: brightness(1); }
     50% { filter: brightness(1.4); }
     100% { filter: brightness(1); }
-}
-
-/* glitch leve */
-@keyframes glitch {
-    0% { transform: translate(0px, 0px); }
-    25% { transform: translate(1px, -1px); }
-    50% { transform: translate(-1px, 1px); }
-    75% { transform: translate(2px, 0px); }
-    100% { transform: translate(0px, 1px); }
 }
 
 /* ================= TITULO ================= */
@@ -121,7 +111,6 @@ button {
     border:none;
     font-weight:bold;
     cursor:pointer;
-    transition:0.2s;
 }
 
 button:hover {
@@ -150,17 +139,16 @@ button:hover {
         <a href="index.html">✖ Salir</a>
     </div>
 
-    <!-- 🧠 AVATAR NEUROLUIS -->
+    <!-- AVATAR -->
     <div class="avatar-glitch">
         <img src="NeuroLuis.gif" class="pantalla" alt="NeuroLuis">
     </div>
 
-    <!-- TITULO -->
     <h1>⚡ Face-Luiyi</h1>
 
     <div class="container">
 
-        <!-- FORMULARIO -->
+        <!-- FORM -->
         <div class="form-box">
             <input type="text" id="nombre" placeholder="Tu nombre">
             <textarea id="mensaje" rows="4" placeholder="Escribe tu mensaje..."></textarea>
@@ -174,9 +162,21 @@ button:hover {
 
 </div>
 
+<!-- ================= FIREBASE ================= -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
 
-/* COMENTARIOS */
+// 🔥 CONFIG FIREBASE
+const firebaseConfig = {
+    databaseURL: "https://foro-luiyi-default-rtdb.europe-west1.firebasedatabase.app/"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// 💬 ENVIAR MENSAJE
 function agregarComentario(){
 
     let nombre = document.getElementById("nombre").value;
@@ -187,18 +187,32 @@ function agregarComentario(){
         return;
     }
 
-    let contenedor = document.getElementById("comentarios");
-
-    let nuevo = document.createElement("div");
-    nuevo.className = "comment-box";
-
-    nuevo.innerHTML = "<strong>" + nombre + ":</strong><br>" + mensaje;
-
-    contenedor.prepend(nuevo);
+    db.ref("mensajes").push({
+        nombre: nombre,
+        mensaje: mensaje,
+        tiempo: Date.now()
+    });
 
     document.getElementById("nombre").value = "";
     document.getElementById("mensaje").value = "";
 }
+
+// 📡 RECIBIR MENSAJES EN TIEMPO REAL
+const contenedor = document.getElementById("comentarios");
+
+db.ref("mensajes").on("child_added", function(data){
+
+    let msg = data.val();
+
+    let nuevo = document.createElement("div");
+    nuevo.className = "comment-box";
+
+    nuevo.innerHTML =
+        "<strong>" + msg.nombre + ":</strong><br>" +
+        msg.mensaje;
+
+    contenedor.prepend(nuevo);
+});
 
 </script>
 
