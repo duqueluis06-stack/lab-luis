@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>NeuroLuiyi Feed</title>
+<title>NeuroLuiyi Feed PRO</title>
 
 <style>
+
 body {
     margin:0;
     font-family: Arial;
@@ -14,6 +15,7 @@ body {
     color:white;
 }
 
+/* HEADER */
 .header {
     text-align:center;
     padding:20px;
@@ -24,6 +26,7 @@ body {
     -webkit-text-fill-color: transparent;
 }
 
+/* AVATAR */
 .avatar {
     position:fixed;
     top:10px;
@@ -43,6 +46,7 @@ body {
     object-fit:cover;
 }
 
+/* BOX */
 .box {
     max-width:600px;
     margin:auto;
@@ -58,6 +62,7 @@ input, textarea {
     outline:none;
 }
 
+/* BUTTON */
 button {
     width:100%;
     padding:10px;
@@ -68,15 +73,17 @@ button {
     cursor:pointer;
 }
 
+/* POST */
 .post {
     background:rgba(255,255,255,0.05);
     margin:10px auto;
     padding:15px;
     border-radius:15px;
     max-width:600px;
-    box-shadow:0 0 10px rgba(0,255,255,0.3);
+    box-shadow:0 0 10px rgba(0,255,255,0.25);
 }
 
+/* USER */
 .user {
     font-weight:bold;
     color:#00ffff;
@@ -85,6 +92,7 @@ button {
     gap:8px;
 }
 
+/* LIKE */
 .like {
     margin-top:10px;
     cursor:pointer;
@@ -92,15 +100,29 @@ button {
     user-select:none;
 }
 
-.like:hover {
-    transform:scale(1.05);
+/* BACK */
+.back {
+    display:block;
+    text-align:center;
+    margin:20px auto;
+    width:220px;
+    padding:10px;
+    background:rgba(255,255,255,0.08);
+    border-radius:10px;
+    text-decoration:none;
+    color:white;
 }
+
+.back:hover {
+    background:rgba(255,255,255,0.15);
+}
+
 </style>
 </head>
 
 <body>
 
-<div class="header">⚡ NeuroLuiyi Feed</div>
+<div class="header">⚡ NeuroLuiyi Feed PRO</div>
 
 <div class="avatar">
     <img src="NeuroLuis.gif" onerror="this.src='https://via.placeholder.com/90'">
@@ -112,8 +134,11 @@ button {
     <button onclick="send()">Publicar</button>
 </div>
 
+<a class="back" href="index.html">⬅ Volver al inicio</a>
+
 <div id="feed"></div>
 
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -124,15 +149,18 @@ firebase.initializeApp({
 });
 
 const db = firebase.database();
+const feed = document.getElementById("feed");
 
+/* 🧠 avatar estable */
 function avatar(name){
-    return "https://api.dicebear.com/7.x/pixel-art/svg?seed="+name;
+    return "https://api.dicebear.com/7.x/pixel-art/svg?seed=" + encodeURIComponent(name);
 }
 
+/* 🚀 enviar post */
 function send(){
 
-    let name = document.getElementById("name").value;
-    let msg = document.getElementById("msg").value;
+    const name = document.getElementById("name").value.trim();
+    const msg = document.getElementById("msg").value.trim();
 
     if(!name || !msg) return;
 
@@ -146,14 +174,19 @@ function send(){
     document.getElementById("msg").value="";
 }
 
-const feed = document.getElementById("feed");
+/* 🧱 evitar duplicados */
+const rendered = new Set();
 
+/* 📡 listener */
 db.ref("posts").on("child_added", snap=>{
 
-    let p = snap.val();
-    let id = snap.key;
+    const p = snap.val();
+    const id = snap.key;
 
-    let div = document.createElement("div");
+    if(rendered.has(id)) return;
+    rendered.add(id);
+
+    const div = document.createElement("div");
     div.className="post";
 
     div.innerHTML=`
@@ -164,21 +197,23 @@ db.ref("posts").on("child_added", snap=>{
 
         <div>${p.msg}</div>
 
-        <div class="like" onclick="like('${id}')">
-            ❤️ Like <span>${p.likes}</span>
+        <div class="like" onclick="like('${id}', this)">
+            ❤️ Like <span>${p.likes || 0}</span>
         </div>
     `;
 
     feed.prepend(div);
 });
 
-function like(id){
+/* ❤️ like estable */
+function like(id, el){
 
-    let ref = db.ref("posts/"+id+"/likes");
+    const ref = db.ref("posts/"+id+"/likes");
 
-    ref.transaction(likes=>{
-        return (likes||0)+1;
-    });
+    ref.transaction(v => (v || 0) + 1);
+
+    const span = el.querySelector("span");
+    span.innerText = parseInt(span.innerText) + 1;
 }
 
 </script>
