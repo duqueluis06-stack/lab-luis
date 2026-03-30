@@ -12,12 +12,10 @@ body{
     margin:0;
     font-family: Arial;
     color:white;
-
     background:url("fondo-foro.jpg") no-repeat center center fixed;
     background-size:cover;
 }
 
-/* OSCURECER FONDO */
 body::before{
     content:"";
     position:fixed;
@@ -26,22 +24,17 @@ body::before{
     z-index:-1;
 }
 
-/* 🔥 TÍTULO NEÓN */
+/* NEON */
 .header{
     text-align:center;
     padding:20px;
     font-size:30px;
     font-weight:bold;
     color:#00ffff;
-
-    text-shadow:
-    0 0 5px #00ffff,
-    0 0 10px #00ffff,
-    0 0 20px #ff00ff,
-    0 0 40px #ff00ff;
+    text-shadow:0 0 10px #00ffff,0 0 20px #ff00ff,0 0 40px #ff00ff;
 }
 
-/* 🧠 GIF MÁS GRANDE */
+/* GIF */
 .avatar{
     position:fixed;
     top:15px;
@@ -107,11 +100,24 @@ button{
     color:#ff4d6d;
 }
 
-/* BOTÓN RESPONDER */
+/* RESPONDER */
 .replyBtn{
     margin-top:10px;
     cursor:pointer;
     color:#00ffff;
+}
+
+/* CAJA RESPUESTA */
+.replyBox{
+    display:none;
+    margin-top:10px;
+}
+
+.replyBox input{
+    width:100%;
+    padding:8px;
+    border-radius:8px;
+    border:none;
 }
 
 /* RESPUESTA */
@@ -123,13 +129,7 @@ button{
     background:rgba(255,255,255,0.03);
 }
 
-/* CAJA RESPUESTA */
-.replyBox{
-    display:none;
-    margin-top:10px;
-}
-
-/* BOTÓN VOLVER */
+/* VOLVER */
 .back{
     display:block;
     text-align:center;
@@ -182,7 +182,10 @@ function send(){
     let name = document.getElementById("name").value.trim();
     let msg = document.getElementById("msg").value.trim();
 
-    if(!name || !msg) return;
+    if(!name || !msg){
+        alert("Escribe nombre y mensaje");
+        return;
+    }
 
     db.ref("posts").push({
         name,
@@ -224,15 +227,19 @@ db.ref("posts").on("child_added", snap=>{
 
     feed.prepend(div);
 
-    /* ENTER PARA RESPONDER */
+    /* EVENTO ENTER CORREGIDO */
     setTimeout(()=>{
         let input = document.getElementById("input-"+id);
-        input.addEventListener("keydown", e=>{
-            if(e.key==="Enter"){
-                reply(id, input);
-            }
-        });
-    },100);
+
+        if(input){
+            input.addEventListener("keypress", function(e){
+                if(e.key === "Enter"){
+                    e.preventDefault();
+                    reply(id, input);
+                }
+            });
+        }
+    },200);
 
     loadReplies(id);
 });
@@ -240,7 +247,6 @@ db.ref("posts").on("child_added", snap=>{
 /* LIKE */
 function like(id, el){
     let ref = db.ref("posts/"+id+"/likes");
-
     ref.transaction(v => (v||0)+1);
 
     let span = el.querySelector("span");
@@ -259,13 +265,26 @@ function reply(postID, input){
     let text = input.value.trim();
     let name = document.getElementById("name").value.trim();
 
-    if(!text || !name) return;
+    if(!text || !name){
+        alert("Escribe tu nombre arriba");
+        return;
+    }
 
-    db.ref("posts/"+postID+"/replies").push({
+    let newReply = {
         name,
         msg:text,
         time:Date.now()
-    });
+    };
+
+    // guardar
+    db.ref("posts/"+postID+"/replies").push(newReply);
+
+    // mostrar instantáneo
+    let div = document.createElement("div");
+    div.className="reply";
+    div.innerHTML = `<b>${name}:</b> ${text}`;
+
+    document.getElementById("replies-"+postID).appendChild(div);
 
     input.value="";
 }
@@ -279,7 +298,6 @@ function loadReplies(postID){
 
         let div = document.createElement("div");
         div.className="reply";
-
         div.innerHTML=`<b>${r.name}:</b> ${r.msg}`;
 
         document.getElementById("replies-"+postID).appendChild(div);
