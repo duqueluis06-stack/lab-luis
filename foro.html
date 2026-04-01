@@ -12,12 +12,10 @@ body{
     margin:0;
     font-family: Arial;
     color:white;
-
     background:url("fondo-foro.jpg") no-repeat center center fixed;
     background-size:cover;
 }
 
-/* fondo más claro */
 body::before{
     content:"";
     position:fixed;
@@ -26,14 +24,12 @@ body::before{
     z-index:-1;
 }
 
-/* NEON */
 .header{
     text-align:center;
     padding:20px;
     font-size:30px;
     font-weight:bold;
     color:#00ffff;
-
     text-shadow:
     0 0 5px #00ffff,
     0 0 10px #00ffff,
@@ -41,7 +37,6 @@ body::before{
     0 0 40px #ff00ff;
 }
 
-/* GIF */
 .avatar{
     position:fixed;
     top:10px;
@@ -59,7 +54,6 @@ body::before{
     height:100%;
 }
 
-/* instrucciones */
 .info{
     max-width:600px;
     margin:10px auto;
@@ -70,7 +64,6 @@ body::before{
     font-size:14px;
 }
 
-/* usuarios */
 .users{
     text-align:center;
     margin:10px;
@@ -78,7 +71,6 @@ body::before{
     color:#00ffff;
 }
 
-/* selector avatar */
 .avatarSelect{
     text-align:center;
     margin-bottom:10px;
@@ -90,7 +82,6 @@ body::before{
     cursor:pointer;
 }
 
-/* input */
 .box{
     max-width:600px;
     margin:auto;
@@ -115,7 +106,6 @@ button{
     cursor:pointer;
 }
 
-/* post */
 .post{
     background:rgba(255,255,255,0.05);
     margin:10px auto;
@@ -154,7 +144,6 @@ button{
     margin-top:10px;
 }
 
-/* volver */
 .back{
     display:block;
     text-align:center;
@@ -221,18 +210,21 @@ const feed = document.getElementById("feed");
 
 let avatar = "🐸";
 
-/* seleccionar avatar */
 function setAvatar(a){
     avatar = a;
 }
 
-/* publicar */
 function send(){
 
     let name = document.getElementById("name").value.trim();
     let msg = document.getElementById("msg").value.trim();
 
     if(!name || !msg) return;
+
+    // anti spam básico
+    if(name.length > 20) return;
+    if(msg.length > 300) return;
+    if(msg.includes("http")) return;
 
     db.ref("posts").push({
         name,
@@ -245,7 +237,6 @@ function send(){
     document.getElementById("msg").value="";
 }
 
-/* posts */
 db.ref("posts").on("child_added", snap=>{
 
     let p = snap.val();
@@ -256,7 +247,7 @@ db.ref("posts").on("child_added", snap=>{
 
     div.innerHTML=`
         <div class="user">${p.avatar||"🐸"} ${p.name}</div>
-        <div>${p.msg}</div>
+        <div class="msg"></div>
 
         <div class="like" onclick="like('${id}', this)">
             ❤️ Like <span>${p.likes||0}</span>
@@ -273,6 +264,9 @@ db.ref("posts").on("child_added", snap=>{
         <div id="replies-${id}"></div>
     `;
 
+    // mensaje seguro
+    div.querySelector(".msg").innerText = p.msg;
+
     feed.prepend(div);
 
     setTimeout(()=>{
@@ -287,8 +281,11 @@ db.ref("posts").on("child_added", snap=>{
     loadReplies(id);
 });
 
-/* like */
 function like(id, el){
+    if(el.classList.contains("used")) return;
+
+    el.classList.add("used");
+
     let ref = db.ref("posts/"+id+"/likes");
     ref.transaction(v => (v||0)+1);
 
@@ -296,13 +293,11 @@ function like(id, el){
     span.innerText = parseInt(span.innerText)+1;
 }
 
-/* mostrar reply */
 function toggleReply(id){
     let box = document.getElementById("box-"+id);
     box.style.display = box.style.display==="block"?"none":"block";
 }
 
-/* responder */
 function reply(postID, input){
 
     let text = input.value.trim();
@@ -319,7 +314,6 @@ function reply(postID, input){
     input.value="";
 }
 
-/* cargar replies */
 function loadReplies(postID){
 
     db.ref("posts/"+postID+"/replies").on("child_added", snap=>{
@@ -329,13 +323,13 @@ function loadReplies(postID){
         let div = document.createElement("div");
         div.className="reply";
 
-        div.innerHTML=`<b>${r.avatar||"🐸"} ${r.name}:</b> ${r.msg}`;
+        div.innerHTML=`<b>${r.avatar||"🐸"} ${r.name}:</b> <span class="rmsg"></span>`;
+        div.querySelector(".rmsg").innerText = r.msg;
 
         document.getElementById("replies-"+postID).appendChild(div);
     });
 }
 
-/* contador simple */
 db.ref("posts").on("value", snap=>{
     let count = snap.numChildren();
     document.getElementById("userCount").innerText = count;
