@@ -1,5 +1,71 @@
-// 🔥 loader GLB seguro
-const loader = new THREE.GLTFLoader();
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>3D Lab Luis</title>
+
+<style>
+body { margin:0; overflow:hidden; background:black; }
+canvas { display:block; }
+</style>
+
+</head>
+
+<body>
+
+<script type="module">
+
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+/* =========================
+   ESCENA BASE
+========================= */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+camera.position.set(0, 1.5, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* =========================
+   LUCES (CRÍTICO)
+========================= */
+
+const light1 = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(light1);
+
+const light2 = new THREE.DirectionalLight(0xffffff, 1);
+light2.position.set(5,10,5);
+scene.add(light2);
+
+/* =========================
+   CUBO TEST (CONTROL)
+========================= */
+
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1,1,1),
+  new THREE.MeshNormalMaterial()
+);
+
+cube.position.set(-2,1,0);
+scene.add(cube);
+
+/* =========================
+   LOADER GLB
+========================= */
+
+const loader = new GLTFLoader();
 
 function addGLB(name, file, x, y, z, color){
 
@@ -12,27 +78,64 @@ function addGLB(name, file, x, y, z, color){
 
     scene.add(obj);
 
-    // 🧪 marcador visible (clave debug)
+    // marcador visual
     const marker = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4,0.4,0.4),
+      new THREE.BoxGeometry(0.3,0.3,0.3),
       new THREE.MeshBasicMaterial({ color })
     );
 
-    marker.position.set(x,y+1,z);
+    marker.position.set(x, y+1, z);
     scene.add(marker);
 
-    log("✔ "+name);
+    console.log("✔ " + name);
 
-  }, undefined, ()=>{
+  }, undefined, (err)=>{
 
-    log("❌ "+name);
+    console.log("❌ " + name, err);
 
   });
 
 }
 
-// 📦 ESCENA LUIS
+/* =========================
+   MODELOS
+========================= */
+
 addGLB("avatar","avatar.glb",0,0,0,0xff0000);
 addGLB("habitacion","habitacion.glb",0,-2,0,0x00ff00);
 addGLB("puerta","puerta.glb",3,0,0,0x0000ff);
 addGLB("espacio","espacio.glb",0,0,-8,0xffff00);
+
+/* =========================
+   ANIMACIÓN
+========================= */
+
+function animate(){
+
+  requestAnimationFrame(animate);
+
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+/* =========================
+   RESIZE
+========================= */
+
+window.addEventListener("resize", ()=>{
+
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+});
+
+</script>
+
+</body>
+</html>
