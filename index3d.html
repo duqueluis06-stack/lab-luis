@@ -2,131 +2,187 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Avatar Clean</title>
+<title>Space Morph</title>
 <style>
   body { margin:0; overflow:hidden; background:#000; }
   canvas { display:block; }
-  #back {
+  #ui{
     position:absolute; top:10px; left:10px; z-index:10;
+    color:#9ff; font-family:monospace; font-size:12px;
+  }
+  #back{
+    position:absolute; top:10px; right:10px; z-index:10;
     padding:8px 12px; border:1px solid #0ff; color:#0ff;
     background:rgba(0,0,0,0.6); cursor:pointer; border-radius:6px;
   }
 </style>
 </head>
+
 <body>
 
+<div id="ui">SPACE · MORPH · RUNNING</div>
 <button id="back">⬅ BACK</button>
 
 <script type="module">
+
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
-/* base */
+/* ======================
+   🌌 BASE
+====================== */
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 1000);
-camera.position.set(0, 1.8, 4);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(0,2,6);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 document.body.appendChild(renderer.domElement);
 
-/* luz (mejor que antes) */
-scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 1.5));
-const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-dir.position.set(3,5,2);
+/* ======================
+   💡 LUCES
+====================== */
+scene.add(new THREE.AmbientLight(0x666666));
+
+const dir = new THREE.DirectionalLight(0xffffff,1.5);
+dir.position.set(5,10,7);
 scene.add(dir);
 
-/* suelo */
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(30,30),
-  new THREE.MeshStandardMaterial({ color:0x0f0f0f })
-);
-ground.rotation.x = -Math.PI/2;
-scene.add(ground);
+/* ======================
+   ✨ ESTRELLAS
+====================== */
+const starGeo = new THREE.BufferGeometry();
+const starCount = 2000;
 
-/* ====== AVATAR (proporciones humanas simples) ====== */
-const avatar = new THREE.Group();
+const starPos = new Float32Array(starCount * 3);
 
-/* material suave */
-const matBody = new THREE.MeshStandardMaterial({ color:0x4fd1c5, roughness:0.6, metalness:0.1 });
-const matHead = new THREE.MeshStandardMaterial({ color:0xf1d0b5, roughness:0.7 });
-
-/* tronco */
-const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.8, 8, 16), matBody);
-torso.position.y = 1.2;
-avatar.add(torso);
-
-/* cabeza */
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), matHead);
-head.position.y = 1.9;
-avatar.add(head);
-
-/* brazos */
-const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.6, 8, 12), matBody);
-armL.position.set(-0.45, 1.25, 0);
-avatar.add(armL);
-
-const armR = armL.clone();
-armR.position.x = 0.45;
-avatar.add(armR);
-
-/* piernas */
-const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.8, 8, 12), matBody);
-legL.position.set(-0.18, 0.5, 0);
-avatar.add(legL);
-
-const legR = legL.clone();
-legR.position.x = 0.18;
-avatar.add(legR);
-
-scene.add(avatar);
-
-/* ====== IA simple (explora) ====== */
-let target = new THREE.Vector3(2, 0, 2);
-function newTarget(){
-  target.set((Math.random()-0.5)*10, 0, (Math.random()-0.5)*10);
+for(let i=0;i<starCount;i++){
+  starPos[i*3+0] = (Math.random()-0.5)*100;
+  starPos[i*3+1] = (Math.random()-0.5)*100;
+  starPos[i*3+2] = (Math.random()-0.5)*100;
 }
 
-/* ====== animación de caminar (ciclo suave) ====== */
+starGeo.setAttribute("position", new THREE.BufferAttribute(starPos,3));
+
+const starMat = new THREE.PointsMaterial({
+  color:0xffffff,
+  size:0.15
+});
+
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
+
+/* ======================
+   🪐 PLANETAS
+====================== */
+function createPlanet(size, color, x){
+  const planet = new THREE.Mesh(
+    new THREE.SphereGeometry(size,32,32),
+    new THREE.MeshStandardMaterial({ color })
+  );
+  planet.position.set(x,0,0);
+  scene.add(planet);
+  return planet;
+}
+
+const planet1 = createPlanet(0.8, 0x3366ff, -5);
+const planet2 = createPlanet(1.2, 0xff6633, 5);
+const planet3 = createPlanet(0.5, 0x33ff99, 0);
+
+/* órbitas */
+let orbitAngle = 0;
+
+/* ======================
+   🔷 CUBO MORPH
+====================== */
+
+/* base geometry */
+const baseGeo = new THREE.BoxGeometry(1,1,1,20,20,20);
+
+/* target morph: esfera */
+const sphereGeo = new THREE.SphereGeometry(0.8,20,20);
+
+/* crear atributo morph */
+const morphPositions = sphereGeo.attributes.position.array;
+
+baseGeo.morphAttributes.position = [
+  new THREE.Float32BufferAttribute(morphPositions,3)
+];
+
+const mat = new THREE.MeshStandardMaterial({
+  color:0x00ffff,
+  metalness:0.3,
+  roughness:0.4,
+  morphTargets:true,
+  emissive:0x001111
+});
+
+const cube = new THREE.Mesh(baseGeo, mat);
+scene.add(cube);
+
+/* ======================
+   🎥 CONTROL CÁMARA
+====================== */
+let camAngle = 0;
+
+/* ======================
+   🔁 ANIMACIÓN
+====================== */
 let t = 0;
 
 function animate(){
   requestAnimationFrame(animate);
 
-  const pos = avatar.position;
-  const dirV = new THREE.Vector3().subVectors(target, pos);
-  const dist = dirV.length();
+  t += 0.01;
 
-  if(dist < 0.4) newTarget();
-  else {
-    dirV.normalize();
-    pos.addScaledVector(dirV, 0.025);
-    avatar.lookAt(target);
-  }
+  /* 🌌 estrellas giran */
+  stars.rotation.y += 0.0005;
 
-  /* ciclo */
-  t += 0.12;
-  const swing = Math.sin(t) * 0.7;
+  /* 🪐 planetas orbitan */
+  orbitAngle += 0.01;
 
-  legL.rotation.x = swing;
-  legR.rotation.x = -swing;
+  planet1.position.set(Math.cos(orbitAngle)*5,0,Math.sin(orbitAngle)*5);
+  planet2.position.set(Math.cos(-orbitAngle*0.6)*7,0,Math.sin(-orbitAngle*0.6)*7);
+  planet3.position.y = Math.sin(orbitAngle*2)*2;
 
-  armL.rotation.x = -swing * 0.8;
-  armR.rotation.x = swing * 0.8;
+  /* 🔷 cubo transformación */
+  const morph = (Math.sin(t)+1)/2; // 0→1
+  cube.morphTargetInfluences[0] = morph;
 
-  renderer.render(scene, camera);
+  /* rotación */
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.015;
+
+  /* pulsación */
+  const scale = 1 + Math.sin(t*2)*0.2;
+  cube.scale.set(scale,scale,scale);
+
+  /* 🎥 cámara orbital suave */
+  camAngle += 0.002;
+  camera.position.x = Math.cos(camAngle)*6;
+  camera.position.z = Math.sin(camAngle)*6;
+  camera.lookAt(0,0,0);
+
+  renderer.render(scene,camera);
 }
 
 animate();
 
-/* back */
+/* ======================
+   🔙 BACK
+====================== */
 document.getElementById("back").onclick = () => history.back();
 
-/* resize */
+/* ======================
+   📱 RESIZE
+====================== */
 addEventListener("resize", ()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
 </script>
 
 </body>
