@@ -2,82 +2,92 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>DEBUG 3D LUIS</title>
+<title>3D SYSTEM LUIS</title>
 
 <style>
-body { margin:0; overflow:hidden; background:#000; }
-#log {
-  position:absolute;
-  top:10px;
-  left:10px;
-  color:#0f0;
-  font-family:monospace;
-  font-size:12px;
-  z-index:10;
-}
+body { margin:0; overflow:hidden; background:black; }
+canvas { display:block; }
 </style>
 </head>
 
 <body>
-
-<div id="log">Cargando...</div>
 
 <script type="module">
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
-const log = (t) => document.getElementById("log").innerText += "\n" + t;
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-camera.position.set(0, 2, 10);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
+camera.position.set(0, 2, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-// 💡 luz fuerte
-scene.add(new THREE.AmbientLight(0xffffff, 2));
-const dir = new THREE.DirectionalLight(0xffffff, 2);
-dir.position.set(5,5,5);
-scene.add(dir);
+// 🔦 ILUMINACIÓN REAL (clave en GLB)
+const ambient = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(ambient);
 
+const directional = new THREE.DirectionalLight(0xffffff, 2);
+directional.position.set(10, 10, 10);
+scene.add(directional);
+
+// 🧠 CONTROL DE CARGA
 const loader = new GLTFLoader();
+const objects = {};
 
-function loadGLB(path, x, y, z, name) {
+function loadModel(name, path, pos, scale=1) {
 
   loader.load(path, (gltf) => {
 
-    const obj = gltf.scene;
+    const model = gltf.scene;
 
-    obj.position.set(x,y,z);
+    model.position.set(pos.x, pos.y, pos.z);
+    model.scale.set(scale, scale, scale);
 
-    obj.scale.set(1,1,1);
+    scene.add(model);
+    objects[name] = model;
 
-    scene.add(obj);
-
-    log("✔ cargado: " + name);
+    console.log("✔ cargado:", name);
 
   }, undefined, (err) => {
-    log("❌ error: " + name);
+
+    console.error("❌ error:", name, err);
+
   });
 }
 
-// 🧠 separación espacial CLAVE
-loadGLB("avatar.glb", 0,0,0, "avatar");
-loadGLB("habitacion.glb", 0,-2,0, "habitacion");
-loadGLB("puerta.glb", 3,0,0, "puerta");
-loadGLB("espacio.glb", 0,0,-10, "espacio");
+// 📦 ESCENA SEPARADA REALMENTE
+loadModel("avatar", "avatar.glb", {x:0,y:0,z:0}, 1);
+loadModel("room", "habitacion.glb", {x:0,y:-2,z:0}, 1);
+loadModel("door", "puerta.glb", {x:3,y:0,z:0}, 1);
+loadModel("space", "espacio.glb", {x:0,y:0,z:-15}, 1);
 
+// 🎮 LOOP
 function animate() {
+
   requestAnimationFrame(animate);
+
+  // debug mínimo
+  if (objects.avatar) {
+    objects.avatar.rotation.y += 0.002;
+  }
+
   renderer.render(scene, camera);
 }
 
 animate();
+
+// 📐 resize FIX
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 </script>
 
