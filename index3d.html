@@ -2,55 +2,110 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>3D SAFE DEBUG</title>
+<title>ENGINE FIX LUIS</title>
 
 <style>
-body { margin:0; overflow:hidden; background:#000; color:#0f0; font-family:monospace; }
-#msg { position:absolute; top:10px; left:10px; z-index:10; }
+body { margin:0; overflow:hidden; background:black; }
+#log {
+  position:absolute;
+  top:10px;
+  left:10px;
+  color:#0f0;
+  font-family:monospace;
+  z-index:10;
+}
 </style>
 </head>
 
 <body>
 
-<div id="msg">INIT...</div>
+<div id="log">INIT</div>
 
 <script type="module">
 
-const msg = (t) => document.getElementById("msg").innerText = t;
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
-try {
+const log = (t)=>document.getElementById("log").innerText += "\n"+t;
 
-import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js").then((THREE) => {
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-  msg("THREE OK");
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 5000);
+camera.position.set(0, 2, 6);
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-  camera.position.z = 5;
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
 
-  const renderer = new THREE.WebGLRenderer();
-  renderer.setSize(innerWidth, innerHeight);
-  document.body.appendChild(renderer.domElement);
+// 💡 luz fuerte (crítico para GLB)
+scene.add(new THREE.AmbientLight(0xffffff, 2));
+const dir = new THREE.DirectionalLight(0xffffff, 3);
+dir.position.set(10,10,10);
+scene.add(dir);
 
-  // 🔥 CUBO OBLIGATORIO (prueba visual)
-  const geo = new THREE.BoxGeometry();
-  const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const cube = new THREE.Mesh(geo, mat);
-  scene.add(cube);
+const loader = new GLTFLoader();
 
-  function animate(){
-    requestAnimationFrame(animate);
-    cube.rotation.y += 0.02;
-    renderer.render(scene, camera);
-  }
+function normalizeModel(model) {
 
-  animate();
+  // 📦 centrar geometría
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
 
-});
+  box.getSize(size);
+  box.getCenter(center);
 
-} catch (e) {
-  msg("ERROR JS: " + e);
+  model.position.sub(center);
+
+  // 📏 auto scale (clave anti-negro)
+  const maxSize = Math.max(size.x, size.y, size.z);
+  const scale = 2 / maxSize;
+
+  model.scale.setScalar(scale);
+
 }
+
+function loadGLB(name, file, pos) {
+
+  loader.load(file, (gltf)=>{
+
+    const obj = gltf.scene;
+
+    normalizeModel(obj);
+
+    obj.position.add(new THREE.Vector3(pos.x,pos.y,pos.z));
+
+    scene.add(obj);
+
+    log("✔ "+name);
+
+  }, undefined, (err)=>{
+
+    log("❌ "+name);
+
+  });
+
+}
+
+// 🧩 escena real
+loadGLB("avatar","avatar.glb",{x:0,y:0,z:0});
+loadGLB("room","habitacion.glb",{x:0,y:0,z:0});
+loadGLB("door","puerta.glb",{x:3,y:0,z:0});
+loadGLB("space","espacio.glb",{x:0,y:0,z:-8});
+
+function animate(){
+  requestAnimationFrame(animate);
+  renderer.render(scene,camera);
+}
+
+animate();
+
+window.addEventListener("resize",()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
 
 </script>
 
