@@ -1,53 +1,19 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>LAB 3D SIMULATION</title>
-
-<style>
-body { margin:0; overflow:hidden; background:black; }
-canvas { display:block; }
-</style>
-</head>
-
-<body>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-
 <script>
-
-/* =========================
-   ESCENA BASE
-========================= */
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth/window.innerHeight,
-  0.1,
-  1000
-);
-
-camera.position.set(0,3,7);
-camera.lookAt(0,0,0);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0,4,10);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* =========================
-   LUZ
-========================= */
+/* luz estable */
+scene.add(new THREE.AmbientLight(0xffffff, 1.8));
 
-const light = new THREE.AmbientLight(0xffffff, 2);
-scene.add(light);
-
-/* =========================
-   HABITACIÓN (simple)
-========================= */
-
+/* suelo */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(12,12),
   new THREE.MeshBasicMaterial({ color:0x111111 })
@@ -55,107 +21,46 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* paredes */
-function wall(x,z,rot){
-  const w = new THREE.Mesh(
-    new THREE.PlaneGeometry(12,5),
-    new THREE.MeshBasicMaterial({ color:0x222222, side:THREE.DoubleSide })
-  );
-  w.position.set(x,2.5,z);
-  w.rotation.y = rot;
-  scene.add(w);
-}
-
-wall(0,-6,0);
-wall(0,6,0);
-wall(-6,0,Math.PI/2);
-wall(6,0,Math.PI/2);
-
-/* =========================
-   AVATAR (CONTROLADO)
-========================= */
-
+/* avatar */
 const avatar = new THREE.Mesh(
   new THREE.BoxGeometry(0.6,1.2,0.6),
-  new THREE.MeshNormalMaterial()
+  new THREE.MeshBasicMaterial({ color:0x00ffcc })
 );
-
-avatar.position.set(0,0.6,0);
+avatar.position.y = 0.6;
 scene.add(avatar);
 
-/* =========================
-   PUERTA
-========================= */
-
+/* puerta */
 const door = new THREE.Mesh(
-  new THREE.BoxGeometry(1.2,2.5,0.2),
-  new THREE.MeshBasicMaterial({ color:0x0033ff })
+  new THREE.BoxGeometry(1,2,0.2),
+  new THREE.MeshBasicMaterial({ color:0x0044ff })
 );
-
-door.position.set(5,1.25,0);
+door.position.set(5,1,0);
 scene.add(door);
 
-/* =========================
-   ESPACIO (zona exterior)
-========================= */
-
-const space = new THREE.Mesh(
-  new THREE.SphereGeometry(30,16,16),
-  new THREE.MeshBasicMaterial({ color:0x000022, wireframe:true })
-);
-
-space.position.set(0,0,-25);
-scene.add(space);
-
-/* =========================
-   MOVIMIENTO AVATAR
-========================= */
-
+/* movimiento suave */
 let t = 0;
-let dir = 1;
 
 function animate(){
 
   requestAnimationFrame(animate);
 
-  t += 0.02 * dir;
+  t += 0.01;
 
-  // movimiento aleatorio suave
-  avatar.position.x = Math.sin(t) * 3;
-  avatar.position.z = Math.cos(t) * 3;
+  /* movimiento más suave */
+  avatar.position.x = Math.sin(t) * 2;
+  avatar.position.z = Math.cos(t) * 2;
 
-  // cambio de dirección aleatorio
-  if(Math.random() < 0.01){
-    dir *= -1;
-  }
-
-  // puerta “respirando”
-  door.rotation.y = Math.sin(t*0.5) * 0.4;
-
-  // cámara sigue al avatar
-  camera.position.x = avatar.position.x;
-  camera.position.z = avatar.position.z + 7;
+  /* cámara SUAVE (sin “golpes”) */
+  camera.position.x += (avatar.position.x - camera.position.x) * 0.05;
+  camera.position.z += (avatar.position.z + 6 - camera.position.z) * 0.05;
   camera.lookAt(avatar.position);
+
+  /* puerta ligera animación */
+  door.rotation.y = Math.sin(t*0.5) * 0.2;
 
   renderer.render(scene,camera);
 }
 
 animate();
 
-/* =========================
-   RESIZE
-========================= */
-
-window.addEventListener("resize", ()=>{
-
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-});
-
 </script>
-
-</body>
-</html>
