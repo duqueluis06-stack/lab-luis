@@ -2,22 +2,65 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Night 3D Scene</title>
+  <title>3D Scene</title>
+
   <style>
-    body { margin:0; overflow:hidden; background:#000; }
-    canvas { display:block; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    /* 🔙 Botón de regreso */
+    #backBtn {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 10;
+
+      padding: 10px 14px;
+      border: 1px solid #00ffff;
+      background: rgba(0,0,0,0.6);
+      color: #00ffff;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    #backBtn:hover {
+      background: rgba(0,255,255,0.15);
+    }
+
+    /* 🧠 overlay info */
+    #info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: #888;
+      font-size: 12px;
+      z-index: 10;
+    }
   </style>
 </head>
 
 <body>
 
+<button id="backBtn">⬅ BACK</button>
+<div id="info">3D Scene active</div>
+
 <script type="module">
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
+/* 🌌 escena */
 const scene = new THREE.Scene();
 
-/* 🎥 Cámara */
+/* 🎥 cámara */
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
@@ -26,23 +69,31 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.z = 5;
 
-/* 🖥 Renderer */
+/* 🖥 renderer */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* 💡 Luces suaves */
+/* 💡 luz */
 const light = new THREE.PointLight(0xffffff, 2);
 light.position.set(5, 5, 5);
 scene.add(light);
 
-/* 🌌 Partículas flotantes */
-const particlesCount = 200;
-const geometry = new THREE.BufferGeometry();
+/* 🔵 objeto principal */
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(),
+  new THREE.MeshStandardMaterial({
+    color: 0x00ffff,
+    emissive: 0x002222
+  })
+);
+scene.add(cube);
 
+/* 🌌 partículas suaves */
+const geometry = new THREE.BufferGeometry();
 const positions = [];
 
-for (let i = 0; i < particlesCount; i++) {
+for (let i = 0; i < 150; i++) {
   positions.push(
     (Math.random() - 0.5) * 10,
     (Math.random() - 0.5) * 10,
@@ -55,23 +106,12 @@ geometry.setAttribute(
   new THREE.Float32BufferAttribute(positions, 3)
 );
 
-const material = new THREE.PointsMaterial({
-  color: 0x00ffff,
-  size: 0.05
-});
+const particles = new THREE.Points(
+  geometry,
+  new THREE.PointsMaterial({ color: 0xffffff, size: 0.04 })
+);
 
-const particles = new THREE.Points(geometry, material);
 scene.add(particles);
-
-/* 🔵 Cubo central animado */
-const cubeGeo = new THREE.BoxGeometry();
-const cubeMat = new THREE.MeshStandardMaterial({
-  color: 0xff00ff,
-  emissive: 0x220022
-});
-
-const cube = new THREE.Mesh(cubeGeo, cubeMat);
-scene.add(cube);
 
 /* 🔁 animación */
 function animate() {
@@ -80,14 +120,19 @@ function animate() {
   cube.rotation.x += 0.01;
   cube.rotation.y += 0.01;
 
-  particles.rotation.y += 0.002;
+  particles.rotation.y += 0.001;
 
   renderer.render(scene, camera);
 }
 
 animate();
 
-/* 📱 responsive */
+/* 🔙 botón back */
+document.getElementById("backBtn").onclick = () => {
+  window.history.back();
+};
+
+/* 📱 resize */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
