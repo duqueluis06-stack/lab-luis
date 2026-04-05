@@ -2,187 +2,53 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Space Morph</title>
+<title>Black Hole Space</title>
+
 <style>
-  body { margin:0; overflow:hidden; background:#000; }
-  canvas { display:block; }
-  #ui{
-    position:absolute; top:10px; left:10px; z-index:10;
-    color:#9ff; font-family:monospace; font-size:12px;
+  body {
+    margin:0;
+    background:black;
+    overflow:hidden;
   }
+
   #back{
-    position:absolute; top:10px; right:10px; z-index:10;
-    padding:8px 12px; border:1px solid #0ff; color:#0ff;
-    background:rgba(0,0,0,0.6); cursor:pointer; border-radius:6px;
+    position:absolute;
+    top:10px;
+    left:10px;
+    z-index:10;
+    padding:10px 14px;
+    border:1px solid #0ff;
+    color:#0ff;
+    background:rgba(0,0,0,0.6);
+    cursor:pointer;
+    font-family:monospace;
+  }
+
+  iframe{
+    width:100vw;
+    height:100vh;
+    border:none;
   }
 </style>
 </head>
 
 <body>
 
-<div id="ui">SPACE · MORPH · RUNNING</div>
 <button id="back">⬅ BACK</button>
 
-<script type="module">
+<!-- 🌌 BLACK HOLE EMBED -->
+<iframe
+title="Blackhole"
+src="https://sketchfab.com/models/74cbeaeae2174a218fe9455d77902b5c/embed"
+allow="autoplay; fullscreen; xr-spatial-tracking"
+xr-spatial-tracking
+execution-while-out-of-viewport
+execution-while-not-rendered
+web-share>
+</iframe>
 
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-
-/* ======================
-   🌌 BASE
-====================== */
-const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 2000);
-camera.position.set(0,2,6);
-
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-document.body.appendChild(renderer.domElement);
-
-/* ======================
-   💡 LUCES
-====================== */
-scene.add(new THREE.AmbientLight(0x666666));
-
-const dir = new THREE.DirectionalLight(0xffffff,1.5);
-dir.position.set(5,10,7);
-scene.add(dir);
-
-/* ======================
-   ✨ ESTRELLAS
-====================== */
-const starGeo = new THREE.BufferGeometry();
-const starCount = 2000;
-
-const starPos = new Float32Array(starCount * 3);
-
-for(let i=0;i<starCount;i++){
-  starPos[i*3+0] = (Math.random()-0.5)*100;
-  starPos[i*3+1] = (Math.random()-0.5)*100;
-  starPos[i*3+2] = (Math.random()-0.5)*100;
-}
-
-starGeo.setAttribute("position", new THREE.BufferAttribute(starPos,3));
-
-const starMat = new THREE.PointsMaterial({
-  color:0xffffff,
-  size:0.15
-});
-
-const stars = new THREE.Points(starGeo, starMat);
-scene.add(stars);
-
-/* ======================
-   🪐 PLANETAS
-====================== */
-function createPlanet(size, color, x){
-  const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(size,32,32),
-    new THREE.MeshStandardMaterial({ color })
-  );
-  planet.position.set(x,0,0);
-  scene.add(planet);
-  return planet;
-}
-
-const planet1 = createPlanet(0.8, 0x3366ff, -5);
-const planet2 = createPlanet(1.2, 0xff6633, 5);
-const planet3 = createPlanet(0.5, 0x33ff99, 0);
-
-/* órbitas */
-let orbitAngle = 0;
-
-/* ======================
-   🔷 CUBO MORPH
-====================== */
-
-/* base geometry */
-const baseGeo = new THREE.BoxGeometry(1,1,1,20,20,20);
-
-/* target morph: esfera */
-const sphereGeo = new THREE.SphereGeometry(0.8,20,20);
-
-/* crear atributo morph */
-const morphPositions = sphereGeo.attributes.position.array;
-
-baseGeo.morphAttributes.position = [
-  new THREE.Float32BufferAttribute(morphPositions,3)
-];
-
-const mat = new THREE.MeshStandardMaterial({
-  color:0x00ffff,
-  metalness:0.3,
-  roughness:0.4,
-  morphTargets:true,
-  emissive:0x001111
-});
-
-const cube = new THREE.Mesh(baseGeo, mat);
-scene.add(cube);
-
-/* ======================
-   🎥 CONTROL CÁMARA
-====================== */
-let camAngle = 0;
-
-/* ======================
-   🔁 ANIMACIÓN
-====================== */
-let t = 0;
-
-function animate(){
-  requestAnimationFrame(animate);
-
-  t += 0.01;
-
-  /* 🌌 estrellas giran */
-  stars.rotation.y += 0.0005;
-
-  /* 🪐 planetas orbitan */
-  orbitAngle += 0.01;
-
-  planet1.position.set(Math.cos(orbitAngle)*5,0,Math.sin(orbitAngle)*5);
-  planet2.position.set(Math.cos(-orbitAngle*0.6)*7,0,Math.sin(-orbitAngle*0.6)*7);
-  planet3.position.y = Math.sin(orbitAngle*2)*2;
-
-  /* 🔷 cubo transformación */
-  const morph = (Math.sin(t)+1)/2; // 0→1
-  cube.morphTargetInfluences[0] = morph;
-
-  /* rotación */
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.015;
-
-  /* pulsación */
-  const scale = 1 + Math.sin(t*2)*0.2;
-  cube.scale.set(scale,scale,scale);
-
-  /* 🎥 cámara orbital suave */
-  camAngle += 0.002;
-  camera.position.x = Math.cos(camAngle)*6;
-  camera.position.z = Math.sin(camAngle)*6;
-  camera.lookAt(0,0,0);
-
-  renderer.render(scene,camera);
-}
-
-animate();
-
-/* ======================
-   🔙 BACK
-====================== */
+<script>
 document.getElementById("back").onclick = () => history.back();
-
-/* ======================
-   📱 RESIZE
-====================== */
-addEventListener("resize", ()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
 </script>
 
 </body>
