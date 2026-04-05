@@ -1,142 +1,140 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>3D Scene</title>
+<meta charset="utf-8">
+<title>Avatar IA</title>
 
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #000;
-      font-family: Arial, sans-serif;
-    }
-
-    canvas {
-      display: block;
-    }
-
-    /* 🔙 Botón de regreso */
-    #backBtn {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      z-index: 10;
-
-      padding: 10px 14px;
-      border: 1px solid #00ffff;
-      background: rgba(0,0,0,0.6);
-      color: #00ffff;
-      cursor: pointer;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-
-    #backBtn:hover {
-      background: rgba(0,255,255,0.15);
-    }
-
-    /* 🧠 overlay info */
-    #info {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      color: #888;
-      font-size: 12px;
-      z-index: 10;
-    }
-  </style>
+<style>
+body { margin:0; overflow:hidden; background:black; }
+canvas { display:block; }
+</style>
 </head>
 
 <body>
 
-<button id="backBtn">⬅ BACK</button>
-<div id="info">3D Scene active</div>
-
 <script type="module">
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 /* 🌌 escena */
 const scene = new THREE.Scene();
 
 /* 🎥 cámara */
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-camera.position.z = 5;
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0,2,5);
 
 /* 🖥 renderer */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
 /* 💡 luz */
-const light = new THREE.PointLight(0xffffff, 2);
-light.position.set(5, 5, 5);
-scene.add(light);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
-/* 🔵 objeto principal */
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(),
-  new THREE.MeshStandardMaterial({
-    color: 0x00ffff,
-    emissive: 0x002222
-  })
+/* 🏠 suelo (habitación base) */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(20,20),
+  new THREE.MeshStandardMaterial({ color:0x111111 })
 );
-scene.add(cube);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
 
-/* 🌌 partículas suaves */
-const geometry = new THREE.BufferGeometry();
-const positions = [];
+/* 🚪 puerta (referencia IA) */
+const door = new THREE.Mesh(
+  new THREE.BoxGeometry(1,2,0.2),
+  new THREE.MeshStandardMaterial({ color:0x4444ff })
+);
+door.position.set(3,1,0);
+scene.add(door);
 
-for (let i = 0; i < 150; i++) {
-  positions.push(
-    (Math.random() - 0.5) * 10,
-    (Math.random() - 0.5) * 10,
-    (Math.random() - 0.5) * 10
+/* 🧍 avatar */
+const loader = new GLTFLoader();
+
+let avatar, mixer, action;
+
+/* 🧠 estado IA */
+let target = new THREE.Vector3(3,0,0); // puerta
+let state = "goToDoor";
+
+loader.load(
+  "https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb",
+  (gltf) => {
+
+    avatar = gltf.scene;
+    avatar.scale.set(0.5,0.5,0.5);
+    scene.add(avatar);
+
+    mixer = new THREE.AnimationMixer(avatar);
+
+    const clip = THREE.AnimationClip.findByName(gltf.animations, "Walking");
+    action = mixer.clipAction(clip);
+    action.play();
+  }
+);
+
+/* 🤖 IA simple */
+function updateAI() {
+  if(!avatar) return;
+
+  const pos = avatar.position;
+
+  /* distancia a objetivo */
+  const dist = pos.distanceTo(target);
+
+  if(state === "goToDoor") {
+
+    /* moverse hacia la puerta */
+    const dir = new THREE.Vector3().subVectors(target, pos).normalize();
+    avatar.position.add(dir.multiplyScalar(0.02));
+
+    avatar.lookAt(target);
+
+    if(dist < 0.5) {
+      state = "wander";
+      setRandomTarget();
+    }
+  }
+
+  if(state === "wander") {
+
+    const dir = new THREE.Vector3().subVectors(target, pos).normalize();
+    avatar.position.add(dir.multiplyScalar(0.015));
+
+    avatar.lookAt(target);
+
+    if(dist < 0.5) {
+      setRandomTarget();
+    }
+  }
+}
+
+/* 🎯 nuevo destino aleatorio */
+function setRandomTarget() {
+  target.set(
+    (Math.random()-0.5)*6,
+    0,
+    (Math.random()-0.5)*6
   );
 }
 
-geometry.setAttribute(
-  "position",
-  new THREE.Float32BufferAttribute(positions, 3)
-);
-
-const particles = new THREE.Points(
-  geometry,
-  new THREE.PointsMaterial({ color: 0xffffff, size: 0.04 })
-);
-
-scene.add(particles);
-
-/* 🔁 animación */
+/* 🔁 loop */
 function animate() {
   requestAnimationFrame(animate);
 
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
+  updateAI();
 
-  particles.rotation.y += 0.001;
+  if(mixer) mixer.update(0.016);
 
   renderer.render(scene, camera);
 }
 
 animate();
 
-/* 🔙 botón back */
-document.getElementById("backBtn").onclick = () => {
-  window.history.back();
-};
-
-/* 📱 resize */
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+window.addEventListener("resize", ()=>{
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 
 </script>
