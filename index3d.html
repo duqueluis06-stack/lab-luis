@@ -11,7 +11,6 @@ body {
   background: black;
 }
 
-/* botón volver */
 #back {
   position: absolute;
   top: 10px;
@@ -36,37 +35,55 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
+// 🔦 cámara más abierta
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  2000
+  5000
 );
 
-camera.position.set(0, 1.5, 6);
+camera.position.set(0, 2, 10);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-const light = new THREE.AmbientLight(0xffffff, 2);
+// 💡 luz fuerte (clave para evitar negro)
+const light = new THREE.AmbientLight(0xffffff, 3);
 scene.add(light);
+
+const directional = new THREE.DirectionalLight(0xffffff, 2);
+directional.position.set(5, 10, 5);
+scene.add(directional);
 
 const loader = new GLTFLoader();
 
-function loadModel(file, x, y, z) {
+function loadModel(file, x, y, z, scale = 1) {
   loader.load(file, (gltf) => {
-    gltf.scene.position.set(x, y, z);
-    scene.add(gltf.scene);
-  });
+
+    const model = gltf.scene;
+
+    model.position.set(x, y, z);
+    model.scale.set(scale, scale, scale);
+
+    scene.add(model);
+
+    console.log("✔ cargado:", file);
+  },
+  undefined,
+  (err) => console.error("❌ error:", file, err)
+  );
 }
 
-loadModel("avatar.glb", 0, 0, 0);
-loadModel("habitacion.glb", 0, 0, 0);
-loadModel("puerta.glb", 2, 0, 0);
-loadModel("espacio.glb", 0, 0, -8);
+// 📌 SEPARADOS EN EL ESPACIO (CLAVE)
+loadModel("habitacion.glb", 0, 0, 0, 1);
+loadModel("avatar.glb", 0, 0, 2, 1);
+loadModel("puerta.glb", 3, 0, 0, 1);
+loadModel("espacio.glb", -5, 0, -10, 1);
 
 function animate() {
   requestAnimationFrame(animate);
