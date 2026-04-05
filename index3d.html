@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>WebGL Test</title>
+  <title>Escena 3D - Vida</title>
 
   <style>
     html, body {
@@ -23,6 +23,7 @@
 <script type="module">
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 /* ================= SCENE ================= */
 const scene = new THREE.Scene();
@@ -34,26 +35,68 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+camera.position.set(0, 1.5, 4);
 
-camera.position.z = 3;
-
-/* ================= RENDERER ================= */
+/* ================= RENDER ================= */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= CUBE ================= */
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+/* ================= LIGHT ================= */
+const light = new THREE.AmbientLight(0xffffff, 2);
+scene.add(light);
 
-/* ================= LOOP ================= */
+/* ================= LOADER ================= */
+const loader = new GLTFLoader();
+
+/* ================= MODELS ================= */
+
+let avatar, puerta;
+
+/* HABITACIÓN */
+loader.load("https://raw.githubusercontent.com/USUARIO/REPO/main/habitacion.glb",
+  (gltf) => scene.add(gltf.scene)
+);
+
+/* ESPACIO */
+loader.load("https://raw.githubusercontent.com/USUARIO/REPO/main/espacio.glb",
+  (gltf) => {
+    gltf.scene.position.z = -6;
+    scene.add(gltf.scene);
+  }
+);
+
+/* PUERTA */
+loader.load("https://raw.githubusercontent.com/USUARIO/REPO/main/puerta.glb",
+  (gltf) => {
+    puerta = gltf.scene;
+    puerta.position.set(2, 0, 0);
+    scene.add(puerta);
+  }
+);
+
+/* AVATAR */
+loader.load("https://raw.githubusercontent.com/USUARIO/REPO/main/avatar.glb",
+  (gltf) => {
+    avatar = gltf.scene;
+    avatar.position.set(0, 0, 0);
+    scene.add(avatar);
+  }
+);
+
+/* ================= ANIMACIÓN ================= */
 function animate() {
   requestAnimationFrame(animate);
 
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
+  /* avatar movimiento simple */
+  if (avatar) {
+    avatar.position.x = Math.sin(Date.now() * 0.001) * 1.5;
+  }
+
+  /* puerta ligera animación */
+  if (puerta) {
+    puerta.rotation.y = Math.sin(Date.now() * 0.0005) * 0.5;
+  }
 
   renderer.render(scene, camera);
 }
