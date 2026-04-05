@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <title>Experimentos - Lab Luis</title>
 
-<!-- 🔥 CANONICAL SEO -->
 <link rel="canonical" href="https://duquemartini.com/experimentos.html">
 
-<!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-2KKHGJYYN7"></script>
 
 <script>
@@ -40,12 +38,11 @@ header {
     background:rgba(0,0,0,0.5);
 }
 
-/* NAVIGATION */
+/* NAV */
 nav {
     margin:20px 0;
 }
 
-/* BOTONES ENGRAJE NEÓN */
 nav a {
     position: relative;
     display: inline-block;
@@ -63,46 +60,11 @@ nav a {
     overflow: hidden;
 }
 
-/* ENGRAJES */
-nav a::before {
-    content: "⚙️";
-    position: absolute;
-    left: -18px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    opacity: 0.35;
-    animation: spin 6s linear infinite;
-}
-
-nav a::after {
-    content: "⚙️";
-    position: absolute;
-    right: -18px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    opacity: 0.35;
-    animation: spinReverse 6s linear infinite;
-}
-
-/* HOVER */
 nav a:hover {
     background: #00ffcc;
     color: #000;
     box-shadow: 0 0 15px #00ffcc;
     transform: scale(1.05);
-}
-
-/* ANIMACIONES */
-@keyframes spin {
-    from { transform: translateY(-50%) rotate(0deg); }
-    to { transform: translateY(-50%) rotate(360deg); }
-}
-
-@keyframes spinReverse {
-    from { transform: translateY(-50%) rotate(360deg); }
-    to { transform: translateY(-50%) rotate(0deg); }
 }
 
 /* LOGO */
@@ -118,11 +80,7 @@ img.logo {
     margin:40px;
 }
 
-h2 {
-    text-shadow: 0 0 10px #00ffff, 0 0 20px #ff00ff;
-}
-
-/* TARJETAS VIDEO */
+/* VIDEO */
 .video-card {
     margin:40px auto;
     padding:20px;
@@ -136,29 +94,42 @@ h2 {
     box-shadow:0 0 25px rgba(0,255,255,0.2);
 
     backdrop-filter: blur(4px);
-    transition:0.3s;
-}
-
-.video-card:hover {
-    transform:scale(1.02);
-    box-shadow:0 0 35px rgba(0,255,255,0.4);
 }
 
 .video-card iframe {
     width:100%;
     height:400px;
     border-radius:10px;
-    margin-bottom:15px;
 }
 
-.video-card h3 {
-    color:#00ffcc;
-    text-shadow:0 0 8px #00ffff;
-    margin-bottom:10px;
+/* 🧊 VIEWER 3D */
+#viewer3D {
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:black;
+  z-index:9999;
 }
 
-.video-card p {
-    font-size:14px;
+#canvas3D {
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+/* botón cerrar */
+#closeBtn {
+  position:absolute;
+  top:15px;
+  right:15px;
+  padding:10px 15px;
+  background:#00ffcc;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -167,7 +138,7 @@ h2 {
 
 <header>⚡ LAB LUIS – Experimental Physics & Energy</header>
 
-<img src="logo.jpg" alt="Logo Lab Luis" class="logo">
+<img src="logo.jpg" class="logo">
 
 <nav>
 <a href="index.html">Inicio</a>
@@ -177,6 +148,9 @@ h2 {
 <a href="laboratorio.html">⚙️ Pioneros de la Ciencia</a>
 <a href="recomendaciones.html">💡 Recomendaciones</a>
 <a href="sobre-mi.html">Perfil</a>
+
+<!-- 🧊 BOTÓN 3D -->
+<a href="#" onclick="toggle3D()">🧊 3D Virtual</a>
 </nav>
 
 <div class="section">
@@ -185,22 +159,94 @@ h2 {
 </div>
 
 <div class="video-card">
-<iframe src="https://www.youtube.com/embed/efXB-uLy9z8" allowfullscreen></iframe>
+<iframe src="https://www.youtube.com/embed/efXB-uLy9z8"></iframe>
 <h3>👻 Lo que habita tu habitación</h3>
-<p>Sombras que susurran, fuerzas que atraviesan mundos paralelos. Proyecto TFT & Raspberry Pi Pico.</p>
 </div>
 
 <div class="video-card">
-<iframe src="https://www.youtube.com/embed/SkWGinOHxd0" allowfullscreen></iframe>
+<iframe src="https://www.youtube.com/embed/SkWGinOHxd0"></iframe>
 <h3>🤖 ESP32-C3 Interacción del sonido</h3>
-<p>Rostro dinámico en OLED que reacciona al sonido en tiempo real usando ESP32-C3, micrófono y MAX98357A.</p>
 </div>
 
 <div class="video-card">
-<iframe src="https://www.youtube.com/embed/HKgiG1NklDE" allowfullscreen></iframe>
+<iframe src="https://www.youtube.com/embed/HKgiG1NklDE"></iframe>
 <h3>🌤️ Estación Meteorológica Interactiva</h3>
-<p>ESP32 con MAX7219 mostrando clima y sensores en tiempo real.</p>
 </div>
+
+<!-- 🧊 VIEWER 3D -->
+<div id="viewer3D">
+  <canvas id="canvas3D"></canvas>
+
+  <button id="closeBtn" onclick="toggle3D()">✖ Cerrar</button>
+</div>
+
+<!-- ⚙️ THREE.JS -->
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+let scene, camera, renderer;
+let started = false;
+
+function init3D() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+
+  camera.position.set(0, 1, 5);
+
+  const canvas = document.getElementById("canvas3D");
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const light = new THREE.AmbientLight(0xffffff, 2);
+  scene.add(light);
+
+  const loader = new GLTFLoader();
+
+  const models = [
+    { file: "avatar.glb", pos: [0, 0, 0] },
+    { file: "habitacion.glb", pos: [0, 0, 0] },
+    { file: "puerta.glb", pos: [2, 0, 0] },
+    { file: "espacio.glb", pos: [0, 0, -10] }
+  ];
+
+  models.forEach(m => {
+    loader.load(m.file, gltf => {
+      gltf.scene.position.set(...m.pos);
+      scene.add(gltf.scene);
+    });
+  });
+
+  animate();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (renderer) renderer.render(scene, camera);
+}
+
+window.toggle3D = function () {
+  const panel = document.getElementById("viewer3D");
+
+  if (panel.style.display === "none" || panel.style.display === "") {
+    panel.style.display = "block";
+
+    if (!started) {
+      init3D();
+      started = true;
+    }
+  } else {
+    panel.style.display = "none";
+  }
+};
+</script>
 
 </body>
 </html>
