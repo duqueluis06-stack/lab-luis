@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>TEST 3D BASE</title>
+  <title>GLB Viewer Stable</title>
 
   <style>
     html, body {
@@ -22,43 +22,78 @@
 <script type="module">
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
-/* ================= SCENE ================= */
+/* ================= ESCENA ================= */
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-/* ================= CAMERA ================= */
+/* ================= CÁMARA ================= */
 const camera = new THREE.PerspectiveCamera(
-  75,
+  70,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  10000
 );
-
-camera.position.z = 3;
+camera.position.set(0, 2, 5);
 
 /* ================= RENDER ================= */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= LIGHT ================= */
-const light = new THREE.AmbientLight(0xffffff, 2);
-scene.add(light);
+/* ================= LUCES ================= */
+const lightA = new THREE.AmbientLight(0xffffff, 1.2);
+scene.add(lightA);
 
-/* ================= OBJECT ================= */
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshNormalMaterial();
+const lightB = new THREE.DirectionalLight(0xffffff, 2);
+lightB.position.set(5, 10, 5);
+scene.add(lightB);
 
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+/* ================= LOADER ================= */
+const loader = new GLTFLoader();
 
-/* ================= ANIMATION ================= */
+/* ================= MODELO ================= */
+loader.load(
+  "./avatar.glb",
+
+  function (gltf) {
+
+    const model = gltf.scene;
+
+    /* 📦 bounding box real */
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    /* 🎯 centrar */
+    model.position.sub(center);
+
+    /* 📏 escala automática */
+    const maxSize = Math.max(size.x, size.y, size.z);
+    const scale = 2 / maxSize;
+    model.scale.setScalar(scale);
+
+    scene.add(model);
+
+    /* 🎯 cámara al centro */
+    camera.lookAt(0, 0, 0);
+
+    console.log("✔ GLB cargado correctamente");
+  },
+
+  function (progress) {
+    console.log("Loading...", (progress.loaded / progress.total * 100).toFixed(1) + "%");
+  },
+
+  function (error) {
+    console.error("❌ ERROR GLB:", error);
+  }
+);
+
+/* ================= LOOP ================= */
 function animate() {
   requestAnimationFrame(animate);
-
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
-
   renderer.render(scene, camera);
 }
 
