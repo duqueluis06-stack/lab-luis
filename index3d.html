@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>ENGINE FIX LUIS</title>
+<title>ENGINE FINAL LUIS</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
@@ -15,72 +15,75 @@ body { margin:0; overflow:hidden; background:black; }
   z-index:10;
 }
 </style>
+
+<!-- 🔥 IMPORT FIJO (CRÍTICO) -->
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+window.THREE = THREE;
+window.GLTFLoader = GLTFLoader;
+</script>
+
 </head>
 
 <body>
 
-<div id="log">INIT</div>
+<div id="log">BOOT</div>
 
 <script type="module">
 
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-
 const log = (t)=>document.getElementById("log").innerText += "\n"+t;
+
+const THREE = window.THREE;
+const GLTFLoader = window.GLTFLoader;
+
+if(!THREE || !GLTFLoader){
+  log("❌ FAIL IMPORT MODULES");
+  throw new Error("modules not loaded");
+}
+
+log("✔ modules OK");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 5000);
-camera.position.set(0, 2, 6);
+camera.position.set(0,2,6);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 💡 luz fuerte (crítico para GLB)
-scene.add(new THREE.AmbientLight(0xffffff, 2));
+// 💡 luz extrema (anti invisibilidad)
+scene.add(new THREE.AmbientLight(0xffffff, 3));
 const dir = new THREE.DirectionalLight(0xffffff, 3);
 dir.position.set(10,10,10);
 scene.add(dir);
 
+// 🧊 fallback obligatorio
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(),
+  new THREE.MeshBasicMaterial({color:0x00ff00})
+);
+scene.add(cube);
+
+// loader seguro
 const loader = new GLTFLoader();
 
-function normalizeModel(model) {
+function load(name,file,pos){
 
-  // 📦 centrar geometría
-  const box = new THREE.Box3().setFromObject(model);
-  const size = new THREE.Vector3();
-  const center = new THREE.Vector3();
-
-  box.getSize(size);
-  box.getCenter(center);
-
-  model.position.sub(center);
-
-  // 📏 auto scale (clave anti-negro)
-  const maxSize = Math.max(size.x, size.y, size.z);
-  const scale = 2 / maxSize;
-
-  model.scale.setScalar(scale);
-
-}
-
-function loadGLB(name, file, pos) {
-
-  loader.load(file, (gltf)=>{
+  loader.load(file,(gltf)=>{
 
     const obj = gltf.scene;
 
-    normalizeModel(obj);
-
-    obj.position.add(new THREE.Vector3(pos.x,pos.y,pos.z));
+    obj.position.set(pos.x,pos.y,pos.z);
 
     scene.add(obj);
 
     log("✔ "+name);
 
-  }, undefined, (err)=>{
+  },undefined,(err)=>{
 
     log("❌ "+name);
 
@@ -88,14 +91,18 @@ function loadGLB(name, file, pos) {
 
 }
 
-// 🧩 escena real
-loadGLB("avatar","avatar.glb",{x:0,y:0,z:0});
-loadGLB("room","habitacion.glb",{x:0,y:0,z:0});
-loadGLB("door","puerta.glb",{x:3,y:0,z:0});
-loadGLB("space","espacio.glb",{x:0,y:0,z:-8});
+// 🧩 carga escena
+load("avatar","avatar.glb",{x:0,y:0,z:0});
+load("room","habitacion.glb",{x:0,y:-2,z:0});
+load("door","puerta.glb",{x:3,y:0,z:0});
+load("space","espacio.glb",{x:0,y:0,z:-10});
 
+// 🔁 loop
 function animate(){
   requestAnimationFrame(animate);
+
+  cube.rotation.y += 0.02;
+
   renderer.render(scene,camera);
 }
 
