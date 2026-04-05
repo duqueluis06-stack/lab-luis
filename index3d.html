@@ -2,151 +2,36 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Escena Viva 3D - Lab Luis</title>
-
+<title>TEST 3D</title>
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: black;
-}
-
-#back {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  padding: 10px;
-  background: #00ffcc;
-  color: black;
-  text-decoration: none;
-  font-weight: bold;
-}
+body { margin:0; overflow:hidden; }
 </style>
 </head>
-
 <body>
-
-<a id="back" href="experimentos.html">⬅ Volver</a>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222222);
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 5000);
-camera.position.set(0, 2, 8);
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.z = 5;
 
-const renderer = new THREE.WebGLRenderer({ antialias:true });
+const renderer = new THREE.WebGLRenderer();
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 💡 luz
-scene.add(new THREE.AmbientLight(0xffffff, 2));
+// 🔴 CUBO DE PRUEBA (SI NO VES ESTO → PROBLEMA WEBGL)
+const geometry = new THREE.BoxGeometry();
+const material = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+const cube = new THREE.Mesh(geometry, material);
+scene.add(cube);
 
-const loader = new GLTFLoader();
-
-// ==========================
-// 🎭 OBJETOS
-// ==========================
-let avatar, puerta, habitacion, espacio;
-
-// 🚶 estado IA
-let targetX = 0;
-let doorOpen = false;
-let sceneStage = 0; // 0 = habitacion, 1 = espacio
-
-// ==========================
-// 📦 CARGA MODELOS
-// ==========================
-loader.load("habitacion.glb", g => {
-  habitacion = g.scene;
-  scene.add(habitacion);
-});
-
-loader.load("avatar.glb", g => {
-  avatar = g.scene;
-  avatar.position.set(0,0,0);
-  scene.add(avatar);
-});
-
-loader.load("puerta.glb", g => {
-  puerta = g.scene;
-  puerta.position.set(3,0,0);
-  scene.add(puerta);
-});
-
-loader.load("espacio.glb", g => {
-  espacio = g.scene;
-  espacio.position.set(0,0,-20);
-  espacio.visible = false;
-  scene.add(espacio);
-});
-
-// ==========================
-// 🧠 IA SIMPLE MOVIMIENTO
-// ==========================
-function updateAI() {
-
-  if (!avatar) return;
-
-  // movimiento aleatorio suave
-  avatar.position.x += (targetX - avatar.position.x) * 0.02;
-
-  // si llega al objetivo → nuevo destino
-  if (Math.abs(avatar.position.x - targetX) < 0.2) {
-    targetX = (Math.random() - 0.5) * 4;
-  }
-
-  // 🔥 trigger puerta
-  if (!doorOpen && avatar.position.x > 1.5) {
-    doorOpen = true;
-    openDoor();
-  }
-
-  // 🌌 transición a espacio
-  if (doorOpen && avatar.position.x > 2.5) {
-    enterSpace();
-  }
-}
-
-// ==========================
-// 🚪 PUERTA
-// ==========================
-function openDoor() {
-  console.log("🚪 puerta abriéndose");
-
-  if (puerta) {
-    puerta.rotation.y = -1.2;
-  }
-}
-
-// ==========================
-// 🌌 CAMBIO DE ESCENA
-// ==========================
-function enterSpace() {
-  if (sceneStage === 1) return;
-
-  console.log("🌌 entrando al espacio");
-
-  sceneStage = 1;
-
-  if (habitacion) habitacion.visible = false;
-  if (puerta) puerta.visible = false;
-  if (espacio) espacio.visible = true;
-
-  camera.position.set(0, 2, 12);
-}
-
-// ==========================
-// 🔁 LOOP
-// ==========================
 function animate() {
   requestAnimationFrame(animate);
-
-  updateAI();
-
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
   renderer.render(scene, camera);
 }
 
