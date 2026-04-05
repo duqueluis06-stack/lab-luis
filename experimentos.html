@@ -57,7 +57,6 @@ nav a {
     background: rgba(0,0,0,0.5);
 
     transition: 0.3s;
-    overflow: hidden;
 }
 
 nav a:hover {
@@ -75,11 +74,6 @@ img.logo {
     border:2px solid #00ffcc;
 }
 
-/* SECCIONES */
-.section {
-    margin:40px;
-}
-
 /* VIDEO */
 .video-card {
     margin:40px auto;
@@ -89,11 +83,7 @@ img.logo {
 
     border:1px solid rgba(0,255,204,0.5);
     border-radius:12px;
-
     background: rgba(0,0,0,0.65);
-    box-shadow:0 0 25px rgba(0,255,255,0.2);
-
-    backdrop-filter: blur(4px);
 }
 
 .video-card iframe {
@@ -120,7 +110,7 @@ img.logo {
   display:block;
 }
 
-/* botón cerrar */
+/* cerrar */
 #closeBtn {
   position:absolute;
   top:15px;
@@ -149,14 +139,8 @@ img.logo {
 <a href="recomendaciones.html">💡 Recomendaciones</a>
 <a href="sobre-mi.html">Perfil</a>
 
-<!-- 🧊 BOTÓN 3D -->
 <a href="#" onclick="toggle3D()">🧊 3D Virtual</a>
 </nav>
-
-<div class="section">
-<h2>🔬 Experimentos en Curso</h2>
-<p>Visualización real de mis pruebas, sistemas y prototipos en acción.</p>
-</div>
 
 <div class="video-card">
 <iframe src="https://www.youtube.com/embed/efXB-uLy9z8"></iframe>
@@ -173,10 +157,9 @@ img.logo {
 <h3>🌤️ Estación Meteorológica Interactiva</h3>
 </div>
 
-<!-- 🧊 VIEWER 3D -->
+<!-- 🧊 VIEWER -->
 <div id="viewer3D">
   <canvas id="canvas3D"></canvas>
-
   <button id="closeBtn" onclick="toggle3D()">✖ Cerrar</button>
 </div>
 
@@ -189,21 +172,28 @@ let scene, camera, renderer;
 let started = false;
 
 function init3D() {
+
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    2000
   );
 
-  camera.position.set(0, 1, 5);
+  camera.position.set(0, 1.5, 6);
 
   const canvas = document.getElementById("canvas3D");
 
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false
+  });
+
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
 
   const light = new THREE.AmbientLight(0xffffff, 2);
   scene.add(light);
@@ -214,14 +204,19 @@ function init3D() {
     { file: "avatar.glb", pos: [0, 0, 0] },
     { file: "habitacion.glb", pos: [0, 0, 0] },
     { file: "puerta.glb", pos: [2, 0, 0] },
-    { file: "espacio.glb", pos: [0, 0, -10] }
+    { file: "espacio.glb", pos: [0, 0, -8] }
   ];
 
   models.forEach(m => {
-    loader.load(m.file, gltf => {
-      gltf.scene.position.set(...m.pos);
-      scene.add(gltf.scene);
-    });
+    loader.load(
+      m.file,
+      gltf => {
+        gltf.scene.position.set(...m.pos);
+        scene.add(gltf.scene);
+      },
+      undefined,
+      err => console.warn("GLB error:", m.file, err)
+    );
   });
 
   animate();
@@ -229,19 +224,27 @@ function init3D() {
 
 function animate() {
   requestAnimationFrame(animate);
-  if (renderer) renderer.render(scene, camera);
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera);
+  }
 }
 
 window.toggle3D = function () {
+
   const panel = document.getElementById("viewer3D");
 
-  if (panel.style.display === "none" || panel.style.display === "") {
+  if (!panel) return;
+
+  const isOpen = panel.style.display === "block";
+
+  if (!isOpen) {
     panel.style.display = "block";
 
     if (!started) {
       init3D();
       started = true;
     }
+
   } else {
     panel.style.display = "none";
   }
