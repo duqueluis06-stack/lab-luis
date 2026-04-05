@@ -2,92 +2,55 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>3D SYSTEM LUIS</title>
+<title>3D SAFE DEBUG</title>
 
 <style>
-body { margin:0; overflow:hidden; background:black; }
-canvas { display:block; }
+body { margin:0; overflow:hidden; background:#000; color:#0f0; font-family:monospace; }
+#msg { position:absolute; top:10px; left:10px; z-index:10; }
 </style>
 </head>
 
 <body>
 
+<div id="msg">INIT...</div>
+
 <script type="module">
 
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+const msg = (t) => document.getElementById("msg").innerText = t;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+try {
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
-camera.position.set(0, 2, 8);
+import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js").then((THREE) => {
 
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+  msg("THREE OK");
 
-// 🔦 ILUMINACIÓN REAL (clave en GLB)
-const ambient = new THREE.AmbientLight(0xffffff, 1.5);
-scene.add(ambient);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+  camera.position.z = 5;
 
-const directional = new THREE.DirectionalLight(0xffffff, 2);
-directional.position.set(10, 10, 10);
-scene.add(directional);
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-// 🧠 CONTROL DE CARGA
-const loader = new GLTFLoader();
-const objects = {};
+  // 🔥 CUBO OBLIGATORIO (prueba visual)
+  const geo = new THREE.BoxGeometry();
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const cube = new THREE.Mesh(geo, mat);
+  scene.add(cube);
 
-function loadModel(name, path, pos, scale=1) {
-
-  loader.load(path, (gltf) => {
-
-    const model = gltf.scene;
-
-    model.position.set(pos.x, pos.y, pos.z);
-    model.scale.set(scale, scale, scale);
-
-    scene.add(model);
-    objects[name] = model;
-
-    console.log("✔ cargado:", name);
-
-  }, undefined, (err) => {
-
-    console.error("❌ error:", name, err);
-
-  });
-}
-
-// 📦 ESCENA SEPARADA REALMENTE
-loadModel("avatar", "avatar.glb", {x:0,y:0,z:0}, 1);
-loadModel("room", "habitacion.glb", {x:0,y:-2,z:0}, 1);
-loadModel("door", "puerta.glb", {x:3,y:0,z:0}, 1);
-loadModel("space", "espacio.glb", {x:0,y:0,z:-15}, 1);
-
-// 🎮 LOOP
-function animate() {
-
-  requestAnimationFrame(animate);
-
-  // debug mínimo
-  if (objects.avatar) {
-    objects.avatar.rotation.y += 0.002;
+  function animate(){
+    requestAnimationFrame(animate);
+    cube.rotation.y += 0.02;
+    renderer.render(scene, camera);
   }
 
-  renderer.render(scene, camera);
-}
+  animate();
 
-animate();
-
-// 📐 resize FIX
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+} catch (e) {
+  msg("ERROR JS: " + e);
+}
 
 </script>
 
