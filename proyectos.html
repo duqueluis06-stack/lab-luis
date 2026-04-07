@@ -2,242 +2,209 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Proyectos - Lab Luis</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>proyectos.html</title>
 
 <style>
-
-/* 🌌 BASE */
-body {
-margin:0;
-background:black;
-color:#00ffcc;
-font-family:Arial;
-overflow:hidden;
+body{
+  margin:0;
+  background:black;
+  color:white;
+  overflow:hidden;
+  font-family:Arial;
 }
 
-/* 🎬 ESCENAS */
-.scene {
-position:absolute;
-width:100%;
-height:100vh;
-display:flex;
-align-items:center;
-justify-content:center;
-opacity:0;
-transition:1.2s ease;
+.scene{
+  position:absolute;
+  width:100%;
+  height:100%;
+  display:none;
+  align-items:center;
+  justify-content:center;
 }
 
-.scene.active {
-opacity:1;
+/* PORTAL */
+.portalWrap{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: radial-gradient(circle, rgba(0,255,255,0.15), transparent 60%);
+  animation: pulse 4s infinite;
 }
 
-/* 🧠 HUD */
-#hud {
-position:fixed;
-top:10px;
-left:10px;
-z-index:1000;
-background:rgba(0,0,0,0.6);
-padding:10px;
-border:1px solid #00ffcc;
+@keyframes pulse{
+  0%{transform:scale(1); filter:brightness(1);}
+  50%{transform:scale(1.05); filter:brightness(1.4);}
+  100%{transform:scale(1); filter:brightness(1);}
 }
 
-/* 🌌 SKETCHFAB */
-iframe {
-width:80%;
-height:70vh;
-border:0;
-border-radius:12px;
+iframe{
+  width:80%;
+  height:80%;
+  border:0;
 }
 
-/* 👽 ALIEN */
-video {
-width:320px;
-border-radius:50%;
-box-shadow:0 0 40px #00ffff;
+/* ALIEN */
+#alienWrap{
+  width:340px;
+  height:340px;
+  border-radius:50%;
+  overflow:hidden;
+  box-shadow:0 0 60px cyan;
 }
 
-/* 🖼 LUIS */
-img {
-width:280px;
-border-radius:12px;
-box-shadow:0 0 30px #00ffcc;
+#alien{
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 
-/* 🌌 PORTAL CANVAS */
-#portal {
-position:fixed;
-width:100%;
-height:100%;
-z-index:0;
+/* DESC */
+.textScroll{
+  width:70%;
+  font-size:20px;
+  animation: scroll 10s linear;
 }
 
-/* 🔗 YT */
-iframe.yt {
-width:70%;
-height:60vh;
-border-radius:12px;
+@keyframes scroll{
+  from{transform:translateY(100%);}
+  to{transform:translateY(-120%);}
 }
 
+/* LUIS */
+#luisImg{
+  width:280px;
+  border-radius:15px;
+  box-shadow:0 0 40px #00ffcc;
+}
+
+/* YT */
+iframe.yt{
+  width:420px;
+  height:240px;
+  margin:10px;
+}
+
+/* BUTTON */
+#exit{
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  padding:10px 20px;
+  background:cyan;
+  border:none;
+  cursor:pointer;
+}
 </style>
 </head>
 
 <body>
 
-<canvas id="portal"></canvas>
+<button id="exit">Salir</button>
 
-<div id="hud">
-<div id="title">PORTAL</div>
-<div id="subtitle">Inicializando IA narrativa...</div>
+<!-- PORTAL -->
+<div id="s0" class="scene" style="display:flex">
+  <div class="portalWrap">
+    <iframe src="https://sketchfab.com/models/d1e3da048b494800b7b7e83893c29740/embed"></iframe>
+  </div>
 </div>
 
-<!-- 🌌 PORTAL -->
-<div class="scene active" id="s1">
-<iframe id="sketchfab"
-src="https://sketchfab.com/models/d1e3da048b494800b7b7e83893c29740/embed"></iframe>
+<!-- ALIEN -->
+<div id="s1" class="scene">
+  <div id="alienWrap">
+    <video id="alien" muted playsinline>
+      <source src="alien2-tele.mp4" type="video/mp4">
+    </video>
+  </div>
 </div>
 
-<!-- 👽 ALIEN -->
-<div class="scene" id="s2">
-<video id="alien" muted playsinline>
-<source src="alien2.mp4">
-</video>
+<!-- DESC -->
+<div id="s2" class="scene">
+  <div class="textScroll">
+    EXPERIMENTO INTERDIMENSIONAL ACTIVO...<br>
+    PORTAL ESTABLE...<br>
+    ENTIDAD DETECTADA...
+  </div>
 </div>
 
-<!-- 📜 TEXTO -->
-<div class="scene" id="s3">
-<h2>🧠 Análisis de señal</h2>
-<p>Fluctuación interdimensional detectada...</p>
+<!-- LUIS -->
+<div id="s3" class="scene">
+  <img id="luisImg" src="Luis.jpg">
 </div>
 
-<!-- 🖼 LUIS -->
-<div class="scene" id="s4">
-<img src="Luis.jpg">
-</div>
-
-<!-- 🔗 YOUTUBE -->
-<div class="scene" id="s5">
-<iframe class="yt" src="https://www.youtube.com/embed/BPltDt8rhsQ"></iframe>
+<!-- YT -->
+<div id="s4" class="scene">
+  <div>
+    <iframe class="yt" src="https://www.youtube.com/embed/BPltDt8rhsQ"></iframe>
+    <iframe class="yt" src="https://www.youtube.com/embed/yizhsJJO3-s"></iframe>
+  </div>
 </div>
 
 <script>
+// AUDIO ESPACIAL (WebAudio)
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const panner = audioCtx.createPanner();
+panner.panningModel = "HRTF";
+panner.distanceModel = "inverse";
+panner.positionX.value = 0;
+panner.positionY.value = 0;
+panner.positionZ.value = -1;
+panner.connect(audioCtx.destination);
 
-/* 🎬 ESTADO */
+function beep(){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.value = 120;
+
+  gain.gain.value = 0.05;
+
+  osc.connect(gain);
+  gain.connect(panner);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+// ALIEN
+const alien = document.getElementById("alien");
+function playAlien(){
+  alien.currentTime = 0;
+  alien.play().catch(()=>{});
+}
+
+// FLOW
+const scenes = ["s0","s1","s2","s3","s4"];
 let i = 0;
 
-const scenes = ["s1","s2","s3","s4","s5"];
-
-const titles = [
-["PORTAL","IA detectando estructura dimensional"],
-["ENTIDAD","Objeto no identificado activo"],
-["ANÁLISIS","Procesando señal cuántica"],
-["IDENTIDAD","Referencia humana encontrada"],
-["TRANSMISIÓN","Datos enviados"]
-];
-
-/* 🔊 AUDIO ESPACIAL */
-const ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-const osc = ctx.createOscillator();
-const pan = ctx.createStereoPanner();
-const gain = ctx.createGain();
-
-osc.type = "sine";
-osc.frequency.value = 60;
-
-gain.gain.value = 0.04;
-
-osc.connect(pan);
-pan.connect(gain);
-gain.connect(ctx.destination);
-
-osc.start();
-
-/* 🌌 PORTAL SHADER SIMULADO */
-const canvas = document.getElementById("portal");
-const c = canvas.getContext("2d");
-
-canvas.width = innerWidth;
-canvas.height = innerHeight;
-
-function portalFX(){
-c.fillStyle="rgba(0,0,0,0.08)";
-c.fillRect(0,0,canvas.width,canvas.height);
-
-for(let i=0;i<80;i++){
-let x = Math.random()*canvas.width;
-let y = Math.random()*canvas.height;
-let r = Math.random()*2;
-
-c.beginPath();
-c.arc(x,y,r,0,Math.PI*2);
-c.fillStyle="#00ffff";
-c.fill();
+function showScene(n){
+  document.querySelectorAll(".scene").forEach(s=>s.style.display="none");
+  document.getElementById(scenes[n]).style.display="flex";
 }
 
-requestAnimationFrame(portalFX);
-}
-portalFX();
-
-/* 🎧 AUDIO CONTROL */
-function sound(i){
-pan.pan.value = (i-2)/2;
-gain.gain.value = 0.02 + i*0.01;
-}
-
-/* 🧠 VOZ IA (REAL) */
-function speak(text){
-let msg = new SpeechSynthesisUtterance(text);
-msg.lang = "es-ES";
-msg.rate = 1;
-speechSynthesis.speak(msg);
-}
-
-/* 🎬 ESCENA */
-function show(n){
-
-scenes.forEach(s=>{
-document.getElementById(s).classList.remove("active");
-});
-
-document.getElementById(scenes[n]).classList.add("active");
-
-document.getElementById("title").innerText = titles[n][0];
-document.getElementById("subtitle").innerText = titles[n][1];
-
-sound(n);
-speak(titles[n][1]);
-}
-
-/* ⏱ SECUENCIA */
 function next(){
-if(i < scenes.length-1){
-i++;
-show(i);
-setTimeout(next,6000);
-}
+  showScene(i);
+
+  if(i === 0) beep();
+  if(i === 1) playAlien();
+
+  i++;
+  if(i < scenes.length){
+    setTimeout(next, 6500);
+  }
 }
 
-/* 👽 ALIEN */
-const alien = document.getElementById("alien");
-
-document.getElementById("sketchfab").onload = ()=>{
-setTimeout(()=>{
-i=1;
-show(1);
-setTimeout(next,6000);
-},2000);
+// START
+window.onload = () => {
+  audioCtx.resume();
+  next();
 };
 
-alien.oncanplay = ()=> alien.play();
-
-alien.onended = ()=>{
-i=2;
-show(2);
-setTimeout(next,6000);
-};
-
+// EXIT
+document.getElementById("exit").onclick = () => location.reload();
 </script>
 
 </body>
