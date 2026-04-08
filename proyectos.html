@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Teleport System</title>
 
 <style>
@@ -89,9 +88,6 @@ canvas{
 
 #alien{
   height:90%;
-  max-width:95%;
-  box-shadow:0 0 40px #00ffff, 0 0 80px #00ffff;
-  filter:drop-shadow(0 0 20px #00ffff);
 }
 
 /* 🎬 FINAL */
@@ -118,9 +114,14 @@ canvas{
   width:60%;
   left:20%;
   text-align:center;
+  animation:scroll 22s linear forwards;
   font-size:18px;
   line-height:1.6;
-  animation:scroll 22s linear forwards;
+}
+
+@keyframes scroll{
+  from{bottom:-100%;}
+  to{bottom:120%;}
 }
 
 /* 📺 YOUTUBE */
@@ -154,33 +155,6 @@ canvas{
   padding:10px 14px;
   cursor:pointer;
 }
-
-/* 📱 MOBILE */
-@media (max-width:768px){
-
-  #yt{
-    flex-direction:column;
-    align-items:center;
-    bottom:120px;
-  }
-
-  #yt iframe{
-    width:90vw !important;
-    height:200px !important;
-  }
-
-  #text{
-    width:85%;
-    left:7.5%;
-    font-size:14px;
-  }
-}
-
-/* 📜 ANIMACIÓN */
-@keyframes scroll{
-  from{bottom:-100%;}
-  to{bottom:120%;}
-}
 </style>
 </head>
 
@@ -191,46 +165,34 @@ canvas{
 <button id="start">TELETRANSPORTACIÓN</button>
 <button id="exit">SALIR</button>
 
+<!-- 🔄 LOADER -->
 <div id="loader">
   <div class="spinner"></div>
 </div>
 
+<!-- 🔮 SKETCHFAB -->
 <div id="sketchfabLayer">
 <iframe id="skfb"
 data-src="https://sketchfab.com/models/d1e3da048b494800b7b7e83893c29740/embed?autostart=1&ui_controls=0&ui_infos=0&ui_watermark=0"
 allow="autoplay; fullscreen"></iframe>
 </div>
 
+<!-- 👽 ALIEN -->
 <div id="alienLayer">
 <video id="alien" muted playsinline preload="metadata">
 <source src="alien2-tele.mp4">
 </video>
 </div>
 
+<!-- 🎬 FINAL -->
 <div id="finalLayer">
 
 <img id="luis" src="luis.JPG">
 
 <div id="text">
-TRANSMISIÓN CUÁNTICA FINALIZADA<br><br>
-
-Se ha ejecutado un protocolo de transición digital entre estados visuales y audiovisuales dentro de un entorno simulado de alta coherencia temporal.
-
-El sistema integra:
-
-- Renderizado 3D en tiempo real mediante Sketchfab  
-- Secuencia audiovisual sincronizada por eventos  
-- Activación progresiva por capas de interfaz  
-- Simulación de transferencia de estado informacional  
-
-El resultado representa una experiencia inmersiva controlada, donde la percepción del usuario es guiada a través de fases estructuradas de transición:
-
-1. Inicialización del campo visual  
-2. Carga del entorno 3D  
-3. Aparición del fenómeno biológico simulado  
-4. Estabilización final del sistema  
-
-Estado final: señal estable, sistema cerrado, coherencia mantenida.
+TRANSMISIÓN CUÁNTICA COMPLETADA<br><br>
+Entrelazamiento no local y transferencia de información en estudio.<br><br>
+El sistema indica estabilidad en la estructura espacio-tiempo con comportamiento coherente en fase de observación prolongada.
 </div>
 
 <div id="yt">
@@ -246,7 +208,7 @@ allowfullscreen></iframe>
 </div>
 
 <div id="credits">
-Sketchfab model by MW 3D — Portal system simulation
+Sketchfab model by MW 3D — Dr Strange Portal
 </div>
 
 </div>
@@ -285,17 +247,31 @@ function draw(){
 }
 draw();
 
-/* 🔊 AUDIO */
-let audio;
+/* 🔊 AUDIO CINEMATOGRÁFICO PRO */
+const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_space.mp3");
 
-function initAudio(){
-  audio = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_space.mp3");
-  audio.loop = true;
-  audio.volume = 0.35;
-  audio.preload = "auto";
+audio.loop = true;
+audio.preload = "auto";
+audio.crossOrigin = "anonymous";
+audio.volume = 0.0001;
+
+let audioUnlocked = false;
+
+function unlockAudio(){
+  if(audioUnlocked) return;
+
+  audio.play().then(()=>{
+    audio.pause();
+    audio.currentTime = 0;
+    audioUnlocked = true;
+  }).catch(()=>{});
 }
 
-/* 🚀 ELEMENTOS */
+document.addEventListener("click", unlockAudio, { once:true });
+document.addEventListener("touchstart", unlockAudio, { once:true });
+document.addEventListener("keydown", unlockAudio, { once:true });
+
+/* ELEMENTOS */
 const start = document.getElementById("start");
 const loader = document.getElementById("loader");
 const skLayer = document.getElementById("sketchfabLayer");
@@ -304,23 +280,25 @@ const alienLayer = document.getElementById("alienLayer");
 const alien = document.getElementById("alien");
 const finalLayer = document.getElementById("finalLayer");
 
-/* preload sketchfab */
-setTimeout(()=>{
-  skfb.src = skfb.dataset.src;
-},0);
+/* PRELOAD SKETCHFAB */
+function preloadSketchfab(){
+  if(!skfb.src){
+    skfb.src = skfb.dataset.src;
+  }
+}
+preloadSketchfab();
 
 /* 🚀 START FLOW */
-start.onclick = async () => {
+start.onclick = () => {
 
   start.remove();
 
-  initAudio();
-
-  try{
-    await audio.play();
-  }catch(e){}
-
   loader.style.display = "flex";
+
+  /* AUDIO START */
+  audio.currentTime = 0;
+  audio.volume = 0.35;
+  audio.play().catch(()=>{});
 
   setTimeout(()=>{
 
@@ -355,10 +333,8 @@ document.getElementById("exit").addEventListener("click", (e)=>{
   finalLayer.style.display = "none";
   loader.style.display = "none";
 
-  if(audio){
-    audio.pause();
-    audio.currentTime = 0;
-  }
+  audio.pause();
+  audio.currentTime = 0;
 
   window.location.href = "index.html";
 });
