@@ -184,6 +184,11 @@ opacity:0.75;
 text-align:center;
 }
 
+.track.active{
+border:1px solid #00ffcc;
+box-shadow:0 0 10px #00ffcc;
+background:rgba(0,255,204,0.08);
+}
 </style>
 </head>
 
@@ -204,6 +209,7 @@ allow="autoplay; fullscreen">
 <div class="panel">
 
 <audio id="audio"></audio>
+
 <div id="tracks"></div>
 
 <canvas id="vu"></canvas>
@@ -248,7 +254,7 @@ const tracks = [
 ];
 
 let ctx, analyser, source, data;
-
+let currentTrack = null;
 function init(){
 if(ctx) return;
 ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -267,11 +273,17 @@ function play(file){
 init();
 audio.src = file;
 audio.play();
+currentTrack = file;
+render();
 }
 
 function pause(){
 audio.pause();
 }
+audio.onended = () => {
+currentTrack = null;
+render();
+};
 
 function draw(){
 requestAnimationFrame(draw);
@@ -302,7 +314,7 @@ container.innerHTML = "";
 
 tracks.forEach(t=>{
 container.innerHTML += `
-<div class="track">
+<div class="track ${t.file === currentTrack ? "active" : ""}">
 <div class="track-top">
 <strong>${t.name}</strong>
 <div>
