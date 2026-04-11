@@ -11,16 +11,14 @@ body{
     font-family:Arial, sans-serif;
     background:black;
     color:#00ffcc;
-    overflow:hidden;
 }
 
 /* FONDO */
 .sketchfab-bg{
     position:fixed;
+    inset:0;
     width:100%;
     height:100%;
-    top:0;
-    left:0;
     border:0;
     z-index:0;
     filter:brightness(1.2) contrast(1.2);
@@ -29,19 +27,19 @@ body{
 .overlay{
     position:fixed;
     inset:0;
-    background:rgba(0,0,0,0.2);
+    background:rgba(0,0,0,0.25);
     z-index:1;
 }
 
-/* GIF pequeño flotante */
+/* GIF */
 .gif{
     position:fixed;
-    top:10px;
-    right:10px;
-    width:140px;
+    top:15px;
+    right:25px;
+    width:110px;
     z-index:3;
     border-radius:10px;
-    box-shadow:0 0 20px #00ffcc;
+    box-shadow:0 0 15px #00ffcc;
 }
 
 /* LAYOUT */
@@ -53,15 +51,16 @@ body{
 }
 
 .left{
-    width:100%;
-    padding:20px;
+    width:60%;
+    padding:15px;
     overflow-y:auto;
 }
 
-/* TITULOS */
+/* TITULO */
 h1{
     color:#fff700;
-    text-shadow:0 0 15px #00f0ff;
+    text-shadow:0 0 10px #00f0ff;
+    font-size:22px;
 }
 
 .subtitle{
@@ -69,61 +68,61 @@ h1{
     opacity:0.8;
 }
 
-/* PATREON NEÓN MULTICOLOR */
+/* PATREON NEÓN */
 .patreon{
     display:inline-block;
-    margin:15px 0;
-    padding:10px 18px;
-    border-radius:10px;
+    margin:10px 0;
+    padding:8px 14px;
+    border-radius:8px;
     text-decoration:none;
-    font-weight:bold;
-    color:white;
     animation:neon 3s infinite linear;
-    border:2px solid transparent;
+    border:1px solid transparent;
+    font-size:12px;
 }
 
 @keyframes neon{
-    0%{box-shadow:0 0 10px cyan;color:cyan;}
-    25%{box-shadow:0 0 10px magenta;color:magenta;}
-    50%{box-shadow:0 0 10px lime;color:lime;}
-    75%{box-shadow:0 0 10px yellow;color:yellow;}
-    100%{box-shadow:0 0 10px cyan;color:cyan;}
+    0%{color:cyan; box-shadow:0 0 8px cyan;}
+    25%{color:magenta; box-shadow:0 0 8px magenta;}
+    50%{color:lime; box-shadow:0 0 8px lime;}
+    75%{color:yellow; box-shadow:0 0 8px yellow;}
+    100%{color:cyan; box-shadow:0 0 8px cyan;}
 }
 
-/* TRACKS */
+/* TRACKS VERTICALES */
 .track{
-    margin:12px 0;
-    padding:12px;
-    border-radius:12px;
-    background:rgba(0,0,0,0.45);
+    margin:8px 0;
+    padding:10px;
+    border-radius:10px;
+    background:rgba(0,0,0,0.4);
     border:1px solid rgba(0,255,255,0.2);
+    width:90%;
 }
 
 .track-title{
-    font-size:14px;
+    font-size:13px;
 }
 
 .track-desc{
-    font-size:11px;
-    opacity:0.8;
-    margin:6px 0;
+    font-size:10px;
+    opacity:0.75;
+    margin:4px 0;
 }
 
-.buttons button{
+button{
     background:black;
     border:1px solid #00ffcc;
     color:#00ffcc;
-    padding:5px 8px;
-    margin-right:5px;
+    padding:4px 8px;
+    font-size:11px;
     border-radius:6px;
-    cursor:pointer;
+    margin-right:5px;
 }
 
-/* VU */
+/* VU METER */
 canvas{
-    width:100%;
-    height:80px;
-    margin-top:10px;
+    width:90%;
+    height:70px;
+    margin:10px 0;
     background:rgba(0,0,0,0.4);
     border-radius:6px;
 }
@@ -148,12 +147,11 @@ src="https://sketchfab.com/models/fe6092358a334504b12d594edc713465/embed?autosta
 
 <a class="patreon" target="_blank"
 href="https://www.patreon.com/posts/155296476">
-⚡ Descargas exclusivas en Patreon
+⚡ Patreon / Descargas exclusivas
 </a>
 
 <canvas id="vumeter"></canvas>
 
-<!-- TRACKS -->
 <div id="tracks"></div>
 
 </div>
@@ -165,6 +163,17 @@ href="https://www.patreon.com/posts/155296476">
 
 const audio = document.getElementById("audio");
 
+let ctx = new (window.AudioContext || window.webkitAudioContext)();
+let analyser = ctx.createAnalyser();
+let source = ctx.createMediaElementSource(audio);
+
+source.connect(analyser);
+analyser.connect(ctx.destination);
+
+analyser.fftSize = 128;
+let dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+/* TRACKS */
 const tracks = [
 ["piel-de-grafeno-audio.mp3","Piel de Grafito","Señal experimental"],
 ["Cables-De-Plata.mp3","Cables de Plata","Frecuencia metálica"],
@@ -178,16 +187,16 @@ const tracks = [
 const container = document.getElementById("tracks");
 
 tracks.forEach(t=>{
-    const div = document.createElement("div");
+    let div = document.createElement("div");
     div.className="track";
+
     div.innerHTML=`
         <div class="track-title">${t[1]}</div>
         <div class="track-desc">${t[2]}</div>
-        <div class="buttons">
-            <button onclick="playTrack('${t[0]}')">▶</button>
-            <button onclick="pauseTrack()">⏸</button>
-        </div>
+        <button onclick="playTrack('${t[0]}')">▶</button>
+        <button onclick="pauseTrack()">⏸</button>
     `;
+
     container.appendChild(div);
 });
 
@@ -200,18 +209,7 @@ function pauseTrack(){
     audio.pause();
 }
 
-/* VU METER */
-const ctx = new (window.AudioContext || window.webkitAudioContext)();
-const analyser = ctx.createAnalyser();
-const source = ctx.createMediaElementSource(audio);
-
-source.connect(analyser);
-analyser.connect(ctx.destination);
-
-analyser.fftSize = 128;
-
-const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
+/* VU RGB */
 function draw(){
     requestAnimationFrame(draw);
 
@@ -230,7 +228,11 @@ function draw(){
     for(let i=0;i<dataArray.length;i++){
         let h = dataArray[i];
 
-        c.fillStyle = `rgb(${h*2},${255-h},${150+h/2})`;
+        let r = h*2;
+        let g = 255-h;
+        let b = 120 + h/2;
+
+        c.fillStyle = `rgb(${r},${g},${b})`;
         c.fillRect(i*barWidth, canvas.height - h/2, barWidth-1, h/2);
     }
 }
