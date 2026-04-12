@@ -9,9 +9,9 @@
 body{
 margin:0;
 background:black;
-overflow-x:hidden;
 font-family:Arial;
 color:#00fff2;
+overflow-x:hidden;
 }
 
 /* 🌌 ESTRELLAS */
@@ -49,70 +49,98 @@ text-shadow:0 0 12px #00fff2;
 
 img{
 width:100%;
-max-width:420px;
+max-width:380px;
 display:block;
 margin:10px auto;
 border-radius:10px;
 box-shadow:0 0 18px #00fff2;
 }
 
-/* TRACK */
-.track{
+/* 🚪 BOTÓN REGRESO NEÓN */
+.backBtn{
+position:fixed;
+top:15px;
+left:15px;
+width:55px;
+height:55px;
+border-radius:50%;
+border:2px solid #00fff2;
+box-shadow:0 0 15px #00fff2;
 display:flex;
 align-items:center;
-justify-content:space-between;
+justify-content:center;
+color:#00fff2;
+text-decoration:none;
+background:rgba(0,0,0,0.6);
+z-index:10;
+animation:pulse 2s infinite;
+}
+
+@keyframes pulse{
+0%{box-shadow:0 0 10px #00fff2;}
+50%{box-shadow:0 0 25px #ff00ff;}
+100%{box-shadow:0 0 10px #00fff2;}
+}
+
+/* 🎧 TRACK */
+.track{
+display:flex;
+flex-direction:column;
+gap:6px;
 padding:10px;
-margin:10px;
-border:1px solid #00fff2;
+margin:10px 0;
 border-radius:12px;
+border:1px solid #00fff2;
 background:rgba(0,0,0,0.6);
 box-shadow:0 0 8px #00fff2;
+transition:0.2s;
 }
 
 .track.active{
 border:1px solid #ff00ff;
-box-shadow:0 0 25px #ff00ff;
+box-shadow:0 0 20px #ff00ff;
 }
 
-.left{
+/* fila superior */
+.top{
 display:flex;
-flex-direction:column;
+justify-content:space-between;
+font-size:13px;
 }
 
-.name{font-size:14px;}
-.time{font-size:11px;opacity:0.7;}
+/* controles */
+.controls{
+display:flex;
+gap:6px;
+}
 
-.controls button{
+button{
 background:black;
 border:1px solid #00fff2;
 color:#00fff2;
-padding:6px 8px;
-margin-left:5px;
-border-radius:6px;
+padding:6px 10px;
+border-radius:8px;
 cursor:pointer;
 }
 
-/* 🎧 VU CÍRCULO */
+/* 🎧 VU SOLO 1 */
 .vuWrap{
-width:70px;
-height:70px;
-position:relative;
-margin-left:10px;
+width:80px;
+height:80px;
+margin-top:5px;
 }
 
 canvas{
-width:70px;
-height:70px;
+width:80px;
+height:80px;
 border-radius:50%;
 }
 
-/* BACK */
-.back{
-display:block;
-text-align:center;
-margin:20px;
-color:#00fff2;
-text-decoration:none;
+/* 📱 MOBILE FIX */
+@media(max-width:600px){
+.track{
+flex-direction:column;
+}
 }
 </style>
 </head>
@@ -120,6 +148,8 @@ text-decoration:none;
 <body>
 
 <div class="stars" id="stars"></div>
+
+<a class="backBtn" href="duqueluis-mp3.html">⏪</a>
 
 <div class="container">
 
@@ -129,13 +159,11 @@ text-decoration:none;
 
 <div id="tracks"></div>
 
-<a class="back" href="duqueluis-mp3.html">⏪ Regresar</a>
-
 </div>
 
 <script>
 
-const tracks = [
+const tracks=[
 "aum-de-acero.mp3",
 "bajo-en-el-pecho.mp3",
 "bajo-infinito.mp3",
@@ -146,11 +174,11 @@ const tracks = [
 "nucleo-que-despierta.mp3"
 ];
 
-const audio = new Audio();
+const audio=new Audio();
 let ctx, analyser, source, dataArray;
-let current = null;
+let currentTrack=null;
 
-/* 🌌 ESTRELLAS */
+/* 🌌 estrellas */
 const stars=document.getElementById("stars");
 for(let i=0;i<60;i++){
 let s=document.createElement("div");
@@ -161,86 +189,88 @@ stars.appendChild(s);
 }
 
 /* 🎧 AUDIO INIT */
-function initAudio(){
+function init(){
 if(ctx) return;
-ctx = new (window.AudioContext || window.webkitAudioContext)();
-analyser = ctx.createAnalyser();
-source = ctx.createMediaElementSource(audio);
+ctx=new (window.AudioContext||window.webkitAudioContext)();
+analyser=ctx.createAnalyser();
+source=ctx.createMediaElementSource(audio);
 source.connect(analyser);
 analyser.connect(ctx.destination);
-analyser.fftSize = 64;
-dataArray = new Uint8Array(analyser.frequencyBinCount);
-drawVU();
+analyser.fftSize=64;
+dataArray=new Uint8Array(analyser.frequencyBinCount);
+draw();
 }
 
-/* 🔵 VU CIRCULAR */
-function drawVU(){
-requestAnimationFrame(drawVU);
+/* 🎧 SOLO VU ACTIVO */
+let activeCanvas=null;
+
+function draw(){
+requestAnimationFrame(draw);
 
 if(!analyser) return;
-
 analyser.getByteFrequencyData(dataArray);
 
-document.querySelectorAll("canvas").forEach(canvas=>{
-const ctx2 = canvas.getContext("2d");
-const size = canvas.width = canvas.height = 70;
+if(!activeCanvas) return;
 
-ctx2.clearRect(0,0,size,size);
+const c=activeCanvas.getContext("2d");
+const size=activeCanvas.width=activeCanvas.height=80;
 
-const center = size/2;
-const radius = 25;
+c.clearRect(0,0,size,size);
+
+const center=size/2;
+const radius=28;
 
 for(let i=0;i<dataArray.length;i++){
-let angle = (i / dataArray.length) * Math.PI * 2;
-let value = dataArray[i];
+let angle=(i/dataArray.length)*Math.PI*2;
+let v=dataArray[i];
 
-let r = radius + value / 4;
+let r=radius+v/4;
 
-let x1 = center + Math.cos(angle)*radius;
-let y1 = center + Math.sin(angle)*radius;
+let x1=center+Math.cos(angle)*radius;
+let y1=center+Math.sin(angle)*radius;
 
-let x2 = center + Math.cos(angle)*r;
-let y2 = center + Math.sin(angle)*r;
+let x2=center+Math.cos(angle)*r;
+let y2=center+Math.sin(angle)*r;
 
-ctx2.strokeStyle = `rgb(${value*2},${255-value},255)`;
-ctx2.lineWidth = 2;
+c.strokeStyle=`rgb(${v*2},${255-v},255)`;
+c.lineWidth=2;
 
-ctx2.beginPath();
-ctx2.moveTo(x1,y1);
-ctx2.lineTo(x2,y2);
-ctx2.stroke();
+c.beginPath();
+c.moveTo(x1,y1);
+c.lineTo(x2,y2);
+c.stroke();
 }
-});
 }
 
 /* ▶ PLAY */
-function play(file, trackEl){
-initAudio();
+function play(file, trackEl, canvas){
+init();
 
-audio.src = file;
+audio.src=file;
 audio.play();
-current = file;
+
+currentTrack=file;
+activeCanvas=canvas;
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
 trackEl.classList.add("active");
 }
 
-/* ⏸ PAUSE */
+/* ⏸ */
 function pause(){
 audio.pause();
 }
 
-/* 🧱 RENDER */
-const container = document.getElementById("tracks");
+/* RENDER */
+const container=document.getElementById("tracks");
 
 tracks.forEach(file=>{
-const div = document.createElement("div");
+const div=document.createElement("div");
 div.className="track";
 
 div.innerHTML=`
-<div class="left">
-<div class="name">${file.replace(".mp3","")}</div>
-<div class="time">--:--</div>
+<div class="top">
+<span>${file.replace(".mp3","")}</span>
 </div>
 
 <div class="controls">
@@ -253,24 +283,12 @@ div.innerHTML=`
 </div>
 `;
 
-const btnPlay = div.querySelectorAll("button")[0];
-const btnPause = div.querySelectorAll("button")[1];
-const time = div.querySelector(".time");
+const btnPlay=div.querySelectorAll("button")[0];
+const btnPause=div.querySelectorAll("button")[1];
+const canvas=div.querySelector("canvas");
 
-btnPlay.onclick=()=>{
-play(file, div);
-
-audio.onloadedmetadata=()=>{
-let m=Math.floor(audio.duration/60);
-let s=Math.floor(audio.duration%60);
-time.textContent=`${m}:${s<10?"0"+s:s}`;
-};
-};
-
-btnPause.onclick=()=>{
-pause();
-div.classList.remove("active");
-};
+btnPlay.onclick=()=>play(file,div,canvas);
+btnPause.onclick=()=>pause();
 
 container.appendChild(div);
 });
