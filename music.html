@@ -19,7 +19,6 @@ overflow-x:hidden;
 position:fixed;
 inset:0;
 z-index:0;
-overflow:hidden;
 }
 .star{
 position:absolute;
@@ -46,7 +45,6 @@ max-width:1200px;
 margin:auto;
 }
 
-/* TRACKS */
 .tracks{
 flex:1;
 display:flex;
@@ -54,17 +52,16 @@ flex-direction:column;
 gap:8px;
 }
 
+/* TRACK */
 .track{
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:8px 10px;
+padding:10px;
 border-radius:10px;
 border:1px solid #00fff2;
 background:rgba(0,0,0,0.5);
-box-shadow:0 0 8px #00fff2;
-font-size:13px;
-transition:0.2s;
+box-shadow:0 0 10px #00fff2;
 }
 
 .track.active{
@@ -72,6 +69,20 @@ border:1px solid #ff0033;
 box-shadow:0 0 18px #ff0033;
 }
 
+/* TEXTO */
+.name{
+font-weight:bold;
+letter-spacing:1px;
+text-transform:capitalize;
+}
+
+small{
+font-size:11px;
+opacity:0.7;
+display:block;
+}
+
+/* BOTONES */
 button{
 background:black;
 border:1px solid #00fff2;
@@ -81,10 +92,28 @@ border-radius:6px;
 cursor:pointer;
 }
 
+/* VU */
 canvas{
 width:55px;
 height:55px;
 border-radius:50%;
+}
+
+/* PROGRESS BAR */
+.bar{
+width:100%;
+height:4px;
+background:#111;
+margin-top:6px;
+border-radius:4px;
+overflow:hidden;
+}
+
+.fill{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#00fff2,#ff0033);
+box-shadow:0 0 10px #00fff2;
 }
 
 /* SIDE */
@@ -101,7 +130,6 @@ border-radius:10px;
 box-shadow:0 0 15px #00fff2;
 }
 
-/* BACK */
 .backBtn{
 position:fixed;
 top:15px;
@@ -127,25 +155,10 @@ animation:pulse 2s infinite;
 100%{box-shadow:0 0 10px #00fff2;}
 }
 
-/* TIEMPO */
-small{
-opacity:0.7;
-font-size:11px;
-margin-left:6px;
-}
-
-/* MOBILE */
 @media(max-width:800px){
-.wrapper{
-flex-direction:column;
-}
-.side{
-width:100%;
-flex-direction:row;
-}
-.side img{
-width:48%;
-}
+.wrapper{flex-direction:column;}
+.side{width:100%;flex-direction:row;}
+.side img{width:48%;}
 }
 </style>
 </head>
@@ -169,14 +182,15 @@ width:48%;
 
 <script>
 
-/* ⏱ formato */
-function formatTime(sec){
-if(!sec || isNaN(sec)) return "--:--";
-const m = Math.floor(sec / 60);
-const s = Math.floor(sec % 60);
-return `${m}:${s < 10 ? "0"+s : s}`;
+/* ⏱ */
+function formatTime(s){
+if(!s||isNaN(s)) return "--:--";
+const m=Math.floor(s/60);
+const sec=Math.floor(s%60);
+return `${m}:${sec<10?"0"+sec:sec}`;
 }
 
+/* 🎧 tracks */
 const tracks=[
 "aum-de-acero.mp3",
 "bajo-en-el-pecho.mp3",
@@ -188,11 +202,13 @@ const tracks=[
 "nucleo-que-despierta.mp3"
 ];
 
+/* AUDIO */
 const audio=new Audio();
 let ctx, analyser, source, dataArray;
-let activeCanvas=null;
+let active=null;
+let index=0;
 
-/* 🌌 estrellas */
+/* 🌌 stars */
 const stars=document.getElementById("stars");
 for(let i=0;i<60;i++){
 let s=document.createElement("div");
@@ -202,7 +218,7 @@ s.style.animationDuration=(3+Math.random()*5)+"s";
 stars.appendChild(s);
 }
 
-/* AUDIO INIT */
+/* INIT */
 function init(){
 if(ctx) return;
 ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -215,123 +231,100 @@ dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* VU LÁSER */
-function draw(){
-requestAnimationFrame(draw);
+/* PLAY NEXT AUTO */
+audio.onended=()=>{
+next();
+};
 
-if(!analyser || !activeCanvas) return;
-
-analyser.getByteFrequencyData(dataArray);
-
-const c=activeCanvas.getContext("2d");
-const size=activeCanvas.width=activeCanvas.height=55;
-
-c.clearRect(0,0,size,size);
-
-const center=size/2;
-const radius=18;
-
-for(let i=0;i<dataArray.length;i++){
-let angle=(i/dataArray.length)*Math.PI*2;
-let v=dataArray[i];
-
-let r=radius+v/5;
-
-let x1=center+Math.cos(angle)*radius;
-let y1=center+Math.sin(angle)*radius;
-
-let x2=center+Math.cos(angle)*r;
-let y2=center+Math.sin(angle)*r;
-
-let rColor=255;
-let gColor=v*2;
-let bColor=100;
-
-c.strokeStyle=`rgba(${rColor},${gColor},${bColor},0.9)`;
-c.shadowBlur=10;
-c.shadowColor=`rgb(${rColor},${gColor},${bColor})`;
-c.lineWidth=2;
-
-c.beginPath();
-c.moveTo(x1,y1);
-c.lineTo(x2,y2);
-c.stroke();
-}
+function next(){
+index++;
+if(index>=tracks.length) index=0;
+play(tracks[index]);
 }
 
-/* PLAY (NO REINICIO) */
-function play(file, el, canvas){
+/* PLAY */
+function play(file, el){
 init();
 
-/* solo cambia si es nuevo */
+index=tracks.indexOf(file);
+
 if(!audio.src.includes(file)){
 audio.src=file;
 }
 
-/* reproducir desde donde quedó */
 audio.play();
 
-activeCanvas=canvas;
-
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
-el.classList.add("active");
+if(el) el.classList.add("active");
 }
 
-/* PAUSE (NO REINICIA) */
+/* PAUSE */
 function pause(){
 audio.pause();
 }
 
-/* ⏱ PROGRESO REAL */
-function updateProgress(){
-requestAnimationFrame(updateProgress);
+/* VU */
+function draw(){
+requestAnimationFrame(draw);
+if(!analyser||!active) return;
 
-if(!audio.src) return;
+analyser.getByteFrequencyData(dataArray);
+}
+
+/* PROGRESS */
+function update(){
+requestAnimationFrame(update);
+
+if(!audio.duration) return;
 
 const file=audio.src.split("/").pop();
-const timeEl=document.getElementById("time-"+file);
+const el=document.getElementById("time-"+file);
+const bar=document.getElementById("bar-"+file);
 
-if(timeEl){
-timeEl.textContent=
-"⏱ " +
-formatTime(audio.currentTime) +
-" / " +
-formatTime(audio.duration);
+if(el){
+el.textContent=
+formatTime(audio.currentTime)+" / "+formatTime(audio.duration);
+}
+
+if(bar){
+bar.style.width=(audio.currentTime/audio.duration)*100+"%";
 }
 }
 
 /* RENDER */
 const container=document.getElementById("tracks");
 
-tracks.forEach(file=>{
+tracks.forEach((file,i)=>{
+const name=file
+.replace(".mp3","")
+.replace(/-/g," ")
+.replace(/\b\w/g,l=>l.toUpperCase());
+
 const div=document.createElement("div");
 div.className="track";
 
 div.innerHTML=`
-<span>
-${file.replace(".mp3","")}
-<small id="time-${file}">⏱ --:-- / --:--</small>
-</span>
+<div style="flex:1">
+<div class="name">${name}</div>
+
+<small id="time-${file}">--:-- / --:--</small>
+
+<div class="bar"><div class="fill" id="bar-${file}"></div></div>
+</div>
 
 <div>
-<button>▶</button>
-<button>⏸</button>
+<button onclick="play('${file}',this.closest('.track'))">▶</button>
+<button onclick="pause()">⏸</button>
 </div>
 
 <canvas></canvas>
 `;
 
-const btnPlay=div.querySelectorAll("button")[0];
-const btnPause=div.querySelectorAll("button")[1];
-const canvas=div.querySelector("canvas");
-
-btnPlay.onclick=()=>play(file,div,canvas);
-btnPause.onclick=()=>pause();
-
 container.appendChild(div);
 });
 
-updateProgress();
+update();
+
 </script>
 
 </body>
