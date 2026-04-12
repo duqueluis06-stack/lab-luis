@@ -122,12 +122,20 @@ width:220px;
 display:flex;
 flex-direction:column;
 gap:10px;
+max-height:90vh;
+overflow:auto;
 }
 
 .side img, .side video{
 width:100%;
 border-radius:10px;
 box-shadow:0 0 15px #00fff2;
+}
+
+/* VIDEO prioridad */
+.side video{
+height:140px;
+object-fit:cover;
 }
 
 .backBtn{
@@ -174,13 +182,14 @@ animation:pulse 2s infinite;
 <div class="tracks" id="tracks"></div>
 
 <div class="side">
-<img src="vortice-neon.PNG">
-<img src="NeuroLuis.gif">
 
-<!-- 🎬 VIDEO AÑADIDO -->
+<!-- 🎬 VIDEO PRIMERO -->
 <video autoplay loop muted playsinline>
   <source src="bh.MP4" type="video/mp4">
 </video>
+
+<img src="vortice-neon.PNG">
+<img src="NeuroLuis.gif">
 
 </div>
 
@@ -212,6 +221,7 @@ const tracks=[
 const audio=new Audio();
 let ctx, analyser, source, dataArray;
 let active=null;
+let activeCanvas=null;
 let index=0;
 
 /* 🌌 stars */
@@ -237,10 +247,8 @@ dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* PLAY NEXT AUTO */
-audio.onended=()=>{
-next();
-};
+/* NEXT */
+audio.onended=()=>{next();};
 
 function next(){
 index++;
@@ -251,10 +259,9 @@ play(tracks[index]);
 /* PLAY */
 function play(file, el){
 init();
-
 ctx.resume();
 
-active = file;
+active=file;
 index=tracks.indexOf(file);
 
 if(!audio.src.includes(file)){
@@ -264,7 +271,11 @@ audio.src=file;
 audio.play();
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
-if(el) el.classList.add("active");
+
+if(el){
+el.classList.add("active");
+activeCanvas=el.querySelector("canvas"); // 🔊 SOLO ESTE
+}
 }
 
 /* PAUSE */
@@ -272,15 +283,15 @@ function pause(){
 audio.pause();
 }
 
-/* 🎛️ VU REAL */
+/* 🔊 VU SOLO ACTIVO */
 function draw(){
 requestAnimationFrame(draw);
 
-if(!analyser || !active) return;
+if(!analyser || !activeCanvas) return;
 
 analyser.getByteFrequencyData(dataArray);
 
-document.querySelectorAll("canvas").forEach(canvas=>{
+const canvas=activeCanvas;
 const c=canvas.getContext("2d");
 const w=canvas.width=55;
 const h=canvas.height=55;
@@ -302,7 +313,6 @@ c.arc(x,y,2,0,Math.PI*2);
 c.fillStyle="#00fff2";
 c.fill();
 }
-});
 }
 
 /* PROGRESS */
@@ -340,9 +350,7 @@ div.className="track";
 div.innerHTML=`
 <div style="flex:1">
 <div class="name">${name}</div>
-
 <small id="time-${file}">--:-- / --:--</small>
-
 <div class="bar"><div class="fill" id="bar-${file}"></div></div>
 </div>
 
