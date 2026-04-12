@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music Library</title>
+<title>Music Lab</title>
 
 <style>
 body{
@@ -35,28 +35,76 @@ from{transform:translateY(0);}
 to{transform:translateY(-120vh);}
 }
 
-/* CONTENIDO */
-.container{
+/* 🔥 LAYOUT GENERAL */
+.wrapper{
 position:relative;
 z-index:2;
+display:flex;
+gap:12px;
 padding:10px;
+max-width:1200px;
+margin:auto;
 }
 
-h2{
-text-align:center;
-text-shadow:0 0 12px #00fff2;
+/* 🎧 TRACKS CENTER */
+.tracks{
+flex:1;
+display:flex;
+flex-direction:column;
+gap:8px;
 }
 
-img{
-width:100%;
-max-width:380px;
-display:block;
-margin:10px auto;
+/* 🎵 TRACK MINI */
+.track{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:8px 10px;
 border-radius:10px;
-box-shadow:0 0 18px #00fff2;
+border:1px solid #00fff2;
+background:rgba(0,0,0,0.5);
+box-shadow:0 0 8px #00fff2;
+font-size:13px;
+transition:0.2s;
 }
 
-/* 🚪 BOTÓN REGRESO NEÓN */
+.track.active{
+border:1px solid #ff0033;
+box-shadow:0 0 18px #ff0033;
+}
+
+/* botones */
+button{
+background:black;
+border:1px solid #00fff2;
+color:#00fff2;
+padding:5px 8px;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* 🔵 VU pequeño */
+canvas{
+width:55px;
+height:55px;
+border-radius:50%;
+}
+
+/* 🖼 PANEL DERECHO */
+.side{
+width:220px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+.side img{
+width:100%;
+border-radius:10px;
+box-shadow:0 0 15px #00fff2;
+}
+
+/* 🚪 BOTÓN */
 .backBtn{
 position:fixed;
 top:15px;
@@ -65,81 +113,34 @@ width:55px;
 height:55px;
 border-radius:50%;
 border:2px solid #00fff2;
-box-shadow:0 0 15px #00fff2;
 display:flex;
 align-items:center;
 justify-content:center;
-color:#00fff2;
 text-decoration:none;
+color:#00fff2;
 background:rgba(0,0,0,0.6);
+box-shadow:0 0 15px #00fff2;
 z-index:10;
 animation:pulse 2s infinite;
 }
 
 @keyframes pulse{
 0%{box-shadow:0 0 10px #00fff2;}
-50%{box-shadow:0 0 25px #ff00ff;}
+50%{box-shadow:0 0 25px #ff0033;}
 100%{box-shadow:0 0 10px #00fff2;}
 }
 
-/* 🎧 TRACK */
-.track{
-display:flex;
+/* 📱 MOBILE */
+@media(max-width:800px){
+.wrapper{
 flex-direction:column;
-gap:6px;
-padding:10px;
-margin:10px 0;
-border-radius:12px;
-border:1px solid #00fff2;
-background:rgba(0,0,0,0.6);
-box-shadow:0 0 8px #00fff2;
-transition:0.2s;
 }
-
-.track.active{
-border:1px solid #ff00ff;
-box-shadow:0 0 20px #ff00ff;
+.side{
+width:100%;
+flex-direction:row;
 }
-
-/* fila superior */
-.top{
-display:flex;
-justify-content:space-between;
-font-size:13px;
-}
-
-/* controles */
-.controls{
-display:flex;
-gap:6px;
-}
-
-button{
-background:black;
-border:1px solid #00fff2;
-color:#00fff2;
-padding:6px 10px;
-border-radius:8px;
-cursor:pointer;
-}
-
-/* 🎧 VU SOLO 1 */
-.vuWrap{
-width:80px;
-height:80px;
-margin-top:5px;
-}
-
-canvas{
-width:80px;
-height:80px;
-border-radius:50%;
-}
-
-/* 📱 MOBILE FIX */
-@media(max-width:600px){
-.track{
-flex-direction:column;
+.side img{
+width:48%;
 }
 }
 </style>
@@ -151,13 +152,14 @@ flex-direction:column;
 
 <a class="backBtn" href="duqueluis-mp3.html">⏪</a>
 
-<div class="container">
+<div class="wrapper">
 
-<h2>🎧 Music Library</h2>
+<div class="tracks" id="tracks"></div>
 
+<div class="side">
 <img src="vortice-neon.PNG">
-
-<div id="tracks"></div>
+<img src="NeuroLuis.gif">
+</div>
 
 </div>
 
@@ -176,7 +178,8 @@ const tracks=[
 
 const audio=new Audio();
 let ctx, analyser, source, dataArray;
-let currentTrack=null;
+let activeCanvas=null;
+let current=null;
 
 /* 🌌 estrellas */
 const stars=document.getElementById("stars");
@@ -188,7 +191,7 @@ s.style.animationDuration=(3+Math.random()*5)+"s";
 stars.appendChild(s);
 }
 
-/* 🎧 AUDIO INIT */
+/* 🎧 INIT AUDIO */
 function init(){
 if(ctx) return;
 ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -201,30 +204,26 @@ dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* 🎧 SOLO VU ACTIVO */
-let activeCanvas=null;
-
+/* 🔵 VU SOLO ACTIVO */
 function draw(){
 requestAnimationFrame(draw);
+if(!analyser||!activeCanvas)return;
 
-if(!analyser) return;
 analyser.getByteFrequencyData(dataArray);
 
-if(!activeCanvas) return;
-
 const c=activeCanvas.getContext("2d");
-const size=activeCanvas.width=activeCanvas.height=80;
+const size=activeCanvas.width=activeCanvas.height=55;
 
 c.clearRect(0,0,size,size);
 
 const center=size/2;
-const radius=28;
+const radius=18;
 
 for(let i=0;i<dataArray.length;i++){
 let angle=(i/dataArray.length)*Math.PI*2;
 let v=dataArray[i];
 
-let r=radius+v/4;
+let r=radius+v/5;
 
 let x1=center+Math.cos(angle)*radius;
 let y1=center+Math.sin(angle)*radius;
@@ -232,8 +231,8 @@ let y1=center+Math.sin(angle)*radius;
 let x2=center+Math.cos(angle)*r;
 let y2=center+Math.sin(angle)*r;
 
-c.strokeStyle=`rgb(${v*2},${255-v},255)`;
-c.lineWidth=2;
+c.strokeStyle=`rgb(${255-v},${v*1.5},255)`;
+c.lineWidth=1.5;
 
 c.beginPath();
 c.moveTo(x1,y1);
@@ -243,17 +242,17 @@ c.stroke();
 }
 
 /* ▶ PLAY */
-function play(file, trackEl, canvas){
+function play(file, el, canvas){
 init();
 
 audio.src=file;
 audio.play();
 
-currentTrack=file;
+current=file;
 activeCanvas=canvas;
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
-trackEl.classList.add("active");
+el.classList.add("active");
 }
 
 /* ⏸ */
@@ -269,18 +268,14 @@ const div=document.createElement("div");
 div.className="track";
 
 div.innerHTML=`
-<div class="top">
 <span>${file.replace(".mp3","")}</span>
-</div>
 
-<div class="controls">
+<div>
 <button>▶</button>
 <button>⏸</button>
 </div>
 
-<div class="vuWrap">
 <canvas></canvas>
-</div>
 `;
 
 const btnPlay=div.querySelectorAll("button")[0];
