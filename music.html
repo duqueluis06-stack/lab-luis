@@ -127,7 +127,7 @@ animation:pulse 2s infinite;
 100%{box-shadow:0 0 10px #00fff2;}
 }
 
-/* ⏱ tiempo */
+/* TIEMPO */
 small{
 opacity:0.7;
 font-size:11px;
@@ -169,7 +169,7 @@ width:48%;
 
 <script>
 
-/* ⏱ FORMATO TIEMPO */
+/* ⏱ formato */
 function formatTime(sec){
 if(!sec || isNaN(sec)) return "--:--";
 const m = Math.floor(sec / 60);
@@ -202,7 +202,7 @@ s.style.animationDuration=(3+Math.random()*5)+"s";
 stars.appendChild(s);
 }
 
-/* INIT AUDIO */
+/* AUDIO INIT */
 function init(){
 if(ctx) return;
 ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -218,6 +218,7 @@ draw();
 /* VU LÁSER */
 function draw(){
 requestAnimationFrame(draw);
+
 if(!analyser || !activeCanvas) return;
 
 analyser.getByteFrequencyData(dataArray);
@@ -258,42 +259,45 @@ c.stroke();
 }
 }
 
-/* PLAY */
+/* PLAY (NO REINICIO) */
 function play(file, el, canvas){
 init();
 
-if(activeCanvas){
-const old=activeCanvas.getContext("2d");
-old.clearRect(0,0,activeCanvas.width,activeCanvas.height);
+/* solo cambia si es nuevo */
+if(!audio.src.includes(file)){
+audio.src=file;
 }
 
-audio.src=file;
+/* reproducir desde donde quedó */
 audio.play();
 
 activeCanvas=canvas;
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
 el.classList.add("active");
-
-/* ⏱ duración */
-audio.onloadedmetadata = () => {
-const timeEl = document.getElementById("time-"+file);
-if(timeEl){
-timeEl.textContent = "⏱ " + formatTime(audio.duration);
-}
-};
 }
 
-/* PAUSE */
+/* PAUSE (NO REINICIA) */
 function pause(){
 audio.pause();
-
-if(activeCanvas){
-const c=activeCanvas.getContext("2d");
-c.clearRect(0,0,activeCanvas.width,activeCanvas.height);
 }
 
-activeCanvas=null;
+/* ⏱ PROGRESO REAL */
+function updateProgress(){
+requestAnimationFrame(updateProgress);
+
+if(!audio.src) return;
+
+const file=audio.src.split("/").pop();
+const timeEl=document.getElementById("time-"+file);
+
+if(timeEl){
+timeEl.textContent=
+"⏱ " +
+formatTime(audio.currentTime) +
+" / " +
+formatTime(audio.duration);
+}
 }
 
 /* RENDER */
@@ -306,7 +310,7 @@ div.className="track";
 div.innerHTML=`
 <span>
 ${file.replace(".mp3","")}
-<small id="time-${file}">⏱ --:--</small>
+<small id="time-${file}">⏱ --:-- / --:--</small>
 </span>
 
 <div>
@@ -327,6 +331,7 @@ btnPause.onclick=()=>pause();
 container.appendChild(div);
 });
 
+updateProgress();
 </script>
 
 </body>
