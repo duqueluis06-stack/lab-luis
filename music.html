@@ -35,7 +35,7 @@ from{transform:translateY(0);}
 to{transform:translateY(-120vh);}
 }
 
-/* 🔥 LAYOUT GENERAL */
+/* LAYOUT */
 .wrapper{
 position:relative;
 z-index:2;
@@ -46,7 +46,7 @@ max-width:1200px;
 margin:auto;
 }
 
-/* 🎧 TRACKS CENTER */
+/* TRACKS */
 .tracks{
 flex:1;
 display:flex;
@@ -54,7 +54,6 @@ flex-direction:column;
 gap:8px;
 }
 
-/* 🎵 TRACK MINI */
 .track{
 display:flex;
 justify-content:space-between;
@@ -73,7 +72,6 @@ border:1px solid #ff0033;
 box-shadow:0 0 18px #ff0033;
 }
 
-/* botones */
 button{
 background:black;
 border:1px solid #00fff2;
@@ -83,14 +81,13 @@ border-radius:6px;
 cursor:pointer;
 }
 
-/* 🔵 VU pequeño */
 canvas{
 width:55px;
 height:55px;
 border-radius:50%;
 }
 
-/* 🖼 PANEL DERECHO */
+/* SIDE */
 .side{
 width:220px;
 display:flex;
@@ -104,7 +101,7 @@ border-radius:10px;
 box-shadow:0 0 15px #00fff2;
 }
 
-/* 🚪 BOTÓN */
+/* BACK */
 .backBtn{
 position:fixed;
 top:15px;
@@ -130,7 +127,7 @@ animation:pulse 2s infinite;
 100%{box-shadow:0 0 10px #00fff2;}
 }
 
-/* 📱 MOBILE */
+/* MOBILE */
 @media(max-width:800px){
 .wrapper{
 flex-direction:column;
@@ -179,7 +176,6 @@ const tracks=[
 const audio=new Audio();
 let ctx, analyser, source, dataArray;
 let activeCanvas=null;
-let current=null;
 
 /* 🌌 estrellas */
 const stars=document.getElementById("stars");
@@ -191,7 +187,7 @@ s.style.animationDuration=(3+Math.random()*5)+"s";
 stars.appendChild(s);
 }
 
-/* 🎧 INIT AUDIO */
+/* INIT AUDIO */
 function init(){
 if(ctx) return;
 ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -204,10 +200,11 @@ dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* 🔵 VU SOLO ACTIVO */
+/* VU LÁSER */
 function draw(){
 requestAnimationFrame(draw);
-if(!analyser||!activeCanvas)return;
+
+if(!analyser || !activeCanvas) return;
 
 analyser.getByteFrequencyData(dataArray);
 
@@ -231,8 +228,14 @@ let y1=center+Math.sin(angle)*radius;
 let x2=center+Math.cos(angle)*r;
 let y2=center+Math.sin(angle)*r;
 
-c.strokeStyle=`rgb(${255-v},${v*1.5},255)`;
-c.lineWidth=1.5;
+let rColor=255;
+let gColor=v*2;
+let bColor=100;
+
+c.strokeStyle=`rgba(${rColor},${gColor},${bColor},0.9)`;
+c.shadowBlur=10;
+c.shadowColor=`rgb(${rColor},${gColor},${bColor})`;
+c.lineWidth=2;
 
 c.beginPath();
 c.moveTo(x1,y1);
@@ -241,23 +244,35 @@ c.stroke();
 }
 }
 
-/* ▶ PLAY */
+/* PLAY */
 function play(file, el, canvas){
 init();
+
+/* limpiar anterior */
+if(activeCanvas){
+const old=activeCanvas.getContext("2d");
+old.clearRect(0,0,activeCanvas.width,activeCanvas.height);
+}
 
 audio.src=file;
 audio.play();
 
-current=file;
 activeCanvas=canvas;
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
 el.classList.add("active");
 }
 
-/* ⏸ */
+/* PAUSE */
 function pause(){
 audio.pause();
+
+if(activeCanvas){
+const c=activeCanvas.getContext("2d");
+c.clearRect(0,0,activeCanvas.width,activeCanvas.height);
+}
+
+activeCanvas=null;
 }
 
 /* RENDER */
