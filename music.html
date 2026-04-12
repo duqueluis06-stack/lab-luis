@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music Lab</title>
+<title>Music Lab DJ</title>
 
 <style>
 body{
@@ -62,6 +62,7 @@ border-radius:10px;
 border:1px solid #00fff2;
 background:rgba(0,0,0,0.5);
 box-shadow:0 0 10px #00fff2;
+transition:0.2s;
 }
 
 .track.active{
@@ -69,13 +70,13 @@ border:1px solid #ff0033;
 box-shadow:0 0 18px #ff0033;
 }
 
-/* TEXTO */
+/* NOMBRE */
 .name{
 font-weight:bold;
-letter-spacing:1px;
 text-transform:capitalize;
 }
 
+/* TIEMPO */
 small{
 font-size:11px;
 opacity:0.7;
@@ -92,28 +93,28 @@ border-radius:6px;
 cursor:pointer;
 }
 
-/* VU */
-canvas{
-width:55px;
-height:55px;
-border-radius:50%;
-}
-
-/* PROGRESS BAR */
+/* BAR */
 .bar{
 width:100%;
 height:4px;
 background:#111;
 margin-top:6px;
-border-radius:4px;
 overflow:hidden;
+border-radius:4px;
 }
-
 .fill{
 height:100%;
 width:0%;
 background:linear-gradient(90deg,#00fff2,#ff0033);
-box-shadow:0 0 10px #00fff2;
+}
+
+/* VUMETRO MINI (DERECHA) */
+.vu{
+width:60px;
+height:60px;
+border-radius:50%;
+border:1px solid #00fff2;
+margin-left:10px;
 }
 
 /* SIDE */
@@ -127,6 +128,21 @@ gap:10px;
 .side img{
 width:100%;
 border-radius:10px;
+box-shadow:0 0 15px #00fff2;
+}
+
+/* DJ BUTTON */
+.dj{
+position:fixed;
+top:15px;
+right:15px;
+padding:10px 14px;
+border-radius:50px;
+border:1px solid #00fff2;
+color:#00fff2;
+background:black;
+cursor:pointer;
+z-index:20;
 box-shadow:0 0 15px #00fff2;
 }
 
@@ -146,19 +162,6 @@ color:#00fff2;
 background:rgba(0,0,0,0.6);
 box-shadow:0 0 15px #00fff2;
 z-index:10;
-animation:pulse 2s infinite;
-}
-
-@keyframes pulse{
-0%{box-shadow:0 0 10px #00fff2;}
-50%{box-shadow:0 0 25px #ff0033;}
-100%{box-shadow:0 0 10px #00fff2;}
-}
-
-@media(max-width:800px){
-.wrapper{flex-direction:column;}
-.side{width:100%;flex-direction:row;}
-.side img{width:48%;}
 }
 </style>
 </head>
@@ -168,6 +171,8 @@ animation:pulse 2s infinite;
 <div class="stars" id="stars"></div>
 
 <a class="backBtn" href="duqueluis-mp3.html">⏪</a>
+
+<button class="dj" onclick="toggleDJ()">DJ MODE</button>
 
 <div class="wrapper">
 
@@ -182,15 +187,7 @@ animation:pulse 2s infinite;
 
 <script>
 
-/* ⏱ */
-function formatTime(s){
-if(!s||isNaN(s)) return "--:--";
-const m=Math.floor(s/60);
-const sec=Math.floor(s%60);
-return `${m}:${sec<10?"0"+sec:sec}`;
-}
-
-/* 🎧 tracks */
+/* 🎧 TRACKS */
 const tracks=[
 "aum-de-acero.mp3",
 "bajo-en-el-pecho.mp3",
@@ -202,23 +199,18 @@ const tracks=[
 "nucleo-que-despierta.mp3"
 ];
 
-/* AUDIO */
 const audio=new Audio();
-let ctx, analyser, source, dataArray;
-let active=null;
+
 let index=0;
+let dj=false;
 
-/* 🌌 stars */
-const stars=document.getElementById("stars");
-for(let i=0;i<60;i++){
-let s=document.createElement("div");
-s.className="star";
-s.style.left=Math.random()*100+"%";
-s.style.animationDuration=(3+Math.random()*5)+"s";
-stars.appendChild(s);
-}
+/* VU */
+const vuCanvas=document.createElement("canvas");
+vuCanvas.className="vu";
 
-/* INIT */
+let ctx, analyser, source, data;
+
+/* INIT AUDIO */
 function init(){
 if(ctx) return;
 ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -227,74 +219,85 @@ source=ctx.createMediaElementSource(audio);
 source.connect(analyser);
 analyser.connect(ctx.destination);
 analyser.fftSize=64;
-dataArray=new Uint8Array(analyser.frequencyBinCount);
+data=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* PLAY NEXT AUTO */
+/* PLAY */
+function play(file){
+init();
+
+index=tracks.indexOf(file);
+audio.src=file;
+audio.volume=1;
+audio.play();
+}
+
+/* NEXT */
 audio.onended=()=>{
+if(dj){
 next();
+}
 };
 
 function next(){
 index++;
 if(index>=tracks.length) index=0;
-play(tracks[index]);
+crossfadePlay(tracks[index]);
 }
 
-/* PLAY */
-function play(file, el){
-init();
+/* CROSSFADE */
+function crossfadePlay(file){
+let fade=audio.volume;
 
-index=tracks.indexOf(file);
-
-if(!audio.src.includes(file)){
+let out=setInterval(()=>{
+fade-=0.1;
+audio.volume=fade;
+if(fade<=0){
+clearInterval(out);
 audio.src=file;
-}
-
 audio.play();
-
-document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
-if(el) el.classList.add("active");
+fadeIn();
+}
+},60);
 }
 
-/* PAUSE */
-function pause(){
-audio.pause();
+function fadeIn(){
+let v=0;
+let inr=setInterval(()=>{
+v+=0.1;
+audio.volume=v;
+if(v>=1) clearInterval(inr);
+},60);
 }
 
-/* VU */
+/* DJ MODE */
+function toggleDJ(){
+dj=!dj;
+alert("DJ MODE: "+(dj?"ON":"OFF"));
+}
+
+/* DRAW VU */
 function draw(){
 requestAnimationFrame(draw);
-if(!analyser||!active) return;
 
-analyser.getByteFrequencyData(dataArray);
-}
+if(!analyser) return;
 
-/* PROGRESS */
-function update(){
-requestAnimationFrame(update);
+analyser.getByteFrequencyData(data);
 
-if(!audio.duration) return;
+/* simple beat pulse */
+let sum=0;
+for(let i=0;i<data.length;i++) sum+=data[i];
+let beat=sum/data.length;
 
-const file=audio.src.split("/").pop();
-const el=document.getElementById("time-"+file);
-const bar=document.getElementById("bar-"+file);
-
-if(el){
-el.textContent=
-formatTime(audio.currentTime)+" / "+formatTime(audio.duration);
-}
-
-if(bar){
-bar.style.width=(audio.currentTime/audio.duration)*100+"%";
-}
+vuCanvas.style.boxShadow=`0 0 ${beat/10}px #00fff2`;
 }
 
 /* RENDER */
 const container=document.getElementById("tracks");
 
-tracks.forEach((file,i)=>{
+tracks.forEach(file=>{
+
 const name=file
 .replace(".mp3","")
 .replace(/-/g," ")
@@ -306,24 +309,18 @@ div.className="track";
 div.innerHTML=`
 <div style="flex:1">
 <div class="name">${name}</div>
-
-<small id="time-${file}">--:-- / --:--</small>
-
-<div class="bar"><div class="fill" id="bar-${file}"></div></div>
+<small id="t-${file}">--:-- / --:--</small>
+<div class="bar"><div class="fill" id="b-${file}"></div></div>
 </div>
 
 <div>
-<button onclick="play('${file}',this.closest('.track'))">▶</button>
-<button onclick="pause()">⏸</button>
+<button onclick="play('${file}')">▶</button>
 </div>
 
-<canvas></canvas>
 `;
 
 container.appendChild(div);
 });
-
-update();
 
 </script>
 
