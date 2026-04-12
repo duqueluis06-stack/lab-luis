@@ -127,6 +127,13 @@ animation:pulse 2s infinite;
 100%{box-shadow:0 0 10px #00fff2;}
 }
 
+/* ⏱ tiempo */
+small{
+opacity:0.7;
+font-size:11px;
+margin-left:6px;
+}
+
 /* MOBILE */
 @media(max-width:800px){
 .wrapper{
@@ -161,6 +168,14 @@ width:48%;
 </div>
 
 <script>
+
+/* ⏱ FORMATO TIEMPO */
+function formatTime(sec){
+if(!sec || isNaN(sec)) return "--:--";
+const m = Math.floor(sec / 60);
+const s = Math.floor(sec % 60);
+return `${m}:${s < 10 ? "0"+s : s}`;
+}
 
 const tracks=[
 "aum-de-acero.mp3",
@@ -203,7 +218,6 @@ draw();
 /* VU LÁSER */
 function draw(){
 requestAnimationFrame(draw);
-
 if(!analyser || !activeCanvas) return;
 
 analyser.getByteFrequencyData(dataArray);
@@ -248,7 +262,6 @@ c.stroke();
 function play(file, el, canvas){
 init();
 
-/* limpiar anterior */
 if(activeCanvas){
 const old=activeCanvas.getContext("2d");
 old.clearRect(0,0,activeCanvas.width,activeCanvas.height);
@@ -261,6 +274,14 @@ activeCanvas=canvas;
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
 el.classList.add("active");
+
+/* ⏱ duración */
+audio.onloadedmetadata = () => {
+const timeEl = document.getElementById("time-"+file);
+if(timeEl){
+timeEl.textContent = "⏱ " + formatTime(audio.duration);
+}
+};
 }
 
 /* PAUSE */
@@ -283,7 +304,10 @@ const div=document.createElement("div");
 div.className="track";
 
 div.innerHTML=`
-<span>${file.replace(".mp3","")}</span>
+<span>
+${file.replace(".mp3","")}
+<small id="time-${file}">⏱ --:--</small>
+</span>
 
 <div>
 <button>▶</button>
