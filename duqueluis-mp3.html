@@ -247,7 +247,9 @@ const tracks = [
 ];
 
 let ctx, analyser, source, data;
+
 let currentTrack = null;
+let lastTime = 0;
 
 function init(){
 if(ctx) return;
@@ -259,22 +261,31 @@ source = ctx.createMediaElementSource(audio);
 source.connect(analyser);
 analyser.connect(ctx.destination);
 
-analyser.fftSize = 128;
+analyser.fftSize = 256;
 data = new Uint8Array(analyser.frequencyBinCount);
 
 draw();
 }
 
+/* 🧠 FIX PRINCIPAL: NO RESETEAR AUDIO */
 function play(file){
 init();
+
+if (currentTrack !== file) {
 audio.src = file;
-audio.play();
 currentTrack = file;
+lastTime = 0;
+}
+
+audio.currentTime = lastTime;
+audio.play();
+
 render();
 }
 
 function pause(){
 audio.pause();
+lastTime = audio.currentTime;
 }
 
 function formatTime(s){
@@ -309,7 +320,7 @@ c.fillRect(i*w, canvas.height-h/2, w-1, h/2);
 }
 }
 
-/* 🎧 RENDER ESTABLE */
+/* 🎧 RENDER */
 function render(){
 const container = document.getElementById("tracks");
 container.innerHTML = "";
@@ -348,6 +359,7 @@ ${active
 });
 }
 
+/* 🔄 sincronización estable */
 setInterval(render, 500);
 draw();
 
