@@ -97,7 +97,7 @@ box-shadow:0 0 10px #00ffcc;
 background:rgba(0,255,204,0.08);
 }
 
-/* TEXTO */
+/* HEADER TRACK */
 .track-top{
 display:flex;
 justify-content:space-between;
@@ -130,6 +130,27 @@ border-radius:10px;
 border:1px solid rgba(0,255,255,0.2);
 }
 
+/* TIME + BAR */
+.time{
+font-size:11px;
+opacity:0.8;
+margin-top:6px;
+}
+
+.bar{
+height:4px;
+background:#111;
+border-radius:4px;
+overflow:hidden;
+margin-top:6px;
+}
+
+.fill{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#00ffcc,#ff00ff);
+}
+
 /* SIDEBAR */
 .side{
 width:220px;
@@ -147,30 +168,55 @@ border-radius:12px;
 margin-bottom:10px;
 }
 
-/* EXTRA UI */
-.time{
-font-size:11px;
-opacity:0.8;
-margin-top:4px;
-}
-
-.bar{
-height:4px;
-background:#111;
-border-radius:4px;
-overflow:hidden;
-margin-top:6px;
-}
-
-.fill{
-height:100%;
-width:0%;
-background:linear-gradient(90deg,#00ffcc,#ff00ff);
-}
-
-/* FOOTER BUTTONS (sin tocar) */
-.patreon,.exit,.more-music{
+/* PATREON */
+.patreon{
 position:fixed;
+bottom:18px;
+right:18px;
+padding:14px 16px;
+border-radius:14px;
+background:linear-gradient(90deg,#00ffcc,#ff00ff,#00f0ff);
+color:black;
+font-weight:bold;
+text-decoration:none;
+z-index:10;
+box-shadow:0 0 18px rgba(0,255,255,0.5);
+}
+
+/* EXIT */
+.exit{
+position:fixed;
+bottom:18px;
+left:18px;
+padding:10px 14px;
+border:1px solid #00ffcc;
+color:#00ffcc;
+text-decoration:none;
+border-radius:10px;
+background:black;
+z-index:10;
+}
+
+/* MÁS MÚSICA */
+.more-music{
+position:fixed;
+left:50%;
+bottom:90px;
+transform:translateX(-50%);
+padding:10px 16px;
+border-radius:30px;
+border:1px solid #ff00ff;
+color:#00ffcc;
+background:rgba(0,0,0,0.6);
+text-decoration:none;
+z-index:9;
+box-shadow:0 0 15px #ff00ff;
+}
+
+@media(max-width:600px){
+.layout{flex-direction:column;}
+.side{width:100%;display:flex;gap:10px;}
+.side img{width:48%;}
 }
 </style>
 </head>
@@ -202,19 +248,19 @@ allow="autoplay; fullscreen"></iframe>
 
 </div>
 
+<!-- BOTONES RESTAURADOS -->
 <a class="patreon" target="_blank"
 href="https://www.patreon.com/posts/155356854">
 PATREON DOWNLOAD
-<small>Descarga los audios en alta calidad</small>
 </a>
 
-<a class="more-music" href="music.html">🎧 MÁS MÚSICA</a>
+<a class="more-music" href="music.html">
+🎧 MÁS MÚSICA
+</a>
 
-<a class="exit" href="index.html">INICIO</a>
-
-<div class="legal">
-© 2026 Quantum Audio Lab — Luis F. Duque M.
-</div>
+<a class="exit" href="index.html">
+INICIO
+</a>
 
 <script>
 
@@ -234,7 +280,6 @@ let ctx, analyser, source, data;
 let currentTrack = null;
 
 let startTime = 0;
-let duration = 0;
 
 function init(){
 if(ctx) return;
@@ -260,9 +305,7 @@ audio.play();
 currentTrack = file;
 startTime = Date.now();
 
-audio.onloadedmetadata = () => {
-duration = audio.duration;
-};
+audio.onloadedmetadata = () => render();
 
 render();
 }
@@ -271,8 +314,17 @@ function pause(){
 audio.pause();
 }
 
+function formatTime(s){
+if(!s || isNaN(s)) return "0:00";
+const m = Math.floor(s/60);
+const sec = Math.floor(s%60);
+return `${m}:${sec<10?"0"+sec:sec}`;
+}
+
+/* 🔊 VU */
 function draw(){
 requestAnimationFrame(draw);
+
 if(!analyser) return;
 
 analyser.getByteFrequencyData(data);
@@ -294,24 +346,20 @@ c.fillRect(i*w, canvas.height-h/2, w-1, h/2);
 }
 }
 
-function formatTime(s){
-if(!s || isNaN(s)) return "0:00";
-const m = Math.floor(s/60);
-const sec = Math.floor(s%60);
-return `${m}:${sec<10?"0"+sec:sec}`;
-}
-
+/* 🎧 RENDER CON TIEMPO */
 function render(){
 const container = document.getElementById("tracks");
 container.innerHTML = "";
 
 tracks.forEach(t=>{
-const progress = audio.src.includes(t.file)
+const active = audio.src.includes(t.file);
+
+const progress = active
 ? (audio.currentTime / audio.duration) * 100 || 0
 : 0;
 
 container.innerHTML += `
-<div class="track ${t.file === currentTrack ? "active" : ""}">
+<div class="track ${active ? "active" : ""}">
 <div class="track-top">
 <strong>${t.name}</strong>
 <div>
