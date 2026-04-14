@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Lab</title>
 
 <style>
 body{
@@ -16,8 +17,10 @@ overflow-x:hidden;
 /* 🌌 STARS */
 .stars{position:fixed;inset:0;z-index:0;}
 .star{
-position:absolute;width:2px;height:2px;
-background:white;opacity:.7;
+position:absolute;
+width:2px;height:2px;
+background:white;
+opacity:.7;
 animation:rise linear infinite;
 }
 @keyframes rise{
@@ -27,12 +30,14 @@ to{transform:translateY(-10vh);}
 
 /* 🔙 BACK */
 .backBtn{
-position:fixed;top:15px;left:15px;
-width:65px;height:65px;
-border-radius:50%;
-display:flex;align-items:center;justify-content:center;
-font-size:24px;
-color:#00fff2;text-decoration:none;
+position:fixed;
+top:15px;left:15px;
+padding:10px 14px;
+border-radius:30px;
+display:flex;align-items:center;gap:5px;
+font-size:14px;
+color:#00fff2;
+text-decoration:none;
 background:rgba(0,0,0,0.6);
 border:2px solid #00fff2;
 box-shadow:0 0 15px #00fff2,0 0 40px #00fff2;
@@ -40,7 +45,7 @@ animation:pulse 1.5s infinite;
 z-index:10;
 }
 .backBtn:hover{
-transform:scale(1.1);
+transform:scale(1.05);
 box-shadow:0 0 30px #ff0033;
 }
 @keyframes pulse{
@@ -87,7 +92,7 @@ box-shadow:0 0 20px #ff0033;
 .bar{height:4px;background:#111;margin-top:5px;border-radius:4px;overflow:hidden}
 .fill{height:100%;width:0;background:linear-gradient(90deg,#00fff2,#ff0033)}
 
-/* 🎬 VIDEO MEJORADO */
+/* VIDEO */
 .videoWrap{
 width:100%;
 height:240px;
@@ -99,13 +104,12 @@ video{
 width:100%;
 height:100%;
 object-fit:cover;
-object-position:center;
 }
 
-/* 🍕 */
+/* PIZZA */
 canvas{width:180px;height:180px}
 
-/* 🔥 PATREON TRICOLOR */
+/* 🔥 PATREON */
 .patreon{
 display:inline-block;
 padding:14px 20px;
@@ -134,7 +138,8 @@ opacity:.9;
 <body>
 
 <div class="stars" id="stars"></div>
-<a class="backBtn" href="duqueluis-mp3.html">⏪</a>
+
+<a class="backBtn" href="duqueluis-mp3.html">⏪ REGRESO</a>
 
 <div class="wrapper">
 
@@ -149,7 +154,7 @@ opacity:.9;
 
 <div class="videoWrap">
 <video autoplay loop muted playsinline>
-<source src="bh.mp4">
+<source src="bh.mp4" type="video/mp4">
 </video>
 </div>
 
@@ -182,12 +187,14 @@ s.style.animationDuration=(3+Math.random()*6)+"s";
 stars.appendChild(s);
 }
 
-/* AUDIO FIX REAL */
+/* AUDIO */
 const audio=new Audio();
 audio.preload="auto";
 
 let ctx, analyser, dataArray;
+let currentTrack="";
 
+/* INIT */
 function init(){
 if(ctx) return;
 ctx=new AudioContext();
@@ -199,22 +206,28 @@ dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* 🔥 PLAY FIX */
+/* PLAY FIX */
 function play(file,el){
 init();
 ctx.resume();
 
-/* SIEMPRE recarga bien */
-audio.src = file;
+/* SOLO cambia si es otro */
+if(currentTrack!==file){
+audio.src=file;
 audio.load();
+currentTrack=file;
+}
 
-audio.play().catch(e=>console.log("play error",e));
+audio.play().catch(()=>{});
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
 el.classList.add("active");
 }
 
-function pause(){audio.pause();}
+/* PAUSE */
+function pause(){
+audio.pause();
+}
 
 /* TIME */
 function format(s){
@@ -224,18 +237,18 @@ let sec=Math.floor(s%60);
 return m+":"+(sec<10?"0":"")+sec;
 }
 
+/* UPDATE */
 setInterval(()=>{
 if(!audio.duration) return;
 
-let file=audio.src.split("/").pop();
-let t=document.getElementById("time-"+file);
-let b=document.getElementById("bar-"+file);
+let t=document.getElementById("time-"+currentTrack);
+let b=document.getElementById("bar-"+currentTrack);
 
 if(t) t.textContent=format(audio.currentTime)+" / "+format(audio.duration);
 if(b) b.style.width=(audio.currentTime/audio.duration)*100+"%";
 },200);
 
-/* 🍕 */
+/* 🍕 VISUAL */
 function draw(){
 requestAnimationFrame(draw);
 if(!analyser) return;
@@ -263,6 +276,14 @@ c.lineTo(x,y);
 c.stroke();
 }
 }
+
+/* VIDEO FIX */
+const video=document.querySelector("video");
+setInterval(()=>{
+if(video.paused){
+video.play().catch(()=>{});
+}
+},1000);
 
 /* RENDER */
 function render(list,id){
