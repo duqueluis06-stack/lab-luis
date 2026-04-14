@@ -3,101 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music Lab</title>
 
 <style>
-body{
-margin:0;
-background:black;
-font-family:Arial;
-color:#00fff2;
-}
+body{margin:0;background:black;color:#00fff2;font-family:Arial}
 
 /* LAYOUT */
-.wrapper{
-display:flex;
-gap:10px;
-padding:10px;
-max-width:1400px;
-margin:auto;
-}
+.wrapper{display:flex;gap:10px;padding:10px;max-width:1400px;margin:auto}
+.column{flex:1;display:flex;flex-direction:column;gap:8px}
+.center{flex:1.2;display:flex;flex-direction:column;align-items:center;gap:10px}
 
-.column{flex:1;display:flex;flex-direction:column;gap:8px;}
+/* IMG */
+.album-img{width:100%;border-radius:10px;box-shadow:0 0 15px #00fff2}
 
-.center{
-flex:1.2;
-display:flex;
-flex-direction:column;
-align-items:center;
-gap:10px;
-}
+/* TRACK */
+.track{padding:10px;border:1px solid #00fff2;border-radius:10px}
+.track.active{border-color:#ff0033;box-shadow:0 0 20px #ff0033}
+.name{font-size:12px;font-weight:bold}
 
-/* IMAGES */
-.album-img{
+/* BAR */
+.bar{height:4px;background:#111;margin-top:5px}
+.fill{height:100%;width:0;background:linear-gradient(90deg,#00fff2,#ff0033)}
+
+/* VIDEO RECORTADO */
+.videoWrap{
 width:100%;
+height:180px;
+overflow:hidden;
 border-radius:10px;
 box-shadow:0 0 15px #00fff2;
 }
-
-/* TRACK */
-.track{
-padding:10px;
-border:1px solid #00fff2;
-border-radius:10px;
-background:rgba(0,0,0,0.5);
-}
-
-.track.active{
-border-color:#ff0033;
-box-shadow:0 0 20px #ff0033;
-}
-
-.name{font-size:12px;font-weight:bold;}
-
-.bar{
-height:4px;
-background:#111;
-margin-top:5px;
-border-radius:4px;
-overflow:hidden;
-}
-.fill{
-height:100%;
-width:0%;
-background:linear-gradient(90deg,#00fff2,#ff0033);
-}
-
-/* BUTTON */
-button{
-background:black;
-color:#00fff2;
-border:1px solid #00fff2;
-}
-
-/* VIDEO */
 video{
 width:100%;
-border-radius:10px;
+transform:translateY(-20px);
 }
 
-/* VISUALIZER */
-canvas{
-width:180px;
-height:180px;
-}
+/* PIZZA */
+canvas{width:180px;height:180px}
 
-/* PATREON */
+/* BOTÓN NEÓN */
 .patreon{
+display:inline-block;
+padding:12px;
 border:2px solid #00fff2;
-padding:10px;
-text-decoration:none;
+border-radius:10px;
 color:#00fff2;
+text-decoration:none;
+box-shadow:0 0 10px #00fff2;
+animation:pulse 1.5s infinite;
+text-align:center;
+}
+.patreon span{display:block;font-size:11px;opacity:.8}
+
+@keyframes pulse{
+0%{box-shadow:0 0 10px #00fff2}
+50%{box-shadow:0 0 25px #ff0033}
+100%{box-shadow:0 0 10px #00fff2}
 }
 
 /* MOBILE */
-@media(max-width:900px){
-.wrapper{flex-direction:column;}
-}
+@media(max-width:900px){.wrapper{flex-direction:column}}
 </style>
 </head>
 
@@ -116,14 +80,17 @@ color:#00fff2;
 <!-- CENTRO -->
 <div class="center">
 
+<div class="videoWrap">
 <video autoplay loop muted>
-<source src="bh.mp4" type="video/mp4">
+<source src="bh.mp4">
 </video>
+</div>
 
 <canvas id="viz"></canvas>
 
 <a class="patreon" href="https://www.patreon.com/posts/155590751" target="_blank">
-💿 Descargar en Patreon
+💿 EL DESPERTAR DE LA CUMBIA
+<span>Descargar álbum completo en Patreon</span>
 </a>
 
 </div>
@@ -137,9 +104,7 @@ color:#00fff2;
 </div>
 
 <script>
-
-/* AUDIO */
-const audio = new Audio();
+const audio=new Audio();
 let ctx, analyser, dataArray;
 
 /* INIT */
@@ -147,19 +112,23 @@ function init(){
 if(ctx) return;
 ctx=new AudioContext();
 analyser=ctx.createAnalyser();
-const src=ctx.createMediaElementSource(audio);
+let src=ctx.createMediaElementSource(audio);
 src.connect(analyser);
 analyser.connect(ctx.destination);
 dataArray=new Uint8Array(analyser.frequencyBinCount);
 draw();
 }
 
-/* PLAY */
+/* PLAY (FIX PAUSA) */
 function play(file,el){
 init();
 ctx.resume();
 
+/* SOLO cambia si es otro track */
+if(!audio.src.endsWith(file)){
 audio.src=file;
+}
+
 audio.play();
 
 document.querySelectorAll(".track").forEach(t=>t.classList.remove("active"));
@@ -167,11 +136,13 @@ el.classList.add("active");
 }
 
 /* PAUSE */
-function pause(){audio.pause();}
+function pause(){
+audio.pause(); // 👈 NO resetea
+}
 
 /* TIME */
 function format(s){
-if(!s) return "--:--";
+if(!s || isNaN(s)) return "0:00";
 let m=Math.floor(s/60);
 let sec=Math.floor(s%60);
 return m+":"+(sec<10?"0":"")+sec;
@@ -182,20 +153,18 @@ setInterval(()=>{
 if(!audio.duration) return;
 
 let file=audio.src.split("/").pop();
-
 let time=document.getElementById("time-"+file);
 let bar=document.getElementById("bar-"+file);
 
 if(time){
 time.textContent=format(audio.currentTime)+" / "+format(audio.duration);
 }
-
 if(bar){
 bar.style.width=(audio.currentTime/audio.duration)*100+"%";
 }
 },200);
 
-/* VISUALIZER (MEJORADO) */
+/* 🍕 PIZZA COLOR */
 function draw(){
 requestAnimationFrame(draw);
 if(!analyser) return;
@@ -216,18 +185,23 @@ for(let i=0;i<bars;i++){
 let val=dataArray[i]/255;
 let angle=(i/bars)*Math.PI*2;
 
-let x=90+Math.cos(angle)*(40+val*40);
-let y=90+Math.sin(angle)*(40+val*40);
+let radius=40+val*50;
+
+let x=90+Math.cos(angle)*radius;
+let y=90+Math.sin(angle)*radius;
+
+/* COLOR dinámico */
+let hue=i*4;
+c.strokeStyle=`hsl(${hue},100%,50%)`;
 
 c.beginPath();
 c.moveTo(90,90);
 c.lineTo(x,y);
-c.strokeStyle="#00fff2";
 c.stroke();
 }
 }
 
-/* TRACK LIST */
+/* RENDER */
 function render(list,container){
 let div=document.getElementById(container);
 
@@ -239,7 +213,7 @@ t.className="track";
 
 t.innerHTML=`
 <div class="name">${name}</div>
-<small id="time-${f}">--:-- / --:--</small>
+<small id="time-${f}">0:00 / 0:00</small>
 <div class="bar"><div class="fill" id="bar-${f}"></div></div>
 <button onclick="play('${f}',this.parentElement)">▶</button>
 <button onclick="pause()">⏸</button>
