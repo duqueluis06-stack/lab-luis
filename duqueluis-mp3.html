@@ -255,118 +255,146 @@ const cumbiaTracks=[
 {file:"stade-de-nos-reves.mp3", name:"🏟️ Stade de nos Rêves"}
 ];
 
-function play(file){
-if(currentTrack!==file){
-audio.src=file;
-currentTrack=file;
-lastTime=0;
-}
-audio.currentTime=lastTime;
-audio.play();
+async function play(file){
+  if(ctx.state === "suspended"){
+    await ctx.resume();
+  }
+
+  if(currentTrack !== file){
+    audio.src = file;
+    currentTrack = file;
+    lastTime = 0;
+  }
+
+  audio.currentTime = lastTime;
+  audio.play();
 }
 
 function pause(){
-audio.pause();
-lastTime=audio.currentTime;
+  audio.pause();
+  lastTime = audio.currentTime;
 }
 
 /* ⏱️ FORMATO TIPO SPOTIFY */
 function formatTime(s){
-if(!s || isNaN(s)) return "0:00";
-let m=Math.floor(s/60);
-let sec=Math.floor(s%60);
-return m+":"+(sec<10?"0"+sec:sec);
+  if(!s || isNaN(s)) return "0:00";
+  let m = Math.floor(s/60);
+  let sec = Math.floor(s%60);
+  return m + ":" + (sec<10 ? "0"+sec : sec);
 }
 
 function render(){
 
-const left=document.getElementById("tracks");
-const right=document.getElementById("cumbiaTracks");
+  const left = document.getElementById("tracks");
+  const right = document.getElementById("cumbiaTracks");
 
-left.innerHTML="";
-right.innerHTML="";
+  left.innerHTML = "";
+  right.innerHTML = "";
 
-let d=audio.duration||0;
+  let d = audio.duration || 0;
 
-/* IZQUIERDA */
-tracks.forEach(t=>{
-let active=currentTrack===t.file;
-let p=active?(audio.currentTime/d)*100:0;
+  /* IZQUIERDA */
+  tracks.forEach(t=>{
+    let active = currentTrack === t.file;
+    let p = (active && d) ? (audio.currentTime/d)*100 : 0;
 
-left.innerHTML+=`
-<div class="track ${active?"active":""}">
-<div class="track-top">
-<strong>${t.name}</strong>
-<div>
-<button onclick="play('${t.file}')">▶</button>
-<button onclick="pause()">⏸</button>
-</div>
-</div>
+    left.innerHTML += `
+    <div class="track ${active?"active":""}">
+      <div class="track-top">
+        <strong>${t.name}</strong>
+        <div>
+          <button onclick="play('${t.file}')">▶</button>
+          <button onclick="pause()">⏸</button>
+        </div>
+      </div>
 
-<div class="time">
-${active
-? formatTime(audio.currentTime)+" / "+formatTime(d)
-: "--:-- / --:--"}
-</div>
+      <div class="time">
+        ${active
+        ? formatTime(audio.currentTime)+" / "+formatTime(d)
+        : "--:-- / --:--"}
+      </div>
 
-<div class="bar">
-<div class="fill" style="width:${p}%"></div>
-</div>
-</div>`;
-});
+      <div class="bar">
+        <div class="fill" style="width:${p}%"></div>
+      </div>
+    </div>`;
+  });
 
-/* DERECHA */
-cumbiaTracks.forEach(t=>{
-let active=currentTrack===t.file;
-let p=active?(audio.currentTime/d)*100:0;
+  /* DERECHA */
+  cumbiaTracks.forEach(t=>{
+    let active = currentTrack === t.file;
+    let p = (active && d) ? (audio.currentTime/d)*100 : 0;
 
-right.innerHTML+=`
-<div class="track ${active?"active":""}">
-<div class="track-top">
-<strong>${t.name}</strong>
-<div>
-<button onclick="play('${t.file}')">▶</button>
-<button onclick="pause()">⏸</button>
-</div>
-</div>
+    right.innerHTML += `
+    <div class="track ${active?"active":""}">
+      <div class="track-top">
+        <strong>${t.name}</strong>
+        <div>
+          <button onclick="play('${t.file}')">▶</button>
+          <button onclick="pause()">⏸</button>
+        </div>
+      </div>
 
-<div class="time">
-${active
-? formatTime(audio.currentTime)+" / "+formatTime(d)
-: "--:-- / --:--"}
-</div>
+      <div class="time">
+        ${active
+        ? formatTime(audio.currentTime)+" / "+formatTime(d)
+        : "--:-- / --:--"}
+      </div>
 
-<div class="bar">
-<div class="fill" style="width:${p}%"></div>
-</div>
-</div>`;
-});
+      <div class="bar">
+        <div class="fill" style="width:${p}%"></div>
+      </div>
+    </div>`;
+  });
 }
 
 setInterval(render,400);
 
 /* 🎚️ VU METER */
-const data=new Uint8Array(analyser.frequencyBinCount);
+const data = new Uint8Array(analyser.frequencyBinCount);
+
+function getDominantFrequency(){
+  let max = 0;
+  let index = 0;
+
+  for(let i=0;i<data.length;i++){
+    if(data[i] > max){
+      max = data[i];
+      index = i;
+    }
+  }
+
+  let freq = index * ctx.sampleRate / analyser.fftSize;
+  return freq;
+}
 
 function draw(){
-requestAnimationFrame(draw);
-analyser.getByteFrequencyData(data);
+  requestAnimationFrame(draw);
 
-const c=vu.getContext("2d");
+  analyser.getByteFrequencyData(data);
+  let freq = getDominantFrequency();
 
-vu.width=vu.offsetWidth;
-vu.height=vu.offsetHeight;
+  const c = vu.getContext("2d");
 
-c.clearRect(0,0,vu.width,vu.height);
+  vu.width = vu.offsetWidth;
+  vu.height = vu.offsetHeight;
 
-let w=vu.width/data.length;
+  c.clearRect(0,0,vu.width,vu.height);
 
-for(let i=0;i<data.length;i++){
-let h=data[i];
-c.fillStyle=`rgb(${h*2},${255-h},255)`;
-c.fillRect(i*w,vu.height-h/2,w-1,h/2);
+  /* TEXTO FRECUENCIA */
+  c.fillStyle = "#00ffcc";
+  c.font = "12px Arial";
+  c.fillText("Hz: " + Math.round(freq), 10, 15);
+
+  let w = vu.width / data.length;
+
+  for(let i=0;i<data.length;i++){
+    let h = data[i];
+    c.fillStyle = `rgb(${h*2},${255-h},255)`;
+    c.fillRect(i*w, vu.height-h/2, w-1, h/2);
+  }
 }
-}
+
 draw();
 
 </script>
