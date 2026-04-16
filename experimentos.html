@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Experimentos - Laboratorio | Lab Luis</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -12,20 +11,45 @@ body{
   overflow:hidden;
   background:#000;
   font-family:Arial;
-  color:#00ffcc;
 }
 
-/* CANVAS */
+/* 🌌 UNIVERSO */
 canvas{
   position:fixed;
   top:0;
   left:0;
   width:100%;
   height:100%;
+  z-index:0;
 }
 
-/* BLACK HOLE */
-.blackhole{
+/* 🧪 PANEL */
+#panel{
+  position:fixed;
+  top:10px;
+  left:10px;
+  z-index:10;
+  background:rgba(0,0,0,0.7);
+  border:1px solid #00ffcc;
+  color:#00ffcc;
+  padding:12px;
+  width:200px;
+  font-size:12px;
+}
+
+#panel button{
+  width:100%;
+  margin-top:6px;
+  padding:6px;
+  border:none;
+  cursor:pointer;
+  background:#00ffcc;
+  color:#000;
+  font-weight:bold;
+}
+
+/* 🌀 BLACK HOLE (INTACTO) */
+#blackhole{
   position:fixed;
   top:10px;
   right:10px;
@@ -38,27 +62,16 @@ canvas{
   text-decoration:none;
 }
 
-/* PANEL */
-#panel{
-  position:fixed;
-  top:10px;
-  left:10px;
-  z-index:9999;
-  width:220px;
-  padding:10px;
-  background:rgba(0,0,0,0.7);
-  border:1px solid #00ffcc;
-  font-size:12px;
-}
-
+/* 📡 HUD */
 #hud{
   position:fixed;
   bottom:10px;
   left:10px;
-  z-index:9999;
-  font-size:11px;
+  z-index:10;
   background:rgba(0,0,0,0.6);
-  padding:6px;
+  color:#00ffcc;
+  padding:8px;
+  font-size:12px;
   border:1px solid #00ffcc;
 }
 </style>
@@ -66,160 +79,106 @@ canvas{
 
 <body>
 
-<canvas id="c"></canvas>
+<!-- 🌀 BLACK HOLE (NO TOCAR) -->
+<a id="blackhole" href="index3d.html">🌀 Black Hole 3D</a>
 
-<a class="blackhole" href="index3d.html">🌀 Black Hole 3D</a>
-
+<!-- 🧪 PANEL -->
 <div id="panel">
-⚡ Intensidad <br>
-<input id="intensity" type="range" min="10" max="200" value="80"><br><br>
+🧬 LAB LUIS
 
-🌊 Velocidad luz <br>
-<input id="cval" type="range" min="1" max="10" value="3"><br><br>
-
-<button onclick="emitLight()">💡 Emitir luz</button>
+<button onclick="mode='time'">⏳ Tiempo</button>
+<button onclick="mode='light'">💡 Luz</button>
+<button onclick="mode='space'">🪐 Espacio</button>
+<button onclick="emitLight()">⚡ Emitir luz</button>
 </div>
 
-<div id="hud">LAB ACTIVE ⚡</div>
+<!-- 📡 HUD -->
+<div id="hud">Sistema activo</div>
+
+<canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
 
-canvas.width = innerWidth;
-canvas.height = innerHeight;
+c.width = innerWidth;
+c.height = innerHeight;
 
-/* =========================
-   STATE
-========================= */
-let intensity = 80;
-let lightSpeed = 3;
-let t = 0;
-
-/* UI */
-document.getElementById("intensity").oninput = e=>{
-  intensity = +e.target.value;
-};
-document.getElementById("cval").oninput = e=>{
-  lightSpeed = +e.target.value;
-};
-
-/* =========================
-   EARTH + SATELLITE
-========================= */
-let earthA = 0;
-let satA = 0;
-
-/* =========================
-   LIGHT SYSTEM
-========================= */
-let pulses = [];
-
-function emitLight(){
-  pulses.push({
-    x: earthX,
-    y: earthY,
-    tx: satX,
-    ty: satY,
-    p: 0
+/* 🌌 ESTRELLAS */
+let stars = [];
+for(let i=0;i<500;i++){
+  stars.push({
+    x:Math.random()*c.width,
+    y:Math.random()*c.height,
+    z:Math.random()*2
   });
 }
 
-/* =========================
-   MOUSE
-========================= */
-let mouse = {x:innerWidth/2,y:innerHeight/2};
+/* ⚙️ SISTEMA */
+let mode = "time";
+let pulses = [];
 
-window.addEventListener("mousemove",e=>{
-  mouse.x = e.clientX;
-  mouse.y = e.clientY;
+/* 💡 EMITIR LUZ */
+function emitLight(){
+  pulses.push({p:0});
+}
+
+/* 🎯 INTERACCIÓN */
+let mx=0,my=0;
+
+window.addEventListener("mousemove",(e)=>{
+  mx = e.clientX / innerWidth - 0.5;
+  my = e.clientY / innerHeight - 0.5;
 });
 
-/* =========================
-   LOOP
-========================= */
+/* 🌌 LOOP */
 function draw(){
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,c.width,c.height);
 
-  const cx = canvas.width/2;
-  const cy = canvas.height/2;
+  /* ESTRELLAS */
+  for(let s of stars){
+    s.y += 0.3 + s.z;
 
-  /* WAVES */
-  for(let y=0;y<canvas.height;y+=10){
+    if(s.y > c.height){
+      s.y = 0;
+      s.x = Math.random()*c.width;
+    }
 
-    let wave = Math.sin((y+t)*0.01)*intensity;
-
-    let influence = Math.exp(-Math.abs(mouse.y-y)*0.01)*20;
-
-    ctx.strokeStyle="rgba(0,255,204,0.3)";
-    ctx.beginPath();
-
-    ctx.moveTo(cx,y);
-    ctx.lineTo(cx-200+wave+influence,y);
-
-    ctx.moveTo(cx,y);
-    ctx.lineTo(cx+200-wave-influence,y);
-
-    ctx.stroke();
+    ctx.fillStyle = "#00ffcc";
+    ctx.globalAlpha = 0.5 + s.z*0.3;
+    ctx.fillRect(s.x,s.y,1.5,1.5);
   }
 
-  /* EARTH */
-  earthX = cx + Math.cos(earthA)*150;
-  earthY = cy + Math.sin(earthA)*80;
-
-  ctx.fillStyle="#00aaff";
-  ctx.beginPath();
-  ctx.arc(earthX,earthY,14,0,Math.PI*2);
-  ctx.fill();
-
-  /* SATELLITE */
-  satX = cx + Math.cos(satA)*260;
-  satY = cy + Math.sin(satA)*140;
-
-  ctx.fillStyle="#fff";
-  ctx.beginPath();
-  ctx.arc(satX,satY,5,0,Math.PI*2);
-  ctx.fill();
-
-  /* LASER */
-  ctx.strokeStyle="#ff00ff";
-  ctx.beginPath();
-  ctx.moveTo(earthX,earthY);
-  ctx.lineTo(satX,satY);
-  ctx.stroke();
-
-  /* LIGHT PULSES */
+  /* LUZ (SIMULACIÓN SIMPLE) */
   for(let p of pulses){
+    p.p += 0.01;
 
-    let dx = p.tx - p.x;
-    let dy = p.ty - p.y;
+    let x = c.width/2 + (mx*200)*p.p;
+    let y = c.height/2 + (my*200)*p.p;
 
-    p.p += lightSpeed / 200;
-
-    p.cx = p.x + dx*p.p;
-    p.cy = p.y + dy*p.p;
-
-    ctx.fillStyle="#ff00ff";
     ctx.beginPath();
-    ctx.arc(p.cx,p.cy,4,0,Math.PI*2);
+    ctx.fillStyle = "rgba(255,0,255,0.8)";
+    ctx.arc(x,y,3,0,Math.PI*2);
     ctx.fill();
   }
 
   pulses = pulses.filter(p=>p.p<1);
 
   /* HUD */
-  document.getElementById("hud").innerHTML =
-  `INT: ${intensity} | LIGHT SPEED: ${lightSpeed} | PULSES: ${pulses.length}`;
-
-  earthA += 0.01;
-  satA += 0.015;
-  t += 2;
+  document.getElementById("hud").innerText =
+  "Modo: " + mode + " | Pulsos: " + pulses.length;
 
   requestAnimationFrame(draw);
 }
 
 draw();
+
+/* RESIZE */
+window.addEventListener("resize",()=>{
+  c.width = innerWidth;
+  c.height = innerHeight;
+});
 </script>
 
 </body>
