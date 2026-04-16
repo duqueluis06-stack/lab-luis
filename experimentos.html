@@ -4,21 +4,26 @@
 <meta charset="UTF-8">
 
 <title>Experimentos - Laboratorio | Lab Luis</title>
+<meta name="robots" content="index, follow">
 <link rel="canonical" href="https://duquemartini.com/experimentos.html">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
+/* =========================
+   BASE SYSTEM
+========================= */
 body{
   margin:0;
   background:#000;
-  color:#00ffcc;
-  font-family:Arial;
   overflow-x:hidden;
+  font-family:Arial;
+  color:#00ffcc;
 }
 
 /* =========================
-   CANVAS GLOBAL
+   CANVAS ENGINE
 ========================= */
 canvas{
   position:fixed;
@@ -43,10 +48,25 @@ canvas{
   font-weight:bold;
   border-radius:10px;
   text-decoration:none;
+  box-shadow:0 0 25px #00ffcc;
 }
 
 /* =========================
-   SECCIONES SCROLL
+   HUD SYSTEM
+========================= */
+#hud{
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  z-index:9999;
+  font-size:11px;
+  background:rgba(0,0,0,0.6);
+  padding:6px;
+  border:1px solid #00ffcc;
+}
+
+/* =========================
+   SCROLL SECTIONS
 ========================= */
 section{
   position:relative;
@@ -60,14 +80,24 @@ h2{
   text-shadow:0 0 10px #00ffff;
 }
 
-/* BLOQUES */
+/* =========================
+   BLOCKS
+========================= */
 .block{
-  margin:20px auto;
   max-width:900px;
+  margin:20px auto;
   padding:14px;
-  border-left:3px solid #00ffcc;
   background:rgba(0,0,0,0.6);
+  border-left:3px solid #00ffcc;
+  cursor:pointer;
+  transition:0.2s;
 }
+
+.block:hover{
+  transform:scale(1.02);
+  box-shadow:0 0 20px rgba(0,255,204,0.2);
+}
+
 </style>
 </head>
 
@@ -77,50 +107,57 @@ h2{
 
 <a class="blackhole" href="index3d.html">🌀 Black Hole 3D</a>
 
+<div id="hud">SYSTEM ACTIVE ⚡</div>
+
 <!-- =========================
-     SECCIÓN 1
+     ⏳ TIEMPO (PLANCK → INFINITO)
+========================= -->
+<section data-mode="time">
+  <h2>⏳ ¿Qué es el tiempo?</h2>
+
+  <div class="block">
+    Escala mínima: fluctuaciones tipo Planck (ruido fundamental).
+  </div>
+
+  <div class="block">
+    Escala humana: percepción lineal (reloj).
+  </div>
+
+  <div class="block">
+    Escala orbital: satélites y planetas.
+  </div>
+
+  <div class="block">
+    Escala cosmológica: expansión del sistema.
+  </div>
+</section>
+
+<!-- =========================
+     🌊 ULTRASONIDO
 ========================= -->
 <section data-mode="wave">
-  <h2>🌊 Ultrasonido</h2>
+  <h2>🔊 Ultrasonido</h2>
+
   <div class="block">
     Ondas mecánicas de alta frecuencia. Interacción con materia.
   </div>
 </section>
 
 <!-- =========================
-     SECCIÓN 2
-========================= -->
-<section data-mode="spectrum">
-  <h2>🌈 Espectro electromagnético</h2>
-  <div class="block">
-    Visualización de energía en frecuencias.
-  </div>
-</section>
-
-<!-- =========================
-     SECCIÓN 3 (TIEMPO)
-========================= -->
-<section data-mode="time">
-  <h2>⏳ ¿Qué es el tiempo?</h2>
-  <div class="block">
-    Escalas desde Planck hasta percepción humana y orbital.
-  </div>
-</section>
-
-<!-- =========================
-     SECCIÓN 4
+     🌌 SISTEMA ESPACIAL
 ========================= -->
 <section data-mode="space">
   <h2>🛰 Sistema espacial</h2>
+
   <div class="block">
-    Propagación de luz, satélites y distancias cósmicas.
+    Tierra, satélites y propagación de señales.
   </div>
 </section>
 
 <script>
 
 /* =========================
-   ENGINE BASE
+   CANVAS INIT
 ========================= */
 const c = document.getElementById("engine");
 const ctx = c.getContext("2d");
@@ -128,7 +165,10 @@ const ctx = c.getContext("2d");
 c.width = innerWidth;
 c.height = innerHeight;
 
-let mode = "wave";
+/* =========================
+   STATE SYSTEM
+========================= */
+let mode = "time";
 let t = 0;
 
 let mouse = {x:innerWidth/2,y:innerHeight/2};
@@ -154,39 +194,105 @@ const observer = new IntersectionObserver(entries=>{
 sections.forEach(s=>observer.observe(s));
 
 /* =========================
-   ENGINE VISUAL
+   PLANET SYSTEM
+========================= */
+let earthA = 0;
+let satA = 0;
+
+/* =========================
+   MAIN ENGINE
 ========================= */
 function draw(){
 
   ctx.clearRect(0,0,c.width,c.height);
 
-  const centerX = c.width/2;
+  const cx = c.width/2;
+  const cy = c.height/2;
 
-  for(let y=0;y<c.height;y+=6){
+  /* =========================
+     🌊 FIELD BACKGROUND
+  ========================= */
+  for(let y=0;y<c.height;y+=8){
 
-    let influence = Math.exp(-Math.abs(mouse.y-y)*0.01)*30;
+    let base = 40;
 
-    let base =
-      mode==="wave" ? 60 :
-      mode==="spectrum" ? 100 :
-      mode==="time" ? 140 :
-      80;
+    if(mode==="time") base = 60;
+    if(mode==="wave") base = 90;
+    if(mode==="space") base = 120;
 
-    let signal = Math.sin((y+t)*0.01)*base;
+    let wave = Math.sin((y+t)*0.01)*base;
 
-    ctx.strokeStyle="#00ffcc";
+    let influence = Math.exp(-Math.abs(mouse.y-y)*0.01)*25;
+
+    ctx.strokeStyle="rgba(0,255,204,0.35)";
     ctx.beginPath();
 
-    ctx.moveTo(centerX,y);
-    ctx.lineTo(centerX-200+signal+influence,y);
+    ctx.moveTo(cx,y);
+    ctx.lineTo(cx-250+wave+influence,y);
 
-    ctx.moveTo(centerX,y);
-    ctx.lineTo(centerX+200-signal-influence,y);
+    ctx.moveTo(cx,y);
+    ctx.lineTo(cx+250-wave-influence,y);
 
     ctx.stroke();
   }
 
-  t+=2;
+  /* =========================
+     🌍 EARTH
+  ========================= */
+  let earthX = cx + Math.cos(earthA)*140;
+  let earthY = cy + Math.sin(earthA)*70;
+
+  ctx.fillStyle="#00aaff";
+  ctx.beginPath();
+  ctx.arc(earthX,earthY,16,0,Math.PI*2);
+  ctx.fill();
+
+  /* =========================
+     🛰 SATELLITE
+  ========================= */
+  let satX = cx + Math.cos(satA)*260;
+  let satY = cy + Math.sin(satA)*140;
+
+  ctx.fillStyle="#ffffff";
+  ctx.beginPath();
+  ctx.arc(satX,satY,5,0,Math.PI*2);
+  ctx.fill();
+
+  /* =========================
+     💡 LASER LINK
+  ========================= */
+  ctx.strokeStyle="#ff00ff";
+  ctx.shadowBlur=18;
+  ctx.shadowColor="#ff00ff";
+
+  ctx.beginPath();
+  ctx.moveTo(earthX,earthY);
+  ctx.lineTo(satX,satY);
+  ctx.stroke();
+
+  ctx.shadowBlur=0;
+
+  /* =========================
+     🌌 TIME VISUAL CORE
+  ========================= */
+  if(mode==="time"){
+
+    ctx.strokeStyle="rgba(180,0,255,0.4)";
+
+    for(let i=0;i<80;i++){
+      let a = i*0.1 + t*0.01;
+      let r = 40 + Math.sin(t*0.1+i)*10;
+
+      ctx.beginPath();
+      ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.stroke();
+    }
+  }
+
+  earthA += 0.01;
+  satA += 0.015;
+  t += 2;
+
   requestAnimationFrame(draw);
 }
 
