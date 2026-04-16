@@ -2,41 +2,29 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-
 <title>Experimentos - Laboratorio | Lab Luis</title>
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://duquemartini.com/experimentos.html">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-
-/* =========================
-   BASE SYSTEM
-========================= */
 body{
   margin:0;
+  overflow:hidden;
   background:#000;
-  overflow-x:hidden;
   font-family:Arial;
   color:#00ffcc;
 }
 
-/* =========================
-   CANVAS ENGINE
-========================= */
+/* CANVAS */
 canvas{
   position:fixed;
   top:0;
   left:0;
   width:100%;
   height:100%;
-  z-index:0;
 }
 
-/* =========================
-   BLACK HOLE
-========================= */
+/* BLACK HOLE */
 .blackhole{
   position:fixed;
   top:10px;
@@ -48,12 +36,21 @@ canvas{
   font-weight:bold;
   border-radius:10px;
   text-decoration:none;
-  box-shadow:0 0 25px #00ffcc;
 }
 
-/* =========================
-   HUD SYSTEM
-========================= */
+/* PANEL */
+#panel{
+  position:fixed;
+  top:10px;
+  left:10px;
+  z-index:9999;
+  width:220px;
+  padding:10px;
+  background:rgba(0,0,0,0.7);
+  border:1px solid #00ffcc;
+  font-size:12px;
+}
+
 #hud{
   position:fixed;
   bottom:10px;
@@ -64,230 +61,156 @@ canvas{
   padding:6px;
   border:1px solid #00ffcc;
 }
-
-/* =========================
-   SCROLL SECTIONS
-========================= */
-section{
-  position:relative;
-  z-index:2;
-  min-height:100vh;
-  padding:60px 20px;
-  box-sizing:border-box;
-}
-
-h2{
-  text-shadow:0 0 10px #00ffff;
-}
-
-/* =========================
-   BLOCKS
-========================= */
-.block{
-  max-width:900px;
-  margin:20px auto;
-  padding:14px;
-  background:rgba(0,0,0,0.6);
-  border-left:3px solid #00ffcc;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.block:hover{
-  transform:scale(1.02);
-  box-shadow:0 0 20px rgba(0,255,204,0.2);
-}
-
 </style>
 </head>
 
 <body>
 
-<canvas id="engine"></canvas>
+<canvas id="c"></canvas>
 
 <a class="blackhole" href="index3d.html">🌀 Black Hole 3D</a>
 
-<div id="hud">SYSTEM ACTIVE ⚡</div>
+<div id="panel">
+⚡ Intensidad <br>
+<input id="intensity" type="range" min="10" max="200" value="80"><br><br>
 
-<!-- =========================
-     ⏳ TIEMPO (PLANCK → INFINITO)
-========================= -->
-<section data-mode="time">
-  <h2>⏳ ¿Qué es el tiempo?</h2>
+🌊 Velocidad luz <br>
+<input id="cval" type="range" min="1" max="10" value="3"><br><br>
 
-  <div class="block">
-    Escala mínima: fluctuaciones tipo Planck (ruido fundamental).
-  </div>
+<button onclick="emitLight()">💡 Emitir luz</button>
+</div>
 
-  <div class="block">
-    Escala humana: percepción lineal (reloj).
-  </div>
-
-  <div class="block">
-    Escala orbital: satélites y planetas.
-  </div>
-
-  <div class="block">
-    Escala cosmológica: expansión del sistema.
-  </div>
-</section>
-
-<!-- =========================
-     🌊 ULTRASONIDO
-========================= -->
-<section data-mode="wave">
-  <h2>🔊 Ultrasonido</h2>
-
-  <div class="block">
-    Ondas mecánicas de alta frecuencia. Interacción con materia.
-  </div>
-</section>
-
-<!-- =========================
-     🌌 SISTEMA ESPACIAL
-========================= -->
-<section data-mode="space">
-  <h2>🛰 Sistema espacial</h2>
-
-  <div class="block">
-    Tierra, satélites y propagación de señales.
-  </div>
-</section>
+<div id="hud">LAB ACTIVE ⚡</div>
 
 <script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
 /* =========================
-   CANVAS INIT
+   STATE
 ========================= */
-const c = document.getElementById("engine");
-const ctx = c.getContext("2d");
-
-c.width = innerWidth;
-c.height = innerHeight;
-
-/* =========================
-   STATE SYSTEM
-========================= */
-let mode = "time";
+let intensity = 80;
+let lightSpeed = 3;
 let t = 0;
 
-let mouse = {x:innerWidth/2,y:innerHeight/2};
-
-window.addEventListener("mousemove",e=>{
-  mouse.x=e.clientX;
-  mouse.y=e.clientY;
-});
-
-/* =========================
-   SCROLL DETECTOR
-========================= */
-const sections = document.querySelectorAll("section");
-
-const observer = new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      mode = e.target.dataset.mode;
-    }
-  });
-},{threshold:0.5});
-
-sections.forEach(s=>observer.observe(s));
+/* UI */
+document.getElementById("intensity").oninput = e=>{
+  intensity = +e.target.value;
+};
+document.getElementById("cval").oninput = e=>{
+  lightSpeed = +e.target.value;
+};
 
 /* =========================
-   PLANET SYSTEM
+   EARTH + SATELLITE
 ========================= */
 let earthA = 0;
 let satA = 0;
 
 /* =========================
-   MAIN ENGINE
+   LIGHT SYSTEM
+========================= */
+let pulses = [];
+
+function emitLight(){
+  pulses.push({
+    x: earthX,
+    y: earthY,
+    tx: satX,
+    ty: satY,
+    p: 0
+  });
+}
+
+/* =========================
+   MOUSE
+========================= */
+let mouse = {x:innerWidth/2,y:innerHeight/2};
+
+window.addEventListener("mousemove",e=>{
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+
+/* =========================
+   LOOP
 ========================= */
 function draw(){
 
-  ctx.clearRect(0,0,c.width,c.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  const cx = c.width/2;
-  const cy = c.height/2;
+  const cx = canvas.width/2;
+  const cy = canvas.height/2;
 
-  /* =========================
-     🌊 FIELD BACKGROUND
-  ========================= */
-  for(let y=0;y<c.height;y+=8){
+  /* WAVES */
+  for(let y=0;y<canvas.height;y+=10){
 
-    let base = 40;
+    let wave = Math.sin((y+t)*0.01)*intensity;
 
-    if(mode==="time") base = 60;
-    if(mode==="wave") base = 90;
-    if(mode==="space") base = 120;
+    let influence = Math.exp(-Math.abs(mouse.y-y)*0.01)*20;
 
-    let wave = Math.sin((y+t)*0.01)*base;
-
-    let influence = Math.exp(-Math.abs(mouse.y-y)*0.01)*25;
-
-    ctx.strokeStyle="rgba(0,255,204,0.35)";
+    ctx.strokeStyle="rgba(0,255,204,0.3)";
     ctx.beginPath();
 
     ctx.moveTo(cx,y);
-    ctx.lineTo(cx-250+wave+influence,y);
+    ctx.lineTo(cx-200+wave+influence,y);
 
     ctx.moveTo(cx,y);
-    ctx.lineTo(cx+250-wave-influence,y);
+    ctx.lineTo(cx+200-wave-influence,y);
 
     ctx.stroke();
   }
 
-  /* =========================
-     🌍 EARTH
-  ========================= */
-  let earthX = cx + Math.cos(earthA)*140;
-  let earthY = cy + Math.sin(earthA)*70;
+  /* EARTH */
+  earthX = cx + Math.cos(earthA)*150;
+  earthY = cy + Math.sin(earthA)*80;
 
   ctx.fillStyle="#00aaff";
   ctx.beginPath();
-  ctx.arc(earthX,earthY,16,0,Math.PI*2);
+  ctx.arc(earthX,earthY,14,0,Math.PI*2);
   ctx.fill();
 
-  /* =========================
-     🛰 SATELLITE
-  ========================= */
-  let satX = cx + Math.cos(satA)*260;
-  let satY = cy + Math.sin(satA)*140;
+  /* SATELLITE */
+  satX = cx + Math.cos(satA)*260;
+  satY = cy + Math.sin(satA)*140;
 
-  ctx.fillStyle="#ffffff";
+  ctx.fillStyle="#fff";
   ctx.beginPath();
   ctx.arc(satX,satY,5,0,Math.PI*2);
   ctx.fill();
 
-  /* =========================
-     💡 LASER LINK
-  ========================= */
+  /* LASER */
   ctx.strokeStyle="#ff00ff";
-  ctx.shadowBlur=18;
-  ctx.shadowColor="#ff00ff";
-
   ctx.beginPath();
   ctx.moveTo(earthX,earthY);
   ctx.lineTo(satX,satY);
   ctx.stroke();
 
-  ctx.shadowBlur=0;
+  /* LIGHT PULSES */
+  for(let p of pulses){
 
-  /* =========================
-     🌌 TIME VISUAL CORE
-  ========================= */
-  if(mode==="time"){
+    let dx = p.tx - p.x;
+    let dy = p.ty - p.y;
 
-    ctx.strokeStyle="rgba(180,0,255,0.4)";
+    p.p += lightSpeed / 200;
 
-    for(let i=0;i<80;i++){
-      let a = i*0.1 + t*0.01;
-      let r = 40 + Math.sin(t*0.1+i)*10;
+    p.cx = p.x + dx*p.p;
+    p.cy = p.y + dy*p.p;
 
-      ctx.beginPath();
-      ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.stroke();
-    }
+    ctx.fillStyle="#ff00ff";
+    ctx.beginPath();
+    ctx.arc(p.cx,p.cy,4,0,Math.PI*2);
+    ctx.fill();
   }
+
+  pulses = pulses.filter(p=>p.p<1);
+
+  /* HUD */
+  document.getElementById("hud").innerHTML =
+  `INT: ${intensity} | LIGHT SPEED: ${lightSpeed} | PULSES: ${pulses.length}`;
 
   earthA += 0.01;
   satA += 0.015;
@@ -297,7 +220,6 @@ function draw(){
 }
 
 draw();
-
 </script>
 
 </body>
