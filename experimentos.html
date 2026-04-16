@@ -22,19 +22,20 @@ gtag('config', 'G-LE6LX7FC2Q');
 
 <style>
 body {
+    background: url('fondo_experimentos.JPG') no-repeat center center fixed;
+    background-size: cover;
+    color:#00ffcc;
+    font-family: Arial, sans-serif;
+    text-align:center;
     margin:0;
     padding:0;
-    font-family:Arial;
-    text-align:center;
-    color:#00ffcc;
-    background:url('fondo_experimentos.JPG') no-repeat center center fixed;
-    background-size:cover;
 }
 
 header {
     padding:25px;
     font-size:34px;
     font-weight:bold;
+    letter-spacing:2px;
     background:rgba(0,0,0,0.5);
     border-bottom:1px solid rgba(0,255,204,0.5);
 }
@@ -82,7 +83,8 @@ img.logo {
   text-decoration:none;
 }
 
-.video-card {
+/* 🔥 CAMPO FÍSICO */
+.video-card{
   margin:40px auto;
   padding:20px;
   width:80%;
@@ -92,12 +94,41 @@ img.logo {
   border-radius:12px;
 }
 
-#timeCanvas {
+#fieldCanvas{
   width:100%;
   height:450px;
   background:#000;
   border-radius:10px;
   border:1px solid #00ffcc;
+}
+
+#viewer3D {
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:black;
+  z-index:9999;
+}
+
+#canvas3D {
+  width:100%;
+  height:100%;
+}
+
+#creditos_btn {
+  position:fixed;
+  bottom:8px;
+  right:8px;
+  padding:6px 10px;
+  font-size:11px;
+  border:1px solid rgba(0,255,204,0.4);
+  background:rgba(0,0,0,0.4);
+  color:#00ffcc;
+  border-radius:6px;
+  opacity:0.7;
 }
 </style>
 </head>
@@ -112,21 +143,32 @@ img.logo {
   <div class="panel-grid">
     <a href="index.html">🏠 Inicio</a>
     <a href="proyectos.html">👽 Vórtice</a>
-    <a href="laboratorio.html">📝 Pioneros</a>
-    <a href="libros.html">📚 KDP</a>
+    <a href="laboratorio.html">📝 Pioneros de la Ciencia</a>
+    <a href="libros.html">📚 KDP LIBROS</a>
   </div>
 </div>
 
-<a class="blackhole-btn" href="index3d.html">🌀 Black Hole 3D</a>
+<a href="index3d.html" class="blackhole-btn">🌀 Black Hole 3D</a>
 
+<!-- 🌌 CAMPO FÍSICO INTERACTIVO -->
 <div class="video-card">
-  <h2>⏳ ¿Qué es el tiempo?</h2>
-  <p>Escala física desde estructura cuántica hasta sistema cósmico. Visualización dinámica de propagación de estados energéticos.</p>
-  <canvas id="timeCanvas"></canvas>
+  <h2>⏳ Campo físico del tiempo</h2>
+  <p>Interacción tipo medio continuo: el cursor genera perturbaciones en una red dinámica de energía.</p>
+  <canvas id="fieldCanvas"></canvas>
 </div>
 
+<div id="viewer3D">
+  <canvas id="canvas3D"></canvas>
+</div>
+
+<div id="creditos_btn" onclick="window.location.href='creditos.html'">ⓘ</div>
+
 <script>
-const canvas = document.getElementById("timeCanvas");
+/* =========================
+   CAMPO FÍSICO REAL
+========================= */
+
+const canvas = document.getElementById("fieldCanvas");
 const ctx = canvas.getContext("2d");
 
 function resize(){
@@ -136,75 +178,77 @@ function resize(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 resize();
-window.addEventListener("resize", resize);
+window.addEventListener("resize",resize);
 
-ctx.font = "12px Arial";
+let particles = [];
+const N = 700;
 
-const layers = [
-"Planck","Quarks","Átomos","Moléculas",
-"Células","Humano","Planeta","Sistema Solar"
-];
+let field = {x:0,y:0};
 
-let nodes = [];
-
-for(let i=0;i<220;i++){
-nodes.push({
+for(let i=0;i<N;i++){
+particles.push({
 x:Math.random()*canvas.offsetWidth,
 y:Math.random()*canvas.offsetHeight,
-vx:(Math.random()-0.5)*1.8,
-vy:(Math.random()-0.5)*1.8
+vx:0,
+vy:0
 });
+}
+
+document.addEventListener("mousemove",(e)=>{
+field.x = e.clientX;
+field.y = e.clientY;
+});
+
+function drawField(){
+ctx.strokeStyle="rgba(0,255,255,0.06)";
+for(let i=0;i<24;i++){
+let a=(Math.PI*2/24)*i;
+ctx.beginPath();
+ctx.moveTo(field.x,field.y);
+ctx.lineTo(
+field.x+Math.cos(a)*120,
+field.y+Math.sin(a)*120
+);
+ctx.stroke();
+}
 }
 
 function loop(){
 
-ctx.fillStyle="rgba(0,0,0,0.35)";
+ctx.fillStyle="rgba(0,0,0,0.25)";
 ctx.fillRect(0,0,canvas.offsetWidth,canvas.offsetHeight);
 
-for(let i=0;i<layers.length;i++){
-let y=(canvas.offsetHeight/layers.length)*i;
+drawField();
 
-ctx.strokeStyle="rgba(0,255,204,0.2)";
-ctx.beginPath();
-ctx.moveTo(0,y);
-ctx.lineTo(canvas.offsetWidth,y);
-ctx.stroke();
+for(let p of particles){
 
-ctx.fillStyle="#00ffcc";
-ctx.fillText(layers[i],10,y+12);
-}
+let dx = field.x - p.x;
+let dy = field.y - p.y;
+let d = Math.sqrt(dx*dx+dy*dy);
 
-for(let p of nodes){
-p.x+=p.vx;
-p.y+=p.vy;
+let force = Math.max(0, 1 - d/180);
 
-if(p.x<0||p.x>canvas.offsetWidth) p.vx*=-1;
-if(p.y<0||p.y>canvas.offsetHeight) p.vy*=-1;
+p.vx += dx * force * 0.0006;
+p.vy += dy * force * 0.0006;
 
-ctx.fillStyle="rgba(0,255,255,0.85)";
+p.vx *= 0.96;
+p.vy *= 0.96;
+
+p.x += p.vx;
+p.y += p.vy;
+
+if(p.x<0)p.x=canvas.offsetWidth;
+if(p.x>canvas.offsetWidth)p.x=0;
+if(p.y<0)p.y=canvas.offsetHeight;
+if(p.y>canvas.offsetHeight)p.y=0;
+
+ctx.fillStyle="rgba(0,255,255,0.8)";
 ctx.fillRect(p.x,p.y,2,2);
 }
 
 requestAnimationFrame(loop);
 }
 loop();
-
-canvas.addEventListener("click",(e)=>{
-const r=canvas.getBoundingClientRect();
-const mx=e.clientX-r.left;
-const my=e.clientY-r.top;
-
-for(let p of nodes){
-let dx=p.x-mx;
-let dy=p.y-my;
-let d=Math.sqrt(dx*dx+dy*dy);
-
-if(d<160){
-p.vx+=dx*0.02;
-p.vy+=dy*0.02;
-}
-}
-});
 </script>
 
 </body>
