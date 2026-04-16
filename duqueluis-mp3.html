@@ -350,27 +350,15 @@ function render(){
 
 setInterval(render,400);
 
-/* 🎚️ VU METER */
+/* 🎚️ VU METER - ESPECTRO LIMPIO */
+
 const data = new Uint8Array(analyser.frequencyBinCount);
 
-function getBands(){
-  const bands = [0,0,0,0,0,0];
-
-  for(let i = 0; i < data.length; i++){
-    let v = data[i];
-
-    if(i < 5) bands[0] += v;
-    else if(i < 15) bands[1] += v;
-    else if(i < 40) bands[2] += v;
-    else if(i < 80) bands[3] += v;
-    else if(i < 160) bands[4] += v;
-    else bands[5] += v;
-  }
-
-  return bands;
-}
+let smoothFreq = 0;
 
 function getDominantFrequency(){
+  analyser.getByteFrequencyData(data);
+
   let max = 0;
   let index = 0;
 
@@ -381,37 +369,79 @@ function getDominantFrequency(){
     }
   }
 
-  return index * ctx.sampleRate / analyser.fftSize;
+  const nyquist = ctx.sampleRate / 2;
+  const freq = index * nyquist / data.length;
+
+  // suavizado estable (clave)
+  smoothFreq = smoothFreq * 0.85 + freq * 0.15;
+
+  return smoothFreq;
 }
 
 function draw(){
   requestAnimationFrame(draw);
 
+  const canvas = document.getElementById("vu");
+  const c = canvas.getContext("2d");
+
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
   analyser.getByteFrequencyData(data);
+
   const freq = getDominantFrequency();
 
-  const c = vu.getContext("2d");
+  /* 🧬 FONDO NEGRO LAB */
+  c.fillStyle = "#05060a";
+  c.fillRect(0, 0, w, h);
 
-  vu.width = vu.offsetWidth;
-  vu.height = vu.offsetHeight;
+  /* 📐 GRID SIMPLE (estabilidad visual) */
+  c.strokeStyle = "rgba(0,255,200,0.08)";
+  c.lineWidth = 1;
 
-  c.clearRect(0, 0, vu.width, vu.height);
-
-  /* TEXTO FRECUENCIA */
-  c.fillStyle = "#00ffcc";
-  c.font = "12px Arial";
-  c.fillText("Hz: " + Math.round(freq), 10, 15);
-
-  /* BANDS VISUAL */
-  const bands = getBands();
-  const bw = vu.width / bands.length;
-
-  for(let i = 0; i < bands.length; i++){
-    let h = bands[i] * 0.2;
-
-    c.fillStyle = `rgb(${100 + i * 20},255,200)`;
-    c.fillRect(i * bw, vu.height - h, bw - 4, h);
+  for(let x = 0; x < w; x += 40){
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.lineTo(x, h);
+    c.stroke();
   }
+
+  for(let y = 0; y < h; y += 40){
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(w, y);
+    c.stroke();
+  }
+
+  /* 📊 ESPECTRO LIMPIO (sin doble dibujo) */
+  const step = Math.floor(data.length / w);
+
+  for(let x = 0; x < w; x++){
+    const i = x * step;
+    const v = data[i];
+
+    const bar = (v / 255) * h;
+
+    c.fillStyle = `rgba(0,255,200,0.65)`;
+    c.fillRect(x, h - bar, 1, bar);
+  }
+
+  /* 🎯 FRECUENCIA PRINCIPAL */
+  c.fillStyle = "#00ffcc";
+  c.font = "14px monospace";
+  c.fillText("Hz: " + Math.round(freq), 10, 22);
+
+  /* 📍 LÍNEA DE REFERENCIA */
+  const ref = h * 0.6;
+
+  c.strokeStyle = "rgba(0,255,200,0.5)";
+  c.beginPath();
+  c.moveTo(0, ref);
+  c.lineTo(w, ref);
+  c.stroke();
 }
 
 draw();
