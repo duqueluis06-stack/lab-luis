@@ -352,10 +352,11 @@ setInterval(render,400);
 
 /* 🎚️ VU METER */
 const data = new Uint8Array(analyser.frequencyBinCount);
+
 function getBands(){
   const bands = [0,0,0,0,0,0];
 
-  for(let i=0;i<data.length;i++){
+  for(let i = 0; i < data.length; i++){
     let v = data[i];
 
     if(i < 5) bands[0] += v;
@@ -368,45 +369,48 @@ function getBands(){
 
   return bands;
 }
+
 function getDominantFrequency(){
   let max = 0;
   let index = 0;
 
-  for(let i=0;i<data.length;i++){
+  for(let i = 0; i < data.length; i++){
     if(data[i] > max){
       max = data[i];
       index = i;
     }
   }
 
-  let freq = index * ctx.sampleRate / analyser.fftSize;
-  return freq;
+  return index * ctx.sampleRate / analyser.fftSize;
 }
 
 function draw(){
   requestAnimationFrame(draw);
 
   analyser.getByteFrequencyData(data);
-  let freq = getDominantFrequency();
+  const freq = getDominantFrequency();
 
   const c = vu.getContext("2d");
 
   vu.width = vu.offsetWidth;
   vu.height = vu.offsetHeight;
 
-  c.clearRect(0,0,vu.width,vu.height);
+  c.clearRect(0, 0, vu.width, vu.height);
 
   /* TEXTO FRECUENCIA */
   c.fillStyle = "#00ffcc";
   c.font = "12px Arial";
   c.fillText("Hz: " + Math.round(freq), 10, 15);
 
-  let w = vu.width / data.length;
+  /* BANDS VISUAL */
+  const bands = getBands();
+  const bw = vu.width / bands.length;
 
-  for(let i=0;i<data.length;i++){
-    let h = data[i];
-    c.fillStyle = `rgb(${h*2},${255-h},255)`;
-    c.fillRect(i*w, vu.height-h/2, w-1, h/2);
+  for(let i = 0; i < bands.length; i++){
+    let h = bands[i] * 0.2;
+
+    c.fillStyle = `rgb(${100 + i * 20},255,200)`;
+    c.fillRect(i * bw, vu.height - h, bw - 4, h);
   }
 }
 
