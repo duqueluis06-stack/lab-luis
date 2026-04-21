@@ -61,7 +61,17 @@ Investigador experimental en electrónica, física y energía alternativa.
 
 ---
 
+## ☕ Apoya el proyecto
+
+Si deseas apoyar este laboratorio experimental y contribuir al desarrollo de nuevos sistemas, puedes hacerlo aquí:
+
+👉 https://ko-fi.com/luisduque
+
+Tu apoyo ayuda a continuar con la investigación, creación de contenido y desarrollo tecnológico.
+
+---
+
 ## 📌 Nota
 
-Este proyecto es un laboratorio en evolución constante.
+Este proyecto es un laboratorio en evolución constante.  
 Se añaden nuevos experimentos y sistemas de forma progresiva.
