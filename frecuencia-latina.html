@@ -1,267 +1,416 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Frecuencia Latina – Música Experimental | Luis Duque</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-    :root {
-        --neon-blue: #00ffff;
-        --neon-pink: #ff00ff;
-        --neon-green: #00ffcc;
-    }
+    <meta charset="UTF-8">
+    <title>Frecuencia Latina & Thunder Legion | Lab Luis Duque</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Exploración de frecuencias y música experimental por Luis Duque.">
+    
+    <style>
+        :root {
+            --neon-blue: #00ffff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ffcc;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
 
-    body {
-        margin: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: #000;
-        color: white;
-        overflow-x: hidden;
-    }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
+        }
 
-    /* --- FONDO ESPACIAL --- */
-    #space-canvas {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        z-index: -1;
-    }
+        /* --- FONDO ESPACIAL INTERACTIVO --- */
+        #space-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
 
-    /* --- NAVEGACIÓN --- */
-    .navbar {
-        position: fixed; top: 0; width: 100%;
-        display: flex; justify-content: center; gap: 15px;
-        padding: 15px 0; background: rgba(0,0,0,0.85);
-        backdrop-filter: blur(15px); z-index: 1000;
-        border-bottom: 2px solid var(--neon-blue);
-    }
-    .nav-btn {
-        text-decoration: none; color: var(--neon-green);
-        border: 1px solid var(--neon-green); padding: 8px 18px;
-        border-radius: 5px; font-size: 13px; font-weight: bold;
-        text-transform: uppercase;
-    }
+        /* --- NAVEGACIÓN --- */
+        .navbar {
+            position: fixed;
+            top: 0; width: 100%;
+            display: flex; justify-content: center;
+            gap: 20px; padding: 20px 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--neon-blue);
+            z-index: 1000;
+        }
 
-    /* --- HEADER --- */
-    .media-header {
-        display: flex; flex-direction: column; align-items: center;
-        padding-top: 110px; gap: 25px;
-    }
-    .video-main {
-        width: 90%; max-width: 450px; height: auto;
-        border: 3px solid var(--neon-blue); border-radius: 12px;
-        box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
-    }
-    .album-cover {
-        width: 150px; height: 150px; border-radius: 50%;
-        border: 4px solid white; box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
-    }
-    .rotating { animation: spin 8s linear infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .nav-btn {
+            text-decoration: none;
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-    /* --- VISUALIZADOR --- */
-    .visualizer-box {
-        width: 95%; max-width: 700px; margin: 20px auto;
-        background: rgba(0,0,0,0.5); border-radius: 20px;
-        padding: 10px; border: 1px solid rgba(0, 255, 255, 0.2);
-    }
-    canvas#vu { width: 100%; height: 100px; filter: drop-shadow(0 0 12px var(--neon-blue)); }
+        .nav-btn:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 20px var(--neon-green);
+        }
 
-    /* --- TRACKS GRID --- */
-    .tracks-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 20px; max-width: 1200px; margin: 0 auto 50px; padding: 20px;
-    }
-    .track-card {
-        background: rgba(20, 20, 20, 0.85); padding: 20px;
-        border-radius: 15px; border: 1px solid #333;
-        transition: all 0.3s ease;
-    }
-    .track-card.active { 
-        border-color: var(--neon-green); 
-        box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
-        transform: scale(1.02);
-    }
-    .evolution-bar {
-        width: 100%; height: 6px; background: #111;
-        border-radius: 3px; margin-top: 10px; overflow: hidden;
-    }
-    .progress-fill {
-        width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-pink), #ff0080);
-    }
-    .controls button {
-        background: transparent; border: 1px solid var(--neon-green);
-        color: var(--neon-green); padding: 7px 15px; border-radius: 4px;
-        cursor: pointer; font-weight: bold; margin-top: 10px;
-    }
+        /* --- CONTENEDOR PRINCIPAL --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 120px 20px 100px;
+            text-align: center;
+        }
 
-    /* --- KO-FI --- */
-    .kofi {
-        position: fixed; bottom: 30px; right: 30px;
-        width: 65px; height: 65px; border-radius: 50%;
-        background: linear-gradient(45deg, var(--neon-pink), var(--neon-blue));
-        display: flex; align-items: center; justify-content: center;
-        font-size: 30px; z-index: 2000; text-decoration: none;
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-</style>
+        /* --- MEDIA VIEWER (VIDEO Y PORTADA) --- */
+        .media-viewer {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 40px;
+        }
+
+        .video-frame {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px;
+            border: 4px solid var(--neon-blue);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+            background: #000;
+        }
+
+        .floating-cover {
+            position: absolute;
+            bottom: -30px;
+            right: -30px;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            box-shadow: 0 0 30px rgba(255,255,255,0.5);
+            transition: 0.5s;
+        }
+
+        .rotate { animation: rotation 12s infinite linear; }
+        @keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* --- VISUALIZADOR --- */
+        .visualizer-container {
+            width: 100%;
+            height: 150px;
+            background: var(--glass);
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 1px solid rgba(0,255,255,0.2);
+            overflow: hidden;
+        }
+
+        /* --- TRACKS GRID --- */
+        .album-title {
+            font-size: 2.5rem;
+            margin: 50px 0 30px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-shadow: 0 0 15px currentColor;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .card {
+            background: rgba(15, 15, 15, 0.9);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 20px;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: var(--neon-blue);
+            transform: translateY(-5px);
+        }
+
+        .card.active {
+            border-color: var(--neon-pink);
+            background: rgba(255, 0, 255, 0.05);
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 5px;
+            background: #222;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+
+        .btn-play {
+            background: transparent;
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-play:hover {
+            background: var(--neon-green);
+            color: #000;
+        }
+
+        /* --- KO-FI ALIEN --- */
+        .kofi-float {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 35px;
+            text-decoration: none;
+            z-index: 2000;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 20px rgba(255,0,255,0.6);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,0,255,0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(255,0,255,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,0,255,0); }
+        }
+
+    </style>
 </head>
-
 <body>
+
 <canvas id="space-canvas"></canvas>
 
 <nav class="navbar">
-    <a class="nav-btn" href="duqueluis-mp3.html">⬅ VOLVER</a>
-    <a class="nav-btn" href="index.html">🏠 INICIO</a>
+    <a href="index.html" class="nav-btn">Inicio</a>
+    <a href="#latina" class="nav-btn">Frecuencia Latina</a>
+    <a href="#thunder" class="nav-btn">Thunder Legion</a>
 </nav>
 
-<div class="media-header">
-    <h1 style="color:#00ffcc; text-align:center;">Frecuencia Latina</h1>
-    <video class="video-main" id="v1" loop muted playsinline>
-        <source src="dancing.mp4" type="video/mp4">
-    </video>
-    <img src="frecuencia-latina.PNG" id="album-img" class="album-cover">
+<div class="container">
+    <div class="media-viewer">
+        <video id="main-video" class="video-frame" muted loop playsinline>
+            <source src="dancing.mp4" type="video/mp4">
+        </video>
+        <img id="main-cover" src="frecuencia-latina.PNG" class="floating-cover rotate" alt="Cover">
+    </div>
+
+    <div class="visualizer-container">
+        <canvas id="analyzer-canvas"></canvas>
+    </div>
+
+    <h2 id="latina" class="album-title" style="color: var(--neon-green);">💃 Frecuencia Latina</h2>
+    <div id="grid-latina" class="grid"></div>
+
+    <h2 id="thunder" class="album-title" style="color: var(--neon-pink);">⚡ Thunder Legion</h2>
+    <div id="grid-thunder" class="grid"></div>
 </div>
 
-<div class="visualizer-box">
-    <canvas id="vu"></canvas>
-</div>
+<a href="https://ko-fi.com/luisduque" class="kofi-float" target="_blank">👽</a>
 
-<h2 style="text-align:center; color:var(--neon-green);">💃 ÁLBUM: FRECUENCIA LATINA</h2>
-<div class="tracks-grid" id="grid-latina"></div>
-
-<h2 style="text-align:center; color:var(--neon-pink);">⚡ ÁLBUM: THUNDER LEGION</h2>
-<div class="tracks-grid" id="grid-thunder"></div>
-
-<a class="kofi" href="https://ko-fi.com/luisduque" target="_blank">👽</a>
-
-<audio id="audio" crossorigin="anonymous"></audio>
+<audio id="audio-engine" crossorigin="anonymous"></audio>
 
 <script>
-/* --- DATA COMPLETA DE TRACKS (LOS 29 TEMAS) --- */
-const tracksLatina = [
-    {file:"baila-conmigo.mp3", name:"💃 Baila Conmigo"},
-    {file:"baila-mi-corazon.mp3", name:"❤️ Baila Mi Corazón"},
-    {file:"baila-pegadito.mp3", name:"🔥 Baila Pegadito"},
-    {file:"bajo-el-mismo-alambre.mp3", name:"⚡ Bajo el Mismo Alambre"},
-    {file:"dime-si-vuelves.mp3", name:"🌙 Dime Si Vuelves"},
-    {file:"la-silla-vacia.mp3", name:"🪑 La Silla Vacía"},
-    {file:"luna.mp3", name:"🌕 Luna"},
-    {file:"me-quede-solo.mp3", name:"🖤 Me Quedé Solo"},
-    {file:"pegate-al-pulso.mp3", name:"🫀 Pégate al Pulso"},
-    {file:"pegate-mas.mp3", name:"🔊 Pégate Más"},
-    {file:"tu-recuerdo.mp3", name:"🌫️ Tu Recuerdo"},
-    {file:"tus-ojos.mp3", name:"👁️ Tus Ojos"}
-];
+    /* --- MOTOR DE DATOS: 29 TRACKS TOTAL --- */
+    const dataLatina = [
+        {file:"baila-conmigo.mp3", name:"Baila Conmigo"},
+        {file:"baila-mi-corazon.mp3", name:"Baila Mi Corazón"},
+        {file:"baila-pegadito.mp3", name:"Baila Pegadito"},
+        {file:"bajo-el-mismo-alambre.mp3", name:"Bajo el Mismo Alambre"},
+        {file:"dime-si-vuelves.mp3", name:"Dime Si Vuelves"},
+        {file:"la-silla-vacia.mp3", name:"La Silla Vacía"},
+        {file:"luna.mp3", name:"Luna"},
+        {file:"me-quede-solo.mp3", name:"Me Quedé Solo"},
+        {file:"pegate-al-pulso.mp3", name:"Pégate al Pulso"},
+        {file:"pegate-mas.mp3", name:"Pégate Más"},
+        {file:"tu-recuerdo.mp3", name:"Tu Recuerdo"},
+        {file:"tus-ojos.mp3", name:"Tus Ojos"}
+    ];
 
-const tracksThunder = [
-    {file:"cathedral.mp3", name:"⛪ Cathedral", time:"3:03"},
-    {file:"citadel.mp3", name:"🏰 Citadel", time:"3:13"},
-    {file:"emf.mp3", name:"⚡ EMF", time:"3:07"},
-    {file:"four.mp3", name:"🔢 Four", time:"2:44"},
-    {file:"ip.mp3", name:"🌐 IP", time:"3:15"},
-    {file:"march.mp3", name:"🥁 March", time:"2:49"},
-    {file:"mecanic.mp3", name:"⚙️ Mecanic", time:"2:54"},
-    {file:"phase.mp3", name:"🔄 Phase", time:"3:29"},
-    {file:"pulsating.mp3", name:"💓 Pulsating", time:"3:18"},
-    {file:"pulse.mp3", name:"💓 Pulse", time:"3:34"},
-    {file:"resurgir.mp3", name:"🌅 Resurgir", time:"2:31"},
-    {file:"siege.mp3", name:"🏰 Siege", time:"3:09"},
-    {file:"skyforge.mp3", name:"🌌 Skyforge", time:"3:04"},
-    {file:"strings.mp3", name:"🎻 Strings", time:"3:04"},
-    {file:"vanguard.mp3", name:"🛡️ Vanguard", time:"3:12"},
-    {file:"viking.mp3", name:"🪓 Viking", time:"2:43"},
-    {file:"war.mp3", name:"⚔️ War", time:"2:47"}
-];
+    const dataThunder = [
+        {file:"cathedral.mp3", name:"Cathedral", time:"3:03"},
+        {file:"citadel.mp3", name:"Citadel", time:"3:13"},
+        {file:"emf.mp3", name:"EMF", time:"3:07"},
+        {file:"four.mp3", name:"Four", time:"2:44"},
+        {file:"ip.mp3", name:"IP", time:"3:15"},
+        {file:"march.mp3", name:"March", time:"2:49"},
+        {file:"mecanic.mp3", name:"Mecanic", time:"2:54"},
+        {file:"phase.mp3", name:"Phase", time:"3:29"},
+        {file:"pulsating.mp3", name:"Pulsating", time:"3:18"},
+        {file:"pulse.mp3", name:"Pulse", time:"3:34"},
+        {file:"resurgir.mp3", name:"Resurgir", time:"2:31"},
+        {file:"siege.mp3", name:"Siege", time:"3:09"},
+        {file:"skyforge.mp3", name:"Skyforge", time:"3:04"},
+        {file:"strings.mp3", name:"Strings", time:"3:04"},
+        {file:"vanguard.mp3", name:"Vanguard", time:"3:12"},
+        {file:"viking.mp3", name:"Viking", time:"2:43"},
+        {file:"war.mp3", name:"War", time:"2:47"}
+    ];
 
-/* --- LÓGICA DE RENDERIZADO --- */
-const audio = document.getElementById("audio");
-const v1 = document.getElementById("v1");
-const albumImg = document.getElementById("album-img");
-let audioCtx, analyser, data;
-let currentGlobalIndex = -1;
+    const audioEngine = document.getElementById('audio-engine');
+    const mainVideo = document.getElementById('main-video');
+    const mainCover = document.getElementById('main-cover');
+    let currentId = null;
 
-function createCards(data, containerId, prefix) {
-    const container = document.getElementById(containerId);
-    data.forEach((t, idx) => {
-        container.innerHTML += `
-        <div class="track-card" id="card-${prefix}-${idx}">
-            <div style="display:flex; justify-content:space-between;">
-                <b>${t.name}</b>
-                <span id="time-${prefix}-${idx}">${t.time || '00:00'}</span>
-            </div>
-            <div class="evolution-bar"><div class="progress-fill" id="prog-${prefix}-${idx}"></div></div>
-            <div class="controls">
-                <button onclick="playMedia('${t.file}', '${prefix}', ${idx})">PLAY ▶</button>
-            </div>
-        </div>`;
-    });
-}
-
-createCards(tracksLatina, "grid-latina", "lat");
-createCards(tracksThunder, "grid-thunder", "thu");
-
-/* --- MOTOR DE AUDIO Y VIDEO --- */
-function playMedia(file, prefix, idx) {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        const src = audioCtx.createMediaElementSource(audio);
-        src.connect(analyser);
-        analyser.connect(audioCtx.destination);
-        drawVisualizer();
+    /* --- RENDERIZADO DE CARDS --- */
+    function buildGrid(data, containerId, type) {
+        const grid = document.getElementById(containerId);
+        data.forEach((track, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `card-${type}-${index}`;
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:1.1rem;">${track.name}</strong>
+                    <span style="color:var(--neon-blue); font-family:monospace;">${track.time || '00:00'}</span>
+                </div>
+                <div class="progress-container"><div class="progress-bar" id="bar-${type}-${index}"></div></div>
+                <button class="btn-play" onclick="playSystem('${track.file}', '${type}', ${index})">REPRODUCIR</button>
+            `;
+            grid.appendChild(card);
+        });
     }
-    
-    audio.src = file;
-    audio.play();
-    
-    // Cambiar video según el álbum
-    v1.src = (prefix === 'lat') ? "dancing.mp4" : "tx.mp4";
-    v1.play();
-    albumImg.classList.add('rotating');
-    
-    // Reset visual de tarjetas
-    document.querySelectorAll('.track-card').forEach(c => c.classList.remove('active'));
-    document.getElementById(`card-${prefix}-${idx}`).classList.add('active');
-}
 
-/* --- VISUALIZADOR Y ESTRELLAS --- */
-function drawVisualizer() {
-    requestAnimationFrame(drawVisualizer);
-    const canvas = document.getElementById("vu");
-    const ctx = canvas.getContext("2d");
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(data);
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.beginPath();
-    ctx.strokeStyle = '#00ffff';
-    let slice = canvas.width / data.length;
-    let x = 0;
-    for(let i=0; i<data.length; i++) {
-        let v = data[i]/128.0, y = (v * canvas.height)/2;
-        (i===0) ? ctx.moveTo(x, 100-y) : ctx.lineTo(x, 100-y);
-        x += slice;
+    buildGrid(dataLatina, 'grid-latina', 'LAT');
+    buildGrid(dataThunder, 'grid-thunder', 'THU');
+
+    /* --- LÓGICA DE CONTROL MAESTRO --- */
+    let audioCtx, analyser, source, dataArray;
+
+    function playSystem(file, type, index) {
+        // Inicializar Audio Context en el primer click (Seguridad Navegador)
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            source = audioCtx.createMediaElementSource(audioEngine);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            drawVisualizer();
+        }
+
+        // Cambiar Multimedia según álbum
+        if (type === 'LAT') {
+            mainVideo.src = "dancing.mp4";
+            mainCover.src = "frecuencia-latina.PNG";
+        } else {
+            mainVideo.src = "tx.mp4"; // El MP4 de Thunder Legion
+            mainCover.src = "legion.jpg"; // ¡RECUPERADA!
+        }
+
+        audioEngine.src = file;
+        audioEngine.play();
+        mainVideo.play();
+
+        // UI Reset
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+        document.getElementById(`card-${type}-${index}`).classList.add('active');
+        currentId = { type, index };
     }
-    ctx.stroke();
-}
 
-// Motor de estrellas simplificado para rendimiento
-const sc = document.getElementById('space-canvas');
-const sCtx = sc.getContext('2d');
-let stars = Array(200).fill().map(() => ({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, s: Math.random()*2 }));
-function animateStars() {
-    sCtx.fillStyle = 'black'; sCtx.fillRect(0,0,sc.width, sc.height);
-    stars.forEach(s => {
-        sCtx.fillStyle = 'white';
-        sCtx.fillRect(s.x, s.y, s.s, s.s);
-        s.y += 0.5; if(s.y > sc.height) s.y = 0;
-    });
-    requestAnimationFrame(animateStars);
-}
-sc.width = window.innerWidth; sc.height = window.innerHeight;
-animateStars();
+    // Actualizar barras de progreso
+    audioEngine.ontimeupdate = () => {
+        if (!currentId) return;
+        const progress = (audioEngine.currentTime / audioEngine.duration) * 100;
+        document.getElementById(`bar-${currentId.type}-${currentId.index}`).style.width = progress + "%";
+    };
+
+    /* --- VISUALIZADOR CANVAS --- */
+    function drawVisualizer() {
+        requestAnimationFrame(drawVisualizer);
+        const vCanvas = document.getElementById('analyzer-canvas');
+        const vCtx = vCanvas.getContext('2d');
+        vCanvas.width = vCanvas.offsetWidth;
+        vCanvas.height = vCanvas.offsetHeight;
+
+        analyser.getByteFrequencyData(dataArray);
+        vCtx.clearRect(0, 0, vCanvas.width, vCanvas.height);
+
+        const barWidth = (vCanvas.width / dataArray.length) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = (dataArray[i] / 255) * vCanvas.height;
+            vCtx.fillStyle = `hsl(${200 + i}, 100%, 50%)`;
+            vCtx.fillRect(x, vCanvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
+    }
+
+    /* --- MOTOR DE ESTRELLAS (STARFIELD 3D) --- */
+    const space = document.getElementById('space-canvas');
+    const sCtx = space.getContext('2d');
+    let stars = [];
+
+    function initStars() {
+        space.width = window.innerWidth;
+        space.height = window.innerHeight;
+        stars = [];
+        for(let i=0; i<300; i++) {
+            stars.push({
+                x: Math.random() * space.width - space.width/2,
+                y: Math.random() * space.height - space.height/2,
+                z: Math.random() * space.width,
+                px: 0, py: 0
+            });
+        }
+    }
+
+    function animateStars() {
+        sCtx.fillStyle = 'black';
+        sCtx.fillRect(0, 0, space.width, space.height);
+        sCtx.save();
+        sCtx.translate(space.width/2, space.height/2);
+
+        stars.forEach(s => {
+            s.z -= 4;
+            if (s.z <= 0) s.z = space.width;
+            let sx = (s.x / s.z) * space.width;
+            let sy = (s.y / s.z) * space.height;
+            let size = (1 - s.z/space.width) * 4;
+            sCtx.fillStyle = '#fff';
+            sCtx.beginPath();
+            sCtx.arc(sx, sy, size, 0, Math.PI*2);
+            sCtx.fill();
+        });
+
+        sCtx.restore();
+        requestAnimationFrame(animateStars);
+    }
+
+    window.addEventListener('resize', initStars);
+    initStars();
+    animateStars();
+
 </script>
 </body>
 </html>
