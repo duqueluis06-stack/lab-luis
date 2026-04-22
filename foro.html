@@ -7,7 +7,6 @@
 <title>💬 Foro de Experimentos – Lab Luis</title>
 
 <meta name="description" content="Foro en tiempo real de experimentos de física, electrónica, ultrasonido, láseres y sistemas tecnológicos. Comunidad Lab Luis.">
-
 <meta name="robots" content="index, follow">
 
 <link rel="canonical" href="https://duquemartini.com/foro.html">
@@ -18,9 +17,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://duquemartini.com/foro.html">
 
-<!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LE6LX7FC2Q"></script>
-
 <script>
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
@@ -45,7 +42,6 @@ body::before{
     z-index:-1;
 }
 
-/* HEADER */
 .header{
     text-align:center;
     padding:20px;
@@ -55,7 +51,6 @@ body::before{
     text-shadow:0 0 10px #00ffff, 0 0 20px #ff00ff;
 }
 
-/* AVATAR */
 .avatar{
     position:fixed;
     top:10px;
@@ -68,12 +63,8 @@ body::before{
     box-shadow:0 0 20px #00ffff;
 }
 
-.avatar img{
-    width:100%;
-    height:100%;
-}
+.avatar img{width:100%;height:100%;}
 
-/* INFO */
 .info{
     max-width:600px;
     margin:10px auto;
@@ -84,7 +75,6 @@ body::before{
     font-size:14px;
 }
 
-/* USERS */
 .users{
     text-align:center;
     margin:10px;
@@ -92,7 +82,6 @@ body::before{
     color:#00ffff;
 }
 
-/* AVATAR SELECT */
 .avatarSelect{
     text-align:center;
     margin-bottom:10px;
@@ -104,7 +93,6 @@ body::before{
     cursor:pointer;
 }
 
-/* INPUT BOX */
 .box{
     max-width:600px;
     margin:auto;
@@ -129,17 +117,19 @@ button{
     cursor:pointer;
 }
 
-/* POSTS */
+/* 🔥 FEED TIPO TIKTOK BASE (NO ACTIVO AÚN, PREPARADO) */
 #feed{
     max-width:600px;
     margin:auto;
 }
 
+/* POST ESTABLE */
 .post{
     background:rgba(255,255,255,0.05);
     margin:10px auto;
     padding:15px;
     border-radius:15px;
+    transition:0.3s;
 }
 
 .user{
@@ -147,6 +137,12 @@ button{
     color:#00ffff;
 }
 
+.msg{
+    margin-top:8px;
+    font-size:16px;
+}
+
+/* INTERACCIONES */
 .like{
     margin-top:10px;
     cursor:pointer;
@@ -172,7 +168,6 @@ button{
     margin-top:10px;
 }
 
-/* BACK */
 .back{
     display:block;
     text-align:center;
@@ -201,7 +196,7 @@ button{
 <div class="info">
 👋 Escribe tu nombre, elige un avatar y publica.<br>
 💬 Puedes responder a cualquier usuario.<br>
-🔁 Mantén tu identidad para reconocimiento.
+🔁 Sistema en evolución (modo estable activo)
 </div>
 
 <div class="users">
@@ -253,35 +248,37 @@ function send(){
     let msg = document.getElementById("msg").value.trim();
 
     if(!name || !msg) return;
-    if(name.length > 20) return;
     if(msg.length > 300) return;
-    if(msg.includes("http")) return;
 
     db.ref("posts").push({
         name,
         avatar,
         msg,
-        likes:0,
-        time:Date.now()
+        time: Date.now()
     });
 
     document.getElementById("msg").value="";
 }
 
+/* 🧠 ADAPTADOR INTELIGENTE (NO BORRA NADA) */
 db.ref("posts").on("child_added", snap=>{
 
     let p = snap.val();
     let id = snap.key;
 
+    let name = p.name || "Anon";
+    let avatarImg = p.avatar || "🐸";
+    let text = p.msg || p.text || "";
+
     let div = document.createElement("div");
     div.className="post";
 
     div.innerHTML=`
-        <div class="user">${p.avatar||"🐸"} ${p.name}</div>
+        <div class="user">${avatarImg} ${name}</div>
         <div class="msg"></div>
 
         <div class="like" onclick="like('${id}', this)">
-            ❤️ Like <span>${p.likes||0}</span>
+            ❤️ Like <span>${p.likes || 0}</span>
         </div>
 
         <div class="replyBtn" onclick="toggleReply('${id}')">
@@ -295,19 +292,22 @@ db.ref("posts").on("child_added", snap=>{
         <div id="replies-${id}"></div>
     `;
 
-    div.querySelector(".msg").innerText = p.msg;
+    div.querySelector(".msg").innerText = text;
+
     feed.prepend(div);
+
+    loadReplies(id);
 
     setTimeout(()=>{
         let input = document.getElementById("input-"+id);
-        input.addEventListener("keydown", e=>{
-            if(e.key==="Enter"){
-                reply(id, input);
-            }
-        });
+        if(input){
+            input.addEventListener("keydown", e=>{
+                if(e.key==="Enter"){
+                    reply(id, input);
+                }
+            });
+        }
     },100);
-
-    loadReplies(id);
 });
 
 function like(id, el){
@@ -315,11 +315,10 @@ function like(id, el){
 
     el.classList.add("used");
 
-    let ref = db.ref("posts/"+id+"/likes");
-    ref.transaction(v => (v||0)+1);
+    db.ref("posts/"+id+"/likes").transaction(v => (v||0)+1);
 
     let span = el.querySelector("span");
-    span.innerText = parseInt(span.innerText)+1;
+    span.innerText = parseInt(span.innerText||0)+1;
 }
 
 function toggleReply(id){
@@ -352,8 +351,7 @@ function loadReplies(postID){
         let div = document.createElement("div");
         div.className="reply";
 
-        div.innerHTML=`<b>${r.avatar||"🐸"} ${r.name}:</b> <span class="rmsg"></span>`;
-        div.querySelector(".rmsg").innerText = r.msg;
+        div.innerHTML=`<b>${r.avatar||"🐸"} ${r.name}:</b> ${r.msg}`;
 
         document.getElementById("replies-"+postID).appendChild(div);
     });
