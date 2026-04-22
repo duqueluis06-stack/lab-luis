@@ -4,9 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>💬 NeuroLuigi Forum</title>
+<title>💬 Foro de Experimentos – Lab Luis</title>
 
-<!-- 📊 GOOGLE ANALYTICS -->
+<meta name="description" content="Foro en tiempo real de experimentos de física, electrónica, ultrasonido, láseres y sistemas tecnológicos. Comunidad Lab Luis.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://duquemartini.com/foro.html">
+
+<meta property="og:title" content="Foro de Experimentos – Lab Luis">
+<meta property="og:description" content="Comunidad en tiempo real sobre física, electrónica y experimentos tecnológicos.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://duquemartini.com/foro.html">
+
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LE6LX7FC2Q"></script>
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -18,106 +26,121 @@ gtag('config', 'G-LE6LX7FC2Q');
 <style>
 body{
     margin:0;
-    font-family:Arial;
-    background:#0b0b10;
+    font-family: Arial;
     color:white;
+    background:url("fondo-foro.jpg") no-repeat center center fixed;
+    background-size:cover;
 }
-
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    z-index:-1;
+}
 .header{
     text-align:center;
-    padding:18px;
-    font-size:26px;
-    color:#00ffff;
+    padding:20px;
+    font-size:30px;
     font-weight:bold;
+    color:#00ffff;
+    text-shadow:0 0 10px #00ffff, 0 0 20px #ff00ff;
 }
+.avatar{
+    position:fixed;
+    top:10px;
+    right:10px;
+    width:120px;
+    height:120px;
+    border-radius:12px;
+    overflow:hidden;
+    border:2px solid #00ffff;
+    box-shadow:0 0 20px #00ffff;
+}
+.avatar img{ width:100%; height:100%; }
 
-.box{
-    max-width:600px;
-    margin:auto;
-    padding:10px;
-}
+.box{ max-width:600px; margin:auto; padding:20px; }
 
 input, textarea{
     width:100%;
-    padding:10px;
     margin:5px 0;
+    padding:10px;
+    border-radius:10px;
     border:none;
-    border-radius:8px;
 }
 
 button{
     width:100%;
     padding:10px;
     border:none;
-    border-radius:8px;
-    background:#00ffff;
+    border-radius:10px;
+    background:linear-gradient(90deg,#00ffff,#ff00ff);
     font-weight:bold;
     cursor:pointer;
 }
 
-#feed{
-    max-width:600px;
-    margin:auto;
-}
+#feed{ max-width:600px; margin:auto; }
 
 .post{
-    background:rgba(255,255,255,0.06);
-    margin:10px;
-    padding:12px;
-    border-radius:12px;
+    background:rgba(255,255,255,0.05);
+    margin:10px auto;
+    padding:15px;
+    border-radius:15px;
 }
 
-.user{
-    color:#00ffff;
-    font-weight:bold;
-}
+.user{ font-weight:bold; color:#00ffff; }
 
-.msg{
+.like{ margin-top:10px; cursor:pointer; color:#ff4d6d; }
+
+.replyBtn{ margin-top:10px; cursor:pointer; color:#00ffff; }
+
+.replyBox{ display:none; margin-top:10px; }
+
+.reply{
+    margin-left:20px;
     margin-top:8px;
-}
-
-.like{
-    margin-top:10px;
-    color:#ff4d6d;
-    cursor:pointer;
+    padding:8px;
+    border-left:2px solid #00ffff;
+    background:rgba(255,255,255,0.03);
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">⚡ NeuroLuigi Forum</div>
+<div class="header">☎️ NeuroLuiyi Forum</div>
+
+<div class="avatar">
+    <img src="NeuroLuis.gif">
+</div>
 
 <div class="box">
     <input id="name" placeholder="Tu nombre">
-    <textarea id="msg" placeholder="Escribe tu mensaje"></textarea>
+    <textarea id="msg" placeholder="Escribe tu mensaje..."></textarea>
     <button onclick="send()">Publicar</button>
 </div>
 
 <div id="feed"></div>
 
-<!-- 🔥 FIREBASE v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
 
 firebase.initializeApp({
-  apiKey: "AIzaSyB41KeWs7vHubwI3CmzSRd46-wOk7A33v0",
-  authDomain: "foro-luiyi.firebaseapp.com",
-  databaseURL: "https://foro-luiyi-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "foro-luiyi",
-  storageBucket: "foro-luiyi.appspot.com",
-  messagingSenderId: "410471993147",
-  appId: "1:410471993147:web:d672952aa8a4364d48f11e"
+  databaseURL:"https://foro-luiyi-default-rtdb.europe-west1.firebasedatabase.app/"
 });
 
 const db = firebase.database();
 const feed = document.getElementById("feed");
 
-/* ENVIAR */
-function send(){
+let avatar = "🐸";
 
+function setAvatar(a){
+    avatar = a;
+}
+
+function send(){
     let name = document.getElementById("name").value.trim();
     let msg = document.getElementById("msg").value.trim();
 
@@ -125,6 +148,7 @@ function send(){
 
     db.ref("posts").push({
         name,
+        avatar,
         msg,
         likes:0,
         time:Date.now()
@@ -133,34 +157,46 @@ function send(){
     document.getElementById("msg").value="";
 }
 
-/* MOSTRAR POSTS */
 db.ref("posts").on("child_added", snap=>{
-
     let p = snap.val();
     let id = snap.key;
 
     let div = document.createElement("div");
     div.className="post";
 
-    div.innerHTML=`
-        <div class="user">🧠 ${p.name}</div>
-        <div class="msg">${p.msg}</div>
+    // ✅ FIX CRÍTICO AQUÍ
+    div.innerHTML = `
+        <div class="user">${p.avatar||"🐸"} ${p.name}</div>
+        <div class="msg"></div>
 
         <div class="like" onclick="like('${id}', this)">
-            ❤️ <span>${p.likes || 0}</span>
+            ❤️ Like <span>${p.likes||0}</span>
         </div>
+
+        <div class="replyBtn" onclick="toggleReply('${id}')">
+            💬 Responder
+        </div>
+
+        <div class="replyBox" id="box-${id}">
+            <input id="input-${id}" placeholder="Responder y ENTER">
+        </div>
+
+        <div id="replies-${id}"></div>
     `;
 
+    div.querySelector(".msg").innerText = p.msg;
     feed.prepend(div);
 });
 
-/* LIKE */
 function like(id, el){
-
     db.ref("posts/"+id+"/likes").transaction(v => (v||0)+1);
-
     let span = el.querySelector("span");
-    span.innerText = parseInt(span.innerText||0)+1;
+    span.innerText = parseInt(span.innerText)+1;
+}
+
+function toggleReply(id){
+    let box = document.getElementById("box-"+id);
+    box.style.display = box.style.display==="block"?"none":"block";
 }
 
 </script>
