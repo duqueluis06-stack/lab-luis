@@ -180,36 +180,87 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // -- AVATARES --
-        const icons = ['👨‍🚀','👽','🤖','👾','🧠','⚡','🚀','🛰️','🛸','🪐'];
-        let selAv = null;
-        icons.forEach(i => {
-            const el = document.createElement('span'); el.className = 'av-btn'; el.innerText = i;
-            el.onclick = () => { document.querySelectorAll('.av-btn').forEach(x=>x.classList.remove('active')); el.classList.add('active'); selAv = i; };
-            document.getElementById('av-list').appendChild(el);
-        });
+     // -- AVATARES --
+const icons = ['👨‍🚀','👽','🤖','👾','🧠','⚡','🚀','🛰️','🛸','🪐'];
+let selAv = null;
 
-        const checkID = () => {
-            const id = document.getElementById('p-id').value.trim();
-            if(!selAv || !id) { alert("SISTEMA: Elige Avatar e ID de Piloto."); return null; }
-            return { id, av: selAv };
-        }
+// crear selector de avatares
+icons.forEach(i => {
+    const el = document.createElement('span');
+    el.className = 'av-btn';
+    el.innerText = i;
 
-        // -- FIREBASE OPS --
-        window.lanzar = () => {
-            const u = checkID(); const m = document.getElementById('p-msg').value.trim();
-            if(!u || !m) return;
-            push(ref(db, "posts"), { name: u.id, avatar: u.av, msg: m, likes: 0 });
-            document.getElementById('p-msg').value = "";
-        };
+    el.onclick = () => {
+        document.querySelectorAll('.av-btn')
+            .forEach(x => x.classList.remove('active'));
+
+        el.classList.add('active');
+        selAv = i;
+    };
+
+    document.getElementById('av-list').appendChild(el);
+});
+
+// generar clave única de usuario (IMPORTANTE para likes únicos)
+const getUserKey = () => {
+    const id = document.getElementById('p-id').value.trim();
+    if(!selAv || !id) return null;
+    return `${id}_${selAv}`;
+};
+
+// validación de identidad
+const checkID = () => {
+    const id = document.getElementById('p-id').value.trim();
+
+    if(!selAv || !id) {
+        alert("SISTEMA: Elige Avatar e ID de Piloto.");
+        return null;
+    }
+
+    return { id, av: selAv };
+};
+
+ // -- FIREBASE OPS --
+ window.lanzar = () => {
+     const u = checkID();
+     const m = document.getElementById('p-msg').value.trim();
+
+     if(!u || !m) return;
+
+     push(ref(db, "posts"), { 
+         name: u.id, 
+         avatar: u.av, 
+         msg: m, 
+         likes: 0 
+     });
+
+     document.getElementById('p-msg').value = "";
+ };
 
         // -- FIX LIKE FUNCTION --
         window.sumarLike = (key) => {
-            const likeRef = ref(db, `posts/${key}/likes`);
-            runTransaction(likeRef, (currentLikes) => (currentLikes || 0) + 1)
-            .then(() => console.log("Like ok"))
-            .catch(err => console.error("Error like", err));
-        };
+    const userKey = getUserKey();
+
+    if(!userKey){
+        alert("Primero elige avatar e ID");
+        return;
+    }
+
+    const likeRef = ref(db, `posts/${key}/likedBy/${userKey}`);
+
+    runTransaction(likeRef, (current) => {
+        if(current){
+            alert("Ya diste like aquí");
+            return; // bloquea doble like
+        }
+        return true;
+    }).then((res) => {
+        if(res.committed){
+            const countRef = ref(db, `posts/${key}/likes`);
+            runTransaction(countRef, (v) => (v || 0) + 1);
+        }
+    });
+};
 
         onChildAdded(ref(db, "posts"), snap => {
             const d = snap.val(); const k = snap.key;
