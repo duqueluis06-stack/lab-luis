@@ -19,7 +19,7 @@
             display: flex; flex-direction: column;
         }
 
-        /* --- FONDO ESTRELLADO REAL --- */
+        /* --- FONDO ESTRELLADO --- */
         #star-field {
             position: fixed; inset: 0; z-index: -1;
             background: radial-gradient(circle at center, #0a0a1a 0%, #000 100%);
@@ -35,6 +35,7 @@
             height: 75px; background: rgba(5, 5, 10, 0.9); backdrop-filter: blur(15px);
             border-bottom: 2px solid var(--cyan); display: flex; align-items: center; 
             justify-content: space-between; padding: 0 15px; z-index: 100; flex-shrink: 0;
+            box-shadow: 0 0 15px var(--cyan);
         }
         .logo h1 { font-size: 16px; color: var(--cyan); text-shadow: 0 0 10px var(--cyan); letter-spacing: 2px; }
         .profile-gif { width: 48px; height: 48px; border: 2px solid var(--cyan); border-radius: 8px; object-fit: cover; }
@@ -72,6 +73,7 @@
         .btn-send { 
             width: 50px; height: 50px; border-radius: 15px; border: none; 
             background: var(--cyan); color: #000; font-size: 22px; box-shadow: 0 0 15px var(--cyan);
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
         }
 
         .rep-form { display: none; margin-top: 10px; gap: 8px; }
@@ -95,7 +97,7 @@
         <div id="av-list" class="av-selector"></div>
         <div class="input-box">
             <div class="field-wrap">
-                <input id="p-name" placeholder="REGISTRA TU ID..." maxlength="12">
+                <input id="p-name" placeholder="ID PILOTO..." maxlength="12">
                 <input id="m-text" placeholder="MENSAJE DE TRANSMISIÓN...">
             </div>
             <button class="btn-send" onclick="enviar()">🚀</button>
@@ -119,7 +121,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- MOTOR DE ESTRELLAS ---
+        // MOTOR DE ESTRELLAS
         const field = document.getElementById('star-field');
         for(let i=0; i<70; i++) {
             const s = document.createElement('div'); s.className = 'star';
@@ -129,7 +131,7 @@
             s.style.animationDuration = (Math.random()*15+5)+'s'; field.appendChild(s);
         }
 
-        // --- SELECTOR AVATAR ---
+        // SELECTOR AVATAR
         const icons = ['👨‍🚀','👽','🤖','👾','🧠','⚡','🚀','🛸','🛰️','🌌','🪐'];
         let selAv = null;
         icons.forEach(i => {
@@ -138,16 +140,16 @@
             document.getElementById('av-list').appendChild(el);
         });
 
-        // --- VALIDACIÓN DE SEGURIDAD ---
-        const validarUsuario = (idInput) => {
+        // VALIDACIÓN ESTRICTA
+        const validar = (idInput) => {
             const id = document.getElementById(idInput).value.trim();
-            if (!selAv) { alert("ERROR: Selecciona un AVATAR para identificarte."); return false; }
-            if (!id) { alert("ERROR: Debes ingresar un ID de Piloto."); return false; }
+            if (!selAv) { alert("¡ERROR! Primero selecciona un AVATAR arriba de tu nombre."); return false; }
+            if (!id) { alert("¡ERROR! Debes escribir tu ID de PILOTO."); return false; }
             return { id, avatar: selAv };
         };
 
         window.enviar = () => {
-            const user = validarUsuario('p-name');
+            const user = validar('p-name');
             const m = document.getElementById('m-text').value.trim();
             if(!user || !m) return;
             push(ref(db, "posts"), { name: user.id, avatar: user.avatar, msg: m, likes: 0 });
@@ -166,7 +168,7 @@
                 </div>
                 <div id="thread-${id}" style="margin-top:10px; padding-left:12px; border-left:1px dashed var(--pink); font-size:13px; color:#ccc;"></div>
                 <div id="box-${id}" class="rep-form">
-                    <input id="in-${id}" placeholder="Tu respuesta oficial...">
+                    <input id="in-${id}" placeholder="Respuesta de Piloto Identificado...">
                     <button onclick="sendR('${id}')" style="background:var(--cyan); border:none; padding:8px 15px; border-radius:8px; font-weight:bold; color:#000;">ENVIAR</button>
                 </div>
             `;
@@ -183,7 +185,7 @@
         window.toggleR = (id) => { const b = document.getElementById(`box-${id}`); b.style.display = b.style.display==='flex'?'none':'flex'; };
         
         window.sendR = (id) => {
-            const user = validarUsuario('p-name'); // Obliga a identificarse abajo para responder
+            const user = validar('p-name');
             const i = document.getElementById(`in-${id}`);
             if(!user || !i.value.trim()) return;
             push(ref(db, `posts/${id}/replies`), { name: user.id, avatar: user.avatar, msg: i.value.trim() });
