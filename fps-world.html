@@ -1,272 +1,200 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>NEURO WORLD: DEEP SPACE</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>FPS-WORLD | SISTEMA SOLAR</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        
+        /* HUD de estado */
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            color: #00ffff; z-index: 10;
+            background: rgba(0, 20, 20, 0.8);
+            padding: 15px; border: 1px solid #00ffff;
+            pointer-events: none; font-size: 12px;
+            display: none;
+        }
 
-<style>
-    body { margin:0; overflow:hidden; background:#000; font-family: 'Courier New', Courier, monospace; }
-    
-    /* Overlay de Escaneo */
-    body::after {
-        content: "";
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-        background-size: 100% 4px, 3px 100%;
-        pointer-events: none;
-        z-index: 100;
-    }
+        /* Pantalla de Inicio */
+        #overlay {
+            position: absolute; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 200; color: #00ffff; text-align: center;
+        }
 
-    #ui {
-        position:absolute;
-        top:20px; left:20px;
-        color:#00ffff;
-        z-index:10;
-        background:rgba(0, 20, 20, 0.8);
-        padding:15px;
-        border-left: 5px solid #00ffff;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        pointer-events: none;
-        font-size: 11px;
-        box-shadow: 0 0 15px rgba(0,255,255,0.2);
-    }
+        #start-btn {
+            padding: 20px 40px; background: transparent;
+            color: #00ffff; border: 2px solid #00ffff;
+            font-size: 22px; cursor: pointer; font-family: inherit;
+            margin-bottom: 20px; transition: 0.3s;
+        }
+        #start-btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 20px #00ffff; }
 
-    /* Pantalla de Inicio "Brutal" */
-    #start-screen {
-        position:absolute;
-        width: 100%; height: 100%;
-        background: radial-gradient(circle, rgba(0,20,30,1) 0%, rgba(0,0,0,1) 100%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 200;
-        transition: opacity 0.8s ease;
-    }
+        /* BOTÓN DE SALIDA (A EXPERIMENTOS.HTML) */
+        #exit-button {
+            position: absolute; bottom: 30px; right: 30px;
+            z-index: 300; /* Siempre por encima de todo */
+        }
 
-    #start-btn {
-        padding: 20px 50px;
-        background: transparent;
-        color: #00ffff;
-        border: 2px solid #00ffff;
-        font-size: 28px;
-        font-family: 'Courier New', monospace;
-        font-weight: bold;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        transition: 0.3s;
-        text-transform: uppercase;
-    }
+        #exit-button a {
+            text-decoration: none; color: #ff00ff;
+            background: rgba(0,0,0,0.7); padding: 15px 25px;
+            border: 2px solid #ff00ff; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 2px;
+            transition: 0.3s;
+        }
 
-    #start-btn:hover {
-        background: #00ffff;
-        color: #000;
-        box-shadow: 0 0 50px #00ffff;
-    }
+        #exit-button a:hover {
+            background: #ff00ff; color: #fff;
+            box-shadow: 0 0 20px #ff00ff;
+        }
 
-    .status-text {
-        color: #00ffff;
-        margin-top: 20px;
-        font-size: 14px;
-        opacity: 0.7;
-        animation: blink 1s infinite;
-    }
-
-    @keyframes blink { 50% { opacity: 0.1; } }
-
-    #crosshair {
-        position: absolute;
-        top: 50%; left: 50%;
-        width: 20px; height: 20px;
-        border: 1px solid rgba(0, 255, 255, 0.8);
-        transform: translate(-50%, -50%) rotate(45deg);
-        pointer-events: none;
-        z-index: 50;
-    }
-
-    #portal {
-        position: absolute;
-        bottom: 30px; right: 30px;
-        z-index: 150;
-    }
-
-    #portal a {
-        text-decoration: none;
-        color: #ff00ff;
-        background: rgba(0, 0, 0, 0.9);
-        padding: 10px 20px;
-        border: 1px solid #ff00ff;
-        font-weight: bold;
-        text-transform: uppercase;
-        font-size: 12px;
-        transition: 0.3s;
-    }
-
-    #portal a:hover {
-        background: #ff00ff;
-        color: #fff;
-        box-shadow: 0 0 20px #ff00ff;
-    }
-</style>
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 15px; height: 15px; border: 1px solid #00ffff;
+            border-radius: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 100; display: none;
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="ui">
-    SYSTEM: ACTIVE<br>
-    COORDINATES: DEEP SPACE<br><br>
-    [W,A,S,D] THRUSTERS<br>
-    [MOUSE] ATTITUDE CONTROL<br>
-    [SPACE] EMERGENCY BREAK<br>
-    [ESC] RELEASE CURSOR
-</div>
+    <div id="hud">
+        STATUS: EXPLORING EXTERNAL SPACE<br>
+        [W,A,S,D] PROPULSORES<br>
+        [SPACE] FRENAR INERCIA<br>
+        [ESC] MOSTRAR PUNTERO / SALIR
+    </div>
 
-<div id="start-screen">
-    <h1 style="color:#00ffff; margin-bottom: 50px; letter-spacing: 10px;">NEURO WORLD</h1>
-    <button id="start-btn">INITIALIZE SYSTEM</button>
-    <div class="status-text">AWAITING PILOT INPUT...</div>
-</div>
+    <div id="overlay">
+        <h1 style="letter-spacing: 10px;">FPS WORLD: DEEP SPACE</h1>
+        <button id="start-btn">INICIAR PROPULSORES</button>
+        <p>Pulsa ESC para liberar el ratón y usar el botón de salida</p>
+    </div>
 
-<div id="crosshair"></div>
+    <div id="exit-button">
+        <a href="experimentos.html">🏃 SALIR A EXPERIMENTOS</a>
+    </div>
 
-<div id="portal">
-    <a href="experimentos.html">❌ ABORT MISSION</a>
-</div>
+    <div id="crosshair"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/PointerLockControls.js"></script>
-
-<script>
-// --- MOTOR CORE ---
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 15000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
-
-// --- CONTROLES ---
-const controls = new THREE.PointerLockControls(camera, document.body);
-
-// --- SOL Y LUZ ---
-const sunLight = new THREE.PointLight(0xffffff, 8, 8000);
-scene.add(sunLight);
-scene.add(new THREE.AmbientLight(0x111133, 0.5));
-
-// --- ESTRELLAS ---
-const starGeo = new THREE.BufferGeometry();
-const starPos = [];
-for(let i=0; i<15000; i++) {
-    starPos.push((Math.random()-0.5)*10000, (Math.random()-0.5)*10000, (Math.random()-0.5)*10000);
-}
-starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 1.0});
-scene.add(new THREE.Points(starGeo, starMat));
-
-// --- GENERADOR DE PLANETAS ---
-const planets = [];
-const createPlanet = (size, color, dist, name, hasRing) => {
-    const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({
-        color: color,
-        emissive: name === "Sol" ? color : 0x000000,
-        emissiveIntensity: 2
-    });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 32, 32), mat);
-    group.add(mesh);
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    if(hasRing) {
-        const rGeo = new THREE.RingGeometry(size+5, size+25, 64);
-        const rMat = new THREE.MeshBasicMaterial({color: 0x888888, side: THREE.DoubleSide, transparent:true, opacity:0.3});
-        const ring = new THREE.Mesh(rGeo, rMat);
-        ring.rotation.x = Math.PI/2;
-        group.add(ring);
-    }
-    
-    scene.add(group);
-    return { group, dist, speed: 0.002 / (dist/100 + 1), angle: Math.random() * Math.PI*2 };
-};
+    <script>
+        // 1. CONFIGURACIÓN DEL MOTOR
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 15000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-planets.push(createPlanet(60, 0xffaa00, 0, "Sol", false));
-planets.push(createPlanet(8, 0x2266ff, 400, "Tierra", false));
-planets.push(createPlanet(5, 0xff4400, 600, "Marte", false));
-planets.push(createPlanet(25, 0xccaa88, 1000, "Jupiter", false));
-planets.push(createPlanet(20, 0xeedd99, 1500, "Saturno", true));
+        // 2. CREACIÓN DEL COSMOS
+        // Estrellas
+        const starGeo = new THREE.BufferGeometry();
+        const starCoords = [];
+        for(let i=0; i<12000; i++) {
+            starCoords.push((Math.random()-0.5)*10000, (Math.random()-0.5)*10000, (Math.random()-0.5)*10000);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.7}));
+        scene.add(stars);
 
-// --- INPUTS ---
-const keys = {};
-document.addEventListener("keydown", e => keys[e.code] = true);
-document.addEventListener("keyup", e => keys[e.code] = false);
+        // Planetas
+        const sunLight = new THREE.PointLight(0xffffff, 4, 10000);
+        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0x222244));
 
-const startScreen = document.getElementById("start-screen");
-const startBtn = document.getElementById("start-btn");
+        const createPlanet = (size, color, dist, name) => {
+            const mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(size, 32, 32),
+                new THREE.MeshStandardMaterial({ 
+                    color: color, 
+                    emissive: name === "Sol" ? color : 0x000000,
+                    emissiveIntensity: 1 
+                })
+            );
+            mesh.position.x = dist;
+            scene.add(mesh);
+            return mesh;
+        };
 
-startBtn.onclick = () => {
-    controls.lock();
-};
+        const sol = createPlanet(70, 0xffaa00, 0, "Sol");
+        const tierra = createPlanet(15, 0x0088ff, 450, "Tierra");
+        const marte = createPlanet(10, 0xff4400, 750, "Marte");
 
-controls.addEventListener("lock", () => {
-    startScreen.style.opacity = "0";
-    setTimeout(() => startScreen.style.visibility = "hidden", 800);
-});
+        // 3. MOVIMIENTO FPS (ESTILO NAVE)
+        let keys = {};
+        let velocity = new THREE.Vector3();
+        let yaw = 0, pitch = 0;
 
-controls.addEventListener("unlock", () => {
-    startScreen.style.visibility = "visible";
-    startScreen.style.opacity = "1";
-});
+        document.addEventListener('keydown', e => keys[e.code] = true);
+        document.addEventListener('keyup', e => keys[e.code] = false);
+        document.addEventListener('mousemove', e => {
+            if (document.pointerLockElement === document.body) {
+                yaw -= e.movementX * 0.002;
+                pitch -= e.movementY * 0.002;
+                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+            }
+        });
 
-// --- MOVIMIENTO ---
-let velocity = new THREE.Vector3();
-camera.position.set(0, 100, 800);
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('overlay');
+        const hud = document.getElementById('hud');
+        const cross = document.getElementById('crosshair');
 
-const clock = new THREE.Clock();
+        startBtn.onclick = () => document.body.requestPointerLock();
 
-function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
+        document.addEventListener('pointerlockchange', () => {
+            const isLocked = document.pointerLockElement === document.body;
+            overlay.style.display = isLocked ? 'none' : 'flex';
+            hud.style.display = isLocked ? 'block' : 'none';
+            cross.style.display = isLocked ? 'block' : 'none';
+        });
 
-    if (controls.isLocked) {
-        const accel = 250 * delta;
-        const dir = new THREE.Vector3();
-        camera.getWorldDirection(dir);
+        camera.position.set(0, 100, 800);
 
-        if (keys["KeyW"]) velocity.addScaledVector(dir, accel);
-        if (keys["KeyS"]) velocity.addScaledVector(dir, -accel);
-        
-        const side = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
-        if (keys["KeyA"]) velocity.addScaledVector(side, accel);
-        if (keys["KeyD"]) velocity.addScaledVector(side, -accel);
+        // 4. CICLO DE ANIMACIÓN
+        function animate() {
+            requestAnimationFrame(animate);
 
-        if (keys["Space"]) velocity.multiplyScalar(0.9);
+            if (document.pointerLockElement === document.body) {
+                camera.rotation.set(pitch, yaw, 0, 'YXZ');
+                
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                const accel = 2.5;
 
-        velocity.multiplyScalar(0.98); 
-        controls.getObject().position.add(velocity);
-    }
+                if (keys['KeyW']) velocity.addScaledVector(dir, accel);
+                if (keys['KeyS']) velocity.addScaledVector(dir, -accel);
+                
+                const side = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
+                if (keys['KeyA']) velocity.addScaledVector(side, accel);
+                if (keys['KeyD']) velocity.addScaledVector(side, -accel);
+                
+                if (keys['Space']) velocity.multiplyScalar(0.9); // Freno
 
-    // Orbitas
-    planets.forEach(p => {
-        p.angle += p.speed;
-        p.group.position.x = Math.cos(p.angle) * p.dist;
-        p.group.position.z = Math.sin(p.angle) * p.dist;
-        p.group.rotation.y += 0.01;
-    });
+                velocity.multiplyScalar(0.98); // Inercia
+                camera.position.add(velocity);
+            }
 
-    renderer.render(scene, camera);
-}
+            // Movimiento orbital simple
+            const time = Date.now() * 0.0004;
+            tierra.position.x = Math.cos(time) * 450;
+            tierra.position.z = Math.sin(time) * 450;
+            marte.position.x = Math.cos(time * 0.6) * 750;
+            marte.position.z = Math.sin(time * 0.6) * 750;
 
-animate();
+            renderer.render(scene, camera);
+        }
+        animate();
 
-window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
