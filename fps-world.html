@@ -2,199 +2,100 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>FPS-WORLD | SISTEMA SOLAR</title>
+    <title>SISTEMA SOLAR INTERACTIVO | NASA</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        
-        /* HUD de estado */
-        #hud {
-            position: absolute; top: 20px; left: 20px;
-            color: #00ffff; z-index: 10;
-            background: rgba(0, 20, 20, 0.8);
-            padding: 15px; border: 1px solid #00ffff;
-            pointer-events: none; font-size: 12px;
-            display: none;
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Pantalla de Inicio */
-        #overlay {
-            position: absolute; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            z-index: 200; color: #00ffff; text-align: center;
+        /* Contenedor del simulador de la NASA */
+        #nasa-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            border: none;
         }
 
-        #start-btn {
-            padding: 20px 40px; background: transparent;
-            color: #00ffff; border: 2px solid #00ffff;
-            font-size: 22px; cursor: pointer; font-family: inherit;
-            margin-bottom: 20px; transition: 0.3s;
-        }
-        #start-btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 20px #00ffff; }
-
-        /* BOTÓN DE SALIDA (A EXPERIMENTOS.HTML) */
-        #exit-button {
-            position: absolute; bottom: 30px; right: 30px;
-            z-index: 300; /* Siempre por encima de todo */
-        }
-
-        #exit-button a {
-            text-decoration: none; color: #ff00ff;
-            background: rgba(0,0,0,0.7); padding: 15px 25px;
-            border: 2px solid #ff00ff; font-weight: bold;
-            text-transform: uppercase; letter-spacing: 2px;
-            transition: 0.3s;
+        /* Panel de control superior */
+        #header {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+            padding: 20px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none; /* Deja pasar los clics al simulador */
         }
 
-        #exit-button a:hover {
-            background: #ff00ff; color: #fff;
-            box-shadow: 0 0 20px #ff00ff;
+        .title {
+            color: #fff;
+            margin-left: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #00ffff;
         }
 
-        #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 15px; height: 15px; border: 1px solid #00ffff;
-            border-radius: 50%; transform: translate(-50%, -50%);
-            pointer-events: none; z-index: 100; display: none;
+        /* Botón de salida - Este SI tiene eventos de clic */
+        #exit-btn {
+            pointer-events: auto;
+            margin-right: 40px;
+        }
+
+        #exit-btn a {
+            text-decoration: none;
+            color: #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            padding: 12px 25px;
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        #exit-btn a:hover {
+            background: #00ffff;
+            color: #000;
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        /* Instrucciones flotantes */
+        #hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            z-index: 10;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="hud">
-        STATUS: EXPLORING EXTERNAL SPACE<br>
-        [W,A,S,D] PROPULSORES<br>
-        [SPACE] FRENAR INERCIA<br>
-        [ESC] MOSTRAR PUNTERO / SALIR
+    <div id="header">
+        <h2 class="title">Exploración Solar Externa</h2>
+        <div id="exit-btn">
+            <a href="experimentos.html">← Volver a Experimentos</a>
+        </div>
     </div>
 
-    <div id="overlay">
-        <h1 style="letter-spacing: 10px;">FPS WORLD: DEEP SPACE</h1>
-        <button id="start-btn">INICIAR PROPULSORES</button>
-        <p>Pulsa ESC para liberar el ratón y usar el botón de salida</p>
+    <iframe 
+        id="nasa-container" 
+        src="https://eyes.nasa.gov/apps/solar-system/#/home?embed=true" 
+        allow="fullscreen">
+    </iframe>
+
+    <div id="hint">
+        Interactúa con el mouse para rotar, zoom y seleccionar planetas.
     </div>
 
-    <div id="exit-button">
-        <a href="experimentos.html">🏃 SALIR A EXPERIMENTOS</a>
-    </div>
-
-    <div id="crosshair"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-    <script>
-        // 1. CONFIGURACIÓN DEL MOTOR
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 15000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // 2. CREACIÓN DEL COSMOS
-        // Estrellas
-        const starGeo = new THREE.BufferGeometry();
-        const starCoords = [];
-        for(let i=0; i<12000; i++) {
-            starCoords.push((Math.random()-0.5)*10000, (Math.random()-0.5)*10000, (Math.random()-0.5)*10000);
-        }
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.7}));
-        scene.add(stars);
-
-        // Planetas
-        const sunLight = new THREE.PointLight(0xffffff, 4, 10000);
-        scene.add(sunLight);
-        scene.add(new THREE.AmbientLight(0x222244));
-
-        const createPlanet = (size, color, dist, name) => {
-            const mesh = new THREE.Mesh(
-                new THREE.SphereGeometry(size, 32, 32),
-                new THREE.MeshStandardMaterial({ 
-                    color: color, 
-                    emissive: name === "Sol" ? color : 0x000000,
-                    emissiveIntensity: 1 
-                })
-            );
-            mesh.position.x = dist;
-            scene.add(mesh);
-            return mesh;
-        };
-
-        const sol = createPlanet(70, 0xffaa00, 0, "Sol");
-        const tierra = createPlanet(15, 0x0088ff, 450, "Tierra");
-        const marte = createPlanet(10, 0xff4400, 750, "Marte");
-
-        // 3. MOVIMIENTO FPS (ESTILO NAVE)
-        let keys = {};
-        let velocity = new THREE.Vector3();
-        let yaw = 0, pitch = 0;
-
-        document.addEventListener('keydown', e => keys[e.code] = true);
-        document.addEventListener('keyup', e => keys[e.code] = false);
-        document.addEventListener('mousemove', e => {
-            if (document.pointerLockElement === document.body) {
-                yaw -= e.movementX * 0.002;
-                pitch -= e.movementY * 0.002;
-                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-            }
-        });
-
-        const startBtn = document.getElementById('start-btn');
-        const overlay = document.getElementById('overlay');
-        const hud = document.getElementById('hud');
-        const cross = document.getElementById('crosshair');
-
-        startBtn.onclick = () => document.body.requestPointerLock();
-
-        document.addEventListener('pointerlockchange', () => {
-            const isLocked = document.pointerLockElement === document.body;
-            overlay.style.display = isLocked ? 'none' : 'flex';
-            hud.style.display = isLocked ? 'block' : 'none';
-            cross.style.display = isLocked ? 'block' : 'none';
-        });
-
-        camera.position.set(0, 100, 800);
-
-        // 4. CICLO DE ANIMACIÓN
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (document.pointerLockElement === document.body) {
-                camera.rotation.set(pitch, yaw, 0, 'YXZ');
-                
-                const dir = new THREE.Vector3();
-                camera.getWorldDirection(dir);
-                const accel = 2.5;
-
-                if (keys['KeyW']) velocity.addScaledVector(dir, accel);
-                if (keys['KeyS']) velocity.addScaledVector(dir, -accel);
-                
-                const side = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
-                if (keys['KeyA']) velocity.addScaledVector(side, accel);
-                if (keys['KeyD']) velocity.addScaledVector(side, -accel);
-                
-                if (keys['Space']) velocity.multiplyScalar(0.9); // Freno
-
-                velocity.multiplyScalar(0.98); // Inercia
-                camera.position.add(velocity);
-            }
-
-            // Movimiento orbital simple
-            const time = Date.now() * 0.0004;
-            tierra.position.x = Math.cos(time) * 450;
-            tierra.position.z = Math.sin(time) * 450;
-            marte.position.x = Math.cos(time * 0.6) * 750;
-            marte.position.z = Math.sin(time * 0.6) * 750;
-
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
 </body>
 </html>
