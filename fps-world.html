@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>NEURO WORLD FPS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; overflow:hidden; background:black; font-family:Arial; }
+
+#ui {
+  position:absolute;
+  top:10px; left:10px;
+  color:#00ffff;
+  z-index:10;
+  background:rgba(0,0,0,0.5);
+  padding:10px;
+  border:1px solid #00ffff;
+  border-radius:10px;
+}
+
+#start {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  color:white;
+  background:rgba(0,0,0,0.85);
+  padding:20px;
+  border:2px solid #00ffff;
+  border-radius:10px;
+  cursor:pointer;
+  z-index:20;
+}
+
+#portal {
+  position:absolute;
+  bottom:20px; right:20px;
+  z-index:15;
+}
+
+#portal a {
+  text-decoration:none;
+  color:black;
+  background:#00ffff;
+  padding:12px 16px;
+  border-radius:10px;
+  font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+🪐 NEURO WORLD FPS<br>
+WASD mover<br>
+SPACE saltar<br>
+Mouse mirar<br>
+Explora el laboratorio
+</div>
+
+<div id="start">CLICK PARA ENTRAR</div>
+
+<div id="portal">
+  <a href="experimentos.html">🔬 Ir a Experimentos</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+
+// 🌍 ESCENA
+let scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x000000, 5, 60);
+
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 🎮 FPS controls
+let controls = new THREE.PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
+
+// 💡 luces
+scene.add(new THREE.AmbientLight(0x222222));
+
+let light = new THREE.PointLight(0x00ffff, 2);
+light.position.set(5,10,5);
+scene.add(light);
+
+// 🌐 suelo laboratorio
+let ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200,200),
+  new THREE.MeshStandardMaterial({color:0x050510})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+// 📦 objetos interactivos
+let boxes = [];
+for(let i=0;i<12;i++){
+  let box = new THREE.Mesh(
+    new THREE.BoxGeometry(1,1,1),
+    new THREE.MeshStandardMaterial({color:0xff00ff})
+  );
+  box.position.set((Math.random()-0.5)*40,0.5,(Math.random()-0.5)*40);
+  scene.add(box);
+  boxes.push(box);
+}
+
+// 🧠 física básica
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
+let canJump = false;
+
+let keys = {};
+document.addEventListener("keydown", e=>keys[e.code]=true);
+document.addEventListener("keyup", e=>keys[e.code]=false);
+
+// 🚀 iniciar
+let start = document.getElementById("start");
+
+start.onclick = ()=>{
+  controls.lock();
+};
+
+controls.addEventListener("lock", ()=>start.style.display="none");
+controls.addEventListener("unlock", ()=>start.style.display="block");
+
+// 🔄 loop
+let clock = new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  let delta = clock.getDelta();
+
+  velocity.x -= velocity.x * 10.0 * delta;
+  velocity.z -= velocity.z * 10.0 * delta;
+
+  if(controls.isLocked){
+
+    direction.z = Number(keys["KeyW"]) - Number(keys["KeyS"]);
+    direction.x = Number(keys["KeyD"]) - Number(keys["KeyA"]);
+    direction.normalize();
+
+    if(keys["KeyW"] || keys["KeyS"])
+      velocity.z -= direction.z * 50.0 * delta;
+
+    if(keys["KeyA"] || keys["KeyD"])
+      velocity.x -= direction.x * 50.0 * delta;
+
+    if(keys["Space"] && canJump){
+      velocity.y = 10;
+      canJump = false;
+    }
+
+    velocity.y -= 20 * delta;
+
+    controls.moveRight(-velocity.x * delta);
+    controls.moveForward(-velocity.z * delta);
+
+    controls.getObject().position.y += velocity.y * delta;
+
+    if(controls.getObject().position.y < 1.6){
+      velocity.y = 0;
+      controls.getObject().position.y = 1.6;
+      canJump = true;
+    }
+
+    // ⚡ interacción
+    boxes.forEach(b=>{
+      let d = controls.getObject().position.distanceTo(b.position);
+      b.material.color.set(d < 2 ? 0x00ffff : 0xff00ff);
+    });
+  }
+
+  renderer.render(scene,camera);
+}
+
+animate();
+
+// 📐 resize
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+
+</body>
+</html>
