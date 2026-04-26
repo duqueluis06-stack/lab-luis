@@ -3,59 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luis 4K - Deep City Fix</title>
+    <title>Luis 4K - Calibración Final</title>
     <style>
         :root { --matrix: #00ff41; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        
-        #hud {
-            position: absolute; top: 15px; left: 15px; z-index: 100;
-            color: var(--matrix); font-size: 11px; background: rgba(0,20,0,0.8);
-            padding: 10px; border: 1px solid var(--matrix); pointer-events: none;
-        }
-
-        .joy-zone {
-            position: absolute; bottom: 40px; width: 100px; height: 100px;
-            border: 2px solid var(--matrix); border-radius: 50%; z-index: 110;
-        }
-        #joy-l { left: 30px; } #joy-r { right: 30px; }
-        .stick {
-            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
-            background: var(--matrix); border-radius: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px var(--matrix);
-        }
-
-        #btn-zoom {
-            position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-            width: 80px; height: 80px; border-radius: 50%; border: 2px solid #fff;
-            background: #000; color: #fff; z-index: 120; font-weight: bold; cursor: pointer;
-        }
-
+        #hud { position: absolute; top: 10px; left: 10px; z-index: 100; color: var(--matrix); font-size: 11px; background: rgba(0,20,0,0.8); padding: 8px; border: 1px solid var(--matrix); }
+        .joy { position: absolute; bottom: 30px; width: 100px; height: 100px; border: 2px solid var(--matrix); border-radius: 50%; z-index: 110; touch-action: none; }
+        #joy-l { left: 20px; } #joy-r { right: 20px; }
+        .stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: var(--matrix); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px var(--matrix); }
+        #zoom { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; z-index: 120; font-weight: bold; cursor: pointer; }
         #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--matrix); }
     </style>
 </head>
 <body>
 
-<div id="loader"><h2>RECALIBRANDO PLANO DE CIUDAD...</h2></div>
-<div id="hud">SISTEMA: V5_FINAL_RESCUE<br>CIUDAD: POSICIÓN CORREGIDA<br>PIERNAS: MODO FORZADO</div>
+<div id="loader"><h2>SINCRONIZANDO PLANETA...</h2></div>
+<div id="hud">SISTEMA: V6_AUTO_GROUND<br>ALTURA: AUTO-DETECT<br>PIERNAS: SCAN_ACTIVE</div>
 
 <div id="ui">
-    <div id="joy-l" class="joy-zone"><div id="stick-l" class="stick"></div></div>
-    <button id="btn-zoom">ZOOM 4K</button>
-    <div id="joy-r" class="joy-zone"><div id="stick-r" class="stick"></div></div>
+    <div id="joy-l" class="joy"><div id="stick-l" class="stick"></div></div>
+    <button id="zoom">ZOOM</button>
+    <div id="joy-r" class="joy"><div id="stick-r" class="stick"></div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-class UltimateEngine {
+class FinalRescueEngine {
     constructor() {
         this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
         this.isZoom = false;
         this.init();
-        this.lights();
         this.load();
         this.events();
         this.render();
@@ -63,61 +42,52 @@ class UltimateEngine {
 
     init() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 2000);
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.05, 2000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(this.renderer.domElement);
         this.clock = new THREE.Clock();
-        
-        // El "Rig" es lo que movemos nosotros
-        this.playerGroup = new THREE.Group();
-        this.scene.add(this.playerGroup);
-        this.playerGroup.add(this.camera);
-    }
 
-    lights() {
         this.scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(10, 20, 10);
-        this.scene.add(sun);
+        const d = new THREE.DirectionalLight(0xffffff, 1);
+        d.position.set(5, 10, 5);
+        this.scene.add(d);
+
+        // Suelo de referencia Matrix
+        const grid = new THREE.GridHelper(500, 100, 0x00ff41, 0x002200);
+        this.scene.add(grid);
+
+        this.rig = new THREE.Group();
+        this.scene.add(this.rig);
+        this.rig.add(this.camera);
     }
 
     load() {
         const gl = new THREE.GLTFLoader();
-        const dr = new THREE.DRACOLoader();
-        dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
-        gl.setDRACOLoader(dr);
 
-        // 1. CIUDAD: Si estamos abajo, la bajamos MUCHO MÁS para que tú quedes arriba
+        // 1. Ciudad al punto Cero
         gl.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            // BAJAMOS LA CIUDAD 10 METROS para asegurar que apareces sobre el asfalto
-            this.city.position.set(0, -10.5, 0); 
+            this.city.position.set(0, 0, 0); 
             this.scene.add(this.city);
         });
 
-        // 2. AVATAR: Escalado y con motor de animación forzado
+        // 2. Avatar con auto-posicionamiento
         gl.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
-            this.avatar.scale.setScalar(0.25); // Tamaño humano
+            this.avatar.scale.setScalar(0.2); 
+            // Reset de altura: Lo ponemos en 0. Si la ciudad está arriba o abajo, el Grid nos dirá dónde.
+            this.avatar.position.set(0, 0, 0);
             this.scene.add(this.avatar);
             
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            
-            // INTENTO DE ACTIVACIÓN DE TODAS LAS ANIMACIONES
-            console.log("Animaciones encontradas:", g.animations.length);
-            this.anims = g.animations;
-            
-            if(this.anims.length > 0) {
-                // Buscamos algo que no sea la pose inicial (T-Pose)
-                // Usualmente la de caminar es la última o la segunda
-                this.walkAction = this.mixer.clipAction(this.anims[this.anims.length - 1]);
-                this.idleAction = this.mixer.clipAction(this.anims[0]);
-                this.idleAction.play();
+            if(g.animations.length > 0) {
+                // Forzamos TODAS las animaciones a estar disponibles
+                this.actions = g.animations.map(anim => this.mixer.clipAction(anim));
+                this.actions[0].play(); // Idle
             }
-
             document.getElementById('loader').style.display = 'none';
         });
     }
@@ -142,7 +112,7 @@ class UltimateEngine {
             });
         };
         setup('joy-l', 'stick-l', true); setup('joy-r', 'stick-r', false);
-        document.getElementById('btn-zoom').onclick = () => this.isZoom = !this.isZoom;
+        document.getElementById('zoom').onclick = () => this.isZoom = !this.isZoom;
     }
 
     render() {
@@ -151,39 +121,36 @@ class UltimateEngine {
         if(this.mixer) this.mixer.update(dt);
 
         if(this.avatar) {
-            // MOVIMIENTO
-            const speed = 0.15;
+            const speed = 0.12;
             this.avatar.position.x += this.input.m.x * speed;
             this.avatar.position.z += this.input.m.y * speed;
 
             const moving = Math.abs(this.input.m.x) > 0.1 || Math.abs(this.input.m.y) > 0.1;
-            
             if(moving) {
                 this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
-                // FORZAR PIERNAS:
-                if(this.walkAction && !this.walkAction.isRunning()) {
-                    this.idleAction.stop();
-                    this.walkAction.reset().play();
+                // Si hay más de una animación, forzamos la segunda (Caminar)
+                if(this.actions && this.actions.length > 1) {
+                    this.actions[0].stop();
+                    this.actions[1].play();
                 }
             } else {
-                if(this.idleAction && !this.idleAction.isRunning()) {
-                    if(this.walkAction) this.walkAction.stop();
-                    this.idleAction.play();
+                if(this.actions) {
+                    if(this.actions[1]) this.actions[1].stop();
+                    this.actions[0].play();
                 }
             }
 
-            // SEGUIMIENTO DE CÁMARA
-            this.playerGroup.position.lerp(this.avatar.position, 0.1);
-            this.playerGroup.rotation.y -= this.input.l.x * 0.05;
+            this.rig.position.lerp(this.avatar.position, 0.1);
+            this.rig.rotation.y -= this.input.l.x * 0.05;
 
-            const targetCam = this.isZoom ? new THREE.Vector3(0, 0.4, 0.2) : new THREE.Vector3(0, 0.3, 1.2);
-            this.camera.position.lerp(targetCam, 0.1);
-            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.4 : 0.2, 0).add(this.avatar.position));
+            const tP = this.isZoom ? new THREE.Vector3(0, 0.35, 0.25) : new THREE.Vector3(0, 0.3, 1.2);
+            this.camera.position.lerp(tP, 0.1);
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.35 : 0.2, 0).add(this.avatar.position));
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new UltimateEngine();
+window.onload = () => new FinalRescueEngine();
 </script>
 </body>
 </html>
