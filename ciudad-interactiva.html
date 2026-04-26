@@ -3,55 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Engine 4K - Final Build</title>
+    <title>Quantum Engine v4.0 - Ultra Fidelity Build</title>
     <style>
-        :root { --neon: #00f6ff; --magenta: #ff00ff; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        
-        /* UI HUD */
-        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; }
-        
-        .neon-btn { 
-            pointer-events: auto; background: rgba(0,0,0,0.85); border: 2px solid var(--neon); 
-            color: var(--neon); padding: 15px 25px; cursor: pointer; font-weight: bold; 
-            box-shadow: 0 0 15px var(--neon); text-transform: uppercase; transition: 0.3s;
-            text-decoration: none; display: inline-block; text-align: center;
+        :root { --neon-cyan: #00f6ff; --neon-magenta: #ff00ff; --bg-dark: #010103; --white: #ffffff; }
+        body { margin: 0; overflow: hidden; background: var(--bg-dark); font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
+        canvas { display: block; }
+
+        /* --- UI HUD ESTILO NEÓN RGB BRILANTE --- */
+        #ui-layer {
+            position: absolute; inset: 0; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 30px; z-index: 100;
         }
-        .neon-btn:active { transform: scale(0.9); box-shadow: 0 0 30px var(--neon); }
 
-        /* Botón Salir Específico */
-        #btn-home { border-color: var(--magenta); color: var(--magenta); box-shadow: 0 0 15px var(--magenta); }
+        .neon-btn {
+            pointer-events: auto; background: rgba(0, 0, 0, 0.85);
+            border: 2px solid var(--neon-cyan); color: var(--neon-cyan);
+            box-shadow: 0 0 20px var(--neon-cyan), inset 0 0 10px rgba(0,246,255,0.4);
+            text-transform: uppercase; font-weight: bold; letter-spacing: 2px;
+            cursor: pointer; transition: all 0.2s ease;
+            user-select: none; -webkit-user-select: none; outline: none;
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+        .neon-btn:active { transform: scale(0.95); box-shadow: 0 0 35px var(--neon-cyan); }
 
-        /* Controles Inferiores */
-        #controls-row { display: flex; justify-content: space-between; align-items: flex-end; }
-        #joy-base { width: 150px; height: 150px; border-radius: 50%; border: 2px dashed var(--neon); position: relative; display: flex; align-items: center; justify-content: center; background: rgba(0,246,255,0.03); }
-        #joy-knob { width: 65px; height: 65px; background: var(--neon); border-radius: 50%; box-shadow: 0 0 25px var(--neon); position: absolute; }
-        
-        #zoom-circle { width: 90px; height: 90px; border-radius: 50%; border-color: #fff; color: #fff; box-shadow: 0 0 15px #fff; font-size: 14px; }
-        #zoom-circle.active { background: #fff; color: #000; }
+        /* Superior: Salir */
+        #top-zone { display: flex; justify-content: flex-end; }
+        #btn-exit { 
+            padding: 15px 30px; border-color: var(--neon-magenta); color: var(--neon-magenta); 
+            box-shadow: 0 0 20px var(--neon-magenta), inset 0 0 10px rgba(255,0,255,0.3);
+            text-shadow: 0 0 10px var(--neon-magenta);
+            text-decoration: none; display: inline-block;
+        }
 
-        /* Loader */
-        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); text-align: center; }
-        .bar { width: 200px; height: 2px; background: #111; margin-top: 20px; overflow: hidden; }
-        #progress { width: 0%; height: 100%; background: var(--neon); transition: 0.3s; }
+        /* Inferior: Controles */
+        #bottom-zone { display: flex; justify-content: space-between; align-items: flex-end; }
+
+        /* D-Pad Rotacional RGB */
+        #joy-container {
+            width: 170px; height: 170px; border-radius: 50%;
+            background: rgba(0, 246, 255, 0.03); border: 2px dashed rgba(0, 246, 255, 0.3);
+            position: relative; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 15px rgba(0,246,255,0.1);
+        }
+        #joy-knob {
+            width: 70px; height: 70px; background: var(--neon-cyan);
+            border-radius: 50%; box-shadow: 0 0 30px var(--neon-cyan);
+            position: absolute; pointer-events: auto; outline: none; border: none;
+        }
+
+        /* Botones Acción (Zoom) */
+        #action-zone { display: flex; gap: 20px; }
+        .btn-action { 
+            width: 100px; height: 100px; border-radius: 50%; font-size: 14px; 
+            text-align: center; border-color: var(--white); color: var(--white); 
+            box-shadow: 0 0 20px rgba(255,255,255,0.5); text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .btn-action.active { 
+            background: var(--white); color: #000; 
+            box-shadow: 0 0 40px var(--white); text-shadow: none;
+        }
+
+        /* PANTALLA DE CARGA */
+        #loader {
+            position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: var(--neon-cyan); text-align: center;
+        }
+        .spinner {
+            width: 60px; height: 60px; border: 5px solid rgba(0, 246, 255, 0.1);
+            border-top-color: var(--neon-cyan); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 30px;
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <h1 style="letter-spacing: 5px;">4K RENDER SYSTEM</h1>
-    <div class="bar"><div id="progress"></div></div>
-    <p id="status" style="font-size: 10px; margin-top: 10px; opacity: 0.5;">CONECTANDO INTERFAZ NEURAL...</p>
+    <div class="spinner"></div>
+    <div style="text-transform: uppercase; letter-spacing: 5px; font-weight: bold; text-shadow: 0 0 15px var(--neon-cyan);">4K RENDER SYSTEM</div>
+    <div id="load-status" style="font-size: 12px; margin-top: 15px; opacity: 0.7; font-family: monospace;">Inicializando Matrices de Textura...</div>
 </div>
 
 <div id="ui-layer">
-    <div style="display: flex; justify-content: flex-end;">
-        <a href="index.html" id="btn-home" class="neon-btn">SALIR AL INICIO</a>
+    <div id="top-zone">
+        <a href="index.html" id="btn-exit" class="neon-btn">SALIR AL INICIO</a>
     </div>
 
-    <div id="controls-row">
-        <div id="joy-base"><div id="joy-knob" class="neon-btn"></div></div>
-        <button id="zoom-circle" class="neon-btn">ZOOM<br>DETALLE</button>
+    <div id="bottom-zone">
+        <div id="joy-container">
+            <div id="joy-knob" class="neon-btn"></div>
+        </div>
+
+        <div id="action-zone">
+            <button id="btn-zoom" class="neon-btn btn-action">ZOOM<br>4K FACE</button>
+        </div>
     </div>
 </div>
 
@@ -59,146 +107,249 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-class QuantumEngine4K {
+/**
+ * QUANTUM ULTRA-FIDELITY ENGINE v4.0
+ */
+class AvatarUltraShowcase {
     constructor() {
-        this.cars = [];
-        this.init();
-        this.setupLights();
-        this.loadAssets();
-        this.bindControls();
+        this.clock = new THREE.Clock();
+        this.collidables = []; // Array para tráfico y ciudad
+
+        // --- CONFIGURACIÓN DE CÁMARA DINÁMICA (Encuadre Pro) ---
+        this.config = {
+            cameraData: {
+                // Default: Cuerpo completo (Distancia media, punto de mira céntrico)
+                default: { pos: new THREE.Vector3(0, 1.1, 3.8), look: new THREE.Vector3(0, 1.0, 0) }, 
+                // Zoom: Solo rostro (Cercano, punto de mira alto en la cara)
+                zoom: { pos: new THREE.Vector3(0, 1.66, 0.7), look: new THREE.Vector3(0, 1.66, 0) }      
+            },
+            lerpSpeed: 0.08, // Suavizado de cámara cinematográfico
+            rotationSpeed: 0.045
+        };
+        
+        this.state = {
+            loaded: false,
+            joyActive: false,
+            rotationY: 0,
+            isZoomed: false,
+            currentCameraTarget: JSON.parse(JSON.stringify(this.config.cameraData.default))
+        };
+
+        this.initGraphics();
+        this.initLights();
+        this.loadModels();
+        this.setupControls();
         this.animate();
     }
 
-    init() {
+    initGraphics() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000003);
-        
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 3000);
-        this.camera.position.set(0, 1.2, 4);
+        // Niebla muy tenue para dar profundidad a la ciudad sin taparla
+        this.scene.fog = new THREE.FogExp2(0x000003, 0.02);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.01, 3000);
+        this.camera.position.copy(this.config.cameraData.default.pos);
+        
+        // --- MOTOR DE ULTRA-RENDERIZADO (Simulación 4K) ---
+        // Antialias activado y logarithmicDepthBuffer para precisión de texturas IA
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // FORZAR PIXEL RATIO ALTO: Esto logra la nitidez 4K en pantallas retina/móviles
         this.renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
         
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.4;
-        this.renderer.physicallyCorrectLights = true; 
+        // CONFIGURACIÓN COLORIMÉTRICA FOTORREALISTA
+        this.renderer.outputEncoding = THREE.sRGBEncoding; // Vital para texturas de IA fotorrealistas
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Contraste y color de grado cinematográfico
+        this.renderer.toneMappingExposure = 1.35; // Exposición subida para resaltar matices de piel
+        this.renderer.physicallyCorrectLights = true; // Luces basadas en física real
         
         document.body.appendChild(this.renderer.domElement);
-        this.clock = new THREE.Clock();
     }
 
-    setupLights() {
+    initLights() {
+        // 1. Luz ambiental global (Relleno de ciudad)
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        this.keyLight = new THREE.SpotLight(0xffffff, 3);
-        this.keyLight.position.set(2, 3, 4);
-        this.keyLight.angle = 0.5;
-        this.scene.add(this.keyLight);
 
-        this.faceLight = new THREE.PointLight(0xffffff, 0, 5);
-        this.faceLight.position.set(0, 1.65, 1);
-        this.scene.add(this.faceLight);
+        // 2. Luz de estudio principal (Key Light) - Apunta a la cara/cuerpo
+        this.mainLight = new THREE.DirectionalLight(0xfff0dd, 1.5); // Tono cálido de piel
+        this.mainLight.position.set(2, 3, 4);
+        this.mainLight.castShadow = true; // Activar sombras para relieve
+        this.scene.add(this.mainLight);
 
-        const rim = new THREE.PointLight(0x00f6ff, 2, 10);
-        rim.position.set(-2, 2, -2);
-        this.scene.add(rim);
+        // 3. Luz de contra (Rim Light) Cyan Brilhante - Separa silueta
+        const rimLight = new THREE.SpotLight(0x00f6ff, 2.5, 15, 0.3, 1);
+        rimLight.position.set(-3, 4, -2);
+        this.scene.add(rimLight);
+
+        // 4. Luz de Zoom Facial (Point Light) - Se activa/desactiva
+        this.zoomLight = new THREE.PointLight(0xffffff, 0, 3);
+        this.zoomLight.position.set(0, 1.7, 1.0); // Justo frente a la cara
+        this.scene.add(this.zoomLight);
+
+        // 5. Luz específica azulada para el fondo (Ciudad)
+        const cityLight = new THREE.DirectionalLight(0x4444ff, 0.6); 
+        cityLight.position.set(-10, 5, -15);
+        this.scene.add(cityLight);
     }
 
-    createTraffic() {
-        const colors = [0x00f6ff, 0xff00ff, 0x00ff00];
-        for(let i=0; i<20; i++) {
-            const car = new THREE.Mesh(
-                new THREE.BoxGeometry(0.3, 0.1, 0.6),
-                new THREE.MeshBasicMaterial({ color: colors[i%3] })
-            );
-            car.position.set((Math.random()-0.5)*50, 0.05, -12 - (Math.random()*25));
-            car.userData.speed = 0.1 + Math.random()*0.4;
-            this.scene.add(car);
-            this.cars.push(car);
-        }
-    }
-
-    loadAssets() {
+    loadModels() {
         const manager = new THREE.LoadingManager();
-        manager.onProgress = (u, l, t) => document.getElementById('progress').style.width = (l/t*100)+'%';
-        manager.onLoad = () => document.getElementById('loader').style.display = 'none';
+        const status = document.getElementById('load-status');
+
+        manager.onProgress = (url, loaded, total) => {
+            status.innerText = `DESERIALIZANDO GEOMETRÍA: ${Math.round((loaded/total)*100)}%`;
+        };
+
+        manager.onLoad = () => {
+            this.state.loaded = true;
+            document.getElementById('loader').style.display = 'none';
+            this.camera.lookAt(this.config.cameraData.default.look);
+            this.createTraffic(); // Crear tráfico tras cargar ciudad
+        };
 
         const loader = new THREE.GLTFLoader(manager);
 
-        loader.load('ciudad_quantum.glb', (glb) => {
-            this.city = glb.scene;
-            this.city.position.set(0, 0, -8);
+        // 1. Cargar Ciudad de Fondo (ciudad_quantum.glb)
+        loader.load('ciudad_quantum.glb', (gltf) => {
+            this.city = gltf.scene;
+            this.city.scale.set(1, 1, 1); 
+            this.city.position.set(0, 0, -12); // Detrás del avatar
             this.scene.add(this.city);
-            this.city.traverse(n => {
-                if(n.isMesh) {
-                    n.material.side = THREE.DoubleSide;
-                    n.material.transparent = false;
+            
+            // Forzar visibilidad total de texturas de ciudad
+            this.city.traverse(child => {
+                if(child.isMesh) {
+                    child.material.side = THREE.DoubleSide;
+                    child.material.depthWrite = true;
                 }
             });
-            this.createTraffic();
-        });
+        }, undefined, (e) => { console.error("Error Ciudad:", e); status.innerText = "Error: ciudad_quantum.glb"; });
 
-        loader.load('luis-avatar2.glb', (glb) => {
-            this.avatar = glb.scene;
+        // 2. Cargar Avatar (luis-avatar2.glb) - Fotorrealismo IA
+        loader.load('luis-avatar2.glb', (gltf) => {
+            this.avatar = gltf.scene;
+            this.avatar.position.set(0, 0, 0); // Pies en el origen
             this.scene.add(this.avatar);
+            
+            // Habilitar sombras en el avatar para matices
+            this.avatar.traverse(child => { if(child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+
+            // Animación Automática (Idle/Respiración)
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            if(glb.animations.length > 0) this.mixer.clipAction(glb.animations[0]).play();
-        });
+            if(gltf.animations.length > 0) {
+                this.mixer.clipAction(gltf.animations[0]).play();
+            }
+        }, undefined, (e) => { console.error("Error Avatar:", e); status.innerText = "Error: luis-avatar2.glb"; });
     }
 
-    bindControls() {
-        this.rotY = 0;
-        this.isZoom = false;
+    createTraffic() {
+        // Creamos estelas de luz neón que se mueven detrás (Tráfico)
+        const carGeo = new THREE.BoxGeometry(0.3, 0.1, 0.8);
+        const colors = [0x00f6ff, 0xff00ff, 0x00ff00];
+        for(let i=0; i<18; i++) {
+            const carMat = new THREE.MeshBasicMaterial({ color: colors[i%3], transparent: true, opacity: 0.8 });
+            const car = new THREE.Mesh(carGeo, carMat);
+            car.position.set((Math.random()-0.5)*50, 0.1, -15 - (Math.random()*20));
+            car.userData.speed = 0.1 + Math.random()*0.35;
+            this.scene.add(car);
+            this.collidables.push(car); // Array para animar
+        }
+    }
+
+    setupControls() {
         const knob = document.getElementById('joy-knob');
-        
-        const moveJoy = (e) => {
-            if(!this.joyActive) return;
-            const t = e.touches ? e.touches[0] : e;
-            const r = document.getElementById('joy-base').getBoundingClientRect();
-            const dx = t.clientX - (r.left + 75);
-            const dist = Math.min(Math.abs(dx), 60);
-            knob.style.left = `calc(50% + ${Math.sign(dx)*dist}px - 32.5px)`;
-            this.rotY = Math.sign(dx) * (dist/60) * 0.06;
+        const container = document.getElementById('joy-container');
+        const btnZoom = document.getElementById('btn-zoom');
+
+        // --- D-Pad Analógico Rotacional (Feedback Neón) ---
+        const handleJoyMove = (e) => {
+            if(!this.state.joyActive) return;
+            const touch = e.touches[0];
+            const rect = container.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            
+            const dx = touch.clientX - centerX;
+            const dist = Math.min(Math.abs(dx), 65);
+            const sign = Math.sign(dx);
+
+            // Visual del knob
+            knob.style.left = `calc(50% + ${sign * dist}px - 35px)`;
+            
+            // Aplicar velocidad de rotación
+            this.state.rotationY = sign * (dist / 65) * this.config.rotationSpeed;
         };
 
-        document.getElementById('joy-base').addEventListener('touchstart', () => this.joyActive = true);
-        window.addEventListener('touchmove', moveJoy);
-        window.addEventListener('touchend', () => { 
-            this.joyActive = false; 
-            knob.style.left = 'calc(50% - 32.5px)'; 
-            this.rotY = 0;
+        container.addEventListener('touchstart', (e) => { this.state.joyActive = true; handleJoyMove(e); });
+        window.addEventListener('touchmove', handleJoyMove);
+        window.addEventListener('touchend', () => {
+            this.state.joyActive = false;
+            knob.style.left = 'calc(50% - 35px)'; // Reset visual
+            this.state.rotationY = 0; // Detener rotación
         });
 
-        const zBtn = document.getElementById('zoom-circle');
-        zBtn.ontouchstart = (e) => { e.preventDefault(); this.isZoom = true; zBtn.classList.add('active'); };
-        zBtn.ontouchend = () => { this.isZoom = false; zBtn.classList.remove('active'); };
+        // --- Lógica del Botón ZOOM 4K (Feedback Neón RGB) ---
+        const setZoom = (active) => {
+            this.state.isZoomed = active;
+            if(active) {
+                btnZoom.classList.add('active');
+                this.state.currentCameraTarget = this.config.cameraData.zoom;
+                this.zoomLight.intensity = 1.3; // Luz de relleno facial ON
+            } else {
+                btnZoom.classList.remove('active');
+                this.state.currentCameraTarget = this.config.cameraData.default;
+                this.zoomLight.intensity = 0; // Apagar
+            }
+        };
+
+        btnZoom.addEventListener('touchstart', (e) => { e.preventDefault(); setZoom(true); });
+        btnZoom.addEventListener('touchend', () => { setZoom(false); });
+        // Soporte ratón
+        btnZoom.addEventListener('mousedown', () => { setZoom(true); });
+        btnZoom.addEventListener('mouseup', () => { setZoom(false); });
+
+        // Resize
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        const dt = this.clock.getDelta();
-        if(this.mixer) this.mixer.update(dt);
+        if(!this.state.loaded) return;
 
-        if(this.avatar) {
-            this.avatar.rotation.y += this.rotY;
-            const targetPos = this.isZoom ? new THREE.Vector3(0, 1.66, 0.6) : new THREE.Vector3(0, 1.1, 3.5);
-            const targetLook = this.isZoom ? new THREE.Vector3(0, 1.66, 0) : new THREE.Vector3(0, 1.0, 0);
-            this.camera.position.lerp(targetPos, 0.1);
-            this.camera.lookAt(targetLook);
-            this.faceLight.intensity = this.isZoom ? 1.5 : 0;
+        const delta = this.clock.getDelta();
+
+        // 1. Actualizar Animación (si existe)
+        if(this.mixer) this.mixer.update(delta);
+
+        // 2. Rotar Avatar (Eje Y)
+        if (this.avatar && Math.abs(this.state.rotationY) > 0.001) {
+            this.avatar.rotation.y += this.state.rotationY;
         }
 
-        this.cars.forEach(car => {
+        // 3. Suavizado de Cámara Pro (Lerp)
+        if(this.camera) {
+            this.camera.position.lerp(this.state.currentCameraTarget.pos, this.config.lerpSpeed);
+            // El lookAt directo es necesario para que el encuadre 4K sea estable
+            this.camera.lookAt(this.state.currentCameraTarget.look);
+        }
+
+        // 4. Animar tráfico
+        this.collidables.forEach(car => {
             car.position.x += car.userData.speed;
-            if(car.position.x > 30) car.position.x = -30;
+            if(car.position.x > 30) car.position.x = -30; // Loop infinito
         });
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-window.onload = () => new QuantumEngine4K();
+// LANZAMIENTO DEL MOTOR ULTRA
+window.onload = () => { new AvatarShowcase(); };
 </script>
 </body>
 </html>
