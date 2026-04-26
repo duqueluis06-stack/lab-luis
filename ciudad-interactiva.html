@@ -3,33 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum City Final - Traffic Edition</title>
+    <title>Quantum Engine 4K - Face & City</title>
     <style>
         :root { --neon: #00f6ff; --magenta: #ff00ff; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        canvas { display: block; }
         
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; }
-        .btn { pointer-events: auto; background: rgba(0,0,0,0.8); border: 2px solid var(--neon); color: var(--neon); padding: 15px; cursor: pointer; font-weight: bold; box-shadow: 0 0 10px var(--neon); }
-        #joy-con { width: 140px; height: 140px; border-radius: 50%; border: 2px dashed var(--neon); position: relative; display: flex; align-items: center; justify-content: center; background: rgba(0,246,255,0.05); }
-        #knob { width: 60px; height: 60px; background: var(--neon); border-radius: 50%; box-shadow: 0 0 20px var(--neon); position: absolute; }
-        #zoom-btn { width: 80px; height: 80px; border-radius: 50%; align-self: flex-end; border-color: #fff; color: #fff; }
-        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
+        /* UI HUD */
+        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; }
+        .neon-btn { 
+            pointer-events: auto; background: rgba(0,0,0,0.85); border: 2px solid var(--neon); 
+            color: var(--neon); padding: 15px 25px; cursor: pointer; font-weight: bold; 
+            box-shadow: 0 0 15px var(--neon); text-transform: uppercase; transition: 0.3s;
+        }
+        .neon-btn:active { transform: scale(0.9); box-shadow: 0 0 30px var(--neon); }
+
+        /* Controles */
+        #controls-row { display: flex; justify-content: space-between; align-items: flex-end; }
+        #joy-base { width: 150px; height: 150px; border-radius: 50%; border: 2px dashed var(--neon); position: relative; display: flex; align-items: center; justify-content: center; background: rgba(0,246,255,0.03); }
+        #joy-knob { width: 65px; height: 65px; background: var(--neon); border-radius: 50%; box-shadow: 0 0 25px var(--neon); position: absolute; }
+        
+        #zoom-circle { width: 90px; height: 90px; border-radius: 50%; border-color: #fff; color: #fff; box-shadow: 0 0 15px #fff; font-size: 14px; }
+        #zoom-circle.active { background: #fff; color: #000; }
+
+        /* Loader */
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); text-align: center; }
+        .bar { width: 200px; height: 2px; background: #111; margin-top: 20px; overflow: hidden; }
+        #progress { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: 0.3s; }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <h2 id="load-msg">CONECTANDO CIUDAD Y TRÁFICO...</h2>
+    <h1 style="letter-spacing: 5px;">4K RENDER ACTIVE</h1>
+    <div class="bar"><div id="progress"></div></div>
+    <p id="status" style="font-size: 10px; margin-top: 10px; opacity: 0.5;">CARGANDO MATRICES DE TEXTURA...</p>
 </div>
 
-<div id="ui">
-    <div style="display:flex; justify-content: flex-end;">
-        <button class="btn" style="border-color:var(--magenta); color:var(--magenta);" onclick="location.reload()">REINICIAR</button>
+<div id="ui-layer">
+    <div style="display: flex; justify-content: flex-end;">
+        <button class="neon-btn" style="border-color: var(--magenta); color: var(--magenta); box-shadow: 0 0 15px var(--magenta);" onclick="location.reload()">RELOAD</button>
     </div>
-    <div style="display:flex; justify-content: space-between; align-items: flex-end;">
-        <div id="joy-con"><div id="knob" class="btn"></div></div>
-        <button id="zoom-btn" class="btn">ZOOM</button>
+
+    <div id="controls-row">
+        <div id="joy-base"><div id="joy-knob" class="neon-btn"></div></div>
+        <button id="zoom-circle" class="neon-btn">ZOOM<br>DETALLE</button>
     </div>
 </div>
 
@@ -37,118 +54,133 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-class QuantumFinal {
+class QuantumEngine4K {
     constructor() {
         this.cars = [];
         this.init();
-        this.lights();
-        this.load();
-        this.controls();
+        this.setupLights();
+        this.loadAssets();
+        this.bindControls();
         this.animate();
     }
 
     init() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x000005);
-        // Quitamos la niebla para asegurar que la ciudad se vea hasta el fondo
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
-        this.camera.position.set(0, 1, 4);
+        this.scene.background = new THREE.Color(0x000003);
+        
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 3000);
+        this.camera.position.set(0, 1.2, 4);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1); // Simulación de alta densidad
+        
+        // --- CONFIGURACIÓN DE ALTA FIDELIDAD ---
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.5;
+        this.renderer.toneMappingExposure = 1.4;
+        this.renderer.physicallyCorrectLights = true; // Luces basadas en física real
+        
         document.body.appendChild(this.renderer.domElement);
         this.clock = new THREE.Clock();
     }
 
-    lights() {
-        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-        this.scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(5, 10, 7);
-        this.scene.add(sun);
-        
-        // Luz azul de ciudad detrás
-        const cityBacklight = new THREE.PointLight(0x00ffff, 2, 50);
-        cityBacklight.position.set(0, 5, -10);
-        this.scene.add(cityBacklight);
+    setupLights() {
+        // Luz de ambiente para la ciudad
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+        // Luz de estudio para el rostro (Key Light)
+        this.keyLight = new THREE.SpotLight(0xffffff, 3);
+        this.keyLight.position.set(2, 3, 4);
+        this.keyLight.angle = 0.5;
+        this.keyLight.penumbra = 1;
+        this.scene.add(this.keyLight);
+
+        // Luz de Zoom (se intensifica al acercar la cámara)
+        this.faceLight = new THREE.PointLight(0xffffff, 0, 5);
+        this.faceLight.position.set(0, 1.65, 1);
+        this.scene.add(this.faceLight);
+
+        // Luz Neón Trasera (Rim Light)
+        const rim = new THREE.PointLight(0x00f6ff, 2, 10);
+        rim.position.set(-2, 2, -2);
+        this.scene.add(rim);
     }
 
     createTraffic() {
-        // Creamos 15 "autos" (luces neón que se mueven)
-        const colors = [0x00f6ff, 0xff00ff, 0xffff00];
-        for(let i=0; i<15; i++) {
-            const carGeo = new THREE.BoxGeometry(0.4, 0.2, 0.8);
-            const carMat = new THREE.MeshBasicMaterial({ color: colors[i%3] });
-            const car = new THREE.Mesh(carGeo, carMat);
-            
-            // Posiciones aleatorias en lo que sería "la calle" detrás del avatar
-            car.position.set((Math.random()-0.5)*40, 0.1, -15 - (Math.random()*30));
-            car.userData.speed = 0.1 + Math.random()*0.3;
+        const colors = [0x00f6ff, 0xff00ff, 0x00ff00];
+        for(let i=0; i<20; i++) {
+            const car = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.1, 0.6),
+                new THREE.MeshBasicMaterial({ color: colors[i%3] })
+            );
+            car.position.set((Math.random()-0.5)*50, 0.05, -12 - (Math.random()*25));
+            car.userData.speed = 0.1 + Math.random()*0.4;
             this.scene.add(car);
             this.cars.push(car);
         }
     }
 
-    load() {
-        const loader = new THREE.GLTFLoader();
-        
-        // Cargar Ciudad
+    loadAssets() {
+        const manager = new THREE.LoadingManager();
+        manager.onProgress = (u, l, t) => document.getElementById('progress').style.width = (l/t*100)+'%';
+        manager.onLoad = () => document.getElementById('loader').style.display = 'none';
+
+        const loader = new THREE.GLTFLoader(manager);
+
+        // Ciudad (Forzamos visibilidad total)
         loader.load('ciudad_quantum.glb', (glb) => {
             this.city = glb.scene;
-            this.city.position.set(0, -0.1, -5); // Un poco atrás para no pisar al avatar
+            this.city.position.set(0, 0, -8);
             this.scene.add(this.city);
-            
-            // TRUCO MAESTRO: Forzar a que cada parte de la ciudad sea visible
-            this.city.traverse(child => {
-                if(child.isMesh) {
-                    child.material.side = THREE.DoubleSide; // Ver por ambos lados
-                    child.material.needsUpdate = true;
+            this.city.traverse(n => {
+                if(n.isMesh) {
+                    n.material.side = THREE.DoubleSide;
+                    n.material.transparent = false; // Evita que se pierdan edificios
                 }
             });
             this.createTraffic();
-        }, undefined, (e) => console.error("Error Ciudad"));
+        });
 
-        // Cargar Avatar
+        // Avatar (Máximo detalle)
         loader.load('luis-avatar2.glb', (glb) => {
             this.avatar = glb.scene;
             this.scene.add(this.avatar);
             this.mixer = new THREE.AnimationMixer(this.avatar);
             if(glb.animations.length > 0) this.mixer.clipAction(glb.animations[0]).play();
-            document.getElementById('loader').style.display = 'none';
         });
     }
 
-    controls() {
+    bindControls() {
         this.rotY = 0;
-        this.zoom = false;
-        const knob = document.getElementById('knob');
+        this.isZoom = false;
+        const knob = document.getElementById('joy-knob');
         
-        window.addEventListener('touchstart', (e) => {
-            if(e.target.id === 'knob') this.joyActive = true;
-        });
-
-        window.addEventListener('touchmove', (e) => {
+        const moveJoy = (e) => {
             if(!this.joyActive) return;
-            const t = e.touches[0];
-            const r = document.getElementById('joy-con').getBoundingClientRect();
-            const dx = t.clientX - (r.left + 70);
-            const dist = Math.min(Math.abs(dx), 50);
-            knob.style.left = `calc(50% + ${Math.sign(dx)*dist}px - 30px)`;
-            this.rotY = Math.sign(dx) * (dist/50) * 0.05;
-        });
+            const t = e.touches ? e.touches[0] : e;
+            const r = document.getElementById('joy-base').getBoundingClientRect();
+            const dx = t.clientX - (r.left + 75);
+            const dist = Math.min(Math.abs(dx), 60);
+            knob.style.left = `calc(50% + ${Math.sign(dx)*dist}px - 32.5px)`;
+            this.rotY = Math.sign(dx) * (dist/60) * 0.06;
+        };
 
-        window.addEventListener('touchend', () => {
-            this.joyActive = false;
-            knob.style.left = 'calc(50% - 30px)';
+        document.getElementById('joy-base').addEventListener('touchstart', () => this.joyActive = true);
+        window.addEventListener('touchmove', moveJoy);
+        window.addEventListener('touchend', () => { 
+            this.joyActive = false; 
+            knob.style.left = 'calc(50% - 32.5px)'; 
             this.rotY = 0;
         });
 
-        const zBtn = document.getElementById('zoom-btn');
-        zBtn.ontouchstart = () => this.zoom = true;
-        zBtn.ontouchend = () => this.zoom = false;
+        const zBtn = document.getElementById('zoom-circle');
+        const setZoom = (v) => { 
+            this.isZoom = v; 
+            v ? zBtn.classList.add('active') : zBtn.classList.remove('active'); 
+        };
+        zBtn.ontouchstart = () => setZoom(true);
+        zBtn.ontouchend = () => setZoom(false);
     }
 
     animate() {
@@ -159,25 +191,26 @@ class QuantumFinal {
         if(this.avatar) {
             this.avatar.rotation.y += this.rotY;
             
-            // Lógica de cámara
-            const targetPos = this.zoom ? new THREE.Vector3(0, 1.66, 0.7) : new THREE.Vector3(0, 1.1, 3.5);
-            const targetLook = this.zoom ? new THREE.Vector3(0, 1.66, 0) : new THREE.Vector3(0, 1, 0);
+            // Interpolación de Cámara 4K (Suave)
+            const targetPos = this.isZoom ? new THREE.Vector3(0, 1.66, 0.6) : new THREE.Vector3(0, 1.1, 3.5);
+            const targetLook = this.isZoom ? new THREE.Vector3(0, 1.66, 0) : new THREE.Vector3(0, 1.0, 0);
             
             this.camera.position.lerp(targetPos, 0.1);
             this.camera.lookAt(targetLook);
+            this.faceLight.intensity = this.isZoom ? 1.5 : 0;
         }
 
-        // Mover tráfico
+        // Animación Tráfico Ciudad
         this.cars.forEach(car => {
             car.position.x += car.userData.speed;
-            if(car.position.x > 25) car.position.x = -25; // Loop infinito de autos
+            if(car.position.x > 30) car.position.x = -30;
         });
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-window.onload = () => new QuantumFinal();
+window.onload = () => new QuantumEngine4K();
 </script>
 </body>
 </html>
