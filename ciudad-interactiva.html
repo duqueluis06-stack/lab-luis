@@ -6,9 +6,6 @@
 <title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
 
 <style>
-/* =========================
-   RESET MÓVIL REAL
-========================= */
 *{
     margin:0;
     padding:0;
@@ -25,37 +22,28 @@ body{
     font-family:monospace;
 }
 
-/* =========================
-   DEBUG
-========================= */
 #debug{
     position:absolute;
     top:10px;
     left:10px;
     color:#0f0;
-    font-size:12px;
-    z-index:10;
     background:rgba(0,0,0,0.6);
     padding:6px;
+    font-size:12px;
+    z-index:10;
 }
 
-/* =========================
-   LOADER
-========================= */
 #loader{
     position:fixed;
     inset:0;
-    display:flex;
-    justify-content:center;
-    align-items:center;
     background:#000;
     color:#0ff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     z-index:9999;
 }
 
-/* =========================
-   SALIR
-========================= */
 #exit{
     position:fixed;
     top:10px;
@@ -67,9 +55,6 @@ body{
     background:transparent;
 }
 
-/* =========================
-   JOYSTICK IZQUIERDO
-========================= */
 .left{
     position:fixed;
     bottom:20px;
@@ -81,9 +66,6 @@ body{
     z-index:999;
 }
 
-/* =========================
-   ACCIONES DERECHA
-========================= */
 .right{
     position:fixed;
     bottom:20px;
@@ -94,9 +76,6 @@ body{
     z-index:999;
 }
 
-/* =========================
-   BOTONES NEÓN
-========================= */
 button{
     width:60px;
     height:60px;
@@ -111,7 +90,6 @@ button:active{
     background:#0ff;
     color:#000;
 }
-
 </style>
 </head>
 
@@ -122,22 +100,20 @@ button:active{
 
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<!-- JOYSTICK -->
 <div class="left">
     <div></div>
-    <button ontouchstart="move('f',1)" ontouchend="move('f',0)">▲</button>
+    <button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▲</button>
     <div></div>
 
-    <button ontouchstart="move('l',1)" ontouchend="move('l',0)">◀</button>
+    <button ontouchstart="move(-1,0)" ontouchend="move(0,0)">◀</button>
     <div></div>
-    <button ontouchstart="move('r',1)" ontouchend="move('r',0)">▶</button>
+    <button ontouchstart="move(1,0)" ontouchend="move(0,0)">▶</button>
 
     <div></div>
-    <button ontouchstart="move('b',1)" ontouchend="move('b',0)">▼</button>
+    <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▼</button>
     <div></div>
 </div>
 
-<!-- ACCIONES -->
 <div class="right">
     <button onclick="setSpeed(0.05)">🚶</button>
     <button onclick="setSpeed(0.12)">🏃</button>
@@ -150,44 +126,29 @@ button:active{
 
 <script>
 
-/* =========================
-   ENGINE CORE
-========================= */
-
 let scene,camera,renderer;
-let luis,mixer,cityMixer;
-let dir={x:0,z:0};
-let speed=0.06;
+let city,avatar;
+let mixer,cityMixer;
 let clock=new THREE.Clock();
+
+let vx=0, vz=0;
+let speed=0.06;
+
 let controls;
 
-/* =========================
-   DEBUG
-========================= */
 function log(t){
     document.getElementById("debug").innerText=t;
 }
 
-/* =========================
-   MOVIMIENTO
-========================= */
-function move(t,v){
-    if(t==='f')dir.z=v?-1:0;
-    if(t==='b')dir.z=v?1:0;
-    if(t==='l')dir.x=v?-1:0;
-    if(t==='r')dir.x=v?1:0;
+function move(x,z){
+    vx=x;
+    vz=z;
 }
 
-/* =========================
-   VELOCIDAD
-========================= */
-function setSpeed(v){
-    speed=v;
+function setSpeed(s){
+    speed=s;
 }
 
-/* =========================
-   INIT
-========================= */
 function init(){
 
 scene=new THREE.Scene();
@@ -213,9 +174,6 @@ loader.setDRACOLoader(draco);
 
 log("Cargando ciudad...");
 
-/* =========================
-   CIUDAD
-========================= */
 loader.load("ciudad_quantum.glb",(gltf)=>{
 
 scene.add(gltf.scene);
@@ -225,43 +183,34 @@ if(gltf.animations.length){
     gltf.animations.forEach(c=>cityMixer.clipAction(c).play());
 }
 
-log("Ciudad OK → Avatar");
+log("Ciudad OK → avatar");
 
-/* =========================
-   AVATAR FIX REAL
-========================= */
 loader.load("luis_avatar.glb",(av)=>{
 
-luis=av.scene;
+avatar=av.scene;
 
-/* 🔥 ESCALA REAL HUMANA */
-luis.scale.set(1,1,1);
-luis.position.set(0,1,0);
+/* 👤 ESCALA SEGURA */
+avatar.scale.set(1,1,1);
+avatar.position.set(0,1,0);
 
-scene.add(luis);
+scene.add(avatar);
 
-mixer=new THREE.AnimationMixer(luis);
+/* 🎬 MIXER ROBUSTO */
+mixer=new THREE.AnimationMixer(avatar);
 
-/* =========================
-   FIX T-POSE REAL
-========================= */
+/* 🔥 FALLBACK: no depende de nombres */
 if(av.animations && av.animations.length>0){
 
-    let clip=av.animations[0];
-
-    let action=mixer.clipAction(clip);
-
-    action.reset();
+    let action=mixer.clipAction(av.animations[0]);
     action.play();
 
     log("ANIM OK");
-
 }else{
     log("SIN ANIMACIONES");
 }
 
-/* FIX SKINNING */
-luis.traverse(o=>{
+/* FIX SKIN */
+avatar.traverse(o=>{
     if(o.isSkinnedMesh){
         o.frustumCulled=false;
     }
@@ -275,9 +224,6 @@ document.getElementById("loader").style.display="none";
 
 }
 
-/* =========================
-   LOOP
-========================= */
 function animate(){
 
 requestAnimationFrame(animate);
@@ -287,27 +233,27 @@ let delta=clock.getDelta();
 if(mixer)mixer.update(delta);
 if(cityMixer)cityMixer.update(delta);
 
-if(luis){
+if(avatar){
 
-let moving=dir.x||dir.z;
+let moving = (vx!==0 || vz!==0);
 
 /* MOVIMIENTO */
 if(moving){
-    luis.position.x+=dir.x*speed;
-    luis.position.z+=dir.z*speed;
+    avatar.position.x += vx*speed;
+    avatar.position.z += vz*speed;
 }
 
 /* CAMARA FOLLOW */
 camera.position.lerp(
     new THREE.Vector3(
-        luis.position.x,
-        luis.position.y+3,
-        luis.position.z+6
+        avatar.position.x,
+        avatar.position.y+3,
+        avatar.position.z+6
     ),
     0.05
 );
 
-camera.lookAt(luis.position);
+camera.lookAt(avatar.position);
 
 }
 
