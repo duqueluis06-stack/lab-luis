@@ -2,114 +2,53 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>GTA CITY SYSTEM STABLE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESTORE GTA SYSTEM</title>
 
 <style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-user-select:none;
-touch-action:none;
-}
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;touch-action:none;}
+body{overflow:hidden;background:#000;font-family:monospace;}
 
-body{
-overflow:hidden;
-background:#000;
-font-family:monospace;
-}
-
-/* DEBUG */
 #debug{
-position:absolute;
-top:10px;
-left:10px;
-z-index:10;
-color:#0f0;
-background:rgba(0,0,0,0.6);
-padding:6px;
-font-size:12px;
+position:absolute;top:10px;left:10px;
+color:#0f0;background:rgba(0,0,0,0.6);
+padding:6px;font-size:12px;z-index:10;
 }
 
-/* LOADER */
 #loader{
-position:fixed;
-inset:0;
-display:flex;
-align-items:center;
-justify-content:center;
-background:#000;
-color:#0ff;
-z-index:9999;
+position:fixed;inset:0;
+display:flex;align-items:center;justify-content:center;
+background:#000;color:#0ff;z-index:9999;
 }
 
-/* EXIT */
 #exit{
-position:fixed;
-top:10px;
-right:10px;
-z-index:20;
-padding:10px 14px;
-border:1px solid #f55;
-color:#f55;
+position:fixed;top:10px;right:10px;
+z-index:20;padding:10px 14px;
+border:1px solid #f55;color:#f55;
 background:rgba(0,0,0,0.4);
 }
 
-/* PAD IZQUIERDO */
 .pad{
-position:fixed;
-bottom:20px;
-left:20px;
+position:fixed;bottom:20px;left:20px;
 display:grid;
 grid-template-columns:60px 60px 60px;
 grid-template-rows:60px 60px 60px;
-gap:5px;
-z-index:50;
+gap:5px;z-index:50;
 }
 
 .pad button{
-background:#000;
-border:2px solid #0ff;
-color:#0ff;
-border-radius:10px;
-font-size:14px;
-}
-
-.pad button:active{
-background:#0ff;
-color:#000;
-}
-
-/* ACCIONES DERECHA */
-.actions{
-position:fixed;
-bottom:20px;
-right:20px;
-display:flex;
-flex-direction:column;
-gap:10px;
-z-index:50;
-}
-
-.actions button{
-width:60px;
-height:60px;
-background:#000;
-border:2px solid #0ff;
-color:#0ff;
-border-radius:10px;
+background:#000;border:2px solid #0ff;
+color:#0ff;border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="loader">CARGANDO GTA SYSTEM...</div>
+<div id="loader">CARGANDO...</div>
 <div id="debug">INIT</div>
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<!-- MOVIMIENTO -->
 <div class="pad">
 <div></div>
 <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
@@ -124,40 +63,22 @@ border-radius:10px;
 <div></div>
 </div>
 
-<!-- ACCIONES -->
-<div class="actions">
-<button onclick="speed=0.03">🚶</button>
-<button onclick="speed=0.08">🏃</button>
-<button onclick="jump()">⬆</button>
-</div>
-
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
 
 let scene,camera,renderer;
-let avatar=null;
-let mixer=null;
+let avatar,city;
 let clock=new THREE.Clock();
 
 let vx=0,vz=0;
 let speed=0.05;
 
-/* DEBUG */
-function log(t){
-document.getElementById("debug").innerText=t;
-}
-
 /* INPUT */
 function move(x,z){
 vx=x;
 vz=z;
-}
-
-/* JUMP SIMPLE */
-function jump(){
-if(avatar) avatar.position.y += 0.5;
 }
 
 /* INIT */
@@ -170,6 +91,7 @@ scene=new THREE.Scene();
 scene.background=new THREE.Color(0x000010);
 
 camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,2000);
+camera.position.set(0,3,6);
 
 renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
@@ -179,18 +101,19 @@ scene.add(new THREE.AmbientLight(0xffffff,2));
 
 const loader=new THREE.GLTFLoader();
 
-/* 🌆 CIUDAD */
+/* 🌆 CIUDAD (ESTABLE) */
 loader.load("ciudad_quantum.glb",(g)=>{
 
-const city=g.scene;
+city=g.scene;
 scene.add(city);
 
-/* CENTRADO AUTOMÁTICO */
+/* centrado seguro */
 const box=new THREE.Box3().setFromObject(city);
 const center=box.getCenter(new THREE.Vector3());
 city.position.sub(center);
 
-log("CIUDAD OK");
+camera.position.set(0,5,10);
+camera.lookAt(0,0,0);
 
 });
 
@@ -201,21 +124,6 @@ avatar=a.scene;
 avatar.scale.set(1,1,1);
 avatar.position.set(0,0,0);
 scene.add(avatar);
-
-/* ANIMACIONES SEGURAS */
-if(a.animations && a.animations.length>0){
-
-mixer=new THREE.AnimationMixer(avatar);
-const action=mixer.clipAction(a.animations[0]);
-action.play();
-
-log("ANIM OK");
-
-}else{
-
-log("SIN ANIM");
-
-}
 
 document.getElementById("loader").style.display="none";
 
@@ -228,24 +136,17 @@ function animate(){
 
 requestAnimationFrame(animate);
 
-let dt=clock.getDelta();
-
-if(mixer) mixer.update(dt);
-
-/* MOVIMIENTO */
 if(avatar && (vx||vz)){
 
 avatar.position.x += vx*speed;
 avatar.position.z += vz*speed;
 
-/* orientación tipo GTA */
 avatar.rotation.y=Math.atan2(vx,vz);
 
 }
 
-/* CÁMARA GTA */
+/* cámara fija estilo GTA estable */
 if(avatar){
-
 camera.position.lerp(
 new THREE.Vector3(
 avatar.position.x,
@@ -254,7 +155,6 @@ avatar.position.z+6
 ),0.08);
 
 camera.lookAt(avatar.position);
-
 }
 
 renderer.render(scene,camera);
