@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS QUANTUM - DUAL AVATAR V12</title>
+    <title>LUIS QUANTUM - DUAL WORLD FINAL</title>
     <style>
         :root {
             --m-green: #00ff41;
@@ -11,14 +11,20 @@
             --n-pink: #ff0055;
         }
 
-        /* SEGURIDAD: NO COPIAR */
-        * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; outline: none; }
+        /* CAPA DE SEGURIDAD */
+        * { 
+            -webkit-user-select: none; 
+            user-select: none; 
+            -webkit-touch-callout: none; 
+            outline: none; 
+        }
 
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
 
+        /* MATRIX BG */
         #matrix-bg { position: fixed; inset: 0; z-index: 0; opacity: 0.25; pointer-events: none; }
 
-        /* HEADER: MENSAJE SUPERIOR - DESAPARECE */
+        /* MENSAJE SUPERIOR - AJUSTADO PARA NO TAPAR EL BOTÓN */
         #ui-header {
             position: absolute; top: 0; left: 0; width: 100%;
             z-index: 1000; display: flex; flex-direction: column; align-items: flex-start;
@@ -29,7 +35,8 @@
             width: calc(100% - 120px); 
             padding: 15px 10px;
             box-shadow: 0 5px 25px rgba(0, 255, 65, 0.5);
-            text-align: center; transition: opacity 1.5s ease-out;
+            text-align: center; 
+            transition: opacity 1.5s ease-out;
         }
         #text-render {
             color: var(--m-green); font-size: 17px; font-weight: 900;
@@ -37,7 +44,7 @@
             text-shadow: 2px 2px 0px #000, 0 0 10px var(--m-green);
         }
 
-        /* BOTÓN SALIR FIIJO */
+        /* BOTÓN EXIT */
         #exit-btn {
             position: absolute; top: 15px; right: 15px; z-index: 1100;
             padding: 10px 18px; border: 2px solid var(--n-pink);
@@ -91,7 +98,7 @@
     <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
     <script>
-        // Matrix BG, Texto, y estructura base (No tocar)
+        // --- 1. EFECTO MATRIX ---
         const canvas = document.getElementById('matrix-bg'), ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         const drops = Array(Math.floor(canvas.width/16)).fill(1);
@@ -104,20 +111,26 @@
             });
         }
         setInterval(drawMatrix, 35);
+
+        // --- 2. LÓGICA DE TEXTO ---
         const msg = "En una mente artificial, la idea más resistente es aquella que el sistema cree haber generado por sí mismo👽.";
         let charIdx = 0;
         function type() {
             const el = document.getElementById('text-render');
-            if(charIdx < msg.length) { el.innerHTML += msg.charAt(charIdx); charIdx++; setTimeout(type, 45); }
-            else { setTimeout(()=> { document.getElementById('msg-box').style.opacity="0"; }, 5000); }
+            if(charIdx < msg.length) { 
+                el.innerHTML += msg.charAt(charIdx); 
+                charIdx++; 
+                setTimeout(type, 45); 
+            } else { 
+                setTimeout(()=> { document.getElementById('msg-box').style.opacity="0"; }, 5000); 
+            }
         }
 
-        // --- MOTOR 3D DUAL AVATAR ---
+        // --- 3. MOTOR 3D ---
         class QuantumMirror {
             constructor() {
                 this.input = { mv:{x:0,y:0}, lk:{x:0,y:0} }; this.isZoom = false; this.time = 0;
-                this.idleTimer = null; this.isIdle = false; // Lógica de descanso
-                
+                this.idleTimer = null; this.isIdle = false;
                 this.init(); this.load(); this.events(); this.render();
             }
             init() {
@@ -138,54 +151,45 @@
                 loader.setDRACOLoader(draco);
 
                 loader.load('ciudad_quantum.glb', (g) => {
-                    this.city = g.scene; this.city.position.set(0, 45, -50); this.city.rotation.x = Math.PI; this.city.scale.setScalar(7);
+                    this.city = g.scene; this.city.position.set(0, 45, -50); 
+                    this.city.rotation.x = Math.PI; this.city.scale.setScalar(7);
                     this.scene.add(this.city);
                 });
 
-                // CARGA AVATAR PRINCIPAL (luis-avatar2)
                 loader.load('luis-avatar2.glb', (g) => {
                     this.avatarMain = g.scene; this.avatarMain.scale.setScalar(0.28);
                     this.scene.add(this.avatarMain);
                     this.mixerMain = new THREE.AnimationMixer(this.avatarMain);
                     if(g.animations.length>0) this.mixerMain.clipAction(g.animations[0]).play();
-                    
-                    this.currentAvatar = this.avatarMain; // Empezamos con el principal
+                    this.currentAvatar = this.avatarMain;
                     this.currentMixer = this.mixerMain;
                     type();
                 });
 
-                // CARGA AVATAR DESCANSO (luis-avatar3)
                 loader.load('luis-avatar3.glb', (g) => {
                     this.avatarIdle = g.scene; this.avatarIdle.scale.setScalar(0.28);
-                    this.avatarIdle.visible = false; // Empieza oculto
+                    this.avatarIdle.visible = false;
                     this.scene.add(this.avatarIdle);
                     this.mixerIdle = new THREE.AnimationMixer(this.avatarIdle);
                     if(g.animations.length>0) this.mixerIdle.clipAction(g.animations[0]).play();
                 });
             }
 
-            // LÓGICA DE INTERCAMBIO
             startIdleTimer() {
                 clearTimeout(this.idleTimer);
-                if (this.isIdle) this.wakeUp(); // Si ya estaba descansando, lo despierta instantáneamente
-
-                this.idleTimer = setTimeout(() => {
-                    this.goIntoIdle();
-                }, 60000); // 1 minuto (60.000 ms)
+                if (this.isIdle) this.wakeUp();
+                this.idleTimer = setTimeout(() => { this.goIntoIdle(); }, 60000);
             }
 
             goIntoIdle() {
                 if (!this.avatarMain || !this.avatarIdle || this.isIdle) return;
                 this.isIdle = true;
                 this.avatarMain.visible = false;
-                // Copiamos la posición y rotación del principal al de descanso para que sea fluido
                 this.avatarIdle.position.copy(this.avatarMain.position);
                 this.avatarIdle.rotation.copy(this.avatarMain.rotation);
                 this.avatarIdle.visible = true;
-                
                 this.currentAvatar = this.avatarIdle;
                 this.currentMixer = this.mixerIdle;
-                console.log("Protocolo de Descanso activado (luis-avatar3)");
             }
 
             wakeUp() {
@@ -193,11 +197,8 @@
                 this.isIdle = false;
                 this.avatarIdle.visible = false;
                 this.avatarMain.visible = true;
-                
                 this.currentAvatar = this.avatarMain;
                 this.currentMixer = this.mixerMain;
-                console.log("Protocolo Activo restaurado (luis-avatar2)");
-                // Reiniciamos el reloj para el siguiente minuto de inactividad
                 this.startIdleTimer();
             }
 
@@ -212,14 +213,11 @@
                     const h = (e) => {
                         if(!active) return; 
                         if(audio.paused) audio.play().catch(()=>{}); 
-                        
                         const p = e.touches ? e.touches[0] : e; const r = el.getBoundingClientRect();
                         const x = (p.clientX-(r.left+50))/50, y = (p.clientY-(r.top+50))/50;
                         const m = Math.min(Math.sqrt(x*x+y*y), 1), a = Math.atan2(y,x);
                         kn.style.transform = `translate(calc(-50% + ${Math.cos(a)*m*30}px), calc(-50% + ${Math.sin(a)*m*30}px))`;
                         this.input[type] = {x: Math.cos(a)*m, y: Math.sin(a)*m};
-                        
-                        // Si se mueve el joystick, detectamos actividad
                         this.wakeUp();
                     };
                     el.addEventListener('touchstart', ()=> active=true);
@@ -228,25 +226,18 @@
                 };
                 setup('joy-l','knob-l','mv'); setup('joy-r','knob-r','lk');
                 document.getElementById('zoom-btn').onclick = () => { if(audio.paused) audio.play().catch(()=>{}); this.isZoom = !this.isZoom; this.wakeUp(); };
-                
-                // Empezamos a contar el tiempo en cuanto cargue
                 this.startIdleTimer();
             }
 
             render() {
                 requestAnimationFrame(()=>this.render()); this.time += 0.02;
-                // Actualizamos el mixer del avatar que esté visible en ese momento
                 if(this.currentMixer) this.currentMixer.update(0.016);
-                
                 if(this.city) { this.city.rotation.y += 0.001; this.city.position.y = 40 + Math.sin(this.time * 0.4) * 3; }
-
                 if(this.currentAvatar) {
-                    // Movimiento y rotación (se aplica a "this.currentAvatar", sea cual sea)
                     this.currentAvatar.position.x += this.input.mv.x * 0.18;
                     this.currentAvatar.position.z += this.input.mv.y * 0.18;
                     this.currentAvatar.position.y = 0.1 + Math.sin(this.time*2.5)*0.03;
                     if(Math.abs(this.input.mv.x)>0.05) this.currentAvatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
-
                     this.rig.position.lerp(this.currentAvatar.position, 0.1);
                     this.rig.rotation.y -= this.input.lk.x * 0.05;
                     const tZ = this.isZoom ? 0.32 : 1.4, tY = this.isZoom ? 0.46 : 0.35;
