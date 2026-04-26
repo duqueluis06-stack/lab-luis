@@ -3,30 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>QUANTUM CITY FINAL - FIX</title>
+    <title>LUIS QUANTUM - FINAL FIX</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; position: fixed; width: 100%; height: 100%; }
+        body { margin: 0; overflow: hidden; background: #001; position: fixed; width: 100%; height: 100%; }
         canvas { display: block; touch-action: none; }
-        #ui { 
-            position: absolute; inset: 0; pointer-events: none; z-index: 10; 
-            display: flex; flex-direction: column; justify-content: space-between; padding: 25px; 
-        }
-        .controls { 
-            display: grid; grid-template-columns: repeat(3, 75px); gap: 10px; pointer-events: auto; 
-            -webkit-user-select: none; user-select: none;
-        }
-        .btn { 
-            width: 70px; height: 70px; border: 3px solid #0ff; display: flex; 
-            align-items: center; justify-content: center; color: #0ff; 
-            background: rgba(0,255,255,0.1); border-radius: 15px; font-weight: bold; font-size: 24px;
-        }
-        .btn:active { background: rgba(0,255,255,0.4); }
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: 30px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 70px); gap: 10px; pointer-events: auto; }
+        .btn { width: 70px; height: 70px; border: 2px solid #0ff; display: flex; align-items: center; justify-content: center; color: #0ff; background: rgba(0,255,255,0.1); border-radius: 12px; font-weight: bold; font-size: 24px; -webkit-user-select: none; }
+        .btn:active { background: rgba(0,255,255,0.5); }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div style="color:#0ff; font-weight: bold; text-shadow: 0 0 5px #0ff;">LUIS QUANTUM ENGINE v4</div>
+    <div style="color:#0ff; font-family: monospace; font-size: 14px; text-shadow: 0 0 5px #0ff;">LUIS_CORE_ACTIVE</div>
     <div class="controls">
         <div></div><div class="btn" id="w">↑</div><div></div>
         <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
@@ -37,120 +27,112 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
-let player = new THREE.Object3D();
-let keys = { w: false, a: false, s: false, d: false };
+    let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
+    let player = new THREE.Group();
+    let move = { w: false, a: false, s: false, d: false };
 
-init();
+    init();
 
-function init() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020205);
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a); // Cielo oscuro pero visible
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10000);
-    
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    document.body.appendChild(renderer.domElement);
-
-    // Iluminación potente para que no se vea negro en móvil
-    scene.add(new THREE.AmbientLight(0xffffff, 2));
-    const sun = new THREE.DirectionalLight(0xffffff, 3);
-    sun.position.set(10, 20, 10);
-    scene.add(sun);
-
-    scene.add(player);
-
-    const loader = new THREE.GLTFLoader();
-
-    // 🌆 CARGAR CIUDAD
-    loader.load("ciudad_quantum.glb", (gltf) => {
-        scene.add(gltf.scene);
-    });
-
-    // 🧍 CARGAR AVATAR
-    loader.load("luis_avatar.glb", (gltf) => {
-        luis = gltf.scene;
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
         
-        // Ajuste de rotación para que mire al frente del player
-        luis.rotation.y = Math.PI; 
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        document.body.appendChild(renderer.domElement);
+
+        // --- ILUMINACIÓN TOTAL (Solución Ciudad Negra) ---
+        const ambient = new THREE.AmbientLight(0xffffff, 2); // Luz base muy fuerte
+        scene.add(ambient);
         
-        // Escalar a tamaño humano (aprox 1.8 unidades)
-        const box = new THREE.Box3().setFromObject(luis);
-        const size = box.getSize(new THREE.Vector3());
-        const scale = 1.8 / size.y;
-        luis.scale.setScalar(scale);
+        const sun = new THREE.DirectionalLight(0xffffff, 2);
+        sun.position.set(10, 20, 10);
+        scene.add(sun);
 
-        player.add(luis);
-        
-        if(gltf.animations.length) {
-            mixer = new THREE.AnimationMixer(luis);
-            mixer.clipAction(gltf.animations[0]).play();
-        }
-        
-        // Posición inicial de cámara
-        camera.position.set(0, 5, -10);
-    });
+        scene.add(player);
 
-    setupControls();
-    animate();
-}
+        const loader = new THREE.GLTFLoader();
 
-function setupControls() {
-    const ids = ["w", "a", "s", "d"];
-    ids.forEach(id => {
-        const btn = document.getElementById(id);
-        
-        // FIX PARA iPHONE: Usar touch events explícitos
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[id] = true; }, {passive: false});
-        btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[id] = false; }, {passive: false});
-        
-        // Fallback para mouse/PC
-        btn.onpointerdown = () => keys[id] = true;
-        btn.onpointerup = () => keys[id] = false;
-        btn.onpointerleave = () => keys[id] = false;
-    });
-}
+        // 1. CARGAR CIUDAD
+        loader.load("ciudad_quantum.glb", (gltf) => {
+            const city = gltf.scene;
+            scene.add(city);
+            console.log("Ciudad cargada");
+        }, undefined, (err) => {
+            // Suelo de emergencia si la ciudad falla
+            const grid = new THREE.GridHelper(100, 100, 0x00ffff, 0x004444);
+            scene.add(grid);
+        });
 
-function animate() {
-    requestAnimationFrame(animate);
-    const dt = clock.getDelta();
+        // 2. CARGAR LUIS
+        loader.load("luis_avatar.glb", (gltf) => {
+            luis = gltf.scene;
+            
+            // Forzar escala: 1.5 es un buen tamaño para Three.js
+            luis.scale.setScalar(1.5);
+            
+            // Corregir rotación (si camina de espaldas, cambia el 0 por Math.PI)
+            luis.rotation.y = 0; 
 
-    if (mixer) mixer.update(dt);
+            player.add(luis);
+            
+            if(gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(luis);
+                mixer.clipAction(gltf.animations[0]).play();
+            }
+        });
 
-    if (luis) {
-        const speed = 7 * dt;
-        const rotSpeed = 3 * dt;
-
-        // Movimiento relativo al player
-        if (keys.w) player.translateZ(speed);
-        if (keys.s) player.translateZ(-speed);
-        if (keys.a) player.rotation.y += rotSpeed;
-        if (keys.d) player.rotation.y -= rotSpeed;
-
-        // CÁMARA GTA III / V (Seguimiento suave detrás del player)
-        const idealOffset = new THREE.Vector3(0, 3.5, -7); // Altura y distancia atrás
-        idealOffset.applyQuaternion(player.quaternion);
-        idealOffset.add(player.position);
-
-        const idealLookAt = player.position.clone();
-        idealLookAt.y += 1.5; // Mirar a los hombros
-
-        camera.position.lerp(idealOffset, 0.1);
-        camera.lookAt(idealLookAt);
+        setupInput();
+        animate();
     }
 
-    renderer.render(scene, camera);
-}
+    function setupInput() {
+        const ids = ["w", "a", "s", "d"];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            // Soporte iPhone
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); move[id] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); move[id] = false; });
+            // Soporte PC
+            el.onpointerdown = () => move[id] = true;
+            el.onpointerup = () => move[id] = false;
+        });
+    }
 
-window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
+
+        if (luis) {
+            const speed = 8 * delta;
+            const rotSpeed = 3 * delta;
+
+            // Movimiento Lógico
+            if (move.w) player.translateZ(speed);
+            if (move.s) player.translateZ(-speed);
+            if (move.a) player.rotation.y += rotSpeed;
+            if (move.d) player.rotation.y -= rotSpeed;
+
+            // CÁMARA TERCERA PERSONA (Pegada al jugador)
+            const camOffset = new THREE.Vector3(0, 3, -6); // 3 de alto, 6 de atrás
+            camOffset.applyQuaternion(player.quaternion);
+            camera.position.lerp(player.position.clone().add(camOffset), 0.1);
+            camera.lookAt(player.position.x, player.position.y + 1.5, player.position.z);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 </script>
-
 </body>
 </html>
