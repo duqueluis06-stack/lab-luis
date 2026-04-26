@@ -3,12 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>SISTEMA QUANTUM INTERACTIVO</title>
+<title>QUANTUM CITY SYSTEM</title>
 
 <style>
-/* =========================
-   RESET MÓVIL
-========================= */
 *{
     margin:0;
     padding:0;
@@ -25,9 +22,6 @@ body{
     font-family:monospace;
 }
 
-/* =========================
-   DEBUG
-========================= */
 #debug{
     position:absolute;
     top:10px;
@@ -39,9 +33,6 @@ body{
     font-size:12px;
 }
 
-/* =========================
-   LOADER
-========================= */
 #loader{
     position:fixed;
     inset:0;
@@ -53,66 +44,17 @@ body{
     z-index:9999;
 }
 
-/* =========================
-   BOTÓN SALIR (CORREGIDO)
-========================= */
 #exit{
     position:fixed;
     top:15px;
     right:15px;
     z-index:20;
-    padding:8px 12px;
+    padding:10px 14px;
     border:1px solid rgba(255,80,80,0.7);
     color:#ff5555;
     background:rgba(0,0,0,0.4);
     font-size:12px;
     border-radius:8px;
-    backdrop-filter: blur(4px);
-}
-
-/* =========================
-   JOYSTICK IZQ
-========================= */
-.left{
-    position:fixed;
-    bottom:20px;
-    left:20px;
-    display:grid;
-    grid-template-columns:60px 60px 60px;
-    grid-template-rows:60px 60px 60px;
-    gap:6px;
-    z-index:999;
-}
-
-/* =========================
-   ACCIONES DER
-========================= */
-.right{
-    position:fixed;
-    bottom:20px;
-    right:20px;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    z-index:999;
-}
-
-/* =========================
-   BOTONES
-========================= */
-button{
-    width:60px;
-    height:60px;
-    border-radius:12px;
-    background:rgba(0,0,0,0.6);
-    border:2px solid #0ff;
-    color:#0ff;
-    font-size:12px;
-}
-
-button:active{
-    background:#0ff;
-    color:#000;
 }
 </style>
 </head>
@@ -124,27 +66,6 @@ button:active{
 
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<!-- JOYSTICK -->
-<div class="left">
-    <div></div>
-    <button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▲</button>
-    <div></div>
-
-    <button ontouchstart="move(-1,0)" ontouchend="move(0,0)">◀</button>
-    <div></div>
-    <button ontouchstart="move(1,0)" ontouchend="move(0,0)">▶</button>
-
-    <div></div>
-    <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▼</button>
-    <div></div>
-</div>
-
-<!-- ACCIONES -->
-<div class="right">
-    <button onclick="setSpeed(0.05)">🚶</button>
-    <button onclick="setSpeed(0.12)">🏃</button>
-</div>
-
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
@@ -152,37 +73,30 @@ button:active{
 <script>
 
 /* =========================
-   CORE ENGINE
+   ENGINE CORE
 ========================= */
 
-let scene,camera,renderer;
-let avatar=null;
-let mixer=null;
-let clock=new THREE.Clock();
+let scene, camera, renderer;
+let city, avatar;
+let mixer;
+let clock = new THREE.Clock();
 
-let vx=0,vz=0;
-let speed=0.05;
+let vx = 0, vz = 0;
+let speed = 0.05;
 
 /* =========================
    DEBUG
 ========================= */
 function log(t){
-    document.getElementById("debug").innerText=t;
+    document.getElementById("debug").innerText = t;
 }
 
 /* =========================
-   MOVE INPUT
+   INPUT MOVEMENT
 ========================= */
 function move(x,z){
-    vx=x;
-    vz=z;
-}
-
-/* =========================
-   SPEED
-========================= */
-function setSpeed(s){
-    speed=s;
+    vx = x;
+    vz = z;
 }
 
 /* =========================
@@ -190,38 +104,40 @@ function setSpeed(s){
 ========================= */
 function init(){
 
-scene=new THREE.Scene();
-scene.background=new THREE.Color(0x000010);
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000010);
 
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
 camera.position.set(0,3,6);
 
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
+renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff,2));
+scene.add(new THREE.AmbientLight(0xffffff, 2));
 
-const draco=new THREE.DRACOLoader();
+const draco = new THREE.DRACOLoader();
 draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
 
-const loader=new THREE.GLTFLoader();
+const loader = new THREE.GLTFLoader();
 loader.setDRACOLoader(draco);
 
 /* =========================
-   CIUDAD
+   🌆 CIUDAD
 ========================= */
 loader.load("ciudad_quantum.glb",(gltf)=>{
 
-scene.add(gltf.scene);
+city = gltf.scene;
+scene.add(city);
+
 log("CIUDAD OK");
 
 /* =========================
-   AVATAR
+   🧍‍♂️ AVATAR NUEVO
 ========================= */
-loader.load("luis_avatar.glb",(av)=>{
+loader.load("luis-avatar2.glb",(av)=>{
 
-avatar=av.scene;
+avatar = av.scene;
 
 avatar.scale.set(1,1,1);
 avatar.position.set(0,1,0);
@@ -231,28 +147,27 @@ scene.add(avatar);
 /* =========================
    ANIMACIÓN SEGURA
 ========================= */
-mixer=new THREE.AnimationMixer(avatar);
+mixer = new THREE.AnimationMixer(avatar);
 
-if(av.animations && av.animations.length>0){
+if(av.animations && av.animations.length > 0){
 
-    let clip=av.animations[0];
-    let action=mixer.clipAction(clip);
+    let action = mixer.clipAction(av.animations[0]);
     action.play();
 
-    log("ANIM OK");
+    log("AVATAR ANIM OK");
 
 }else{
-    log("SIN ANIM");
+    log("AVATAR SIN ANIM");
 }
 
-/* FIX VISUAL */
+/* FIX VISUAL SKIN */
 avatar.traverse(o=>{
     if(o.isSkinnedMesh){
-        o.frustumCulled=false;
+        o.frustumCulled = false;
     }
 });
 
-document.getElementById("loader").style.display="none";
+document.getElementById("loader").style.display = "none";
 
 },
 
@@ -261,12 +176,21 @@ undefined,
 (err)=>{
     log("ERROR AVATAR");
     console.warn(err);
-    document.getElementById("loader").style.display="none";
+    document.getElementById("loader").style.display = "none";
 }
 
 );
 
-});
+},
+
+undefined,
+
+(err)=>{
+    log("ERROR CIUDAD");
+    console.error(err);
+}
+
+);
 
 }
 
@@ -277,25 +201,26 @@ function animate(){
 
 requestAnimationFrame(animate);
 
-let delta=clock.getDelta();
+let delta = clock.getDelta();
 
-if(mixer)mixer.update(delta);
+if(mixer) mixer.update(delta);
 
 if(avatar){
 
-let moving=(vx!==0||vz!==0);
+let moving = (vx !== 0 || vz !== 0);
 
+/* MOVIMIENTO */
 if(moving){
-    avatar.position.x+=vx*speed;
-    avatar.position.z+=vz*speed;
+    avatar.position.x += vx * speed;
+    avatar.position.z += vz * speed;
 }
 
-/* CAMARA FOLLOW */
+/* CAMARA FOLLOW SUAVE */
 camera.position.lerp(
     new THREE.Vector3(
         avatar.position.x,
-        avatar.position.y+3,
-        avatar.position.z+6
+        avatar.position.y + 3,
+        avatar.position.z + 6
     ),
     0.08
 );
@@ -308,6 +233,9 @@ renderer.render(scene,camera);
 
 }
 
+/* =========================
+   START
+========================= */
 init();
 animate();
 
