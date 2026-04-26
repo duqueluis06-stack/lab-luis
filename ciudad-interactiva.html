@@ -3,140 +3,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS QUANTUM - FINAL</title>
+    <title>LUIS QUANTUM - MOBILE READY</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: Arial; touch-action: none; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; }
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
+        
+        /* Botones táctiles optimizados para iPhone */
         .btn { 
-            pointer-events: auto; width: 60px; height: 60px; background: rgba(0,255,255,0.3); 
-            border: 2px solid #0ff; color: #0ff; border-radius: 10px; 
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            pointer-events: auto; width: 60px; height: 60px; background: rgba(0, 255, 255, 0.2); 
+            border: 2px solid #0ff; color: #0ff; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        .controls { position: absolute; bottom: 20px; left: 20px; display: grid; grid-template-columns: repeat(3, 62px); gap: 5px; }
-        .actions { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .btn-big { width: 80px; height: 40px; background: #f0f; border-color: #fff; color: #fff; font-size: 10px; }
+        .btn:active { background: rgba(0, 255, 255, 0.6); transform: scale(1.1); }
+        
+        .controls { position: absolute; bottom: 40px; left: 20px; display: grid; grid-template-columns: repeat(3, 65px); gap: 10px; }
+        .actions { position: absolute; bottom: 40px; right: 20px; display: flex; flex-direction: column; gap: 15px; align-items: flex-end; }
+        
+        .btn-action { 
+            width: 90px; height: 45px; border-radius: 10px; font-size: 11px; 
+            background: rgba(255, 0, 255, 0.3); border-color: #f0f; color: white;
+        }
+
+        #interact-popup {
+            position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); border: 2px solid #0f0; color: #0f0;
+            padding: 15px; border-radius: 15px; display: none; pointer-events: auto;
+        }
+
         #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
     </style>
 </head>
 <body>
 
-<div id="loading"><h1>CARGANDO...</h1></div>
+<div id="loading"><h1>CARGANDO CIUDAD...</h1></div>
+
+<div id="interact-popup" onclick="entrarNegocio()">
+    <span id="label-negocio">ENTRAR AL NEGOCIO</span>
+</div>
 
 <div id="ui">
     <div class="controls">
         <div></div><div class="btn" id="w">↑</div><div></div>
         <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
     </div>
+    
     <div class="actions">
-        <div class="btn btn-big" id="run">CORRER</div>
-        <div class="btn btn-big" onclick="resetLuis()">RESCATE</div>
-        <a href="index.html" class="btn btn-big" style="background:red; text-decoration:none">SALIR</a>
+        <div class="btn btn-action" style="background:red; border-color:white;" onclick="window.location.href='index.html'">SALIR</div>
+        <div class="btn btn-action" id="run">CORRER 🏃‍♂️</div>
+        <div class="btn btn-action" id="jump">SALTAR ⚡</div>
+        <div class="btn btn-action" id="rescue">RESCATE</div>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
     let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
     let move = { w:false, a:false, s:false, d:false, run:false };
-    const mixers = [];
+    
+    // Física de salto
+    let velocityY = 0;
+    let isJumping = false;
+    const gravity = -0.015;
 
-    // INICIO RÁPIDO
+    // Base de datos de negocios (Coordenadas X, Z)
+    const negocios = [
+        { nombre: "LABORATORIO LUIS", x: 20, z: 20, url: "interior_lab.html" },
+        { nombre: "ZONA QUANTUM", x: -10, z: 30, url: "zona_q.html" }
+    ];
+
     function init() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
-        renderer = new THREE.WebGLRenderer({ antialias: false });
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio > 1.5 ? 1.5 : window.devicePixelRatio);
+        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
         scene.add(new THREE.AmbientLight(0xffffff, 1));
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(10, 50, 10);
-        scene.add(light);
 
         const loader = new THREE.GLTFLoader();
-        const draco = new THREE.DRACOLoader();
-        draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-        loader.setDRACOLoader(draco);
 
-        // CARGA CIUDAD
+        // 1. Cargar Ciudad
         loader.load('ciudad_quantum.glb', (gltf) => {
             scene.add(gltf.scene);
-            if(gltf.animations.length) {
-                let m = new THREE.AnimationMixer(gltf.scene);
-                gltf.animations.forEach(a => m.clipAction(a).play());
-                mixers.push(m);
-            }
-            console.log("Ciudad lista");
-        }, undefined, (e) => console.error("Error ciudad"));
-
-        // CARGA LUIS
-        loader.load('luis_avatar.glb', (gltf) => {
-            luis = gltf.scene;
-            luis.scale.set(0.02, 0.02, 0.02); // Ajuste manual si es muy grande
-            scene.add(luis);
             
-            if(gltf.animations.length) {
-                mixer = new THREE.AnimationMixer(luis);
-                mixer.clipAction(gltf.animations[0]).play();
-                mixers.push(mixer);
-            }
-            
-            document.getElementById('loading').style.display = 'none';
-            resetLuis();
+            // 2. Cargar Luis
+            loader.load('luis_avatar.glb', (avatar) => {
+                luis = avatar.scene;
+                luis.scale.set(1.5, 1.5, 1.5); 
+                scene.add(luis);
+                
+                if(avatar.animations.length) {
+                    mixer = new THREE.AnimationMixer(luis);
+                    mixer.clipAction(avatar.animations[0]).play();
+                }
+                document.getElementById('loading').style.display = 'none';
+            });
         });
 
-        setupInput();
+        setupControls();
         animate();
     }
 
-    function setupInput() {
-        const btns = ['w','a','s','d','run'];
-        btns.forEach(id => {
-            const el = document.getElementById(id === 'run' ? 'run' : id);
-            el.addEventListener('pointerdown', () => move[id] = true);
-            el.addEventListener('pointerup', () => move[id] = false);
-            el.addEventListener('pointerleave', () => move[id] = false);
+    function setupControls() {
+        const bind = (id, action) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); move[action || id] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); move[action || id] = false; });
+            // PC Fallback
+            el.addEventListener('mousedown', () => move[action || id] = true);
+            el.addEventListener('mouseup', () => move[action || id] = false);
+        };
+
+        ['w','a','s','d','run'].forEach(id => bind(id));
+        
+        document.getElementById('jump').addEventListener('touchstart', (e) => {
+            if(!isJumping) { velocityY = 0.4; isJumping = true; }
         });
+
+        document.getElementById('rescue').onclick = () => {
+            luis.position.set(0,0,0);
+            velocityY = 0;
+        };
     }
 
-    function resetLuis() {
-        if(!luis) return;
-        luis.position.set(0, 0.5, 0); // Ajusta el 0.5 si se hunde
-        camera.position.set(0, 10, 20);
+    function entrarNegocio() {
+        // Aquí podrías poner una transición de pantalla negra antes de redirigir
+        alert("Entrando al Negocio...");
+        // window.location.href = url_del_negocio;
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-        mixers.forEach(m => m.update(delta));
+        let delta = clock.getDelta();
+        if(mixer) mixer.update(delta);
 
         if(luis) {
-            const speed = move.run ? 0.6 : 0.2;
-            const rSpeed = 0.05;
+            let speed = (move.run ? 0.5 : 0.2);
+            let rotSpeed = 0.05;
 
             if(move.w) luis.translateZ(speed);
             if(move.s) luis.translateZ(-speed);
-            if(move.a) luis.rotation.y += rSpeed;
-            if(move.d) luis.rotation.y -= rSpeed;
+            if(move.a) luis.rotation.y += rotSpeed;
+            if(move.d) luis.rotation.y -= rotSpeed;
 
-            // CÁMARA GTA SIMPLE (SIN BLOQUEOS)
-            let offset = new THREE.Vector3(0, 6, -12);
-            offset.applyQuaternion(luis.quaternion);
-            camera.position.lerp(luis.position.clone().add(offset), 0.1);
+            // Gravedad y Salto
+            luis.position.y += velocityY;
+            if(luis.position.y > 0) {
+                velocityY += gravity;
+            } else {
+                luis.position.y = 0;
+                velocityY = 0;
+                isJumping = false;
+            }
+
+            // Detección de Negocios
+            let popup = document.getElementById('interact-popup');
+            let detectado = false;
+            negocios.forEach(n => {
+                let d = luis.position.distanceTo(new THREE.Vector3(n.x, 0, n.z));
+                if(d < 6) {
+                    document.getElementById('label-negocio').innerText = "TAP PARA ENTRAR A: " + n.nombre;
+                    popup.style.display = 'block';
+                    detectado = true;
+                }
+            });
+            if(!detectado) popup.style.display = 'none';
+
+            // Cámara GTA iPhone
+            let camPos = new THREE.Vector3(0, 7, -15);
+            camPos.applyQuaternion(luis.quaternion);
+            camPos.add(luis.position);
+            camera.position.lerp(camPos, 0.1);
             camera.lookAt(luis.position.x, luis.position.y + 2, luis.position.z);
         }
         renderer.render(scene, camera);
     }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
 
     init();
 </script>
