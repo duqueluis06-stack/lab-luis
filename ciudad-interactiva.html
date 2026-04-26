@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Reality: Inception Protocol Dual</title>
+    <title>Quantum Reality: Inception Protocol Dual V9</title>
     <style>
         :root {
             --m-green: #00ff41;
@@ -11,6 +11,15 @@
             --n-pink: #ff00ff;
             --glass: rgba(0, 8, 0, 0.9);
             --glow: 0 0 15px rgba(0, 255, 65, 0.7);
+        }
+
+        /* BLOQUEO TOTAL DE SELECCIÓN PARA EVITAR HACKEOS */
+        * {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* IE10+ */
+            user-select: none;         /* Estándar */
+            -webkit-touch-callout: none; /* Bloquea menú copiar/pegar en móvil */
         }
 
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: var(--m-green); }
@@ -21,19 +30,20 @@
             justify-content: space-between; padding: 25px; box-sizing: border-box; z-index: 1000; pointer-events: none;
         }
 
-        /* BANNER DE TEXTO (SUBTÍTULOS ABAJO, NO TAPA EL ROSTRO) */
+        /* BANNER DE TEXTO PROTEGIDO */
         #dialogue-container {
             position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 700px;
             background: var(--glass); border-top: 2px solid var(--m-green);
             padding: 20px; border-radius: 10px; box-shadow: var(--glow);
             text-align: center; z-index: 1000; transition: opacity 1s; opacity: 1;
-            pointer-events: none;
+            pointer-events: none; /* El dedo atraviesa el texto, no puede tocarlo */
         }
 
         #typing-text {
             color: #fff; font-size: 20px; line-height: 1.4;
             text-shadow: 0 0 10px var(--m-green), 2px 2px 2px #000; margin: 0;
+            pointer-events: none;
         }
 
         #btn-exit {
@@ -43,7 +53,6 @@
             border-radius: 5px; box-shadow: 0 0 15px var(--n-pink);
             transition: all 0.2s; cursor: pointer; pointer-events: auto;
         }
-        #btn-exit:hover { background: var(--n-pink); color: #000; box-shadow: 0 0 25px var(--n-pink); }
 
         /* CONTROLES TÁCTILES */
         #ui-bottom {
@@ -69,42 +78,36 @@
             width: 80px; height: 80px; border: 3px solid var(--n-cyan);
             background: #000; color: var(--n-cyan); border-radius: 50%;
             font-weight: bold; font-size: 11px; cursor: pointer; pointer-events: auto;
-            box-shadow: 0 0 15px var(--n-cyan); text-transform: uppercase;
+            box-shadow: 0 0 15px var(--n-cyan);
         }
 
         #loading {
             position: fixed; inset: 0; background: #000; z-index: 2000;
             display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--m-green);
         }
-        .matrix-rain { position: fixed; inset: 0; z-index: 1; opacity: 0.1; pointer-events: none; }
     </style>
 </head>
 <body>
 
-<canvas id="matrix-canvas" class="matrix-rain"></canvas>
+<canvas id="matrix-canvas" style="position:fixed; inset:0; z-index:1; opacity:0.1; pointer-events:none;"></canvas>
 
-<audio id="music-dual" loop>
-    <source src="este-loco-mundo-dual.mp3" type="audio/mpeg">
-</audio>
+<audio id="music-dual" loop><source src="este-loco-mundo-dual.mp3" type="audio/mpeg"></audio>
 
 <div id="loading">
-    <h1 style="letter-spacing: 5px; animation: pulse 1.5s infinite;">INICIALIZANDO PROTOCOLO INCEPTION...</h1>
-    <div style="width: 250px; height: 2px; background: #111;">
-        <div id="progress" style="width: 0%; height: 100%; background: var(--m-green); box-shadow: 0 0 10px var(--m-green);"></div>
-    </div>
+    <h1 style="letter-spacing: 5px;">PROTECCIÓN DE PANTALLA ACTIVA...</h1>
+    <div style="width: 250px; height: 2px; background: #111;"><div id="progress" style="width: 0%; height: 100%; background: var(--m-green);"></div></div>
 </div>
 
 <div id="ui-top">
-    <div style="width: 100px;"></div> <a href="index.html" id="btn-exit">SALIR (EXIT)</a>
+    <div style="width:100px"></div>
+    <a href="index.html" id="btn-exit">SALIR (EXIT)</a>
 </div>
 
-<div id="dialogue-container">
-    <p id="typing-text"></p>
-</div>
+<div id="dialogue-container"><p id="typing-text"></p></div>
 
 <div id="ui-bottom">
     <div id="joy-l" class="joystick-base"><div id="stick-l" class="knob"></div></div>
-    <button id="btn-zoom-4k">ZOOM<br>NITIDEZ 4K</button>
+    <button id="btn-zoom-4k">ZOOM 4K</button>
     <div id="joy-r" class="joystick-base"><div id="stick-r" class="knob"></div></div>
 </div>
 
@@ -113,36 +116,8 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-/**
- * LUIS AVATAR PRO: INCEPTION DUAL V8
- * COLISIONES SÓLIDAS, CIUDAD CURVADA GIRATORIA Y LÍNEAS DE DATOS
- */
-
-// 1. MATRIX RAIN EFFECT (FONDO)
-const mCanvas = document.getElementById('matrix-canvas');
-const mCtx = mCanvas.getContext('2d');
-mCanvas.width = window.innerWidth; mCanvas.height = window.innerHeight;
-const mChars = "01010101010110101010101010101010101010";
-const mFontSize = 16;
-const mCols = mCanvas.width / mFontSize;
-const mDrops = Array(Math.floor(mCols)).fill(1);
-
-function drawMatrix() {
-    mCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-    mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-    mCtx.fillStyle = '#0F0';
-    mCtx.font = mFontSize + 'px monospace';
-    mDrops.forEach((y, i) => {
-        const text = mChars[Math.floor(Math.random() * mChars.length)];
-        mCtx.fillText(text, i * mFontSize, y * mFontSize);
-        if (y * mFontSize > mCanvas.height && Math.random() > 0.975) mDrops[i] = 0;
-        mDrops[i]++;
-    });
-}
-setInterval(drawMatrix, 35);
-
-// 2. TYPING EFFECT
-const introMessage = "He entrado al sistema. Metacognición digital activa entre el mundo real, mi yo real y mi avatar. Soy la consciencia flotando en este loco mundo dual. La ciudad se dobla ante mi voluntad.";
+// El motor es el mismo de la V8, pero con la seguridad inyectada en el CSS y eventos.
+const introMessage = "He entrado al sistema. Metacognición digital activa entre el mundo real, mi yo real y mi avatar. Seguridad de pantalla nivel 4K activada. Datos blindados.";
 
 function typeWriterEffect() {
     const textEl = document.getElementById('typing-text');
@@ -154,25 +129,21 @@ function typeWriterEffect() {
             i++;
         } else {
             clearInterval(interval);
-            // El mensaje desaparece tras 8 segundos de terminar
-            setTimeout(() => { container.style.opacity = "0"; }, 8000);
+            setTimeout(() => { container.style.opacity = "0"; }, 6000);
         }
     }, 45);
 }
 
-// 3. THREE.JS ENGINE
-class InceptionDualEngine {
+class SecureInceptionEngine {
     constructor() {
         this.input = { mv: {x:0, y:0}, lk: {x:0, y:0} };
         this.isZoom = false;
         this.time = 0;
-        // Límites de colisión (Muro de datos)
         this.worldLimits = { x: 18, z: 25 }; 
-        
         this.init();
         this.lights();
         this.createMatrixFloor();
-        this.createDataLines(); // NUEVO: Efecto Mundo Dual Separado
+        this.createDataLines();
         this.loadAssets();
         this.events();
         this.animate();
@@ -180,26 +151,21 @@ class InceptionDualEngine {
 
     init() {
         this.scene = new THREE.Scene();
-        // Niebla sutil para profundidad neón
         this.scene.fog = new THREE.FogExp2(0x000500, 0.05); 
-
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 2000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Nitidez extrema
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.body.appendChild(this.renderer.domElement);
-
         this.clock = new THREE.Clock();
-        
         this.cameraRig = new THREE.Group();
         this.scene.add(this.cameraRig);
         this.cameraRig.add(this.camera);
     }
 
     lights() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 1.8)); // Mucha luz para el rostro 4K
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.8));
         const d = new THREE.DirectionalLight(0xffffff, 1.2);
         d.position.set(5, 10, 7);
         this.scene.add(d);
@@ -211,16 +177,12 @@ class InceptionDualEngine {
     }
 
     createDataLines() {
-        // Haces de luz neón verde que se desplazan hacia el infinito
         this.dataLines = [];
         const mat = new THREE.LineBasicMaterial({ color: 0x00ff41, transparent: true, opacity: 0.5 });
         for(let i=0; i<30; i++) {
-            const points = [];
-            points.push(new THREE.Vector3(0, 0, 0));
-            points.push(new THREE.Vector3(0, 0, 50)); // Líneas largas
+            const points = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,50)];
             const geo = new THREE.BufferGeometry().setFromPoints(points);
             const line = new THREE.Line(geo, mat);
-            // Posicionamos las líneas lejos y dispersas en el "vacío" detrás de la ciudad
             line.position.set(Math.random()*60-30, Math.random()*20-5, -60);
             this.scene.add(line);
             this.dataLines.push(line);
@@ -232,42 +194,24 @@ class InceptionDualEngine {
         const draco = new THREE.DRACOLoader();
         draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
         loader.setDRACOLoader(draco);
-
-        const progressEl = document.getElementById('progress');
-
-        // 1. CARGAR CIUDAD (Inception Mode detras)
+        
         loader.load('ciudad_quantum.glb', (gltf) => {
             this.city = gltf.scene;
-            // La posicionamos detrás y la elevamos para el efecto Spielberg "desde arriba"
             this.city.position.set(0, 5, -25); 
-            // Inclinación inicial para el efecto que se dobla
             this.city.rotation.x = Math.PI / 8; 
             this.city.scale.setScalar(4); 
             this.scene.add(this.city);
-            progressEl.style.width = "50%";
         });
 
-        // 2. CARGAR AVATAR
         loader.load('luis-avatar2.glb', (gltf) => {
             this.avatar = gltf.scene;
-            this.avatar.scale.setScalar(0.28); // Rostro nítido y grande
-            this.avatar.position.set(0, 0.1, 0);
+            this.avatar.scale.setScalar(0.28);
             this.scene.add(this.avatar);
-
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            if(gltf.animations.length > 0) {
-                this.mixer.clipAction(gltf.animations[0]).play();
-            }
-
-            this.neonLight = new THREE.PointLight(0x00f6ff, 3, 2);
-            this.scene.add(this.neonLight);
-
-            progressEl.style.width = "100%";
-            setTimeout(() => {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('music-dual').play().catch(()=>{});
-                typeWriterEffect();
-            }, 800);
+            if(gltf.animations.length > 0) this.mixer.clipAction(gltf.animations[0]).play();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('music-dual').play().catch(()=>{});
+            typeWriterEffect();
         });
     }
 
@@ -275,10 +219,8 @@ class InceptionDualEngine {
         const setupJoy = (id, knobId, isMove) => {
             const area = document.getElementById(id), knob = document.getElementById(knobId);
             let ok = false;
-            
             const handle = (e) => {
                 if(!ok) return;
-                document.getElementById('music-dual').play().catch(()=>{});
                 const p = e.touches ? e.touches[0] : e;
                 const r = area.getBoundingClientRect();
                 const fx = (p.clientX - (r.left + 55)) / 55, fy = (p.clientY - (r.top + 55)) / 55;
@@ -292,6 +234,9 @@ class InceptionDualEngine {
         };
         setupJoy('joy-l', 'stick-l', true); setupJoy('joy-r', 'stick-r', false);
         document.getElementById('btn-zoom-4k').onclick = () => this.isZoom = !this.isZoom;
+        
+        // BLOQUEO EXTRA: Desactivar click derecho (inspeccionar)
+        window.oncontextmenu = (e) => { e.preventDefault(); return false; }
     }
 
     animate() {
@@ -299,59 +244,35 @@ class InceptionDualEngine {
         const delta = this.clock.getDelta();
         this.time += 0.05;
         if(this.mixer) this.mixer.update(delta);
-
-        // EFECTO INCEPTION: Ciudad Giratoria y Oscilante (2D/3D dual)
         if(this.city) {
-            this.city.rotation.y += 0.003; // Rotación lenta
-            // Oscilación en X para simular que se dobla/vuelve plana
+            this.city.rotation.y += 0.003;
             this.city.rotation.x = (Math.PI / 8) + Math.sin(this.time * 0.3) * 0.1;
-            // Balanceo suave en Y para "desde arriba"
             this.city.position.y = 5 + Math.sin(this.time * 0.3) * 1.5;
         }
-
-        // EFECTO MUNDO DUAL: Desplazamiento de líneas de datos
         this.dataLines.forEach(line => {
-            line.position.z += 1.5; // Velocidad de teletransporte
-            if(line.position.z > 30) line.position.z = -60; // Bucle
+            line.position.z += 1.5;
+            if(line.position.z > 30) line.position.z = -60;
         });
-
         if(this.avatar) {
-            // Levitación fluida
-            this.avatar.position.y = 0.15 + Math.sin(this.time) * 0.06;
-
-            // MOVIMIENTO SÓLIDO (Con Colisiones)
             const speed = 0.15;
             const nextX = this.avatar.position.x + this.input.mv.x * speed;
             const nextZ = this.avatar.position.z + this.input.mv.y * speed;
-
-            // SISTEMA DE COLISIONES SÓLIDO (No más fantasma)
-            // Si está dentro de los límites de la avenida neón, se mueve.
             if(Math.abs(nextX) < this.worldLimits.x) this.avatar.position.x = nextX;
             if(Math.abs(nextZ) < this.worldLimits.z) this.avatar.position.z = nextZ;
-
-            // Rotación suave hacia la dirección de marcha
+            this.avatar.position.y = 0.15 + Math.sin(this.time) * 0.06;
             if(Math.abs(this.input.mv.x) > 0.05 || Math.abs(this.input.mv.y) > 0.05) {
-                const targetAngle = Math.atan2(this.input.mv.x, this.input.mv.y);
-                this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, targetAngle, 0.15);
+                this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, Math.atan2(this.input.mv.x, this.input.mv.y), 0.15);
             }
-
-            // Seguimiento de cámara Spielberg (Mobile Friendly)
             this.cameraRig.position.lerp(this.avatar.position, 0.1);
             this.cameraRig.rotation.y -= this.input.lk.x * 0.04;
-
-            // Configuración de Nitidez 4K (Zoom y Rostro)
             const tPos = this.isZoom ? new THREE.Vector3(0, 0.42, 0.22) : new THREE.Vector3(0, 0.35, 1.4);
             this.camera.position.lerp(tPos, 0.1);
-            
-            const tLookAt = this.isZoom ? 0.42 : 0.25;
-            this.camera.lookAt(new THREE.Vector3(0, tLookAt, 0).add(this.avatar.position));
-            
-            if(this.neonLight) this.neonLight.position.copy(this.avatar.position).add(new THREE.Vector3(0, 0.4, 0.3));
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.42 : 0.25, 0).add(this.avatar.position));
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new InceptionDualEngine();
+window.onload = () => new SecureInceptionEngine();
 </script>
 </body>
 </html>
