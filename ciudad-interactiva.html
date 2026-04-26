@@ -3,86 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ciudad Quantum - 3D Experience</title>
+    <title>Quantum City 3D</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { display: block; }
-
-        /* UI Estilo Neón RGB */
-        #ui-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .neon-btn {
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.6);
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* Estilo Neón */
+        .neon-border {
             border: 2px solid #0ff;
+            box-shadow: 0 0 10px #0ff, inset 0 0 5px #0ff;
             color: #0ff;
-            text-shadow: 0 0 10px #0ff;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
-            border-radius: 10px;
-            text-transform: uppercase;
+            background: rgba(0,0,0,0.7);
+            text-shadow: 0 0 5px #0ff;
+            pointer-events: auto;
             font-weight: bold;
-            cursor: pointer;
         }
 
-        #btn-exit {
-            position: absolute;
-            top: 20px; right: 20px;
-            padding: 10px 20px;
-            border-color: #f0f;
-            color: #f0f;
-            text-shadow: 0 0 10px #f0f;
+        #btn-exit { position: absolute; top: 20px; right: 20px; padding: 10px 20px; border-color: #f0f; color: #f0f; box-shadow: 0 0 10px #f0f; }
+
+        /* Controles */
+        #dpad { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; border-radius: 50%; }
+        #stick { 
+            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; 
+            background: #0ff; border-radius: 50%; transform: translate(-50%, -50%); 
         }
 
-        /* Controles Táctiles */
-        #joystick-container {
-            position: absolute;
-            bottom: 40px; left: 40px;
-            width: 150px; height: 150px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            border: 2px dashed #0ff;
-            pointer-events: auto;
-        }
-
-        #joystick-stick {
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 60px; height: 60px;
-            background: radial-gradient(circle, #0ff, #008888);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        #action-buttons {
-            position: absolute;
-            bottom: 40px; right: 40px;
-            display: flex; gap: 15px;
-            pointer-events: auto;
-        }
-
-        .action-btn {
-            width: 80px; height: 80px;
-            display: flex; align-items: center; justify-content: center;
-        }
+        #actions { position: absolute; bottom: 40px; right: 30px; display: flex; gap: 10px; }
+        .btn-act { width: 70px; height: 70px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<div id="ui-container">
-    <button id="btn-exit" class="neon-btn" onclick="window.location.href='index.html'">SALIR</button>
+<div id="ui-layer">
+    <button id="btn-exit" class="neon-border" onclick="window.location.href='index.html'">SALIR</button>
     
-    <div id="joystick-container">
-        <div id="joystick-stick"></div>
+    <div id="dpad" class="neon-border">
+        <div id="stick"></div>
     </div>
 
-    <div id="action-buttons">
-        <button id="btn-walk" class="neon-btn action-btn">WALK</button>
-        <button id="btn-run" class="neon-btn action-btn">RUN</button>
+    <div id="actions">
+        <div id="walk" class="neon-border btn-act">WALK</div>
+        <div id="run" class="neon-border btn-act" style="border-color:#f0f; color:#f0f; box-shadow: 0 0 10px #f0f;">RUN</div>
     </div>
 </div>
 
@@ -90,167 +51,121 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-    // Configuración Base
     let scene, camera, renderer, clock, mixer;
     let avatar, city;
-    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-    let isRunning = false;
-    
-    // Variables de Movimiento
-    const velocity = new THREE.Vector3();
-    const direction = new THREE.Vector3();
-    const speed = { walk: 3, run: 8 };
-    
-    // Joystick Logic
-    let stick = document.getElementById('joystick-stick');
-    let stickActive = false;
-    let stickStart = { x: 0, y: 0 };
+    let moveDir = { forward: 0, side: 0 };
+    let speed = 0.1;
 
     init();
-    animate();
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205);
-        scene.fog = new THREE.FogExp2(0x020205, 0.01);
-
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         clock = new THREE.Clock();
 
+        // Cámara
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        camera.position.set(0, 5, 10);
+
         renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // Iluminación
-        const ambientLight = new THREE.AmbientLight(0x4040ff, 0.5);
-        scene.add(ambientLight);
-
-        const sunLight = new THREE.DirectionalLight(0xff00ff, 1);
-        sunLight.position.set(10, 50, 10);
-        scene.add(sunLight);
+        // Iluminación potente para ver la ciudad
+        const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0x00ffff, 1);
+        sun.position.set(5, 10, 7);
+        scene.add(sun);
 
         const loader = new THREE.GLTFLoader();
 
-        // 1. Cargar Ciudad
+        // Cargar Ciudad
         loader.load('ciudad_quantum.glb', (gltf) => {
             city = gltf.scene;
             scene.add(city);
-            console.log("Ciudad cargada");
-        });
+            // Asegurar que la ciudad no tape al avatar si el origen está mal
+            city.position.y = -0.1; 
+        }, undefined, (error) => console.error('Error ciudad:', error));
 
-        // 2. Cargar Avatar
+        // Cargar Avatar
         loader.load('luis-avatar2.glb', (gltf) => {
             avatar = gltf.scene;
             scene.add(avatar);
             
-            // Animaciones
             mixer = new THREE.AnimationMixer(avatar);
             if(gltf.animations.length > 0) {
-                const action = mixer.clipAction(gltf.animations[0]);
-                action.play();
+                mixer.clipAction(gltf.animations[0]).play();
             }
+        });
+
+        setupMobileControls();
+        animate();
+    }
+
+    function setupMobileControls() {
+        const dpad = document.getElementById('dpad');
+        const stick = document.getElementById('stick');
+
+        const handleTouch = (e) => {
+            const rect = dpad.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - (rect.left + rect.width/2);
+            const y = touch.clientY - (rect.top + rect.height/2);
             
-            avatar.position.set(0, 0, 0);
-        });
-
-        setupControls();
-        window.addEventListener('resize', onWindowResize);
-    }
-
-    function setupControls() {
-        // Eventos de Botones caminar/correr
-        document.getElementById('btn-walk').addEventListener('touchstart', () => isRunning = false);
-        document.getElementById('btn-run').addEventListener('touchstart', () => isRunning = true);
-
-        // Joystick Visual y Lógica
-        const container = document.getElementById('joystick-container');
-
-        container.addEventListener('touchstart', e => {
-            stickActive = true;
-            stickStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        });
-
-        window.addEventListener('touchmove', e => {
-            if (!stickActive) return;
-            let touch = e.touches[0];
-            let dx = touch.clientX - stickStart.x;
-            let dy = touch.clientY - stickStart.y;
-            let dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-            let angle = Math.atan2(dy, dx);
+            const dist = Math.min(Math.sqrt(x*x + y*y), 50);
+            const angle = Math.atan2(y, x);
             
-            let moveX = Math.cos(angle) * dist;
-            let moveY = Math.sin(angle) * dist;
+            stick.style.left = `calc(50% + ${Math.cos(angle) * dist}px)`;
+            stick.style.top = `calc(50% + ${Math.sin(angle) * dist}px)`;
 
-            stick.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+            moveDir.forward = -Math.sin(angle) * (dist / 50);
+            moveDir.side = -Math.cos(angle) * (dist / 50);
+        };
 
-            // Umbrales para dirección
-            moveForward = dy < -15;
-            moveBackward = dy > 15;
-            moveLeft = dx < -15;
-            moveRight = dx > 15;
+        dpad.addEventListener('touchstart', handleTouch);
+        dpad.addEventListener('touchmove', (e) => { e.preventDefault(); handleTouch(e); });
+        dpad.addEventListener('touchend', () => {
+            stick.style.left = '50%'; stick.style.top = '50%';
+            moveDir.forward = 0; moveDir.side = 0;
         });
 
-        window.addEventListener('touchend', () => {
-            stickActive = false;
-            stick.style.transform = `translate(-50%, -50%)`;
-            moveForward = moveBackward = moveLeft = moveRight = false;
-        });
-    }
-
-    function updatePhysics(delta) {
-        if (!avatar) return;
-
-        const currentSpeed = isRunning ? speed.run : speed.walk;
-        
-        velocity.x -= velocity.x * 10.0 * delta;
-        velocity.z -= velocity.z * 10.0 * delta;
-
-        direction.z = Number(moveForward) - Number(moveBackward);
-        direction.x = Number(moveLeft) - Number(moveRight);
-        direction.normalize();
-
-        if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
-        if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
-
-        avatar.translateX(-velocity.x);
-        avatar.translateZ(-velocity.z);
-
-        // Rotación suave del avatar hacia la dirección
-        if (moveForward || moveBackward || moveLeft || moveRight) {
-            let targetAngle = Math.atan2(-velocity.x, -velocity.z);
-            avatar.rotation.y = THREE.MathUtils.lerp(avatar.rotation.y, targetAngle, 0.15);
-        }
-    }
-
-    function updateCamera() {
-        if (!avatar) return;
-        
-        // Offset de cámara tercera persona (estilo GTA)
-        const offset = new THREE.Vector3(0, 3, 6);
-        offset.applyQuaternion(avatar.quaternion);
-        
-        camera.position.lerp(avatar.position.clone().add(offset), 0.1);
-        camera.lookAt(avatar.position.x, avatar.position.y + 1.5, avatar.position.z);
-    }
-
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('walk').ontouchstart = () => speed = 0.05;
+        document.getElementById('run').ontouchstart = () => speed = 0.15;
     }
 
     function animate() {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
 
-        if (mixer) mixer.update(delta);
-        updatePhysics(delta);
-        updateCamera();
+        if (avatar && (Math.abs(moveDir.forward) > 0.1 || Math.abs(moveDir.side) > 0.1)) {
+            // Mover
+            avatar.position.z += moveDir.forward * speed * 60 * delta;
+            avatar.position.x += moveDir.side * speed * 60 * delta;
+
+            // Rotar hacia donde camina
+            const angle = Math.atan2(moveDir.side, moveDir.forward);
+            avatar.rotation.y = angle;
+
+            if (mixer) mixer.update(delta);
+        }
+
+        // Cámara Tercera Persona
+        if (avatar) {
+            const camOffset = new THREE.Vector3(0, 3, 6);
+            camOffset.applyQuaternion(avatar.quaternion);
+            camera.position.lerp(avatar.position.clone().add(camOffset), 0.1);
+            camera.lookAt(avatar.position.x, avatar.position.y + 1.5, avatar.position.z);
+        }
 
         renderer.render(scene, camera);
     }
+
+    window.onresize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    };
 </script>
 </body>
 </html>
