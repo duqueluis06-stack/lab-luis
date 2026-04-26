@@ -3,103 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Engine v4.0 - Ultra Fidelity Build</title>
+    <title>Quantum Lite - Fast Load</title>
     <style>
-        :root { --neon-cyan: #00f6ff; --neon-magenta: #ff00ff; --bg-dark: #010103; --white: #ffffff; }
-        body { margin: 0; overflow: hidden; background: var(--bg-dark); font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
-        canvas { display: block; }
+        :root { --neon: #00f6ff; --magenta: #ff00ff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        
+        /* UI */
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .btn { pointer-events: auto; background: rgba(0,0,0,0.7); border: 2px solid var(--neon); color: var(--neon); padding: 10px 20px; cursor: pointer; font-weight: bold; box-shadow: 0 0 10px var(--neon); text-decoration: none; }
+        #exit { border-color: var(--magenta); color: var(--magenta); align-self: flex-end; }
+        
+        #controls { display: flex; justify-content: space-between; align-items: flex-end; }
+        #joy { width: 120px; height: 120px; border-radius: 50%; border: 1px solid var(--neon); position: relative; display: flex; align-items: center; justify-content: center; }
+        #knob { width: 50px; height: 50px; background: var(--neon); border-radius: 50%; position: absolute; box-shadow: 0 0 15px var(--neon); }
+        #zoom { width: 80px; height: 80px; border-radius: 50%; border-color: #fff; color: #fff; }
+        #zoom.active { background: #fff; color: #000; }
 
-        /* --- UI HUD ESTILO NEÓN RGB BRILANTE --- */
-        #ui-layer {
-            position: absolute; inset: 0; pointer-events: none;
-            display: flex; flex-direction: column; justify-content: space-between;
-            padding: 30px; z-index: 100;
-        }
-
-        .neon-btn {
-            pointer-events: auto; background: rgba(0, 0, 0, 0.85);
-            border: 2px solid var(--neon-cyan); color: var(--neon-cyan);
-            box-shadow: 0 0 20px var(--neon-cyan), inset 0 0 10px rgba(0,246,255,0.4);
-            text-transform: uppercase; font-weight: bold; letter-spacing: 2px;
-            cursor: pointer; transition: all 0.2s ease;
-            user-select: none; -webkit-user-select: none; outline: none;
-            text-shadow: 0 0 10px var(--neon-cyan);
-        }
-        .neon-btn:active { transform: scale(0.95); box-shadow: 0 0 35px var(--neon-cyan); }
-
-        /* Superior: Salir */
-        #top-zone { display: flex; justify-content: flex-end; }
-        #btn-exit { 
-            padding: 15px 30px; border-color: var(--neon-magenta); color: var(--neon-magenta); 
-            box-shadow: 0 0 20px var(--neon-magenta), inset 0 0 10px rgba(255,0,255,0.3);
-            text-shadow: 0 0 10px var(--neon-magenta);
-            text-decoration: none; display: inline-block;
-        }
-
-        /* Inferior: Controles */
-        #bottom-zone { display: flex; justify-content: space-between; align-items: flex-end; }
-
-        /* D-Pad Rotacional RGB */
-        #joy-container {
-            width: 170px; height: 170px; border-radius: 50%;
-            background: rgba(0, 246, 255, 0.03); border: 2px dashed rgba(0, 246, 255, 0.3);
-            position: relative; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 15px rgba(0,246,255,0.1);
-        }
-        #joy-knob {
-            width: 70px; height: 70px; background: var(--neon-cyan);
-            border-radius: 50%; box-shadow: 0 0 30px var(--neon-cyan);
-            position: absolute; pointer-events: auto; outline: none; border: none;
-        }
-
-        /* Botones Acción (Zoom) */
-        #action-zone { display: flex; gap: 20px; }
-        .btn-action { 
-            width: 100px; height: 100px; border-radius: 50%; font-size: 14px; 
-            text-align: center; border-color: var(--white); color: var(--white); 
-            box-shadow: 0 0 20px rgba(255,255,255,0.5); text-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
-        .btn-action.active { 
-            background: var(--white); color: #000; 
-            box-shadow: 0 0 40px var(--white); text-shadow: none;
-        }
-
-        /* PANTALLA DE CARGA */
-        #loader {
-            position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: var(--neon-cyan); text-align: center;
-        }
-        .spinner {
-            width: 60px; height: 60px; border: 5px solid rgba(0, 246, 255, 0.1);
-            border-top-color: var(--neon-cyan); border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 30px;
-            box-shadow: 0 0 20px var(--neon-cyan);
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Loader Simple */
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--neon); }
     </style>
 </head>
 <body>
 
-<div id="loader">
-    <div class="spinner"></div>
-    <div style="text-transform: uppercase; letter-spacing: 5px; font-weight: bold; text-shadow: 0 0 15px var(--neon-cyan);">4K RENDER SYSTEM</div>
-    <div id="load-status" style="font-size: 12px; margin-top: 15px; opacity: 0.7; font-family: monospace;">Inicializando Matrices de Textura...</div>
-</div>
+<div id="loader"><h2>CARGANDO...</h2></div>
 
-<div id="ui-layer">
-    <div id="top-zone">
-        <a href="index.html" id="btn-exit" class="neon-btn">SALIR AL INICIO</a>
-    </div>
-
-    <div id="bottom-zone">
-        <div id="joy-container">
-            <div id="joy-knob" class="neon-btn"></div>
-        </div>
-
-        <div id="action-zone">
-            <button id="btn-zoom" class="neon-btn btn-action">ZOOM<br>4K FACE</button>
-        </div>
+<div id="ui">
+    <a href="index.html" id="exit" class="btn">SALIR</a>
+    <div id="controls">
+        <div id="joy"><div id="knob"></div></div>
+        <button id="zoom" class="btn">ZOOM</button>
     </div>
 </div>
 
@@ -107,249 +39,90 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-/**
- * QUANTUM ULTRA-FIDELITY ENGINE v4.0
- */
-class AvatarUltraShowcase {
+class QuantumLite {
     constructor() {
-        this.clock = new THREE.Clock();
-        this.collidables = []; // Array para tráfico y ciudad
-
-        // --- CONFIGURACIÓN DE CÁMARA DINÁMICA (Encuadre Pro) ---
-        this.config = {
-            cameraData: {
-                // Default: Cuerpo completo (Distancia media, punto de mira céntrico)
-                default: { pos: new THREE.Vector3(0, 1.1, 3.8), look: new THREE.Vector3(0, 1.0, 0) }, 
-                // Zoom: Solo rostro (Cercano, punto de mira alto en la cara)
-                zoom: { pos: new THREE.Vector3(0, 1.66, 0.7), look: new THREE.Vector3(0, 1.66, 0) }      
-            },
-            lerpSpeed: 0.08, // Suavizado de cámara cinematográfico
-            rotationSpeed: 0.045
-        };
-        
-        this.state = {
-            loaded: false,
-            joyActive: false,
-            rotationY: 0,
-            isZoomed: false,
-            currentCameraTarget: JSON.parse(JSON.stringify(this.config.cameraData.default))
-        };
-
-        this.initGraphics();
-        this.initLights();
-        this.loadModels();
-        this.setupControls();
+        this.init();
+        this.lights();
+        this.load();
+        this.controls();
         this.animate();
     }
 
-    initGraphics() {
+    init() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x000003);
-        // Niebla muy tenue para dar profundidad a la ciudad sin taparla
-        this.scene.fog = new THREE.FogExp2(0x000003, 0.02);
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 1.2, 3.5);
 
-        this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.01, 3000);
-        this.camera.position.copy(this.config.cameraData.default.pos);
-        
-        // --- MOTOR DE ULTRA-RENDERIZADO (Simulación 4K) ---
-        // Antialias activado y logarithmicDepthBuffer para precisión de texturas IA
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+        this.renderer = new THREE.WebGLRenderer({ antialias: false }); // Antialias off para velocidad
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        // FORZAR PIXEL RATIO ALTO: Esto logra la nitidez 4K en pantallas retina/móviles
-        this.renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
-        
-        // CONFIGURACIÓN COLORIMÉTRICA FOTORREALISTA
-        this.renderer.outputEncoding = THREE.sRGBEncoding; // Vital para texturas de IA fotorrealistas
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Contraste y color de grado cinematográfico
-        this.renderer.toneMappingExposure = 1.35; // Exposición subida para resaltar matices de piel
-        this.renderer.physicallyCorrectLights = true; // Luces basadas en física real
-        
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(this.renderer.domElement);
     }
 
-    initLights() {
-        // 1. Luz ambiental global (Relleno de ciudad)
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-        // 2. Luz de estudio principal (Key Light) - Apunta a la cara/cuerpo
-        this.mainLight = new THREE.DirectionalLight(0xfff0dd, 1.5); // Tono cálido de piel
-        this.mainLight.position.set(2, 3, 4);
-        this.mainLight.castShadow = true; // Activar sombras para relieve
-        this.scene.add(this.mainLight);
-
-        // 3. Luz de contra (Rim Light) Cyan Brilhante - Separa silueta
-        const rimLight = new THREE.SpotLight(0x00f6ff, 2.5, 15, 0.3, 1);
-        rimLight.position.set(-3, 4, -2);
-        this.scene.add(rimLight);
-
-        // 4. Luz de Zoom Facial (Point Light) - Se activa/desactiva
-        this.zoomLight = new THREE.PointLight(0xffffff, 0, 3);
-        this.zoomLight.position.set(0, 1.7, 1.0); // Justo frente a la cara
-        this.scene.add(this.zoomLight);
-
-        // 5. Luz específica azulada para el fondo (Ciudad)
-        const cityLight = new THREE.DirectionalLight(0x4444ff, 0.6); 
-        cityLight.position.set(-10, 5, -15);
-        this.scene.add(cityLight);
+    lights() {
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.0)); // Luz global fuerte para que todo se vea
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(2, 5, 5);
+        this.scene.add(sun);
     }
 
-    loadModels() {
-        const manager = new THREE.LoadingManager();
-        const status = document.getElementById('load-status');
-
-        manager.onProgress = (url, loaded, total) => {
-            status.innerText = `DESERIALIZANDO GEOMETRÍA: ${Math.round((loaded/total)*100)}%`;
-        };
-
-        manager.onLoad = () => {
-            this.state.loaded = true;
-            document.getElementById('loader').style.display = 'none';
-            this.camera.lookAt(this.config.cameraData.default.look);
-            this.createTraffic(); // Crear tráfico tras cargar ciudad
-        };
-
-        const loader = new THREE.GLTFLoader(manager);
-
-        // 1. Cargar Ciudad de Fondo (ciudad_quantum.glb)
-        loader.load('ciudad_quantum.glb', (gltf) => {
-            this.city = gltf.scene;
-            this.city.scale.set(1, 1, 1); 
-            this.city.position.set(0, 0, -12); // Detrás del avatar
+    load() {
+        const loader = new THREE.GLTFLoader();
+        
+        // Ciudad
+        loader.load('ciudad_quantum.glb', (glb) => {
+            this.city = glb.scene;
+            this.city.position.set(0, 0, -5);
             this.scene.add(this.city);
-            
-            // Forzar visibilidad total de texturas de ciudad
-            this.city.traverse(child => {
-                if(child.isMesh) {
-                    child.material.side = THREE.DoubleSide;
-                    child.material.depthWrite = true;
-                }
-            });
-        }, undefined, (e) => { console.error("Error Ciudad:", e); status.innerText = "Error: ciudad_quantum.glb"; });
+        });
 
-        // 2. Cargar Avatar (luis-avatar2.glb) - Fotorrealismo IA
-        loader.load('luis-avatar2.glb', (gltf) => {
-            this.avatar = gltf.scene;
-            this.avatar.position.set(0, 0, 0); // Pies en el origen
+        // Avatar
+        loader.load('luis-avatar2.glb', (glb) => {
+            this.avatar = glb.scene;
             this.scene.add(this.avatar);
-            
-            // Habilitar sombras en el avatar para matices
-            this.avatar.traverse(child => { if(child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
-
-            // Animación Automática (Idle/Respiración)
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            if(gltf.animations.length > 0) {
-                this.mixer.clipAction(gltf.animations[0]).play();
-            }
-        }, undefined, (e) => { console.error("Error Avatar:", e); status.innerText = "Error: luis-avatar2.glb"; });
+            if(glb.animations.length > 0) this.mixer.clipAction(glb.animations[0]).play();
+            document.getElementById('loader').style.display = 'none';
+        });
     }
 
-    createTraffic() {
-        // Creamos estelas de luz neón que se mueven detrás (Tráfico)
-        const carGeo = new THREE.BoxGeometry(0.3, 0.1, 0.8);
-        const colors = [0x00f6ff, 0xff00ff, 0x00ff00];
-        for(let i=0; i<18; i++) {
-            const carMat = new THREE.MeshBasicMaterial({ color: colors[i%3], transparent: true, opacity: 0.8 });
-            const car = new THREE.Mesh(carGeo, carMat);
-            car.position.set((Math.random()-0.5)*50, 0.1, -15 - (Math.random()*20));
-            car.userData.speed = 0.1 + Math.random()*0.35;
-            this.scene.add(car);
-            this.collidables.push(car); // Array para animar
-        }
-    }
+    controls() {
+        this.rotY = 0; this.isZoom = false; this.active = false;
+        const knob = document.getElementById('knob');
+        const joy = document.getElementById('joy');
 
-    setupControls() {
-        const knob = document.getElementById('joy-knob');
-        const container = document.getElementById('joy-container');
-        const btnZoom = document.getElementById('btn-zoom');
-
-        // --- D-Pad Analógico Rotacional (Feedback Neón) ---
-        const handleJoyMove = (e) => {
-            if(!this.state.joyActive) return;
-            const touch = e.touches[0];
-            const rect = container.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            
-            const dx = touch.clientX - centerX;
-            const dist = Math.min(Math.abs(dx), 65);
-            const sign = Math.sign(dx);
-
-            // Visual del knob
-            knob.style.left = `calc(50% + ${sign * dist}px - 35px)`;
-            
-            // Aplicar velocidad de rotación
-            this.state.rotationY = sign * (dist / 65) * this.config.rotationSpeed;
+        const move = (e) => {
+            if(!this.active) return;
+            const t = e.touches ? e.touches[0] : e;
+            const r = joy.getBoundingClientRect();
+            const dx = t.clientX - (r.left + r.width/2);
+            const dist = Math.min(Math.abs(dx), 50);
+            knob.style.left = `calc(50% + ${Math.sign(dx)*dist}px - 25px)`;
+            this.rotY = Math.sign(dx) * (dist/50) * 0.06;
         };
 
-        container.addEventListener('touchstart', (e) => { this.state.joyActive = true; handleJoyMove(e); });
-        window.addEventListener('touchmove', handleJoyMove);
-        window.addEventListener('touchend', () => {
-            this.state.joyActive = false;
-            knob.style.left = 'calc(50% - 35px)'; // Reset visual
-            this.state.rotationY = 0; // Detener rotación
-        });
+        joy.ontouchstart = () => this.active = true;
+        window.ontouchmove = move;
+        window.ontouchend = () => { this.active = false; knob.style.left = 'calc(50% - 25px)'; this.rotY = 0; };
 
-        // --- Lógica del Botón ZOOM 4K (Feedback Neón RGB) ---
-        const setZoom = (active) => {
-            this.state.isZoomed = active;
-            if(active) {
-                btnZoom.classList.add('active');
-                this.state.currentCameraTarget = this.config.cameraData.zoom;
-                this.zoomLight.intensity = 1.3; // Luz de relleno facial ON
-            } else {
-                btnZoom.classList.remove('active');
-                this.state.currentCameraTarget = this.config.cameraData.default;
-                this.zoomLight.intensity = 0; // Apagar
-            }
-        };
-
-        btnZoom.addEventListener('touchstart', (e) => { e.preventDefault(); setZoom(true); });
-        btnZoom.addEventListener('touchend', () => { setZoom(false); });
-        // Soporte ratón
-        btnZoom.addEventListener('mousedown', () => { setZoom(true); });
-        btnZoom.addEventListener('mouseup', () => { setZoom(false); });
-
-        // Resize
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        const zBtn = document.getElementById('zoom');
+        zBtn.ontouchstart = (e) => { e.preventDefault(); this.isZoom = true; zBtn.classList.add('active'); };
+        zBtn.ontouchend = () => { this.isZoom = false; zBtn.classList.remove('active'); };
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        if(!this.state.loaded) return;
-
-        const delta = this.clock.getDelta();
-
-        // 1. Actualizar Animación (si existe)
-        if(this.mixer) this.mixer.update(delta);
-
-        // 2. Rotar Avatar (Eje Y)
-        if (this.avatar && Math.abs(this.state.rotationY) > 0.001) {
-            this.avatar.rotation.y += this.state.rotationY;
+        if(this.mixer) this.mixer.update(0.016);
+        if(this.avatar) {
+            this.avatar.rotation.y += this.rotY;
+            const tPos = this.isZoom ? new THREE.Vector3(0, 1.6, 0.8) : new THREE.Vector3(0, 1.1, 3.5);
+            this.camera.position.lerp(tPos, 0.1);
+            this.camera.lookAt(0, this.isZoom ? 1.6 : 1, 0);
         }
-
-        // 3. Suavizado de Cámara Pro (Lerp)
-        if(this.camera) {
-            this.camera.position.lerp(this.state.currentCameraTarget.pos, this.config.lerpSpeed);
-            // El lookAt directo es necesario para que el encuadre 4K sea estable
-            this.camera.lookAt(this.state.currentCameraTarget.look);
-        }
-
-        // 4. Animar tráfico
-        this.collidables.forEach(car => {
-            car.position.x += car.userData.speed;
-            if(car.position.x > 30) car.position.x = -30; // Loop infinito
-        });
-
         this.renderer.render(this.scene, this.camera);
     }
 }
-
-// LANZAMIENTO DEL MOTOR ULTRA
-window.onload = () => { new AvatarShowcase(); };
+window.onload = () => new QuantumLite();
 </script>
 </body>
 </html>
