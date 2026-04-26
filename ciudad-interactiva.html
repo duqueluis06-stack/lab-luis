@@ -3,140 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS QUANTUM CONTROL</title>
+    <title>LUIS QUANTUM - REBORN</title>
     <style>
-        :root { --cyan: #00ffff; --mag: #ff00ff; }
+        :root { --neon: #00ffff; --rgb: #ff00ff; }
         body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
         
-        /* INTERFAZ DE COMANDO */
-        #gui { position: absolute; top: 0; width: 100%; z-index: 100; pointer-events: none; }
-        .header { background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--cyan); padding: 10px 20px; display: flex; justify-content: space-between; pointer-events: auto; }
-        
-        /* BOTONES DE MOVIMIENTO (JOYSTICK) */
-        .controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 70px); gap: 10px; z-index: 100; }
-        .btn { width: 70px; height: 70px; background: rgba(0,255,255,0.1); border: 2px solid var(--cyan); color: var(--cyan); border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 20px; display: flex; align-items: center; justify-content: center; user-select: none; }
-        .btn:active { background: var(--cyan); color: #000; }
-        .btn-panic { position: absolute; bottom: 30px; right: 20px; width: 120px; height: 50px; background: #f00; border: none; color: #fff; font-weight: bold; border-radius: 5px; cursor: pointer; z-index: 100; box-shadow: 0 0 20px #f00; }
+        /* HEADER CON BORDE ANIMADO RGB */
+        header {
+            position: absolute; top: 0; width: 100%; height: 60px;
+            background: rgba(0,0,0,0.9); display: flex; justify-content: space-between; 
+            align-items: center; padding: 0 20px; box-sizing: border-box; z-index: 100;
+            border-bottom: 3px solid; border-image: linear-gradient(90deg, red, yellow, lime, cyan, blue, magenta, red) 1;
+            animation: chroma 5s linear infinite;
+        }
+        @keyframes chroma { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
 
-        #loading-screen { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--cyan); }
+        /* JOYSTICK VISUAL */
+        .controls { position: absolute; bottom: 20px; left: 20px; display: grid; grid-template-columns: repeat(3, 60px); gap: 5px; z-index: 100; }
+        .btn { width: 60px; height: 60px; background: rgba(0,255,255,0.1); border: 2px solid var(--neon); color: var(--neon); font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; border-radius: 10px; }
+        .btn:active { background: var(--neon); color: #000; }
+
+        /* BOTÓN DE LOCALIZACIÓN (EL SALVADOR) */
+        .panic-btn { position: absolute; bottom: 20px; right: 20px; padding: 20px; background: var(--rgb); color: #fff; border: none; font-weight: bold; border-radius: 50%; cursor: pointer; box-shadow: 0 0 20px var(--rgb); z-index: 100; }
+
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <h2 id="msg">CARGANDO PROTOCOLO 3D...</h2>
-        <div style="width: 200px; height: 2px; background: #222;"><div id="bar" style="width: 0%; height: 100%; background: var(--cyan);"></div></div>
-    </div>
+<div id="loader">
+    <h2 id="load-msg">SINCRO DE SISTEMA...</h2>
+    <div style="width: 200px; height: 5px; background: #222;"><div id="bar" style="width: 0%; height: 100%; background: var(--neon);"></div></div>
+</div>
 
-    <div id="gui">
-        <div class="header">
-            <div style="color: #fff;">● LUIS_AVATAR: <span id="status">Buscando...</span></div>
-            <a href="index.html" style="color: var(--cyan); text-decoration: none; border: 1px solid var(--cyan); padding: 5px 10px;">SALIR</a>
-        </div>
-    </div>
+<header>
+    <div style="color: #fff; font-size: 12px;">STATUS: <span id="st">CARGANDO</span></div>
+    <a href="index.html" style="color: #fff; text-decoration: none; border: 1px solid #fff; padding: 5px 10px; border-radius: 4px;">🏠 INICIO</a>
+</header>
 
-    <div class="controls">
-        <div></div><div class="btn" onmousedown="move('w')" onmouseup="stop()">↑</div><div></div>
-        <div class="btn" onmousedown="move('a')" onmouseup="stop()">←</div>
-        <div class="btn" onmousedown="move('s')" onmouseup="stop()">↓</div>
-        <div class="btn" onmousedown="move('d')" onmouseup="stop()">→</div>
-    </div>
+<div class="controls">
+    <div></div><div class="btn" onmousedown="startMove('w')" onmouseup="stopMove()">↑</div><div></div>
+    <div class="btn" onmousedown="startMove('a')" onmouseup="stopMove()">←</div>
+    <div class="btn" onmousedown="startMove('s')" onmouseup="stopMove()">↓</div>
+    <div class="btn" onmousedown="startMove('d')" onmouseup="stopMove()">→</div>
+</div>
 
-    <button class="btn-panic" onclick="panic()">🎯 LOCALIZAR</button>
+<button class="panic-btn" onclick="resetLuis()">🎯 LUIS</button>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-    <script>
-        let scene, camera, renderer, luis, mixer, city;
-        const clock = new THREE.Clock();
-        let moving = null;
+<script>
+    let scene, camera, renderer, luis, controls;
+    let mixers = []; // AQUÍ SE GUARDAN TODAS LAS ANIMACIONES
+    let moveDir = null;
+    const clock = new THREE.Clock();
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 15, 30);
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020205);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 3000);
+        camera.position.set(0, 10, 20);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-            // ILUMINACIÓN BRUTAL
-            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const pL = new THREE.PointLight(0x00ffff, 2);
+        pL.position.set(10, 10, 10);
+        scene.add(pL);
 
-            const draco = new THREE.DRACOLoader();
-            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-            const loader = new THREE.GLTFLoader();
-            loader.setDRACOLoader(draco);
+        const draco = new THREE.DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        const loader = new THREE.GLTFLoader();
+        loader.setDRACOLoader(draco);
 
-            // CARGAR CIUDAD
-            loader.load('ciudad_quantum.glb', (gltf) => {
-                city = gltf.scene;
-                scene.add(city);
-                
-                // CARGAR LUIS
-                loader.load('luis_avatar.glb', (av) => {
-                    luis = av.scene;
-                    panic(); // Ajusta escala y posición al entrar
-                    scene.add(luis);
-                    
-                    mixer = new THREE.AnimationMixer(luis);
-                    if(av.animations.length) mixer.clipAction(av.animations[0]).play();
-                    
-                    document.getElementById('loading-screen').style.display = 'none';
-                    document.getElementById('status').innerText = "CONECTADO";
-                }, undefined, (err) => { document.getElementById('msg').innerText = "ERROR CARGANDO LUIS"; });
-
-            }, (xhr) => {
-                document.getElementById('bar').style.width = (xhr.loaded / xhr.total * 100) + '%';
-            }, (err) => { document.getElementById('msg').innerText = "ERROR CARGANDO CIUDAD"; });
-
-            const controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-        }
-
-        function move(dir) { moving = dir; }
-        function stop() { moving = null; }
-
-        // BOTÓN DE PÁNICO: REPARA TAMAÑO Y POSICIÓN
-        function panic() {
-            if(!luis) return;
-            luis.scale.set(0.01, 0.01, 0.01); // Escala minúscula para que quepa en la calle
-            luis.position.set(0, 0, 0);       // Lo trae al centro
-            camera.position.set(0, 5, 10);    // Pone la cámara detrás
-            document.getElementById('status').innerText = "LOCALIZADO";
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            if(mixer) mixer.update(delta);
-            
-            if(luis && moving) {
-                const speed = 0.5;
-                if(moving === 'w') luis.translateZ(speed);
-                if(moving === 's') luis.translateZ(-speed);
-                if(moving === 'a') luis.rotation.y += 0.05;
-                if(moving === 'd') luis.rotation.y -= 0.05;
+        // CARGAR CIUDAD
+        loader.load('ciudad_quantum.glb', (gltf) => {
+            scene.add(gltf.scene);
+            // ACTIVAR AUTOS Y LUCES DE CIUDAD
+            if(gltf.animations.length) {
+                let mCity = new THREE.AnimationMixer(gltf.scene);
+                gltf.animations.forEach(clip => mCity.clipAction(clip).play());
+                mixers.push(mCity);
             }
-            
-            renderer.render(scene, camera);
-        }
 
-        init();
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            // CARGAR AVATAR
+            loader.load('luis_avatar.glb', (av) => {
+                luis = av.scene;
+                resetLuis(); // Ponlo en su sitio
+                scene.add(luis);
+                
+                if(av.animations.length) {
+                    let mLuis = new THREE.AnimationMixer(luis);
+                    mLuis.clipAction(av.animations[0]).play();
+                    mixers.push(mLuis);
+                }
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('st').innerText = "ONLINE";
+            });
+        }, (xhr) => {
+            document.getElementById('bar').style.width = (xhr.loaded / xhr.total * 100) + '%';
         });
-    </script>
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+    }
+
+    function resetLuis() {
+        if(!luis) return;
+        luis.scale.set(0.015, 0.015, 0.015); // Tamaño humano
+        luis.position.set(5, 0, 5); // Fuera de los edificios
+        camera.position.set(5, 5, 15);
+        controls.target.set(5, 0, 5);
+    }
+
+    function startMove(d) { moveDir = d; }
+    function stopMove() { moveDir = null; }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        
+        // ESTO DESPIERTA TODO (Autos y Luis)
+        mixers.forEach(m => m.update(delta));
+
+        if(luis && moveDir) {
+            const speed = 0.2;
+            if(moveDir === 'w') luis.translateZ(speed);
+            if(moveDir === 's') luis.translateZ(-speed);
+            if(moveDir === 'a') luis.rotation.y += 0.05;
+            if(moveDir === 'd') luis.rotation.y -= 0.05;
+            // La cámara sigue a Luis
+            controls.target.copy(luis.position);
+        }
+        
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    init();
+    animate();
+</script>
 </body>
 </html>
