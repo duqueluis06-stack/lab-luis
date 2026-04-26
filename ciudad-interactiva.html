@@ -3,52 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUANTUM CITY - FINAL</title>
+<title>QUANTUM CITY - GTA STABLE</title>
 
 <style>
-:root { --neon:#00ffff; --rgb:#ff00ff; }
-body { margin:0; background:#000; overflow:hidden; font-family:sans-serif; }
+body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
+canvas { display:block; touch-action:none; }
 
-header{
-    position:absolute; top:0; width:100%; height:60px;
-    display:flex; justify-content:space-between; align-items:center;
-    padding:0 20px; z-index:1000;
-}
-
-.btn-exit{ background:red; color:#fff; padding:10px; text-decoration:none; }
-
-.joystick{
-    position:absolute; bottom:30px; left:30px;
-    display:grid; grid-template-columns:repeat(3,70px); gap:10px;
+#ui{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    justify-content:space-between;
+    padding:15px;
+    pointer-events:none;
 }
 
 .btn{
-    width:70px; height:70px;
+    pointer-events:auto;
+    width:65px; height:65px;
+    background:rgba(0,255,255,0.25);
     border:2px solid cyan;
+    color:white;
+    border-radius:12px;
     display:flex; align-items:center; justify-content:center;
-    color:cyan;
+    user-select:none;
+}
+
+.controls{
+    display:grid;
+    grid-template-columns:repeat(3,70px);
+    gap:5px;
 }
 
 #loading{
-    position:fixed; inset:0; background:#000;
-    display:flex; align-items:center; justify-content:center;
-    color:#0ff; z-index:9999;
+    position:fixed; inset:0;
+    background:#000;
+    color:#0ff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:9999;
 }
 </style>
 </head>
 
 <body>
 
-<div id="loading">CARGANDO...</div>
+<div id="loading">CARGANDO CIUDAD...</div>
 
-<header>
-    <div style="color:#fff;">LUIS <span style="color:#0ff;">ONLINE</span></div>
-    <a href="index.html" class="btn-exit">SALIR</a>
-</header>
+<div id="ui">
+    <div style="color:#0ff;">LUIS QUANTUM ONLINE</div>
 
-<div class="joystick">
-    <div></div><div class="btn" id="w">↑</div><div></div>
-    <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
+    <div class="controls">
+        <div></div><div class="btn" id="w">↑</div><div></div>
+        <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -65,53 +73,66 @@ function init(){
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
+    scene.fog = new THREE.Fog(0x000000, 10, 400);
 
-    camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 10000);
+    camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 5000);
 
     renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     document.body.appendChild(renderer.domElement);
 
-    // luces
-    scene.add(new THREE.AmbientLight(0xffffff,1));
-    const light = new THREE.DirectionalLight(0xffffff,1.5);
-    light.position.set(50,100,50);
-    scene.add(light);
+    // 🔥 luz fuerte (evita ciudad negra)
+    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 2);
+    sun.position.set(100,200,100);
+    scene.add(sun);
 
     const loader = new THREE.GLTFLoader();
 
-    // ciudad
+    // 🌆 CIUDAD
     loader.load("ciudad_quantum.glb", (gltf)=>{
-        scene.add(gltf.scene);
+
+        const city = gltf.scene;
+
+        // 🔥 centrar ciudad
+        const box = new THREE.Box3().setFromObject(city);
+        const center = box.getCenter(new THREE.Vector3());
+
+        city.position.x -= center.x;
+        city.position.z -= center.z;
+        city.position.y -= box.min.y;
+
+        scene.add(city);
+
     });
 
-    // avatar
+    // 🧍 AVATAR
     loader.load("luis_avatar.glb", (gltf)=>{
+
         luis = gltf.scene;
 
-        // 🔥 ESCALA HUMANA AUTOMÁTICA
+        // 🔥 escala humana fija
         const box = new THREE.Box3().setFromObject(luis);
         const size = box.getSize(new THREE.Vector3()).y;
 
-        const targetHeight = 1.75; // altura realista
-        const scale = targetHeight / size;
-        luis.scale.set(scale, scale, scale);
+        const scale = 1.75 / size;
+        luis.scale.setScalar(scale);
 
-        // 🔥 BAJAR AL SUELO (NO FLOTAR)
+        // 🔥 poner en suelo
         const box2 = new THREE.Box3().setFromObject(luis);
-        const minY = box2.min.y;
-        luis.position.y -= minY;
+        luis.position.y -= box2.min.y;
 
         scene.add(luis);
 
-        // animación
         if(gltf.animations.length){
             mixer = new THREE.AnimationMixer(luis);
             mixer.clipAction(gltf.animations[0]).play();
         }
 
-        document.getElementById("loading").style.display = "none";
-        resetLuis();
+        document.getElementById("loading").style.display="none";
+
+        camera.position.set(0,4,8);
     });
 
     setupControls();
@@ -121,35 +142,31 @@ function init(){
 function setupControls(){
     ["w","a","s","d"].forEach(k=>{
         const el = document.getElementById(k);
+
         el.addEventListener("pointerdown", ()=>keys[k]=true);
         el.addEventListener("pointerup", ()=>keys[k]=false);
         el.addEventListener("pointerleave", ()=>keys[k]=false);
     });
 }
 
-function resetLuis(){
-    if(!luis) return;
-    luis.position.set(0,0,0);
-    camera.position.set(0,4,8);
-}
-
 function animate(){
     requestAnimationFrame(animate);
 
-    const delta = clock.getDelta();
+    const dt = clock.getDelta();
 
-    if(mixer) mixer.update(delta);
+    if(mixer) mixer.update(dt);
 
     if(luis){
-        const speed = 4 * delta;
-        const rot = 2 * delta;
+
+        const speed = 5 * dt;
+        const rot = 2 * dt;
 
         if(keys.w) luis.translateZ(speed);
         if(keys.s) luis.translateZ(-speed);
         if(keys.a) luis.rotation.y += rot;
         if(keys.d) luis.rotation.y -= rot;
 
-        // cámara GTA
+        // 🎥 cámara GTA suave
         const offset = new THREE.Vector3(0,4,-8);
         offset.applyQuaternion(luis.quaternion);
 
