@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUANTUM CITY - FINAL MOTOR</title>
+<title>QUANTUM CITY FINAL FIX</title>
 
 <style>
-body{margin:0;overflow:hidden;background:#000;font-family:sans-serif;}
-canvas{display:block;touch-action:none;}
+body{margin:0;overflow:hidden;background:#000;}
+canvas{display:block;}
 
 #ui{
 position:absolute;inset:0;
@@ -18,9 +18,10 @@ padding:15px;
 pointer-events:none;
 }
 
-.panel-top{
-display:flex;
-justify-content:space-between;
+.controls{
+display:grid;
+grid-template-columns:repeat(3,70px);
+gap:5px;
 pointer-events:auto;
 }
 
@@ -33,36 +34,18 @@ justify-content:center;
 color:#0ff;
 user-select:none;
 }
-
-.controls{
-display:grid;
-grid-template-columns:repeat(3,70px);
-gap:5px;
-pointer-events:auto;
-}
-
-#exit{
-background:#ff0033;
-color:white;
-border:none;
-}
 </style>
 </head>
 
 <body>
 
 <div id="ui">
-
-<div class="panel-top">
-<div style="color:#0ff;">LUIS QUANTUM</div>
-<a href="index.html" class="btn" id="exit">SALIR</a>
-</div>
+<div style="color:#0ff;">LUIS ENGINE ✔</div>
 
 <div class="controls">
 <div></div><div class="btn" id="w">↑</div><div></div>
 <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
 </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -84,39 +67,49 @@ function init(){
 scene=new THREE.Scene();
 scene.background=new THREE.Color(0x000000);
 
-camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,10000);
+// 🔥 cámara más abierta (evita sensación de lejanía)
+camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,20000);
 
 renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+// 🔥 FIX MÓVIL (CIUDAD NEGRA)
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.5;
+
 document.body.appendChild(renderer.domElement);
 
-// 🔥 luz fuerte estable
+// 🔥 LUZ FUERTE GLOBAL
 scene.add(new THREE.AmbientLight(0xffffff,3));
-const sun=new THREE.DirectionalLight(0xffffff,4);
+
+const sun=new THREE.DirectionalLight(0xffffff,5);
 sun.position.set(200,300,200);
 scene.add(sun);
 
-// jugador base
+const fill=new THREE.DirectionalLight(0x88ccff,2);
+fill.position.set(-200,150,-200);
+scene.add(fill);
+
 scene.add(player);
 
 const loader=new THREE.GLTFLoader();
 
-// 🌆 CIUDAD
+// 🌆 CIUDAD (FIX DEFINITIVO VISIBILIDAD)
 loader.load("ciudad_quantum.glb",(gltf)=>{
 
 const city=gltf.scene;
 
-// centrar
 const box=new THREE.Box3().setFromObject(city);
 const center=box.getCenter(new THREE.Vector3());
-city.position.sub(center);
 
-// suelo
+city.position.sub(center);
 city.position.y-=box.min.y;
 
-// escala segura automática
+// 🔥 escala segura
 const size=box.getSize(new THREE.Vector3()).length();
-if(size>200) city.scale.setScalar(0.01);
+city.scale.setScalar(size>200?0.01:1);
 
 scene.add(city);
 
@@ -127,24 +120,22 @@ loader.load("luis_avatar.glb",(gltf)=>{
 
 luis=gltf.scene;
 
-// reset orientación REAL (clave anti-espalda)
-luis.rotation.set(0,0,0);
-
 // escala humana
 const box=new THREE.Box3().setFromObject(luis);
 const h=box.getSize(new THREE.Vector3()).y;
 luis.scale.setScalar(1.75/h);
 
+// orientación correcta
+luis.rotation.set(0,0,0);
+
 // suelo
 const box2=new THREE.Box3().setFromObject(luis);
 luis.position.y-=box2.min.y;
 
-// meter en jugador (IMPORTANTE)
 player.add(luis);
 
 camera.position.set(0,3,6);
 
-// animación
 if(gltf.animations.length){
 mixer=new THREE.AnimationMixer(luis);
 mixer.clipAction(gltf.animations[0]).play();
@@ -172,23 +163,20 @@ if(!luis) return;
 
 let speed=5*dt;
 
-// movimiento del PLAYER (NO del mesh)
+// movimiento real del player
 if(keys.w) player.translateZ(speed);
 if(keys.s) player.translateZ(-speed);
 if(keys.a) player.rotation.y+=2*dt;
 if(keys.d) player.rotation.y-=2*dt;
 
-// cámara GTA estable
-const offset=new THREE.Vector3(0,3,-6);
+// 🎥 cámara MÁS CERCA (arregla “lejos”)
+const offset=new THREE.Vector3(0,2.5,-4.5);
 offset.applyQuaternion(player.quaternion);
 
 const target=player.position.clone().add(offset);
 
-camera.position.lerp(target,0.12);
+camera.position.lerp(target,0.15);
 camera.lookAt(player.position);
-
-// 🔥 FIX DEFINITIVO ANTI-ESPALDA
-luis.lookAt(camera.position.x,luis.position.y,camera.position.z);
 
 }
 
