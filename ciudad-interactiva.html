@@ -3,136 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS 4K - MATRIX DUAL PROTOCOL</title>
+    <title>Luis 4K: Matrix Cinematic</title>
     <style>
         :root {
-            --m-green: #00ff41;
-            --n-cyan: #00f6ff;
-            --n-pink: #ff00ff;
-            --n-orange: #ff9900;
-            --glass: rgba(0, 10, 0, 0.9);
-            --glow-green: 0 0 20px rgba(0, 255, 65, 0.6);
+            --matrix-green: #00ff41;
+            --neon-glow: 0 0 20px #00ff41, 0 0 40px #003300;
         }
 
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: #000; 
-            font-family: 'Segoe UI', 'Courier New', monospace;
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+
+        /* HUD SUPERIOR */
+        #top-ui {
+            position: absolute; top: 20px; width: 100%; display: flex;
+            justify-content: space-between; align-items: flex-start;
+            padding: 0 30px; box-sizing: border-box; z-index: 1000;
         }
 
-        /* LIENZO MATRIX DE FONDO */
-        #matrix-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; opacity: 0.25; pointer-events: none;
+        /* DIÁLOGOS QUE APARECEN Y DESAPARECEN */
+        #dialogue-box {
+            color: var(--matrix-green);
+            font-size: 24px; font-weight: 900; text-align: center;
+            max-width: 60%; min-height: 50px;
+            text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, var(--neon-glow);
+            letter-spacing: 1px; pointer-events: none;
         }
 
-        /* UI SUPERIOR: RELOJ Y SALIDA */
-        #top-bar {
-            position: absolute; top: 0; left: 0; width: 100%;
-            padding: 20px; display: flex; justify-content: space-between;
-            align-items: center; z-index: 100; box-sizing: border-box;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-        }
-
-        #clock-digital {
-            font-size: 28px; font-weight: 900; color: var(--n-cyan);
-            text-shadow: 0 0 15px var(--n-cyan); letter-spacing: 2px;
-        }
-
-        .exit-button {
-            padding: 12px 30px; border: 3px solid var(--n-pink);
-            background: transparent; color: var(--n-pink);
-            font-weight: 900; text-decoration: none; text-transform: uppercase;
-            border-radius: 5px; box-shadow: 0 0 15px var(--n-pink);
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            font-size: 14px; cursor: pointer; pointer-events: auto;
-        }
-        .exit-button:active { transform: scale(0.9); background: var(--n-pink); color: #000; }
-
-        /* EL MENSAJE: SUBTÍTULOS CINEMÁTICOS (PARA QUE NO TAPE EL AVATAR) */
-        #subtitles-container {
-            position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 800px; z-index: 105; pointer-events: none;
-            text-align: center;
-        }
-
-        #typing-terminal {
-            background: var(--glass); border-top: 2px solid var(--m-green);
-            padding: 20px; color: #fff; font-size: 22px; font-weight: 300;
-            line-height: 1.3; box-shadow: var(--glow-green);
-            text-shadow: 0 0 8px var(--m-green); border-radius: 10px;
-            font-style: italic;
+        .exit-btn {
+            background: rgba(0,0,0,0.8); border: 2px solid #ff0055;
+            color: #ff0055; padding: 12px 25px; border-radius: 5px;
+            font-weight: bold; text-decoration: none; font-size: 14px;
+            box-shadow: 0 0 15px #ff0055; cursor: pointer; pointer-events: auto;
         }
 
         /* CONTROLES INFERIORES */
-        #bottom-controls {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 160px;
+        #bottom-ui {
+            position: absolute; bottom: 40px; width: 100%;
             display: flex; justify-content: space-around; align-items: center;
-            background: linear-gradient(to top, rgba(0,20,0,0.9), transparent);
-            z-index: 110; padding-bottom: 20px; box-sizing: border-box;
-            pointer-events: none;
+            z-index: 1000; pointer-events: none;
         }
 
-        .joy-base {
-            width: 120px; height: 120px; border: 4px solid var(--m-green);
+        .joy-frame {
+            width: 110px; height: 110px; border: 3px solid var(--matrix-green);
             border-radius: 50%; background: rgba(0, 255, 65, 0.1);
-            box-shadow: inset 0 0 20px var(--m-green), var(--glow-green);
-            position: relative; pointer-events: auto; touch-action: none;
+            box-shadow: var(--neon-glow); position: relative; pointer-events: auto;
         }
-        .joy-stick {
-            width: 50px; height: 50px; background: #fff; border-radius: 50%;
+
+        .stick {
+            width: 45px; height: 45px; background: #fff; border-radius: 50%;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 25px #fff; border: 3px solid var(--m-green);
+            box-shadow: 0 0 20px #fff; border: 2px solid var(--matrix-green);
         }
 
-        #action-btn {
-            width: 100px; height: 100px; border: 4px solid var(--n-orange);
-            background: rgba(255, 153, 0, 0.1); border-radius: 50%;
-            color: #fff; font-weight: 900; font-size: 12px;
-            box-shadow: 0 0 20px var(--n-orange); cursor: pointer;
-            pointer-events: auto; display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            transition: 0.2s;
+        #zoom-btn {
+            width: 80px; height: 80px; border: 2px solid #fff; border-radius: 50%;
+            background: #000; color: #fff; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 15px #fff; pointer-events: auto; font-size: 12px;
         }
-        #action-btn:active { transform: scale(1.1); box-shadow: 0 0 40px var(--n-orange); }
 
-        /* PANTALLA DE CARGA */
-        #loading-overlay {
-            position: fixed; inset: 0; background: #000; z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        #loading {
+            position: fixed; inset: 0; background: #000; z-index: 2000;
+            display: flex; align-items: center; justify-content: center; color: var(--matrix-green);
         }
-        .load-text { font-size: 18px; letter-spacing: 8px; margin-bottom: 20px; color: var(--m-green); }
-        .progress-container { width: 250px; height: 4px; background: #111; }
-        .progress-bar { width: 0%; height: 100%; background: var(--m-green); box-shadow: var(--glow-green); }
-
     </style>
 </head>
 <body>
 
-<canvas id="matrix-canvas"></canvas>
+<audio id="music" loop><source src="este-loco-mundo-dual.mp3" type="audio/mpeg"></audio>
 
-<audio id="dual-audio" loop>
-    <source src="este-loco-mundo-dual.mp3" type="audio/mpeg">
-</audio>
+<div id="loading"><h1>SISTEMA LUIS 4K: ONLINE</h1></div>
 
-<div id="loading-overlay">
-    <div class="load-text">INIT_LUIS_DUAL_4K</div>
-    <div class="progress-container"><div id="p-bar" class="progress-bar"></div></div>
+<div id="top-ui">
+    <div style="width: 100px;"></div> <div id="dialogue-box"></div>
+    <a href="index.html" class="exit-btn">SALIR</a>
 </div>
 
-<div id="top-bar">
-    <div id="clock-digital">00:00:00</div>
-    <a href="index.html" class="exit-button">Finalizar Sesión</a>
-</div>
-
-<div id="subtitles-container">
-    <div id="typing-terminal"></div>
-</div>
-
-<div id="bottom-controls">
-    <div id="joy-l" class="joy-base"><div id="stick-l" class="joy-stick"></div></div>
-    <div id="action-btn"><span>MODO</span><span>FACIAL</span></div>
-    <div id="joy-r" class="joy-base"><div id="stick-r" class="joy-stick"></div></div>
+<div id="bottom-ui">
+    <div id="joy-l" class="joy-frame"><div id="stick-l" class="stick"></div></div>
+    <button id="zoom-btn">ZOOM 4K</button>
+    <div id="joy-r" class="joy-frame"><div id="stick-r" class="stick"></div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -140,80 +88,55 @@
 
 <script>
 /**
- * LUIS DUAL-WORLD ENGINE PRO (4K MOBILE OPTIMIZED)
+ * CINEMATIC ENGINE: SPIELBERG + MATRIX
  */
 
-// 1. MATRIX RAIN ENGINE
-const mCanvas = document.getElementById('matrix-canvas');
-const mCtx = mCanvas.getContext('2d');
-mCanvas.width = window.innerWidth; mCanvas.height = window.innerHeight;
-const mChars = "0101010101011010101010100110101";
-const mFontSize = 18;
-const mCols = mCanvas.width / mFontSize;
-const mDrops = Array(Math.floor(mCols)).fill(1);
+const dialogueText = "He entrado al sistema... Todo se ve muy raro... Hay una metacognición digital entre el mundo real y mi avatar... Soy el código en este mundo dual.";
+const dialogueBox = document.getElementById('dialogue-box');
 
-function drawMatrix() {
-    mCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-    mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-    mCtx.fillStyle = '#0F0';
-    mCtx.font = mFontSize + 'px monospace';
-    mDrops.forEach((y, i) => {
-        const char = mChars[Math.floor(Math.random() * mChars.length)];
-        mCtx.fillText(char, i * mFontSize, y * mFontSize);
-        if (y * mFontSize > mCanvas.height && Math.random() > 0.975) mDrops[i] = 0;
-        mDrops[i]++;
-    });
-}
-setInterval(drawMatrix, 40);
-
-// 2. HUD & TYPING LOGIC
-function startClock() {
-    setInterval(() => {
-        const n = new Date();
-        document.getElementById('clock-digital').innerText = n.toLocaleTimeString().split(' ')[0];
-    }, 1000);
-}
-startClock();
-
-const luisMsg = "He entrado al sistema. Todo se ve muy raro... pero hay una metacognición digital entre el mundo real, mi yo real y mi avatar. Soy pura información en este loco mundo dual.";
-let lIdx = 0;
-function playTyping() {
-    const box = document.getElementById('typing-terminal');
-    if (lIdx < luisMsg.length) {
-        box.innerHTML += luisMsg.charAt(lIdx);
-        lIdx++;
-        setTimeout(playTyping, 45);
-    }
+function startDialogue() {
+    let i = 0;
+    dialogueBox.innerHTML = "";
+    const interval = setInterval(() => {
+        if (i < dialogueText.length) {
+            dialogueBox.innerHTML += dialogueText.charAt(i);
+            i++;
+        } else {
+            clearInterval(interval);
+            setTimeout(() => {
+                dialogueBox.style.transition = "opacity 2s";
+                dialogueBox.style.opacity = "0"; // Desaparece
+            }, 5000);
+        }
+    }, 50);
 }
 
-// 3. THREE.JS 4K CORE
-class Luis4KEngine {
+class MatrixSpielbergEngine {
     constructor() {
         this.input = { mv: {x:0, y:0}, lk: {x:0, y:0} };
-        this.zoom = false;
-        this.theta = 0;
-        this.setup();
+        this.isZoom = false;
+        this.time = 0;
+        this.init();
+        this.createCables();
         this.load();
-        this.bind();
+        this.events();
         this.render();
     }
 
-    setup() {
+    init() {
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x000800, 0.12);
-
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1500);
-        
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.15);
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.body.appendChild(this.renderer.domElement);
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.5));
         
-        const grid = new THREE.GridHelper(500, 100, 0x00ff41, 0x001500);
+        // Suelo Matrix
+        const grid = new THREE.GridHelper(500, 100, 0x00ff41, 0x001100);
         this.scene.add(grid);
 
         this.rig = new THREE.Group();
@@ -221,97 +144,99 @@ class Luis4KEngine {
         this.rig.add(this.camera);
     }
 
+    createCables() {
+        // Efecto de cables eléctricos desplazándose (Rayos de datos)
+        this.cables = [];
+        const mat = new THREE.LineBasicMaterial({ color: 0x00ff41 });
+        for(let i=0; i<20; i++) {
+            const points = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,20)];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(geo, mat);
+            line.position.set(Math.random()*40-20, Math.random()*5, Math.random()*40-20);
+            this.scene.add(line);
+            this.cables.push(line);
+        }
+    }
+
     load() {
         const loader = new THREE.GLTFLoader();
         loader.load('luis-avatar2.glb', (gltf) => {
             this.avatar = gltf.scene;
             this.avatar.scale.setScalar(0.25);
-            this.avatar.position.y = 0.1;
             this.scene.add(this.avatar);
 
-            // Luz de énfasis facial
-            this.neonLight = new THREE.PointLight(0x00f6ff, 3, 4);
-            this.scene.add(this.neonLight);
+            // CORRECCIÓN DE BRAZOS: Forzar pose si no hay animación
+            this.avatar.traverse(node => {
+                if(node.isBone) {
+                    if(node.name.toLowerCase().includes('arm') || node.name.toLowerCase().includes('shoulder')) {
+                        node.rotation.z = node.name.includes('L') ? 1.2 : -1.2; // Baja los brazos
+                    }
+                }
+            });
 
-            document.getElementById('p-bar').style.width = "100%";
-            setTimeout(() => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                playTyping();
-            }, 800);
+            this.mixer = new THREE.AnimationMixer(this.avatar);
+            if(gltf.animations.length > 0) this.mixer.clipAction(gltf.animations[0]).play();
+
+            document.getElementById('loading').style.display = 'none';
+            startDialogue();
         });
     }
 
-    bind() {
-        const setupJoy = (id, sId, isMv) => {
-            const area = document.getElementById(id), stick = document.getElementById(sId);
+    events() {
+        const setupJoy = (id, sId, type) => {
+            const el = document.getElementById(id), s = document.getElementById(sId);
             let active = false;
-
             const move = (e) => {
                 if(!active) return;
+                document.getElementById('music').play().catch(()=>{});
                 const p = e.touches ? e.touches[0] : e;
-                const r = area.getBoundingClientRect();
-                const x = (p.clientX - (r.left + 60)) / 60, y = (p.clientY - (r.top + 60)) / 60;
+                const r = el.getBoundingClientRect();
+                const x = (p.clientX - (r.left + 55)) / 55, y = (p.clientY - (r.top + 55)) / 55;
                 const m = Math.min(Math.sqrt(x*x+y*y), 1), a = Math.atan2(y,x);
-                const fx = Math.cos(a)*m, fy = Math.sin(a)*m;
-                stick.style.transform = `translate(calc(-50% + ${fx*35}px), calc(-50% + ${fy*35}px))`;
-                if(isMv) this.input.mv = {x:fx, y:fy}; else this.input.lk = {x:fx, y:fy};
-                // Activar audio
-                document.getElementById('dual-audio').play().catch(()=>{});
+                s.style.transform = `translate(calc(-50% + ${Math.cos(a)*m*35}px), calc(-50% + ${Math.sin(a)*m*35}px))`;
+                this.input[type] = {x: Math.cos(a)*m, y: Math.sin(a)*m};
             };
-
-            area.addEventListener('touchstart', () => active = true);
+            el.addEventListener('touchstart', () => active = true);
             window.addEventListener('touchmove', move);
-            window.addEventListener('touchend', () => {
-                active = false; stick.style.transform = 'translate(-50%,-50%)';
-                if(isMv) this.input.mv = {x:0, y:0}; else this.input.lk = {x:0, y:0};
-            });
+            window.addEventListener('touchend', () => { active = false; s.style.transform='translate(-50%,-50%)'; this.input[type]={x:0, y:0}; });
         };
-
-        setupJoy('joy-l', 'stick-l', true);
-        setupJoy('joy-r', 'stick-r', false);
-        document.getElementById('action-btn').onclick = () => this.zoom = !this.zoom;
+        setupJoy('joy-l', 'stick-l', 'mv'); setupJoy('joy-r', 'stick-r', 'lk');
+        document.getElementById('zoom-btn').onclick = () => this.isZoom = !this.isZoom;
     }
 
     render() {
         requestAnimationFrame(() => this.render());
-        this.theta += 0.04;
+        const dt = new THREE.Clock().getDelta();
+        this.time += 0.05;
+        if(this.mixer) this.mixer.update(0.016);
 
         if(this.avatar) {
-            // EFECTO FLOTACIÓN CUÁNTICA
-            this.avatar.position.y = 0.15 + Math.sin(this.theta) * 0.06;
-            this.avatar.rotation.z = Math.sin(this.theta * 0.5) * 0.03;
+            // Levitación y respiración
+            this.avatar.position.y = 0.1 + Math.sin(this.time) * 0.05;
 
-            // DESPLAZAMIENTO
-            const speed = 0.14;
-            this.avatar.position.x += this.input.mv.x * speed;
-            this.avatar.position.z += this.input.mv.y * speed;
+            // Movimiento
+            this.avatar.position.x += this.input.mv.x * 0.12;
+            this.avatar.position.z += this.input.mv.y * 0.12;
+            
+            if(Math.abs(this.input.mv.x) > 0.1) this.avatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
 
-            if(Math.abs(this.input.mv.x) > 0.1 || Math.abs(this.input.mv.y) > 0.1) {
-                const angle = Math.atan2(this.input.mv.x, this.input.mv.y);
-                this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, angle, 0.12);
-            }
-
-            // SISTEMA DE CÁMARA INTELIGENTE (NO TAPA LA CARA)
+            // Cámara Spielberg
             this.rig.position.lerp(this.avatar.position, 0.1);
-            this.rig.rotation.y -= this.input.lk.x * 0.05;
+            this.rig.rotation.y -= this.input.lk.x * 0.04;
+            const tCam = this.isZoom ? new THREE.Vector3(0, 0.45, 0.3) : new THREE.Vector3(0, 0.35, 1.5);
+            this.camera.position.lerp(tCam, 0.1);
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.45 : 0.25, 0).add(this.avatar.position));
 
-            // Si es zoom, subimos la cámara para ver los ojos. Si no, alejamos para ver el cuerpo.
-            const tCamZ = this.zoom ? 0.35 : 1.6;
-            const tCamY = this.zoom ? 0.42 : 0.35;
-            this.camera.position.lerp(new THREE.Vector3(0, tCamY, tCamZ), 0.1);
-            
-            const lookHeight = this.zoom ? 0.42 : 0.25;
-            this.camera.lookAt(new THREE.Vector3(0, lookHeight, 0).add(this.avatar.position));
-            
-            if(this.neonLight) {
-                this.neonLight.position.copy(this.avatar.position).add(new THREE.Vector3(0, 0.4, 0.5));
-            }
+            // Cables de teletransporte
+            this.cables.forEach(c => {
+                c.position.z += 0.5;
+                if(c.position.z > 20) c.position.z = -20;
+            });
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-
-window.onload = () => new Luis4KEngine();
+window.onload = () => new MatrixSpielbergEngine();
 </script>
 </body>
 </html>
