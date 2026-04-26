@@ -3,151 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luis 4K - Pro Walking Engine</title>
+    <title>Luis 4K - Walking Force Engine</title>
     <style>
-        :root { --matrix: #00ff41; }
+        :root { --matrix: #00ff41; --glow: #003300; }
         body { margin: 0; overflow: hidden; background: #000; font-family: monospace; }
-        #hud { position: absolute; top: 10px; left: 10px; color: var(--matrix); z-index: 10; font-size: 12px; background: rgba(0,0,0,0.7); padding: 5px; border: 1px solid var(--matrix); }
-        .joy { position: absolute; bottom: 30px; width: 100px; height: 100px; border: 2px solid var(--matrix); border-radius: 50%; z-index: 20; touch-action: none; }
-        #joy-l { left: 20px; } #joy-r { right: 20px; }
-        .stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: var(--matrix); border-radius: 50%; transform: translate(-50%, -50%); }
-        #zoom { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; background: #000; color: var(--matrix); border: 2px solid var(--matrix); font-weight: bold; z-index: 30; }
+        
+        #hud {
+            position: absolute; top: 10px; left: 10px; z-index: 100;
+            color: var(--matrix); font-size: 11px; pointer-events: none;
+            background: rgba(0, 10, 0, 0.8); padding: 10px; border: 1px solid var(--matrix);
+        }
+
+        .joy-frame {
+            position: absolute; bottom: 30px; width: 100px; height: 100px;
+            border: 2px solid var(--matrix); border-radius: 50%;
+            background: rgba(0, 255, 65, 0.05); z-index: 110; touch-action: none;
+        }
+        #joy-move { left: 20px; } 
+        #joy-look { right: 20px; }
+        .knob {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            background: var(--matrix); border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px var(--matrix);
+        }
+
+        #zoom-btn {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--matrix);
+            background: #000; color: var(--matrix); font-weight: bold; z-index: 120;
+            box-shadow: 0 0 10px var(--glow); cursor: pointer;
+        }
+
+        #loader {
+            position: fixed; inset: 0; background: #000; z-index: 1000;
+            display: flex; align-items: center; justify-content: center; color: var(--matrix);
+        }
     </style>
 </head>
 <body>
 
-<div id="hud">CORE: V4_FORCE_ANIM<br>GRID: ENABLED<br>USER: LUIS</div>
-<div id="joy-l" class="joy"><div id="stick-l" class="stick"></div></div>
-<button id="zoom">ZOOM</button>
-<div id="joy-r" class="joy"><div id="stick-r" class="stick"></div></div>
+<div id="loader"><h2>FORZANDO MOTOR DE PASOS 4K...</h2></div>
+<div id="hud">SYSTEM_STATUS: ACTIVE<br>GRID_MODE: ON<br>USER: LUIS</div>
+
+<div id="ui">
+    <div id="joy-move" class="joy-frame"><div id="knob-move" class="knob"></div></div>
+    <button id="zoom-btn">ZOOM</button>
+    <div id="joy-look" class="joy-frame"><div id="knob-look" class="knob"></div></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-class LuisEngine {
+class ForceWalkingEngine {
     constructor() {
-        this.move = { x: 0, y: 0 };
-        this.look = { x: 0, y: 0 };
+        this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
         this.isZoom = false;
         this.init();
-        this.setupWorld();
-        this.loadModels();
-        this.controls();
+        this.lights();
+        this.createMatrixGrid();
+        this.loadAssets();
+        this.setupControls();
         this.animate();
     }
 
     init() {
         this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+        
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(this.renderer.domElement);
+
         this.clock = new THREE.Clock();
-        
-        const light = new THREE.AmbientLight(0xffffff, 2);
-        this.scene.add(light);
         
         this.rig = new THREE.Group();
         this.scene.add(this.rig);
         this.rig.add(this.camera);
     }
 
-    setupWorld() {
-        // Suelo Matrix (Grid)
+    lights() {
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.8)); // Mucha luz para las texturas
+        const d = new THREE.DirectionalLight(0xffffff, 1.0);
+        d.position.set(5, 10, 7);
+        this.scene.add(d);
+    }
+
+    createMatrixGrid() {
+        // Cuadrículo verde estilo Matrix
         const grid = new THREE.GridHelper(200, 100, 0x00ff41, 0x002200);
+        grid.position.y = -0.01;
         this.scene.add(grid);
     }
 
-    loadModels() {
-        const loader = new THREE.GLTFLoader();
+    loadAssets() {
+        const gl = new THREE.GLTFLoader();
+        const dr = new THREE.DRACOLoader();
+        dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        gl.setDRACOLoader(dr);
 
-        // 1. Ciudad Fija
-        loader.load('ciudad_quantum.glb', (g) => {
+        // 1. CARGAR CIUDAD (Estática y a ras de suelo)
+        gl.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            this.city.position.set(0, -0.05, 0); 
+            this.city.position.set(0, 0, 0); // No la movemos nosotros, la dejamos fija
             this.scene.add(this.city);
         });
 
-        // 2. Avatar con Escaneo de Animaciones
-        loader.load('luis-avatar2.glb', (g) => {
+        // 2. CARGAR AVATAR (Con escala humana para la ciudad)
+        gl.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
             this.avatar.scale.setScalar(0.2); // Escala para que no sea gigante
+            this.avatar.position.set(0, 0, 0);
             this.scene.add(this.avatar);
-
-            this.mixer = new THREE.AnimationMixer(this.avatar);
-            this.clips = g.animations;
             
-            // Si hay animaciones, preparamos la de "caminar" (suele ser la última o la [1])
-            if(this.clips.length > 0) {
-                this.idle = this.mixer.clipAction(this.clips[0]);
-                this.walk = this.mixer.clipAction(this.clips.length > 1 ? this.clips[1] : this.clips[0]);
+            this.mixer = new THREE.AnimationMixer(this.avatar);
+            
+            // ESCÁNER DE ANIMACIONES POR ÍNDICE (Fuerza bruta)
+            if(g.animations.length > 0) {
+                this.idle = this.mixer.clipAction(g.animations[0]);
+                // Forzamos que la de "caminar" sea la segunda animación cargada (índice 1)
+                this.walk = this.mixer.clipAction(g.animations[1] || g.animations[0]);
                 this.idle.play();
             }
+            
+            document.getElementById('loader').style.display = 'none';
         });
     }
 
-    controls() {
-        const handleJoy = (id, stickId, type) => {
-            const el = document.getElementById(id), st = document.getElementById(stickId);
-            let active = false;
-            el.addEventListener('touchstart', () => active = true);
-            window.addEventListener('touchmove', (e) => {
-                if(!active) return;
-                const p = e.touches[0], r = el.getBoundingClientRect();
+    setupControls() {
+        const setupJoy = (id, knobId, move) => {
+            const area = document.getElementById(id), knob = document.getElementById(knobId);
+            let ok = false;
+            
+            const handle = (e) => {
+                if(!ok) return;
+                const p = e.touches ? e.touches[0] : e;
+                const r = area.getBoundingClientRect();
                 const x = (p.clientX - (r.left + 50)) / 50, y = (p.clientY - (r.top + 50)) / 50;
-                st.style.transform = `translate(calc(-50% + ${x*30}px), calc(-50% + ${y*30}px))`;
-                this[type] = { x, y };
-            });
-            window.addEventListener('touchend', () => {
-                active = false; st.style.transform = 'translate(-50%, -50%)';
-                this[type] = { x: 0, y: 0 };
-            });
+                const m = Math.min(Math.sqrt(x*x + y*y), 1), a = Math.atan2(y, x);
+                const fx = Math.cos(a) * m, fy = Math.sin(a) * m;
+                knob.style.transform = `translate(calc(-50% + ${fx*30}px), calc(-50% + ${fy*30}px))`;
+                if(move) this.input.m = {x: fx, y: fy}; else this.input.l = {x: fx, y: fy};
+            };
+            area.addEventListener('touchstart', () => ok = true);
+            window.addEventListener('touchmove', handle);
+            window.addEventListener('touchend', () => { ok = false; knob.style.transform = 'translate(-50%, -50%)'; if(move) this.input.m = {x:0, y:0}; else this.input.l = {x:0, y:0}; });
         };
-        handleJoy('joy-l', 'stick-l', 'move');
-        handleJoy('joy-r', 'stick-r', 'look');
-        document.getElementById('zoom').onclick = () => this.isZoom = !this.isZoom;
+        setupJoy('joy-move', 'knob-move', true); setupJoy('joy-look', 'knob-look', false);
+        document.getElementById('zoom-btn').onclick = () => this.isZoom = !this.isZoom;
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
         const dt = this.clock.getDelta();
         if(this.mixer) this.mixer.update(dt);
-
+        
         if(this.avatar) {
-            // Movimiento real del avatar
-            const speed = 0.1;
-            this.avatar.position.x += this.move.x * speed;
-            this.avatar.position.z += this.move.y * speed;
-
-            // Rotación
-            if(Math.abs(this.move.x) > 0.1 || Math.abs(this.move.y) > 0.1) {
-                this.avatar.rotation.y = Math.atan2(this.move.x, this.move.y);
+            // El avatar se mueve por la avenida
+            const s = 0.1;
+            this.avatar.position.x += this.input.m.x * s;
+            this.avatar.position.z += this.input.m.y * s;
+            
+            const moving = Math.abs(this.input.m.x) > 0.05 || Math.abs(this.input.m.y) > 0.05;
+            if(moving) {
+                // Rotar hacia la dirección
+                this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
+                // Forzar la animación de caminar si existe
                 if(this.walk && !this.walk.isRunning()) {
-                    this.idle.stop();
-                    this.walk.play();
+                    this.idle.stop(); this.walk.play();
                 }
             } else {
                 if(this.idle && !this.idle.isRunning()) {
-                    this.walk.stop();
-                    this.idle.play();
+                    this.walk.stop(); this.idle.play();
                 }
             }
 
-            // Cámara sigue al avatar escalado
             this.rig.position.lerp(this.avatar.position, 0.1);
-            this.rig.rotation.y -= this.look.x * 0.05;
-
-            const camPos = this.isZoom ? new THREE.Vector3(0, 0.35, 0.25) : new THREE.Vector3(0, 0.25, 1);
-            this.camera.position.lerp(camPos, 0.1);
-            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.35 : 0.2, 0).add(this.avatar.position));
+            this.rig.rotation.y -= this.input.l.x * 0.05;
+            const tP = this.isZoom ? new THREE.Vector3(0, 0.35, 0.2) : new THREE.Vector3(0, 0.25, 0.8);
+            this.camera.position.lerp(tP, 0.1);
+            const tY = this.isZoom ? 0.35 : 0.2;
+            this.camera.lookAt(new THREE.Vector3(0, tY, 0).add(this.avatar.position));
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new LuisEngine();
+window.onload = () => new ForceWalkingEngine();
 </script>
 </body>
 </html>
