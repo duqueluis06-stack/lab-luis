@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS 4K - CIUDAD QUANTUM FIXED</title>
+    <title>LUIS QUANTUM V9 - FINAL EDICT</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         
+        /* BOTÓN SALIDA */
         #exit-btn {
             position: absolute; top: 20px; right: 20px; z-index: 2000;
             padding: 12px 20px; border: 2px solid #ff0055; color: #ff0055;
@@ -14,38 +15,40 @@
             box-shadow: 0 0 15px #ff0055; border-radius: 5px; pointer-events: auto;
         }
 
-        /* AJUSTE DE SUBTÍTULOS: Más arriba para que no se corten en el móvil */
+        /* BANNER DE TEXTO QUE DESAPARECE */
         #subtitle-bar {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 90%; min-height: 80px;
-            background: rgba(0, 20, 0, 0.9); border: 1px solid #00ff41;
-            z-index: 1500; display: flex; align-items: center; justify-content: center;
-            padding: 15px; box-sizing: border-box; pointer-events: none;
-            border-radius: 10px; box-shadow: 0 0 20px rgba(0,255,65,0.4);
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 85%; min-height: 60px; background: rgba(0, 10, 0, 0.85);
+            border: 1px solid #00ff41; z-index: 1500; display: flex;
+            align-items: center; justify-content: center; padding: 15px;
+            box-sizing: border-box; border-radius: 10px; pointer-events: none;
+            transition: opacity 1s; opacity: 1;
         }
         #text-render {
-            color: #00ff41; font-size: 19px; text-align: center; font-weight: bold;
-            text-shadow: 0 0 8px #00ff41, 2px 2px #000; line-height: 1.2;
+            color: #00ff41; font-size: 18px; text-align: center; font-weight: bold;
+            text-shadow: 0 0 8px #00ff41; line-height: 1.3;
         }
 
+        /* CONTROLES */
         .ui-overlay {
-            position: absolute; bottom: 130px; width: 100%;
+            position: absolute; bottom: 120px; width: 100%;
             display: flex; justify-content: space-between; padding: 0 30px;
             box-sizing: border-box; z-index: 1600; pointer-events: none;
         }
         .joy-base {
             width: 100px; height: 100px; border: 2px solid #00ff41;
-            border-radius: 50%; background: rgba(0,20,0,0.5);
+            border-radius: 50%; background: rgba(0,255,65,0.1);
             position: relative; pointer-events: auto; touch-action: none;
         }
         .stick {
-            width: 40px; height: 40px; background: #00ff41; border-radius: 50%;
+            width: 40px; height: 40px; background: #fff; border-radius: 50%;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #fff;
         }
         #zoom-trigger {
-            width: 70px; height: 70px; border: 2px solid #00f6ff; border-radius: 50%;
+            width: 75px; height: 75px; border: 2px solid #00f6ff; border-radius: 50%;
             background: #000; color: #00f6ff; font-size: 10px; font-weight: bold;
-            cursor: pointer; pointer-events: auto; box-shadow: 0 0 10px #00f6ff;
+            cursor: pointer; pointer-events: auto; box-shadow: 0 0 15px #00f6ff;
         }
     </style>
 </head>
@@ -53,7 +56,7 @@
 
 <audio id="audio-loop" loop><source src="este-loco-mundo-dual.mp3" type="audio/mpeg"></audio>
 
-<a href="index.html" id="exit-btn">SALIR</a>
+<a href="index.html" id="exit-btn">EXIT SYSTEM</a>
 
 <div class="ui-overlay">
     <div id="joy-l" class="joy-base"><div id="stick-l" class="stick"></div></div>
@@ -65,6 +68,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
 const msg = "He entrado al sistema. Metacognición digital activa entre el mundo real, mi yo real y mi avatar. Soy la consciencia en este mundo dual.";
@@ -72,14 +76,18 @@ let idx = 0;
 
 function typeOut() {
     const el = document.getElementById('text-render');
+    const bar = document.getElementById('subtitle-bar');
     if(idx < msg.length) {
         el.innerHTML += msg.charAt(idx);
         idx++;
-        setTimeout(typeOut, 45);
+        setTimeout(typeOut, 40);
+    } else {
+        // DESAPARECER DESPUÉS DE 5 SEGUNDOS
+        setTimeout(() => { bar.style.opacity = "0"; }, 5000);
     }
 }
 
-class FinalSystem {
+class QuantumEngine {
     constructor() {
         this.input = { mv: {x:0, y:0}, lk: {x:0, y:0} };
         this.isZoom = false;
@@ -91,15 +99,15 @@ class FinalSystem {
 
     init() {
         this.scene = new THREE.Scene();
-        // Aumentamos el far clip de la cámara para que la ciudad lejana no desaparezca
         this.camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 5000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(this.renderer.domElement);
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 2.2));
-        this.scene.add(new THREE.GridHelper(600, 100, 0x00ff41, 0x002200));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+        this.scene.add(new THREE.GridHelper(500, 100, 0x00ff41, 0x001100));
 
         this.rig = new THREE.Group();
         this.scene.add(this.rig);
@@ -107,32 +115,33 @@ class FinalSystem {
     }
 
     load() {
-        const gl = new THREE.GLTFLoader();
+        const loader = new THREE.GLTFLoader();
+        // SOPORTE DRACO PARA LA CIUDAD
+        const draco = new THREE.DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        loader.setDRACOLoader(draco);
         
-        // CIUDAD: ciudad_quantum.glb
-        gl.load('ciudad_quantum.glb', (g) => {
+        // CIUDAD
+        loader.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            // La traemos a una distancia visible pero de fondo
-            this.city.position.set(0, -10, -35); 
-            this.city.scale.setScalar(4); // Escalado masivo para que rodee el horizonte
+            this.city.position.set(0, -15, -40); 
+            this.city.scale.setScalar(5); 
             this.scene.add(this.city);
-            console.log("Ciudad cargada: ciudad_quantum");
-        }, undefined, (e) => console.error("Error cargando ciudad:", e));
+        });
 
-        gl.load('luis-avatar2.glb', (g) => {
+        // AVATAR
+        loader.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
             this.avatar.scale.setScalar(0.28);
             this.scene.add(this.avatar);
-            
             this.mixer = new THREE.AnimationMixer(this.avatar);
             if(g.animations.length > 0) this.mixer.clipAction(g.animations[0]).play();
-            
             typeOut();
         });
     }
 
     events() {
-        const joy = (id, sId, type) => {
+        const setup = (id, sId, type) => {
             const el = document.getElementById(id), s = document.getElementById(sId);
             let active = false;
             const h = (e) => {
@@ -145,32 +154,31 @@ class FinalSystem {
                 s.style.transform = `translate(calc(-50% + ${Math.cos(a)*m*30}px), calc(-50% + ${Math.sin(a)*m*30}px))`;
                 this.input[type] = {x: Math.cos(a)*m, y: Math.sin(a)*m};
             };
-            el.addEventListener('touchstart', () => active = true);
+            el.addEventListener('touchstart', (e) => { active = true; h(e); });
             window.addEventListener('touchmove', h);
             window.addEventListener('touchend', () => { active = false; s.style.transform='translate(-50%,-50%)'; this.input[type]={x:0, y:0}; });
         };
-        joy('joy-l', 'stick-l', 'mv'); joy('joy-r', 'stick-r', 'lk');
+        setup('joy-l', 'stick-l', 'mv'); setup('joy-r', 'stick-r', 'lk');
         document.getElementById('zoom-trigger').onclick = () => this.isZoom = !this.isZoom;
     }
 
     render() {
         requestAnimationFrame(() => this.render());
         if(this.mixer) this.mixer.update(0.016);
-        
-        // CIUDAD GIRATORIA LENTA
-        if(this.city) this.city.rotation.y += 0.0015;
+        if(this.city) this.city.rotation.y += 0.001;
 
         if(this.avatar) {
-            this.avatar.position.y = 0.12 + Math.sin(Date.now()*0.0015) * 0.05;
-            this.avatar.position.x += this.input.mv.x * 0.16;
-            this.avatar.position.z += this.input.mv.y * 0.16;
+            // DESPLAZAMIENTO (Multiplicador 0.18 para velocidad Spielberg)
+            this.avatar.position.x += this.input.mv.x * 0.18;
+            this.avatar.position.z += this.input.mv.y * 0.18;
+            this.avatar.position.y = 0.1 + Math.sin(Date.now()*0.002) * 0.04;
 
             if(Math.abs(this.input.mv.x) > 0.05) this.avatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
 
             this.rig.position.lerp(this.avatar.position, 0.1);
-            this.rig.rotation.y -= this.input.lk.x * 0.05;
+            this.rig.rotation.y -= this.input.lk.x * 0.04;
 
-            const tZ = this.isZoom ? 0.38 : 1.4;
+            const tZ = this.isZoom ? 0.4 : 1.35;
             const tY = this.isZoom ? 0.45 : 0.35;
             this.camera.position.lerp(new THREE.Vector3(0, tY, tZ), 0.1);
             this.camera.lookAt(new THREE.Vector3(0, tY, 0).add(this.avatar.position));
@@ -178,7 +186,7 @@ class FinalSystem {
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new FinalSystem();
+window.onload = () => new QuantumEngine();
 </script>
 </body>
 </html>
