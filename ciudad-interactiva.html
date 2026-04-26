@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS PRO - CORRECCIÓN TOTAL</title>
+    <title>LUIS 4K - CIUDAD QUANTUM FIXED</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         
-        /* BOTÓN SALIDA - ESQUINA SUPERIOR SIN MOLESTAR */
         #exit-btn {
             position: absolute; top: 20px; right: 20px; z-index: 2000;
             padding: 12px 20px; border: 2px solid #ff0055; color: #ff0055;
@@ -15,19 +14,20 @@
             box-shadow: 0 0 15px #ff0055; border-radius: 5px; pointer-events: auto;
         }
 
-        /* BANNER DE TEXTO - ESTILO CINE (ABAJO DEL TODO) */
+        /* AJUSTE DE SUBTÍTULOS: Más arriba para que no se corten en el móvil */
         #subtitle-bar {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 120px;
-            background: rgba(0, 5, 0, 0.95); border-top: 2px solid #00ff41;
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; min-height: 80px;
+            background: rgba(0, 20, 0, 0.9); border: 1px solid #00ff41;
             z-index: 1500; display: flex; align-items: center; justify-content: center;
-            padding: 0 20px; box-sizing: border-box; pointer-events: none;
+            padding: 15px; box-sizing: border-box; pointer-events: none;
+            border-radius: 10px; box-shadow: 0 0 20px rgba(0,255,65,0.4);
         }
         #text-render {
-            color: #00ff41; font-size: 20px; text-align: center; font-weight: bold;
-            text-shadow: 0 0 10px #00ff41, 2px 2px #000;
+            color: #00ff41; font-size: 19px; text-align: center; font-weight: bold;
+            text-shadow: 0 0 8px #00ff41, 2px 2px #000; line-height: 1.2;
         }
 
-        /* CONTROLES - POSICIONADOS PARA NO TAPAR NADA */
         .ui-overlay {
             position: absolute; bottom: 130px; width: 100%;
             display: flex; justify-content: space-between; padding: 0 30px;
@@ -43,9 +43,9 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         }
         #zoom-trigger {
-            width: 70px; height: 70px; border: 2px solid #fff; border-radius: 50%;
-            background: #000; color: #fff; font-size: 10px; font-weight: bold;
-            cursor: pointer; pointer-events: auto; margin-top: 15px;
+            width: 70px; height: 70px; border: 2px solid #00f6ff; border-radius: 50%;
+            background: #000; color: #00f6ff; font-size: 10px; font-weight: bold;
+            cursor: pointer; pointer-events: auto; box-shadow: 0 0 10px #00f6ff;
         }
     </style>
 </head>
@@ -75,7 +75,7 @@ function typeOut() {
     if(idx < msg.length) {
         el.innerHTML += msg.charAt(idx);
         idx++;
-        setTimeout(typeOut, 40);
+        setTimeout(typeOut, 45);
     }
 }
 
@@ -91,14 +91,15 @@ class FinalSystem {
 
     init() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 2000);
+        // Aumentamos el far clip de la cámara para que la ciudad lejana no desaparezca
+        this.camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 5000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(this.renderer.domElement);
 
-        this.scene.add(new THREE.AmbientLight(0xffffff, 2));
-        this.scene.add(new THREE.GridHelper(500, 100, 0x00ff41, 0x002200));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 2.2));
+        this.scene.add(new THREE.GridHelper(600, 100, 0x00ff41, 0x002200));
 
         this.rig = new THREE.Group();
         this.scene.add(this.rig);
@@ -108,15 +109,16 @@ class FinalSystem {
     load() {
         const gl = new THREE.GLTFLoader();
         
-        // CIUDAD AL FONDO - LEJOS PARA QUE NO ATRAVIESE
+        // CIUDAD: ciudad_quantum.glb
         gl.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            this.city.position.set(0, 0, -60); // 60 metros atrás
-            this.city.scale.setScalar(2); // La hacemos grande
+            // La traemos a una distancia visible pero de fondo
+            this.city.position.set(0, -10, -35); 
+            this.city.scale.setScalar(4); // Escalado masivo para que rodee el horizonte
             this.scene.add(this.city);
-        });
+            console.log("Ciudad cargada: ciudad_quantum");
+        }, undefined, (e) => console.error("Error cargando ciudad:", e));
 
-        // AVATAR AL CENTRO - BRAZOS ORIGINALES
         gl.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
             this.avatar.scale.setScalar(0.28);
@@ -155,21 +157,21 @@ class FinalSystem {
         requestAnimationFrame(() => this.render());
         if(this.mixer) this.mixer.update(0.016);
         
-        // CIUDAD GIRATORIA
-        if(this.city) this.city.rotation.y += 0.002;
+        // CIUDAD GIRATORIA LENTA
+        if(this.city) this.city.rotation.y += 0.0015;
 
         if(this.avatar) {
-            this.avatar.position.y = 0.12 + Math.sin(Date.now()*0.002) * 0.05;
-            this.avatar.position.x += this.input.mv.x * 0.15;
-            this.avatar.position.z += this.input.mv.y * 0.15;
+            this.avatar.position.y = 0.12 + Math.sin(Date.now()*0.0015) * 0.05;
+            this.avatar.position.x += this.input.mv.x * 0.16;
+            this.avatar.position.z += this.input.mv.y * 0.16;
 
-            if(Math.abs(this.input.mv.x) > 0.1) this.avatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
+            if(Math.abs(this.input.mv.x) > 0.05) this.avatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
 
             this.rig.position.lerp(this.avatar.position, 0.1);
             this.rig.rotation.y -= this.input.lk.x * 0.05;
 
-            const tZ = this.isZoom ? 0.4 : 1.3;
-            const tY = this.isZoom ? 0.45 : 0.3;
+            const tZ = this.isZoom ? 0.38 : 1.4;
+            const tY = this.isZoom ? 0.45 : 0.35;
             this.camera.position.lerp(new THREE.Vector3(0, tY, tZ), 0.1);
             this.camera.lookAt(new THREE.Vector3(0, tY, 0).add(this.avatar.position));
         }
