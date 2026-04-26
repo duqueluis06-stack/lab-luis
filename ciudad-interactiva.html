@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CITY AVATAR SYSTEM</title>
+<title>CITY + AVATAR STABLE</title>
 
 <style>
 *{
@@ -39,12 +39,12 @@ top:10px;
 right:10px;
 z-index:20;
 padding:10px 14px;
-border:1px solid #f00;
-color:#f00;
+border:1px solid red;
+color:red;
 background:rgba(0,0,0,0.5);
 }
 
-/* LEFT MOVEMENT PAD */
+/* LEFT PAD */
 #pad{
 position:fixed;
 bottom:20px;
@@ -52,7 +52,7 @@ left:20px;
 display:grid;
 grid-template-columns:60px 60px 60px;
 grid-template-rows:60px 60px 60px;
-gap:6px;
+gap:5px;
 z-index:50;
 }
 
@@ -61,10 +61,9 @@ background:#000;
 border:2px solid #0ff;
 color:#0ff;
 border-radius:10px;
-font-size:14px;
 }
 
-/* ACTION BAR */
+/* ACTIONS */
 #actions{
 position:fixed;
 bottom:20px;
@@ -79,24 +78,9 @@ z-index:50;
 width:60px;
 height:60px;
 background:#000;
-border:2px solid #f0f;
+border:2px solid #0ff;
 color:#0ff;
 border-radius:10px;
-}
-
-/* AVATAR FOCUS BOX */
-#focus{
-position:fixed;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-width:80px;
-height:80px;
-border:2px solid #0ff;
-border-radius:10px;
-pointer-events:none;
-opacity:0.3;
-z-index:5;
 }
 </style>
 </head>
@@ -104,11 +88,10 @@ z-index:5;
 <body>
 
 <div id="debug">INIT</div>
-<div id="focus"></div>
 
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<!-- MOVIMIENTO -->
+<!-- PAD MOVIMIENTO -->
 <div id="pad">
 <div></div>
 <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
@@ -123,11 +106,10 @@ z-index:5;
 <div></div>
 </div>
 
-<!-- ACCIONES -->
+<!-- ACTIONS -->
 <div id="actions">
 <button onclick="speed=0.03">🚶</button>
 <button onclick="speed=0.08">🏃</button>
-<button onclick="focusAvatar()">🎯</button>
 </div>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -135,19 +117,30 @@ z-index:5;
 
 <script>
 
+/* ================= VARIABLES ================= */
 let scene,camera,renderer;
 let avatar,city;
-let vx=0,vz=0;
+let mixer=null;
+let clock=new THREE.Clock();
+
+let mx=0,mz=0;
 let speed=0.05;
 
+/* ================= INPUT ================= */
+function move(x,z){
+mx=x;
+mz=z;
+}
+
+/* ================= DEBUG ================= */
 function log(t){
 document.getElementById("debug").innerText=t;
 }
 
+/* ================= INIT ================= */
 init();
 animate();
 
-/* ================= INIT ================= */
 function init(){
 
 scene=new THREE.Scene();
@@ -170,7 +163,8 @@ loader.load("ciudad_quantum.glb",(g)=>{
 city=g.scene;
 scene.add(city);
 
-log("CITY OK");
+/* NO tocar demasiado el mundo */
+log("CITY LOADED");
 
 });
 
@@ -180,31 +174,26 @@ loader.load("luis-avatar2.glb",(a)=>{
 avatar=a.scene;
 scene.add(avatar);
 
+/* 🔴 IMPORTANTE: no forzar poses */
 avatar.position.set(0,0,0);
+avatar.scale.set(1,1,1);
 
-log("AVATAR OK");
+/* animación si existe */
+if(a.animations && a.animations.length>0){
+
+mixer=new THREE.AnimationMixer(avatar);
+mixer.clipAction(a.animations[0]).play();
+
+log("ANIMATION PLAYING");
+
+}else{
+
+log("NO ANIMATION FOUND");
+
+}
 
 });
 
-}
-
-/* ================= INPUT ================= */
-function move(x,z){
-vx=x;
-vz=z;
-}
-
-/* ================= FOCUS ================= */
-function focusAvatar(){
-if(!avatar) return;
-
-camera.position.set(
-avatar.position.x,
-avatar.position.y+5,
-avatar.position.z+10
-);
-
-camera.lookAt(avatar.position);
 }
 
 /* ================= LOOP ================= */
@@ -212,21 +201,27 @@ function animate(){
 
 requestAnimationFrame(animate);
 
-/* MOVIMIENTO */
+let dt=clock.getDelta();
+
+/* animaciones */
+if(mixer) mixer.update(dt);
+
+/* movimiento */
 if(avatar){
 
-avatar.position.x += vx*speed;
-avatar.position.z += vz*speed;
+avatar.position.x += mx*speed;
+avatar.position.z += mz*speed;
 
-/* rotación simple */
-if(vx||vz){
-avatar.rotation.y=Math.atan2(vx,vz);
+/* rotación */
+if(mx||mz){
+avatar.rotation.y=Math.atan2(mx,mz);
 }
 
 }
 
-/* cámara seguimiento suave */
+/* cámara seguimiento */
 if(avatar){
+
 camera.position.lerp(
 new THREE.Vector3(
 avatar.position.x,
@@ -235,6 +230,7 @@ avatar.position.z+10
 ),0.05);
 
 camera.lookAt(avatar.position);
+
 }
 
 renderer.render(scene,camera);
