@@ -33,7 +33,7 @@
             background: rgba(0, 10, 0, 0.95);
             border-bottom: 2px solid var(--m-green);
             /* Evita el área del botón Exit (aprox 100px) */
-            width: calc(100% - 100px); 
+            width: calc(100% - 120px); 
             padding: 15px 10px;
             box-shadow: 0 5px 25px rgba(0, 255, 65, 0.5);
             text-align: center; 
@@ -78,7 +78,7 @@
 
     <canvas id="matrix-bg"></canvas>
     
-    <audio id="musica-dual" loop>
+    <audio id="musica-dual" loop preload="auto">
         <source src="este-loco-mundo-dual.mp3" type="audio/mpeg">
     </audio>
 
@@ -123,12 +123,11 @@
                 charIdx++; 
                 setTimeout(type, 45); 
             } else { 
-                // Se desvanece 5 segundos después de terminar
                 setTimeout(()=> { document.getElementById('msg-box').style.opacity="0"; }, 5000); 
             }
         }
 
-        // --- 3. MOTOR 3D (INCEPTION MIRROR) ---
+        // --- 3. MOTOR 3D ---
         class QuantumMirror {
             constructor() {
                 this.input = { mv:{x:0,y:0}, lk:{x:0,y:0} }; this.isZoom = false; this.time = 0;
@@ -169,12 +168,26 @@
             }
             events() {
                 const audio = document.getElementById('musica-dual');
+                
+                // --- ARREGLO PARA CHROME ---
+                // Esta función desbloquea el sonido con el primer toque en la pantalla
+                const unlockAudio = () => {
+                    audio.play().catch(() => {}); 
+                    window.removeEventListener('touchstart', unlockAudio);
+                    window.removeEventListener('mousedown', unlockAudio);
+                };
+                window.addEventListener('touchstart', unlockAudio);
+                window.addEventListener('mousedown', unlockAudio);
+                // ---------------------------
+
                 const setup = (id, kId, type) => {
                     const el = document.getElementById(id), kn = document.getElementById(kId);
                     let active = false;
                     const h = (e) => {
                         if(!active) return; 
-                        audio.play().catch(()=>{}); 
+                        // Intento de play por si acaso
+                        if(audio.paused) audio.play().catch(()=>{}); 
+                        
                         const p = e.touches ? e.touches[0] : e; const r = el.getBoundingClientRect();
                         const x = (p.clientX-(r.left+50))/50, y = (p.clientY-(r.top+50))/50;
                         const m = Math.min(Math.sqrt(x*x+y*y), 1), a = Math.atan2(y,x);
@@ -186,7 +199,10 @@
                     window.addEventListener('touchend', ()=>{ active=false; kn.style.transform='translate(-50%,-50%)'; this.input[type]={x:0,y:0}; });
                 };
                 setup('joy-l','knob-l','mv'); setup('joy-r','knob-r','lk');
-                document.getElementById('zoom-btn').onclick = () => this.isZoom = !this.isZoom;
+                document.getElementById('zoom-btn').onclick = () => {
+                    if(audio.paused) audio.play().catch(()=>{});
+                    this.isZoom = !this.isZoom;
+                };
             }
             render() {
                 requestAnimationFrame(()=>this.render()); this.time += 0.02;
