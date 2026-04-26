@@ -1,145 +1,216 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUIS QUANTUM - REPARADO</title>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: sans-serif; }
-        canvas { display: block; touch-action: none; }
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
-        .btn { 
-            pointer-events: auto; width: 65px; height: 65px; background: rgba(0,255,255,0.3); 
-            border: 2px solid #0ff; color: #fff; border-radius: 15px; 
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
-            user-select: none; -webkit-user-select: none;
-        }
-        .controls { display: grid; grid-template-columns: repeat(3, 70px); gap: 5px; }
-        .actions { display: flex; flex-direction: column; gap: 15px; }
-        .btn-big { width: 90px; height: 50px; background: #f0f; border-color: #fff; border-radius: 10px; font-size: 12px; }
-        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUIS QUANTUM GTA</title>
+
+<style>
+body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
+canvas { display:block; touch-action:none; }
+
+#ui{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    justify-content:space-between;
+    padding:15px;
+    pointer-events:none;
+}
+
+.btn{
+    pointer-events:auto;
+    width:65px; height:65px;
+    background:rgba(0,255,255,0.3);
+    border:2px solid #0ff;
+    color:#fff;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+}
+
+.controls{
+    display:grid;
+    grid-template-columns:repeat(3,70px);
+    gap:5px;
+}
+
+.actions{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.btn-big{
+    width:90px; height:50px;
+    background:#f0f;
+    border:2px solid #fff;
+    border-radius:10px;
+    font-size:12px;
+}
+
+#loading{
+    position:fixed; inset:0;
+    background:#000;
+    color:#0ff;
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+}
+</style>
 </head>
+
 <body>
 
-<div id="loading"><h1>RECONECTANDO MATRIZ...</h1></div>
+<div id="loading">CARGANDO...</div>
 
 <div id="ui">
-    <div style="display:flex; justify-content: space-between;">
-        <a href="index.html" class="btn btn-big" style="background:red; text-decoration:none; display:flex;">SALIR</a>
-        <div id="status" style="color:#0ff;">ESTADO: OK</div>
+    <div style="display:flex; justify-content:space-between;">
+        <a href="index.html" class="btn btn-big" style="background:red;">SALIR</a>
+        <div style="color:#0ff;">ONLINE</div>
     </div>
 
-    <div style="display:flex; justify-content: space-between; align-items: flex-end;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
         <div class="controls">
             <div></div><div class="btn" id="w">↑</div><div></div>
             <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
         </div>
+
         <div class="actions">
-            <div class="btn btn-big" id="run">CORRER</div>
-            <div class="btn btn-big" onclick="resetLuis()">RESCATE</div>
+            <div class="btn btn-big" id="run">RUN</div>
+            <div class="btn btn-big" id="reset">RESET</div>
         </div>
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.128/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.128/examples/jsm/loaders/GLTFLoader.js";
 
-<script>
-    let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
-    let move = { w:false, a:false, s:false, d:false, run:false };
+let scene, camera, renderer;
+let luis, mixer;
+let clock = new THREE.Clock();
 
-    function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
+let move = { w:false, a:false, s:false, d:false, run:false };
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1));
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7);
-        scene.add(light);
+init();
 
-        const loader = new THREE.GLTFLoader();
+function init(){
 
-        // 1. CARGAR CIUDAD
-        loader.load('ciudad_quantum.glb', (gltf) => {
-            scene.add(gltf.scene);
-            
-            // 2. CARGAR LUIS (Solo después de la ciudad)
-            loader.load('luis_avatar.glb', (avatar) => {
-                luis = avatar.scene;
-                luis.scale.set(1, 1, 1); // Escala real
-                scene.add(luis);
-                
-                if(avatar.animations.length) {
-                    mixer = new THREE.AnimationMixer(luis);
-                    mixer.clipAction(avatar.animations[0]).play();
-                }
-                
-                document.getElementById('loading').style.display = 'none';
-                resetLuis();
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+
+    renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    document.body.appendChild(renderer.domElement);
+
+    // luces
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+    const light = new THREE.DirectionalLight(0xffffff,1);
+    light.position.set(5,10,7);
+    scene.add(light);
+
+    // loader con control
+    const manager = new THREE.LoadingManager();
+
+    manager.onLoad = ()=>{
+        document.getElementById("loading").style.display = "none";
+        resetLuis();
+    };
+
+    manager.onError = (url)=>{
+        console.error("Error cargando:", url);
+        document.getElementById("loading").innerHTML = "ERROR";
+    };
+
+    const loader = new GLTFLoader(manager);
+
+    // cargar ciudad
+    loader.load("ciudad_quantum.glb",
+        (gltf)=>{
+            gltf.scene.traverse(obj=>{
+                if(obj.isMesh) obj.receiveShadow = true;
             });
-        });
-
-        setupInput();
-        animate();
-    }
-
-    function setupInput() {
-        const btns = ['w','a','s','d','run'];
-        btns.forEach(id => {
-            const el = document.getElementById(id);
-            // Eventos unificados para iPhone/PC
-            const start = (e) => { e.preventDefault(); move[id] = true; };
-            const end = (e) => { e.preventDefault(); move[id] = false; };
-            
-            el.addEventListener('touchstart', start);
-            el.addEventListener('touchend', end);
-            el.addEventListener('mousedown', start);
-            el.addEventListener('mouseup', end);
-        });
-    }
-
-    function resetLuis() {
-        if(!luis) return;
-        luis.position.set(0, 0, 0);
-        camera.position.set(0, 5, 12);
-    }
-
-    function animate() {
-        requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-        if(mixer) mixer.update(delta);
-
-        if(luis) {
-            const speed = move.run ? 0.4 : 0.15;
-            const rSpeed = 0.05;
-
-            if(move.w) luis.translateZ(speed);
-            if(move.s) luis.translateZ(-speed);
-            if(move.a) luis.rotation.y += rSpeed;
-            if(move.d) luis.rotation.y -= rSpeed;
-
-            // Seguimiento de cámara directo (Tipo GTA)
-            const offset = new THREE.Vector3(0, 6, -12);
-            offset.applyQuaternion(luis.quaternion);
-            camera.position.copy(luis.position).add(offset);
-            camera.lookAt(luis.position.x, luis.position.y + 2, luis.position.z);
+            scene.add(gltf.scene);
         }
-        renderer.render(scene, camera);
-    }
+    );
 
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+    // cargar avatar
+    loader.load("luis_avatar.glb",
+        (gltf)=>{
+            luis = gltf.scene;
+            scene.add(luis);
+
+            if(gltf.animations.length){
+                mixer = new THREE.AnimationMixer(luis);
+                mixer.clipAction(gltf.animations[0]).play();
+            }
+        }
+    );
+
+    setupControls();
+    animate();
+}
+
+function setupControls(){
+    ["w","a","s","d","run"].forEach(id=>{
+        const el = document.getElementById(id);
+
+        const on = e=>{ e.preventDefault(); move[id]=true; };
+        const off = e=>{ e.preventDefault(); move[id]=false; };
+
+        el.addEventListener("touchstart", on);
+        el.addEventListener("touchend", off);
+        el.addEventListener("touchcancel", off);
+
+        el.addEventListener("mousedown", on);
+        el.addEventListener("mouseup", off);
+        el.addEventListener("mouseleave", off);
     });
 
-    init();
+    document.getElementById("reset").onclick = resetLuis;
+}
+
+function resetLuis(){
+    if(!luis) return;
+    luis.position.set(0,0,0);
+    camera.position.set(0,5,12);
+}
+
+function animate(){
+    requestAnimationFrame(animate);
+
+    const delta = clock.getDelta();
+
+    if(mixer) mixer.update(delta);
+
+    if(luis){
+        const speed = (move.run ? 6 : 2.5) * delta;
+        const rot = 2 * delta;
+
+        if(move.w) luis.translateZ(speed);
+        if(move.s) luis.translateZ(-speed);
+        if(move.a) luis.rotation.y += rot;
+        if(move.d) luis.rotation.y -= rot;
+
+        // cámara GTA
+        const target = new THREE.Vector3(0,6,-12);
+        target.applyQuaternion(luis.quaternion);
+        target.add(luis.position);
+
+        camera.position.lerp(target, 0.1);
+        camera.lookAt(luis.position.x, luis.position.y+2, luis.position.z);
+    }
+
+    renderer.render(scene,camera);
+}
+
+addEventListener("resize", ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
 </script>
+
 </body>
 </html>
