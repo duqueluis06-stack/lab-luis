@@ -8,7 +8,7 @@
         :root { --neon: #00f6ff; --magenta: #ff00ff; --matrix: #00ff41; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         
-        /* Mensaje Digital Estilo Hacker */
+        /* Mensaje Digital */
         #manifesto-zone {
             position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
             z-index: 90; width: 80%; max-width: 500px;
@@ -20,7 +20,7 @@
         /* UI HUD */
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
         
-        /* Botón Salir Minimalista */
+        /* Botón Salir */
         #btn-exit {
             position: absolute; top: 25px; right: 25px; pointer-events: auto;
             width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--magenta);
@@ -29,7 +29,7 @@
             box-shadow: 0 0 15px var(--magenta); text-decoration: none; font-weight: bold;
         }
 
-        /* Joysticks Profesionales */
+        /* Joysticks */
         .joy-container {
             position: absolute; bottom: 40px; width: 110px; height: 110px;
             border: 2px double var(--neon); border-radius: 50%;
@@ -41,7 +41,7 @@
         .knob {
             width: 45px; height: 45px; background: var(--neon); border-radius: 50%;
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px var(--neon), inset 0 0 10px white;
+            box-shadow: 0 0 20px var(--neon);
         }
 
         /* Botón ZOOM 4K */
@@ -53,7 +53,7 @@
         }
         #zoom-btn.active { background: #fff; color: #000; scale: 1.1; }
 
-        /* Cargador de Sistema */
+        /* Cargador */
         #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
         .spin { width: 50px; height: 50px; border: 3px solid var(--neon); border-top-color: transparent; border-radius: 50%; animation: s 1s linear infinite; margin-bottom: 20px; }
         @keyframes s { to { transform: rotate(360deg); } }
@@ -64,7 +64,6 @@
 <div id="loader">
     <div class="spin"></div>
     <h2 style="letter-spacing: 3px;">QUANTUM ENGINE 4K</h2>
-    <p id="load-info">Optimizando Texturas de Ciudad...</p>
 </div>
 
 <div id="manifesto-zone"><p id="typing-text"></p></div>
@@ -85,34 +84,25 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-/**
- * MOTOR DE RENDERIZADO CUÁNTICO v5.0 - FINAL BUILD
- */
-class QuantumSystem {
+class QuantumSystemFinal {
     constructor() {
         this.input = { move: {x:0, y:0}, look: {x:0, y:0} };
         this.isZoom = false;
-        this.initCore();
-        this.initLights();
-        this.loadUniverse();
+        this.currentAnimation = 'idle';
+        this.init();
+        this.lights();
+        this.loadModels();
         this.bindInterface();
-        this.runLoop();
+        this.animate();
     }
 
-    initCore() {
+    init() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000003);
-        this.scene.fog = new THREE.FogExp2(0x000003, 0.015); // Niebla para realismo de edificios
-
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 3000);
         
-        // Renderizador de Alta Precisión
-        this.renderer = new THREE.WebGLRenderer({ 
-            antialias: true, 
-            precision: 'highp', 
-            powerPreference: "high-performance",
-            logarithmicDepthBuffer: true 
-        });
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 2000);
+        
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -126,72 +116,72 @@ class QuantumSystem {
         this.camBase.add(this.camera);
     }
 
-    initLights() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+    lights() {
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
         sun.position.set(10, 20, 10);
         this.scene.add(sun);
-        
         this.faceLight = new THREE.PointLight(0xffffff, 0, 5);
         this.scene.add(this.faceLight);
     }
 
-    loadUniverse() {
+    loadModels() {
         const loader = new THREE.GLTFLoader();
         const draco = new THREE.DRACOLoader();
         draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
         loader.setDRACOLoader(draco);
 
-        // 1. CARGA DE CIUDAD (Posicionada en la avenida)
+        // 1. CARGA DE CIUDAD - CORREGIDA ALTURA
         loader.load('ciudad_quantum.glb', (glb) => {
             this.city = glb.scene;
-            // Ajuste crítico para estar en la calle asfáltica
-            this.city.position.set(0, -2.5, -20); 
+            // AJUSTE CRÍTICO: Bajamos la ciudad para que el asfalto esté a nivel del avatar (0,0,0)
+            // Estaba a -10, la bajamos más para que el suelo de la ciudad coincida.
+            this.city.position.set(0, -11.8, -5); 
             this.scene.add(this.city);
             
-            // Reparación de Texturas "Derretidas"
             this.city.traverse(n => {
                 if(n.isMesh) {
                     n.material.side = THREE.DoubleSide;
-                    if(n.material.map) {
-                        n.material.map.anisotropy = 16;
-                        n.material.map.minFilter = THREE.LinearMipmapLinearFilter;
-                    }
+                    if(n.material.map) n.material.map.anisotropy = 16;
                 }
             });
         });
 
-        // 2. CARGA DE AVATAR (Con sistema de animación de piernas)
+        // 2. CARGA DE AVATAR - CON SISTEMA DE ANIMACIÓN
         loader.load('luis-avatar2.glb', (glb) => {
             this.avatar = glb.scene;
             this.avatar.position.set(0, 0, 0); 
             this.scene.add(this.avatar);
             
+            // Sistema de Mezcla de Animaciones
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            this.actions = {};
+            this.animations = glb.animations;
             
-            // Mapear todas las animaciones disponibles
-            glb.animations.forEach(clip => {
-                this.actions[clip.name.toLowerCase()] = this.mixer.clipAction(clip);
-            });
-
-            // Reproducir Idle por defecto
-            const firstAnim = Object.values(this.actions)[0];
-            if(firstAnim) firstAnim.play();
+            if(this.animations.length > 0) {
+                // Buscamos Idle (reposo) y Walk (caminar)
+                this.idleAction = this.mixer.clipAction(this.animations[0]); // Asumimos 0 es Idle
+                if(this.animations[1]) {
+                    this.walkAction = this.mixer.clipAction(this.animations[1]); // Asumimos 1 es Walk
+                } else {
+                    // Si no tiene walk, usamos idle para todo para no fallar
+                    this.walkAction = this.idleAction; 
+                }
+                this.idleAction.play();
+            }
 
             document.getElementById('loader').style.display = 'none';
-            this.typeManifesto();
+            this.startManifesto();
         });
     }
 
-    typeManifesto() {
+    startManifesto() {
         const msg = "Ya estoy adentro. Estoy observando cómo pasa el mundo digital... son las primeras pruebas de una nueva realidad.";
         let i = 0;
         const target = document.getElementById('typing-text');
         const interval = setInterval(() => {
-            target.innerHTML += msg.charAt(i);
-            i++;
-            if(i >= msg.length) {
+            if(i < msg.length) {
+                target.innerHTML += msg.charAt(i); i++;
+            } else {
                 clearInterval(interval);
                 setTimeout(() => { document.getElementById('manifesto-zone').style.opacity = '0'; }, 3000);
             }
@@ -212,10 +202,8 @@ class QuantumSystem {
                 const y = (t.clientY - (rect.top + 55)) / 55;
                 const mag = Math.min(Math.sqrt(x*x + y*y), 1);
                 const angle = Math.atan2(y, x);
-                
                 const fx = Math.cos(angle) * mag;
                 const fy = Math.sin(angle) * mag;
-                
                 knob.style.transform = `translate(calc(-50% + ${fx*40}px), calc(-50% + ${fy*40}px))`;
                 if(isMove) this.input.move = {x: fx, y: fy};
                 else this.input.look = {x: fx, y: fy};
@@ -239,23 +227,39 @@ class QuantumSystem {
         z.addEventListener('touchend', () => { this.isZoom = false; z.classList.remove('active'); });
     }
 
-    runLoop() {
-        requestAnimationFrame(() => this.runLoop());
-        const delta = this.clock.getDelta();
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        const dt = this.clock.getDelta();
         
         if(this.mixer) {
-            this.mixer.update(delta);
-            // Si el joystick se mueve, podrías hacer un crossfade a 'walk' aquí si la animación existe
+            this.mixer.update(dt);
         }
 
         if(this.avatar) {
-            // Movimiento del Avatar en la Calle
-            const speed = 0.07;
+            // Movimiento e Interpolación de Animaciones
+            const speed = 0.08;
             this.avatar.position.x += this.input.move.x * speed;
             this.avatar.position.z += this.input.move.y * speed;
             
-            if(Math.abs(this.input.move.x) > 0.1 || Math.abs(this.input.move.y) > 0.1) {
+            const isMoving = Math.abs(this.input.move.x) > 0.01 || Math.abs(this.input.move.y) > 0.01;
+
+            if(isMoving) {
+                // Rotar hacia donde se mueve
                 this.avatar.rotation.y = Math.atan2(this.input.move.x, this.input.move.y);
+                
+                // Cambiar a animación de caminar si no lo está haciendo
+                if(this.currentAnimation !== 'walk' && this.walkAction) {
+                    this.walkAction.reset().fadeIn(0.3).play();
+                    this.idleAction.fadeOut(0.3);
+                    this.currentAnimation = 'walk';
+                }
+            } else {
+                // Volver a Idle si está parado
+                if(this.currentAnimation !== 'idle' && this.idleAction) {
+                    this.idleAction.reset().fadeIn(0.3).play();
+                    this.walkAction.fadeOut(0.3);
+                    this.currentAnimation = 'idle';
+                }
             }
 
             // Cámara 360 y Zoom
@@ -274,7 +278,7 @@ class QuantumSystem {
     }
 }
 
-window.onload = () => new QuantumSystem();
+window.onload = () => new QuantumSystemFinal();
 </script>
 </body>
 </html>
