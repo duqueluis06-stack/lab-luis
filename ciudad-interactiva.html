@@ -3,55 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUIS QUANTUM - FIXED</title>
+    <title>LUIS QUANTUM - REPARADO</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #000; overflow: hidden; 
-            width: 100vw; height: 100vh;
-            position: fixed; /* Evita rebote en iPhone */
-        }
-        
-        /* El Canvas debe ocupar todo sin mover el resto */
-        canvas { display: block; width: 100% !important; height: 100% !important; }
-
-        #ui { 
-            position: absolute; inset: 0; 
-            pointer-events: none; z-index: 100;
-            display: flex; flex-direction: column; justify-content: space-between;
-            padding: 40px 20px;
-        }
-
+        body { margin: 0; background: #000; overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: sans-serif; }
+        canvas { display: block; touch-action: none; }
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
         .btn { 
-            pointer-events: auto; width: 55px; height: 55px; 
-            background: rgba(0, 255, 255, 0.2); border: 2px solid #0ff; 
-            color: #0ff; border-radius: 50%; display: flex; 
-            align-items: center; justify-content: center; font-weight: bold;
-            -webkit-user-select: none; user-select: none;
+            pointer-events: auto; width: 65px; height: 65px; background: rgba(0,255,255,0.3); 
+            border: 2px solid #0ff; color: #fff; border-radius: 15px; 
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            user-select: none; -webkit-user-select: none;
         }
-
-        .controls { display: grid; grid-template-columns: repeat(3, 60px); gap: 5px; }
-        .actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
-        
-        .btn-action { 
-            width: 80px; height: 40px; border-radius: 8px; font-size: 10px;
-            background: rgba(255, 0, 255, 0.3); border: 1px solid #f0f; color: #fff;
-        }
-
-        #loading { 
-            position: fixed; inset: 0; background: #000; z-index: 2000; 
-            display: flex; align-items: center; justify-content: center; color: #0ff; 
-        }
+        .controls { display: grid; grid-template-columns: repeat(3, 70px); gap: 5px; }
+        .actions { display: flex; flex-direction: column; gap: 15px; }
+        .btn-big { width: 90px; height: 50px; background: #f0f; border-color: #fff; border-radius: 10px; font-size: 12px; }
+        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
     </style>
 </head>
 <body>
 
-<div id="loading"><h2>CARGANDO ASSETS...</h2></div>
+<div id="loading"><h1>RECONECTANDO MATRIZ...</h1></div>
 
 <div id="ui">
-    <div style="display:flex; justify-content: space-between; pointer-events: none;">
-        <div class="btn btn-action" style="background:red; border-color:white;" onclick="window.location.href='index.html'">SALIR</div>
-        <div id="status" style="color:#0ff; font-size:10px;">Buscando...</div>
+    <div style="display:flex; justify-content: space-between;">
+        <a href="index.html" class="btn btn-big" style="background:red; text-decoration:none; display:flex;">SALIR</a>
+        <div id="status" style="color:#0ff;">ESTADO: OK</div>
     </div>
 
     <div style="display:flex; justify-content: space-between; align-items: flex-end;">
@@ -59,11 +35,9 @@
             <div></div><div class="btn" id="w">↑</div><div></div>
             <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
         </div>
-        
         <div class="actions">
-            <div class="btn btn-action" id="run">CORRER</div>
-            <div class="btn btn-action" id="jump">SALTAR</div>
-            <div class="btn btn-action" id="rescue">RESCATE</div>
+            <div class="btn btn-big" id="run">CORRER</div>
+            <div class="btn btn-big" onclick="resetLuis()">RESCATE</div>
         </div>
     </div>
 </div>
@@ -74,33 +48,31 @@
 <script>
     let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
     let move = { w:false, a:false, s:false, d:false, run:false };
-    
+
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205);
-
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
         
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7);
+        scene.add(light);
 
         const loader = new THREE.GLTFLoader();
 
         // 1. CARGAR CIUDAD
         loader.load('ciudad_quantum.glb', (gltf) => {
             scene.add(gltf.scene);
-            document.getElementById('status').innerText = "CIUDAD OK";
             
-            // 2. CARGAR LUIS
+            // 2. CARGAR LUIS (Solo después de la ciudad)
             loader.load('luis_avatar.glb', (avatar) => {
                 luis = avatar.scene;
-                // Si el avatar no se ve, suele ser por la escala. 
-                // Probemos una escala estándar pequeña:
-                luis.scale.set(0.5, 0.5, 0.5); 
+                luis.scale.set(1, 1, 1); // Escala real
                 scene.add(luis);
                 
                 if(avatar.animations.length) {
@@ -118,51 +90,49 @@
     }
 
     function setupInput() {
-        const handle = (id, state) => {
+        const btns = ['w','a','s','d','run'];
+        btns.forEach(id => {
             const el = document.getElementById(id);
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); move[id] = true; });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); move[id] = false; });
-            // PC
-            el.addEventListener('mousedown', () => move[id] = true);
-            el.addEventListener('mouseup', () => move[id] = false);
-        };
-
-        ['w','a','s','d','run'].forEach(id => handle(id));
-        
-        document.getElementById('rescue').onclick = resetLuis;
-        document.getElementById('jump').onclick = () => { if(luis) luis.position.y += 2; };
+            // Eventos unificados para iPhone/PC
+            const start = (e) => { e.preventDefault(); move[id] = true; };
+            const end = (e) => { e.preventDefault(); move[id] = false; };
+            
+            el.addEventListener('touchstart', start);
+            el.addEventListener('touchend', end);
+            el.addEventListener('mousedown', start);
+            el.addEventListener('mouseup', end);
+        });
     }
 
     function resetLuis() {
         if(!luis) return;
         luis.position.set(0, 0, 0);
-        // Colocamos la cámara manualmente cerca para forzar verlo
-        camera.position.set(0, 5, 10);
-        camera.lookAt(luis.position);
+        camera.position.set(0, 5, 12);
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        let delta = clock.getDelta();
+        const delta = clock.getDelta();
         if(mixer) mixer.update(delta);
 
         if(luis) {
-            let speed = move.run ? 0.4 : 0.15;
+            const speed = move.run ? 0.4 : 0.15;
+            const rSpeed = 0.05;
+
             if(move.w) luis.translateZ(speed);
             if(move.s) luis.translateZ(-speed);
-            if(move.a) luis.rotation.y += 0.05;
-            if(move.d) luis.rotation.y -= 0.05;
+            if(move.a) luis.rotation.y += rSpeed;
+            if(move.d) luis.rotation.y -= rSpeed;
 
-            // Cámara pegada a Luis
-            let offset = new THREE.Vector3(0, 4, -8);
+            // Seguimiento de cámara directo (Tipo GTA)
+            const offset = new THREE.Vector3(0, 6, -12);
             offset.applyQuaternion(luis.quaternion);
-            camera.position.lerp(luis.position.clone().add(offset), 0.1);
-            camera.lookAt(luis.position.x, luis.position.y + 1, luis.position.z);
+            camera.position.copy(luis.position).add(offset);
+            camera.lookAt(luis.position.x, luis.position.y + 2, luis.position.z);
         }
         renderer.render(scene, camera);
     }
 
-    // Corregir tamaño al girar el iPhone
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
