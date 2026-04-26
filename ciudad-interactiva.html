@@ -3,42 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ciudad-interactiva</title>
+    <title>LUIS QUANTUM PRO</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; position: fixed; width: 100%; height: 100%; font-family: sans-serif; }
+        body { margin: 0; background: #000; overflow: hidden; position: fixed; width: 100%; height: 100%; }
         canvas { display: block; touch-action: none; }
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; display: flex; flex-direction: column; justify-content: space-between; padding: 25px; }
-        .controls { display: grid; grid-template-columns: repeat(3, 75px); gap: 10px; pointer-events: auto; }
-        .btn { width: 70px; height: 70px; border: 3px solid #0ff; display: flex; align-items: center; justify-content: center; color: #0ff; background: rgba(0,255,255,0.1); border-radius: 15px; font-weight: bold; font-size: 24px; -webkit-user-select: none; user-select: none; }
-        .btn:active { background: rgba(0,255,255,0.5); transform: scale(0.9); }
-        .actions { display: flex; flex-direction: column; gap: 15px; pointer-events: auto; }
-        .btn-action { width: 110px; height: 55px; background: rgba(255,0,255,0.2); border: 2px solid #f0f; color: #fff; border-radius: 12px; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #0ff; }
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 70px); gap: 10px; pointer-events: auto; }
+        .btn { width: 70px; height: 70px; border: 2px solid #0ff; display: flex; align-items: center; justify-content: center; color: #0ff; background: rgba(0,255,255,0.1); border-radius: 15px; font-weight: bold; font-size: 24px; -webkit-user-select: none; }
+        .btn:active { background: rgba(0,255,255,0.5); }
+        .btn-exit { pointer-events: auto; background: red; color: white; padding: 10px; border-radius: 5px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="loading">
-    <div style="width: 50px; height: 50px; border: 5px solid #0ff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-    <h1 id="load-text">CARGANDO RECURSOS...</h1>
-</div>
-
 <div id="ui">
     <div style="display:flex; justify-content: space-between; pointer-events: auto;">
-        <a href="index.html" style="color:white; background:red; padding:12px 24px; text-decoration:none; border-radius:10px; font-weight:bold; border: 2px solid white;">SALIR</a>
-        <div style="color:cyan; border:1px solid cyan; padding:8px; background: rgba(0,0,0,0.5);">POSICIÓN: <span id="pos">0,0</span></div>
+        <a href="index.html" class="btn-exit">SALIR</a>
+        <div id="status" style="color:#0ff; font-family: monospace;">CARGANDO...</div>
     </div>
-
-    <div style="display:flex; justify-content: space-between; align-items: flex-end;">
-        <div class="controls">
-            <div></div><div class="btn" id="w">↑</div><div></div>
-            <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
-        </div>
-        <div class="actions">
-            <div class="btn-action" id="run">CORRER</div>
-            <div class="btn-action" id="jump">SALTAR</div>
-            <div class="btn-action" onclick="location.reload()">REINICIAR</div>
-        </div>
+    <div class="controls">
+        <div></div><div class="btn" id="w">↑</div><div></div>
+        <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
     </div>
 </div>
 
@@ -48,130 +33,93 @@
 <script>
     let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
     let player = new THREE.Group();
-    let move = { w: false, a: false, s: false, d: false, run: false };
-    let velocityY = 0, isJumping = false;
-    let animations = {};
+    let move = { w: false, a: false, s: false, d: false };
 
     init();
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205);
+        scene.background = new THREE.Color(0x050505);
 
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10000);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 5000);
         
-        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding; 
         document.body.appendChild(renderer.domElement);
 
-        // ILUMINACIÓN QUE SÍ FUNCIONA EN IPHONE
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
-        scene.add(hemiLight);
-        
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight.position.set(10, 50, 10);
-        scene.add(dirLight);
+        // ILUMINACIÓN BRUTAL PARA IPHONE
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 2.5);
+        scene.add(light);
 
         scene.add(player);
 
         const loader = new THREE.GLTFLoader();
 
-        // 🌆 CARGAR CIUDAD
+        // CIUDAD
         loader.load('ciudad_quantum.glb', (gltf) => {
             scene.add(gltf.scene);
-        }, (xhr) => {
-            document.getElementById('load-text').innerText = "CIUDAD: " + Math.round(xhr.loaded / xhr.total * 100) + "%";
-        }, (err) => {
-            scene.add(new THREE.GridHelper(1000, 100, 0x00ffff, 0x004444));
+            document.getElementById('status').innerText = "CIUDAD OK";
         });
 
-        // 🧍 CARGAR AVATAR
+        // AVATAR REALISTA
         loader.load('luis_avatar.glb', (gltf) => {
             luis = gltf.scene;
+            luis.rotation.y = Math.PI; // MIRAR DE FRENTE
             
-            // FIX ROTACIÓN: Mirar de frente al iniciar
-            luis.rotation.y = Math.PI; 
-            
+            // Ajuste de tamaño automático
             const box = new THREE.Box3().setFromObject(luis);
             const size = box.getSize(new THREE.Vector3());
             luis.scale.setScalar(1.8 / size.y);
 
             player.add(luis);
             
-            // SISTEMA DE ANIMACIÓN CORREGIDO
-            if(gltf.animations.length > 0) {
+            // --- EL FIX DE LAS ANIMACIONES ---
+            if (gltf.animations && gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(luis);
-                // Reproducimos la primera animación (Caminar/Idle) para quitar la Pose T
+                // Buscamos cualquier animación que NO sea la pose estática
                 const action = mixer.clipAction(gltf.animations[0]);
                 action.play();
+                document.getElementById('status').innerText = "ANIMACIÓN ACTIVA";
+            } else {
+                document.getElementById('status').innerText = "SIN ANIMACIÓN EN GLB";
             }
-            
-            document.getElementById('loading').style.display = 'none';
         });
 
-        setupInput();
+        setupControls();
         animate();
     }
 
-    function setupInput() {
+    function setupControls() {
         const bind = (id) => {
             const el = document.getElementById(id);
-            const start = (e) => { e.preventDefault(); move[id] = true; };
-            const end = (e) => { e.preventDefault(); move[id] = false; };
-            el.addEventListener('touchstart', start, {passive: false});
-            el.addEventListener('touchend', end, {passive: false});
-            el.onpointerdown = start;
-            el.onpointerup = end;
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); move[id] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); move[id] = false; });
         };
-        ['w','a','s','d','run'].forEach(bind);
-
-        document.getElementById('jump').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if(!isJumping) { velocityY = 0.4; isJumping = true; }
-        }, {passive: false});
+        ['w','a','s','d'].forEach(bind);
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        const dt = clock.getDelta();
-        
-        if (mixer) mixer.update(dt);
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
 
         if (luis) {
-            const speed = (move.run ? 16 : 7) * dt;
-            const rotSpeed = 2.8 * dt;
-
-            // MOVIMIENTO
+            const speed = 7 * delta;
             if (move.w) player.translateZ(speed);
             if (move.s) player.translateZ(-speed);
-            if (move.a) player.rotation.y += rotSpeed;
-            if (move.d) player.rotation.y -= rotSpeed;
+            if (move.a) player.rotation.y += 3 * delta;
+            if (move.d) player.rotation.y -= 3 * delta;
 
-            // SALTO
-            if (isJumping) {
-                player.position.y += velocityY;
-                velocityY -= 0.018; 
-                if (player.position.y <= 0) {
-                    player.position.y = 0;
-                    isJumping = false;
-                    velocityY = 0;
-                }
-            }
-
-            // CÁMARA GTA III (Soldada al jugador)
-            const camOffset = new THREE.Vector3(0, 3.5, -7.5);
-            camOffset.applyQuaternion(player.quaternion);
-            camera.position.copy(player.position).add(camOffset);
-            camera.lookAt(player.position.x, player.position.y + 1.8, player.position.z);
-            
-            document.getElementById('pos').innerText = Math.round(player.position.x) + "," + Math.round(player.position.z);
+            // Cámara pegada al hombro
+            const offset = new THREE.Vector3(0, 3, -6);
+            offset.applyQuaternion(player.quaternion);
+            camera.position.copy(player.position).add(offset);
+            camera.lookAt(player.position.x, player.position.y + 1.5, player.position.z);
         }
         renderer.render(scene, camera);
     }
 </script>
-
-<style> @keyframes spin { to { transform: rotate(360deg); } } </style>
 </body>
 </html>
