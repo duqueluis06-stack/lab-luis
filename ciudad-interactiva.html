@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
+<title>SISTEMA QUANTUM - AVATAR HUMANO</title>
 
 <style>
 *{
@@ -11,7 +11,6 @@
     padding:0;
     user-select:none;
     -webkit-user-select:none;
-    -webkit-touch-callout:none;
     touch-action:none;
     box-sizing:border-box;
 }
@@ -36,11 +35,11 @@ body{
 #loader{
     position:fixed;
     inset:0;
-    background:#000;
-    color:#0ff;
     display:flex;
     align-items:center;
     justify-content:center;
+    background:#000;
+    color:#0ff;
     z-index:9999;
 }
 
@@ -55,166 +54,92 @@ body{
     background:transparent;
 }
 
-.left{
-    position:fixed;
-    bottom:20px;
-    left:20px;
-    display:grid;
-    grid-template-columns:60px 60px 60px;
-    grid-template-rows:60px 60px 60px;
-    gap:6px;
-    z-index:999;
-}
-
-.right{
-    position:fixed;
-    bottom:20px;
-    right:20px;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    z-index:999;
-}
-
-button{
-    width:60px;
-    height:60px;
-    border-radius:12px;
-    background:rgba(0,0,0,0.6);
-    border:2px solid #0ff;
-    color:#0ff;
-    font-size:12px;
-}
-
-button:active{
-    background:#0ff;
-    color:#000;
-}
 </style>
 </head>
 
 <body>
 
-<div id="loader">CARGANDO SISTEMA...</div>
+<div id="loader">CARGANDO AVATAR HUMANO...</div>
 <div id="debug">INIT</div>
 
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<div class="left">
-    <div></div>
-    <button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▲</button>
-    <div></div>
-
-    <button ontouchstart="move(-1,0)" ontouchend="move(0,0)">◀</button>
-    <div></div>
-    <button ontouchstart="move(1,0)" ontouchend="move(0,0)">▶</button>
-
-    <div></div>
-    <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▼</button>
-    <div></div>
-</div>
-
-<div class="right">
-    <button onclick="setSpeed(0.05)">🚶</button>
-    <button onclick="setSpeed(0.12)">🏃</button>
-</div>
-
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
 
-let scene,camera,renderer;
-let city,avatar;
-let mixer,cityMixer;
-let clock=new THREE.Clock();
+/* =========================
+   ENGINE
+========================= */
 
-let vx=0, vz=0;
-let speed=0.06;
+let scene, camera, renderer;
+let avatar, mixer;
+let walkAction, idleAction;
+let activeAction;
 
-let controls;
+let clock = new THREE.Clock();
 
-function log(t){
-    document.getElementById("debug").innerText=t;
-}
+let vx = 0, vz = 0;
+let speed = 0.06;
 
-function move(x,z){
-    vx=x;
-    vz=z;
-}
-
-function setSpeed(s){
-    speed=s;
-}
+/* =========================
+   INIT
+========================= */
 
 function init(){
 
-scene=new THREE.Scene();
-scene.background=new THREE.Color(0x000010);
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000010);
 
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
 camera.position.set(0,3,6);
 
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
+renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff,2));
+scene.add(new THREE.AmbientLight(0xffffff, 2));
 
-controls=new THREE.OrbitControls(camera,renderer.domElement);
-controls.enableDamping=true;
+const loader = new THREE.GLTFLoader();
 
-const draco=new THREE.DRACOLoader();
-draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-
-const loader=new THREE.GLTFLoader();
-loader.setDRACOLoader(draco);
-
-log("Cargando ciudad...");
-
+/* =========================
+   🌆 CIUDAD
+========================= */
 loader.load("ciudad_quantum.glb",(gltf)=>{
 
 scene.add(gltf.scene);
 
-if(gltf.animations.length){
-    cityMixer=new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach(c=>cityMixer.clipAction(c).play());
-}
+/* =========================
+   🧍‍♂️ AVATAR MIXAMO
+========================= */
+loader.load("mixamo_character.glb",(av)=>{
 
-log("Ciudad OK → avatar");
+avatar = av.scene;
 
-loader.load("luis_avatar.glb",(av)=>{
-
-avatar=av.scene;
-
-/* 👤 ESCALA SEGURA */
 avatar.scale.set(1,1,1);
 avatar.position.set(0,1,0);
 
 scene.add(avatar);
 
-/* 🎬 MIXER ROBUSTO */
-mixer=new THREE.AnimationMixer(avatar);
+/* =========================
+   🎬 MIXER HUMANO REAL
+========================= */
+mixer = new THREE.AnimationMixer(avatar);
 
-/* 🔥 FALLBACK: no depende de nombres */
-if(av.animations && av.animations.length>0){
+/* ✔ IDLE */
+idleAction = mixer.clipAction(
+    av.animations.find(a => a.name.toLowerCase().includes("idle")) || av.animations[0]
+);
 
-    let action=mixer.clipAction(av.animations[0]);
-    action.play();
+/* ✔ WALK */
+walkAction = mixer.clipAction(
+    av.animations.find(a => a.name.toLowerCase().includes("walk")) || av.animations[0]
+);
 
-    log("ANIM OK");
-}else{
-    log("SIN ANIMACIONES");
-}
-
-/* FIX SKIN */
-avatar.traverse(o=>{
-    if(o.isSkinnedMesh){
-        o.frustumCulled=false;
-    }
-});
+idleAction.play();
+activeAction = idleAction;
 
 document.getElementById("loader").style.display="none";
 
@@ -224,44 +149,89 @@ document.getElementById("loader").style.display="none";
 
 }
 
+/* =========================
+   MOVIMIENTO
+========================= */
+
+function move(x,z){
+    vx = x;
+    vz = z;
+}
+
+/* =========================
+   SWITCH ANIMACIONES
+========================= */
+
+function updateAnimation(){
+
+let moving = (vx !== 0 || vz !== 0);
+
+if(!mixer) return;
+
+if(moving){
+
+    if(activeAction !== walkAction){
+        idleAction.fadeOut(0.2);
+        walkAction.reset().fadeIn(0.2).play();
+        activeAction = walkAction;
+    }
+
+}else{
+
+    if(activeAction !== idleAction){
+        walkAction.fadeOut(0.2);
+        idleAction.reset().fadeIn(0.2).play();
+        activeAction = idleAction;
+    }
+
+}
+
+}
+
+/* =========================
+   LOOP
+========================= */
+
 function animate(){
 
 requestAnimationFrame(animate);
 
-let delta=clock.getDelta();
+let delta = clock.getDelta();
 
-if(mixer)mixer.update(delta);
-if(cityMixer)cityMixer.update(delta);
+if(mixer) mixer.update(delta);
 
 if(avatar){
 
-let moving = (vx!==0 || vz!==0);
+    let moving = (vx !== 0 || vz !== 0);
 
-/* MOVIMIENTO */
-if(moving){
-    avatar.position.x += vx*speed;
-    avatar.position.z += vz*speed;
+    if(moving){
+
+        avatar.position.x += vx * speed;
+        avatar.position.z += vz * speed;
+
+    }
+
+    updateAnimation();
+
+    camera.position.lerp(
+        new THREE.Vector3(
+            avatar.position.x,
+            avatar.position.y + 3,
+            avatar.position.z + 6
+        ),
+        0.08
+    );
+
+    camera.lookAt(avatar.position);
 }
-
-/* CAMARA FOLLOW */
-camera.position.lerp(
-    new THREE.Vector3(
-        avatar.position.x,
-        avatar.position.y+3,
-        avatar.position.z+6
-    ),
-    0.05
-);
-
-camera.lookAt(avatar.position);
-
-}
-
-if(controls)controls.update();
 
 renderer.render(scene,camera);
 
 }
+
+/* =========================
+   START
+========================= */
 
 init();
 animate();
