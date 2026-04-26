@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RESTORED GTA SYSTEM</title>
+<title>CITY STABLE RESTORE</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;user-select:none;touch-action:none;}
@@ -28,7 +28,6 @@ border:1px solid #f55;color:#f55;
 background:rgba(0,0,0,0.4);
 }
 
-/* IZQUIERDA */
 .pad{
 position:fixed;bottom:20px;left:20px;
 display:grid;
@@ -41,29 +40,15 @@ gap:5px;z-index:50;
 background:#000;border:2px solid #0ff;
 color:#0ff;border-radius:10px;
 }
-
-/* DERECHA */
-.actions{
-position:fixed;bottom:20px;right:20px;
-display:flex;flex-direction:column;
-gap:10px;z-index:50;
-}
-
-.actions button{
-width:60px;height:60px;
-background:#000;border:2px solid #0ff;
-color:#0ff;border-radius:10px;
-}
 </style>
 </head>
 
 <body>
 
-<div id="loader">CARGANDO SISTEMA...</div>
+<div id="loader">CARGANDO...</div>
 <div id="debug">INIT</div>
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<!-- MOVIMIENTO -->
 <div class="pad">
 <div></div>
 <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
@@ -78,12 +63,6 @@ color:#0ff;border-radius:10px;
 <div></div>
 </div>
 
-<!-- ACCIONES -->
-<div class="actions">
-<button onclick="speed=0.03">🚶</button>
-<button onclick="speed=0.08">🏃</button>
-</div>
-
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
@@ -91,21 +70,18 @@ color:#0ff;border-radius:10px;
 
 let scene,camera,renderer;
 let avatar,city;
-let clock=new THREE.Clock();
-
 let vx=0,vz=0;
 let speed=0.05;
 
-/* INPUT */
 function move(x,z){
 vx=x;
 vz=z;
 }
 
-/* INIT */
 init();
 animate();
 
+/* ===================== */
 function init(){
 
 scene=new THREE.Scene();
@@ -122,23 +98,11 @@ scene.add(new THREE.AmbientLight(0xffffff,2));
 
 const loader=new THREE.GLTFLoader();
 
-/* 🌆 CIUDAD (FORZADA VISIBILIDAD) */
+/* 🌆 CIUDAD (SIN MODIFICACIONES AGRESIVAS) */
 loader.load("ciudad_quantum.glb",(g)=>{
 
 city=g.scene;
 scene.add(city);
-
-/* CENTRADO + VISIBILIDAD */
-const box=new THREE.Box3().setFromObject(city);
-const center=box.getCenter(new THREE.Vector3());
-city.position.sub(center);
-
-city.traverse(o=>{
-if(o.isMesh){
-o.frustumCulled=false;
-o.visible=true;
-}
-});
 
 camera.position.set(0,5,10);
 camera.lookAt(0,0,0);
@@ -149,16 +113,8 @@ camera.lookAt(0,0,0);
 loader.load("luis-avatar2.glb",(a)=>{
 
 avatar=a.scene;
-avatar.scale.set(1,1,1);
 avatar.position.set(0,0,0);
 scene.add(avatar);
-
-/* 🔥 FIX T-POSE VISUAL */
-avatar.traverse(o=>{
-if(o.isMesh){
-o.frustumCulled=false;
-}
-});
 
 document.getElementById("loader").style.display="none";
 
@@ -166,22 +122,20 @@ document.getElementById("loader").style.display="none";
 
 }
 
-/* LOOP */
+/* ===================== */
 function animate(){
 
 requestAnimationFrame(animate);
 
+/* MOVIMIENTO SIMPLE */
 if(avatar && (vx||vz)){
-
 avatar.position.x += vx*speed;
 avatar.position.z += vz*speed;
-
-avatar.rotation.y=Math.atan2(vx,vz);
-
+avatar.rotation.y = Math.atan2(vx,vz);
 }
 
+/* CÁMARA SIMPLE */
 if(avatar){
-
 camera.position.lerp(
 new THREE.Vector3(
 avatar.position.x,
@@ -190,7 +144,6 @@ avatar.position.z+6
 ),0.08);
 
 camera.lookAt(avatar.position);
-
 }
 
 renderer.render(scene,camera);
