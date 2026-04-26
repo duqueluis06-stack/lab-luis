@@ -3,43 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Engine r128</title>
+    <title>Quantum System High-End</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        #ui { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        .neon-btn { 
-            pointer-events: auto; background: rgba(0,0,0,0.8); border: 2px solid #0ff; 
-            color: #0ff; box-shadow: 0 0 15px #0ff; cursor: pointer; font-weight: bold;
+        :root { --neon: #0ff; --magenta: #f0f; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        
+        /* UI HUD */
+        #hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+        .neon-border {
+            pointer-events: auto; background: rgba(0,0,0,0.7);
+            border: 2px solid var(--neon); color: var(--neon);
+            box-shadow: 0 0 15px var(--neon), inset 0 0 5px var(--neon);
+            text-transform: uppercase; letter-spacing: 2px;
         }
-        #btn-exit { position: absolute; top: 20px; right: 20px; padding: 10px; border-color: #f0f; color: #f0f; }
-        
-        /* Joystick */
-        #joy-con { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; border: 2px dashed #0ff; border-radius: 50%; }
-        #joy-stick { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: #0ff; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px #0ff; }
-        
-        /* Actions */
-        #actions { position: absolute; bottom: 50px; right: 40px; display: flex; gap: 15px; }
-        .btn-act { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        #btn-exit { position: absolute; top: 30px; right: 30px; padding: 12px 25px; border-color: var(--magenta); color: var(--magenta); box-shadow: 0 0 15px var(--magenta); cursor: pointer; }
+
+        /* Joystic Pro */
+        #joy-wrapper { position: absolute; bottom: 50px; left: 50px; width: 160px; height: 160px; border-radius: 50%; background: rgba(0,255,255,0.05); display: flex; align-items: center; justify-content: center; }
+        #joy-base { width: 120px; height: 120px; border: 2px solid var(--neon); border-radius: 50%; position: relative; }
+        #joy-stick { width: 50px; height: 50px; background: var(--neon); border-radius: 50%; position: absolute; top: 35px; left: 35px; box-shadow: 0 0 20px var(--neon); transition: transform 0.1s ease-out; }
+
+        /* Botones de acción */
+        #controls-right { position: absolute; bottom: 60px; right: 50px; display: flex; flex-direction: column; gap: 20px; }
+        .btn-round { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+        .active { background: var(--neon); color: #000; }
 
         /* Loader */
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #0ff; display: flex; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+        #loader-screen { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
+        .bar-container { width: 300px; height: 4px; background: #111; margin-top: 20px; border-radius: 2px; overflow: hidden; }
+        #bar-fill { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width 0.3s; }
     </style>
 </head>
 <body>
 
-<div id="loader">
-    <div>
-        <h1 style="text-shadow: 0 0 10px #0ff;">CONECTANDO A CIUDAD_QUANTUM...</h1>
-        <p id="status">Verificando archivos GLB...</p>
-    </div>
+<div id="loader-screen">
+    <h2 id="load-text">INICIALIZANDO PROTOCOLO QUANTUM...</h2>
+    <div class="bar-container"><div id="bar-fill"></div></div>
+    <p id="debug-log" style="font-size: 10px; margin-top: 10px; color: #555;"></p>
 </div>
 
-<div id="ui">
-    <button id="btn-exit" class="neon-btn" onclick="window.location.href='index.html'">SALIR</button>
-    <div id="joy-con"><div id="joy-stick"></div></div>
-    <div id="actions">
-        <div id="w-btn" class="neon-btn btn-act" style="opacity:0.5">WALK</div>
-        <div id="r-btn" class="neon-btn btn-act">RUN</div>
+<div id="hud">
+    <button id="btn-exit" class="neon-border" onclick="window.location.href='index.html'">ABORT_MISSION</button>
+    
+    <div id="joy-wrapper">
+        <div id="joy-base"><div id="joy-stick"></div></div>
+    </div>
+
+    <div id="controls-right">
+        <div id="btn-walk" class="neon-border btn-round">WALK</div>
+        <div id="btn-run" class="neon-border btn-round active">RUN</div>
     </div>
 </div>
 
@@ -47,115 +60,163 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-    let scene, camera, renderer, clock, mixer, avatar, city;
-    let move = { x: 0, z: 0, active: false, run: true };
-    const status = document.getElementById('status');
-
-    function init() {
-        scene = new THREE.Scene();
-        clock = new THREE.Clock();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        document.body.appendChild(renderer.domElement);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5)); // Luz ambiente extra fuerte
-
-        const loader = new THREE.GLTFLoader();
-
-        // Cargar Ciudad
-        loader.load('ciudad_quantum.glb', (gltf) => {
-            city = gltf.scene;
-            scene.add(city);
-            status.innerText = "Ciudad detectada. Cargando Avatar...";
-            checkReady();
-        }, undefined, (e) => {
-            status.innerHTML = "<span style='color:red'>ERROR: No se encontró ciudad_quantum.glb</span><br>Asegúrate de que el nombre sea exacto.";
-        });
-
-        // Cargar Avatar
-        loader.load('luis-avatar2.glb', (gltf) => {
-            avatar = gltf.scene;
-            scene.add(avatar);
-            mixer = new THREE.AnimationMixer(avatar);
-            if(gltf.animations.length > 0) mixer.clipAction(gltf.animations[0]).play();
-            status.innerText = "Avatar detectado. Iniciando...";
-            checkReady();
-        }, undefined, (e) => {
-            status.innerHTML = "<span style='color:red'>ERROR: No se encontró luis-avatar2.glb</span>";
-        });
-
-        setupControls();
-        animate();
+/**
+ * CLASE ENGINE: Maneja la arquitectura del sistema
+ */
+class QuantumEngine {
+    constructor() {
+        this.initScene();
+        this.initLights();
+        this.loadModels();
+        this.setupEventListeners();
+        this.movement = { x: 0, z: 0, running: true, active: false };
+        this.clock = new THREE.Clock();
+        this.animate();
     }
 
-    function checkReady() {
-        if(city && avatar) {
-            document.getElementById('loader').style.display = 'none';
-        }
+    initScene() {
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x020205);
+        this.scene.fog = new THREE.FogExp2(0x020205, 0.002);
+
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.shadowMap.enabled = true;
+        document.body.appendChild(this.renderer.domElement);
     }
 
-    function setupControls() {
-        const joy = document.getElementById('joy-con');
-        const stick = document.getElementById('joy-stick');
-        
-        const onMove = (e) => {
-            if(!move.active) return;
-            const t = e.touches[0];
-            const r = joy.getBoundingClientRect();
-            const dx = t.clientX - (r.left + 60);
-            const dy = t.clientY - (r.top + 60);
-            const d = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-            const a = Math.atan2(dy, dx);
+    initLights() {
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambient);
 
-            stick.style.left = `calc(50% + ${Math.cos(a)*d}px)`;
-            stick.style.top = `calc(50% + ${Math.sin(a)*d}px)`;
-            
-            move.x = Math.cos(a) * (d/50);
-            move.z = Math.sin(a) * (d/50);
+        const spot = new THREE.SpotLight(0x00ffff, 2);
+        spot.position.set(20, 50, 20);
+        spot.castShadow = true;
+        this.scene.add(spot);
+    }
+
+    log(msg) {
+        document.getElementById('debug-log').innerText = msg;
+        console.log(msg);
+    }
+
+    loadModels() {
+        const manager = new THREE.LoadingManager();
+        manager.onProgress = (url, loaded, total) => {
+            let progress = (loaded / total) * 100;
+            document.getElementById('bar-fill').style.width = progress + '%';
+        };
+        manager.onLoad = () => {
+            setTimeout(() => document.getElementById('loader-screen').style.display = 'none', 500);
         };
 
-        joy.addEventListener('touchstart', (e) => { move.active = true; onMove(e); });
-        window.addEventListener('touchmove', onMove);
+        const loader = new THREE.GLTFLoader(manager);
+
+        // Ciudad
+        loader.load('ciudad_quantum.glb', (glb) => {
+            this.city = glb.scene;
+            this.scene.add(this.city);
+            this.log("Ciudad Quantum Cargada");
+        }, undefined, (e) => this.log("Error Ciudad: " + e.message));
+
+        // Avatar
+        loader.load('luis-avatar2.glb', (glb) => {
+            this.avatar = glb.scene;
+            this.scene.add(this.avatar);
+            this.mixer = new THREE.AnimationMixer(this.avatar);
+            if(glb.animations.length > 0) {
+                this.action = this.mixer.clipAction(glb.animations[0]);
+                this.action.play();
+            }
+            this.log("Avatar Luis Cargado");
+        }, undefined, (e) => this.log("Error Avatar: " + e.message));
+    }
+
+    setupEventListeners() {
+        const stick = document.getElementById('joy-stick');
+        const handleTouch = (e) => {
+            const touch = e.touches[0];
+            const rect = document.getElementById('joy-base').getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
+            const distance = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            const angle = Math.atan2(dy, dx);
+
+            const moveX = Math.cos(angle) * distance;
+            const moveY = Math.sin(angle) * distance;
+
+            stick.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            
+            this.movement.x = Math.cos(angle) * (distance / 50);
+            this.movement.z = Math.sin(angle) * (distance / 50);
+            this.movement.active = true;
+        };
+
+        window.addEventListener('touchstart', (e) => { if(e.target.id === 'joy-stick') this.movement.active = true; });
+        window.addEventListener('touchmove', (e) => { if(this.movement.active) handleTouch(e); });
         window.addEventListener('touchend', () => {
-            move.active = false;
-            stick.style.left = '50%'; stick.style.top = '50%';
-            move.x = 0; move.z = 0;
+            this.movement.active = false;
+            stick.style.transform = `translate(0px, 0px)`;
+            this.movement.x = 0; this.movement.z = 0;
         });
 
-        document.getElementById('w-btn').ontouchstart = () => { move.run = false; updateBtn(); };
-        document.getElementById('r-btn').ontouchstart = () => { move.run = true; updateBtn(); };
+        document.getElementById('btn-walk').onclick = () => {
+            this.movement.running = false;
+            document.getElementById('btn-walk').classList.add('active');
+            document.getElementById('btn-run').classList.remove('active');
+        };
+        document.getElementById('btn-run').onclick = () => {
+            this.movement.running = true;
+            document.getElementById('btn-run').classList.add('active');
+            document.getElementById('btn-walk').classList.remove('active');
+        };
+
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     }
 
-    function updateBtn() {
-        document.getElementById('w-btn').style.opacity = move.run ? "0.5" : "1";
-        document.getElementById('r-btn').style.opacity = move.run ? "1" : "0.5";
-    }
+    update() {
+        const delta = this.clock.getDelta();
+        if (this.mixer) this.mixer.update(delta);
 
-    function animate() {
-        requestAnimationFrame(animate);
-        const dt = clock.getDelta();
-
-        if (avatar && (Math.abs(move.x) > 0.01 || Math.abs(move.z) > 0.01)) {
-            const s = move.run ? 0.3 : 0.1;
-            avatar.position.x += move.x * s;
-            avatar.position.z += move.z * s;
-            avatar.rotation.y = Math.atan2(-move.x, -move.z);
-            if(mixer) mixer.update(dt);
+        if (this.avatar && this.movement.active) {
+            const speed = this.movement.running ? 0.35 : 0.12;
+            this.avatar.position.x += this.movement.x * speed;
+            this.avatar.position.z += this.movement.z * speed;
+            
+            // Rotación suave
+            const targetRotation = Math.atan2(-this.movement.x, -this.movement.z);
+            this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, targetRotation, 0.1);
         }
 
-        if (avatar) {
-            const camPos = new THREE.Vector3(0, 5, 8).applyQuaternion(avatar.quaternion).add(avatar.position);
-            camera.position.lerp(camPos, 0.1);
-            camera.lookAt(avatar.position.x, avatar.position.y + 2, avatar.position.z);
+        if (this.avatar) {
+            // Cámara en tercera persona dinámica
+            const offset = new THREE.Vector3(0, 5, 10).applyQuaternion(this.avatar.quaternion);
+            const targetPos = this.avatar.position.clone().add(offset);
+            this.camera.position.lerp(targetPos, 0.1);
+            this.camera.lookAt(this.avatar.position.x, this.avatar.position.y + 2, this.avatar.position.z);
         }
-
-        renderer.render(scene, camera);
     }
 
-    window.onload = init;
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.update();
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+// Iniciar aplicación
+new QuantumEngine();
 </script>
 </body>
 </html>
