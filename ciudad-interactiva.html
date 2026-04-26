@@ -1,106 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
-
-<style>
-    body { margin:0; overflow:hidden; background:#000; font-family:monospace; }
-
-    #debug{
-        position:absolute;
-        top:10px;
-        left:10px;
-        color:#0f0;
-        background:rgba(0,0,0,0.7);
-        padding:8px;
-        z-index:10;
-        font-size:12px;
-    }
-
-    #loader{
-        position:fixed;
-        inset:0;
-        background:#000;
-        color:#0ff;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        z-index:9999;
-        font-size:16px;
-    }
-
-    /* 🎮 CONTROLES IZQUIERDA (JOYSTICK) */
-    .controls-left{
-        position:fixed;
-        bottom:20px;
-        left:20px;
-        display:grid;
-        grid-template-columns:60px 60px 60px;
-        grid-template-rows:60px 60px 60px;
-        gap:6px;
-        z-index:999;
-    }
-
-    /* 🎮 CONTROLES DERECHA (ACCIONES) */
-    .controls-right{
-        position:fixed;
-        bottom:20px;
-        right:20px;
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-        z-index:999;
-    }
-
-    button{
-        width:60px;
-        height:60px;
-        border-radius:12px;
-        background:rgba(0,0,0,0.6);
-        border:2px solid #0ff;
-        color:#0ff;
-        font-size:12px;
-        box-shadow:0 0 10px #0ff;
-        touch-action:none;
-    }
-
-    button:active{
-        background:#0ff;
-        color:#000;
-    }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SISTEMA QUANTUM PRO | LUIS</title>
+    <style>
+        body { margin:0; overflow:hidden; background:#000; font-family:monospace; }
+        #debug { position:absolute; top:10px; left:10px; color:#0f0; background:rgba(0,0,0,0.7); padding:8px; z-index:10; font-size:12px; border:1px solid #0f0; }
+        #loader { position:fixed; inset:0; background:#000; color:#0ff; display:flex; align-items:center; justify-content:center; z-index:9999; }
+        .controls-left { position:fixed; bottom:20px; left:20px; display:grid; grid-template-columns:repeat(3, 65px); gap:8px; z-index:999; }
+        .controls-right { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:12px; z-index:999; }
+        button { width:65px; height:65px; border-radius:15px; background:rgba(0,255,255,0.1); border:2px solid #0ff; color:#0ff; font-weight:bold; box-shadow:0 0 10px #0ff; touch-action:none; }
+        button:active { background:#0ff; color:#000; }
+    </style>
 </head>
-
 <body>
 
-<div id="loader">CARGANDO SISTEMA QUANTUM...</div>
-<div id="debug">INIT...</div>
+<div id="loader">SINCRONIZANDO ADN...</div>
+<div id="debug">SISTEMA INICIADO</div>
 
-<!-- 🎮 JOYSTICK IZQUIERDO -->
 <div class="controls-left">
+    <div></div><button ontouchstart="move('f',true)" ontouchend="move('f',false)">▲</button><div></div>
+    <button ontouchstart="move('l',true)" ontouchend="move('l',false)">◀</button>
     <div></div>
-    <button ontouchstart="move('forward',true)" ontouchend="move('forward',false)">▲</button>
-    <div></div>
-
-    <button ontouchstart="move('left',true)" ontouchend="move('left',false)">◀</button>
-    <div></div>
-    <button ontouchstart="move('right',true)" ontouchend="move('right',false)">▶</button>
-
-    <div></div>
-    <button ontouchstart="move('back',true)" ontouchend="move('back',false)">▼</button>
-    <div></div>
+    <button ontouchstart="move('r',true)" ontouchend="move('r',false)">▶</button>
+    <div></div><button ontouchstart="move('b',true)" ontouchend="move('b',false)">▼</button><div></div>
 </div>
 
-<!-- 🎮 ACCIONES DERECHA -->
 <div class="controls-right">
-    <button onclick="action('walk')">🚶</button>
     <button onclick="action('run')">🏃</button>
-    <button onclick="action('jump')">🟡</button>
-    <button onclick="action('climb')">🧗</button>
-    <button onclick="action('crouch')">🪑</button>
+    <button onclick="action('walk')">🚶</button>
+    <button onclick="resetView()">🎯</button>
+    <button onclick="location.href='index.html'">🏠</button>
 </div>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -109,127 +40,97 @@
 <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
+let scene, camera, renderer, luis, controls;
+let mixer, cityMixer, clock = new THREE.Clock();
+let keys = {f:0, b:0, l:0, r:0};
+let speed = 0.1;
 
-let scene, camera, renderer, luis;
-let mixer, cityMixer;
-let clock = new THREE.Clock();
-let dir = {x:0, z:0};
-let speed = 0.06;
-let controls;
-
-function log(t){
-    document.getElementById("debug").innerText = t;
-}
+function log(t){ document.getElementById("debug").innerText = "LOG: " + t; }
 
 function init(){
-
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000010);
-
+    scene.background = new THREE.Color(0x020205);
     camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-    camera.position.set(0,3,6);
+    camera.position.set(0, 4, 8);
 
     renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(innerWidth, innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 2));
 
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-
     const draco = new THREE.DRACOLoader();
     draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-
     const loader = new THREE.GLTFLoader();
     loader.setDRACOLoader(draco);
 
-    log("Cargando ciudad...");
-
+    log("Cargando Ciudad...");
     loader.load("ciudad_quantum.glb", (gltf)=>{
-
         scene.add(gltf.scene);
-
         if(gltf.animations.length){
             cityMixer = new THREE.AnimationMixer(gltf.scene);
-            gltf.animations.forEach(c=>cityMixer.clipAction(c).play());
+            gltf.animations.forEach(c => cityMixer.clipAction(c).play());
         }
 
-        log("Ciudad OK → cargando avatar");
-
+        log("Cargando Luis...");
         loader.load("luis_avatar.glb", (av)=>{
-
             luis = av.scene;
-
-            // 👤 FIX VISIBILIDAD
-            luis.scale.set(1.2,1.2,1.2);
-            luis.position.set(0,1,0);
-
+            luis.scale.set(1.5, 1.5, 1.5);
+            luis.position.set(0, 0, 0);
             scene.add(luis);
 
             if(av.animations.length){
                 mixer = new THREE.AnimationMixer(luis);
-                mixer.clipAction(av.animations[0]).play();
+                // REPRODUCIR TODAS PARA RECUPERAR MICRO-MOVIMIENTOS
+                av.animations.forEach(clip => {
+                    let action = mixer.clipAction(clip);
+                    action.play();
+                });
             }
-
             document.getElementById("loader").style.display="none";
             log("SISTEMA ONLINE");
-
         });
-
     });
 
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
 }
 
-function move(type, active){
-    if(type==="forward") dir.z = active ? -1 : 0;
-    if(type==="back") dir.z = active ? 1 : 0;
-    if(type==="left") dir.x = active ? -1 : 0;
-    if(type==="right") dir.x = active ? 1 : 0;
-}
-
-function action(type){
-    log("ACTION: "+type);
-
-    if(type==="run") speed = 0.12;
-    if(type==="walk") speed = 0.05;
-}
+function move(k, v){ keys[k] = v ? 1 : 0; }
+function action(t){ speed = (t === 'run') ? 0.25 : 0.1; log("MODO: " + t); }
+function resetView(){ if(luis) controls.target.copy(luis.position); }
 
 function animate(){
-
     requestAnimationFrame(animate);
-
     let delta = clock.getDelta();
-
     if(mixer) mixer.update(delta);
     if(cityMixer) cityMixer.update(delta);
 
     if(luis){
-        luis.position.x += dir.x * speed;
-        luis.position.z += dir.z * speed;
+        let moveZ = keys.b - keys.f;
+        let moveX = keys.r - keys.l;
+        
+        if(moveZ !== 0 || moveX !== 0){
+            luis.position.z += moveZ * speed;
+            luis.position.x += moveX * speed;
+            // Rotación hacia la dirección del movimiento
+            let angle = Math.atan2(moveX, moveZ);
+            luis.rotation.y = angle;
+        }
 
-        // 🎯 cámara seguimiento suave
-        camera.position.lerp(
-            new THREE.Vector3(
-                luis.position.x,
-                luis.position.y + 3,
-                luis.position.z + 6
-            ),
-            0.05
-        );
-
-        camera.lookAt(luis.position);
+        // Seguimiento de cámara suave
+        let targetPos = new THREE.Vector3(luis.position.x, luis.position.y + 3, luis.position.z + 7);
+        camera.position.lerp(targetPos, 0.05);
+        controls.target.lerp(new THREE.Vector3(luis.position.x, luis.position.y + 1.5, luis.position.z), 0.1);
     }
 
-    if(controls) controls.update();
-
-    renderer.render(scene,camera);
+    controls.update();
+    renderer.render(scene, camera);
 }
 
 init();
 animate();
-
 </script>
-
 </body>
 </html>
