@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUANTUM CITY FINAL FIX</title>
+<title>QUANTUM CITY FINAL</title>
 
 <style>
 body{margin:0;overflow:hidden;background:#000;}
@@ -40,7 +40,7 @@ user-select:none;
 <body>
 
 <div id="ui">
-<div style="color:#0ff;">LUIS ENGINE ✔</div>
+<div style="color:#0ff;">LUIS ENGINE</div>
 
 <div class="controls">
 <div></div><div class="btn" id="w">↑</div><div></div>
@@ -67,36 +67,30 @@ function init(){
 scene=new THREE.Scene();
 scene.background=new THREE.Color(0x000000);
 
-// 🔥 cámara más abierta (evita sensación de lejanía)
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,20000);
+camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,20000);
 
 renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 
-// 🔥 FIX MÓVIL (CIUDAD NEGRA)
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.5;
+renderer.toneMappingExposure=1.6;
 
 document.body.appendChild(renderer.domElement);
 
-// 🔥 LUZ FUERTE GLOBAL
+// 🔥 luz fuerte (evita ciudad negra móvil)
 scene.add(new THREE.AmbientLight(0xffffff,3));
-
 const sun=new THREE.DirectionalLight(0xffffff,5);
 sun.position.set(200,300,200);
 scene.add(sun);
 
-const fill=new THREE.DirectionalLight(0x88ccff,2);
-fill.position.set(-200,150,-200);
-scene.add(fill);
-
+// jugador base
 scene.add(player);
 
 const loader=new THREE.GLTFLoader();
 
-// 🌆 CIUDAD (FIX DEFINITIVO VISIBILIDAD)
+// 🌆 CIUDAD
 loader.load("ciudad_quantum.glb",(gltf)=>{
 
 const city=gltf.scene;
@@ -105,9 +99,9 @@ const box=new THREE.Box3().setFromObject(city);
 const center=box.getCenter(new THREE.Vector3());
 
 city.position.sub(center);
-city.position.y-=box.min.y;
+city.position.y -= box.min.y;
 
-// 🔥 escala segura
+// escala segura
 const size=box.getSize(new THREE.Vector3()).length();
 city.scale.setScalar(size>200?0.01:1);
 
@@ -120,17 +114,17 @@ loader.load("luis_avatar.glb",(gltf)=>{
 
 luis=gltf.scene;
 
+// 🔥 FIX DEFINITIVO ESPALDA
+luis.rotation.set(0,Math.PI,0);
+
 // escala humana
 const box=new THREE.Box3().setFromObject(luis);
 const h=box.getSize(new THREE.Vector3()).y;
 luis.scale.setScalar(1.75/h);
 
-// orientación correcta
-luis.rotation.set(0,0,0);
-
 // suelo
 const box2=new THREE.Box3().setFromObject(luis);
-luis.position.y-=box2.min.y;
+luis.position.y -= box2.min.y;
 
 player.add(luis);
 
@@ -153,6 +147,7 @@ function setup(){
 ["w","a","s","d"].forEach(k=>{
 document.getElementById(k).onpointerdown=()=>keys[k]=true;
 document.getElementById(k).onpointerup=()=>keys[k]=false;
+document.getElementById(k).onpointerleave=()=>keys[k]=false;
 });
 
 }
@@ -163,14 +158,14 @@ if(!luis) return;
 
 let speed=5*dt;
 
-// movimiento real del player
+// movimiento player
 if(keys.w) player.translateZ(speed);
 if(keys.s) player.translateZ(-speed);
 if(keys.a) player.rotation.y+=2*dt;
 if(keys.d) player.rotation.y-=2*dt;
 
-// 🎥 cámara MÁS CERCA (arregla “lejos”)
-const offset=new THREE.Vector3(0,2.5,-4.5);
+// cámara tipo GTA estable
+const offset=new THREE.Vector3(0,2.8,-5);
 offset.applyQuaternion(player.quaternion);
 
 const target=player.position.clone().add(offset);
