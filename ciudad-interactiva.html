@@ -1,228 +1,240 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantum Reality FIX FINAL</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum Reality - Final 4K Avenue</title>
+    <style>
+        :root { --neon: #00f6ff; --magenta: #ff00ff; --matrix: #00ff41; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        
+        /* Mensaje Reubicado: Superior Izquierda para no tapar el Avatar */
+        #manifesto-zone {
+            position: absolute; top: 85px; left: 20px;
+            z-index: 90; width: 70%; max-width: 350px;
+            background: rgba(0, 0, 0, 0.7); border-left: 2px solid var(--matrix);
+            padding: 10px; opacity: 1; transition: opacity 1s; pointer-events: none;
+        }
+        #typing-text { color: var(--matrix); text-shadow: 0 0 5px var(--matrix); font-size: 13px; margin: 0; }
 
-<style>
-body{margin:0;overflow:hidden;background:#000;font-family:monospace}
+        /* UI HUD */
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
+        
+        #btn-exit {
+            position: absolute; top: 20px; right: 20px; pointer-events: auto;
+            width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--magenta);
+            color: var(--magenta); background: rgba(0,0,0,0.8); font-size: 9px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 0 10px var(--magenta); text-decoration: none; font-weight: bold;
+        }
 
-/* MENSAJE ARRIBA (NO MOLESTA) */
-#manifesto-zone{
-position:absolute;
-top:20px;
-left:50%;
-transform:translateX(-50%);
-z-index:50;
-background:rgba(0,0,0,0.6);
-padding:10px;
-border-left:3px solid #00ff41;
-}
-#typing-text{color:#00ff41;font-size:12px}
+        .joy-frame {
+            position: absolute; bottom: 35px; width: 100px; height: 100px;
+            border: 1px solid var(--neon); border-radius: 50%;
+            background: rgba(0,246,255,0.05); pointer-events: auto; touch-action: none;
+        }
+        #joy-l { left: 25px; } 
+        #joy-r { right: 25px; }
+        .knob { width: 40px; height: 40px; background: var(--neon); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px var(--neon); border: 1px solid #fff; }
 
-/* EXIT */
-#btn-exit{
-position:absolute;
-top:20px;
-right:20px;
-z-index:100;
-color:#ff00ff;
-border:2px solid #ff00ff;
-padding:8px;
-background:#000;
-}
+        #zoom-btn {
+            position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%);
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid #fff;
+            background: rgba(0,0,0,0.9); color: #fff; pointer-events: auto; cursor: pointer;
+            font-size: 10px; font-weight: bold; box-shadow: 0 0 15px #fff;
+        }
 
-/* JOYSTICK */
-.joy{
-position:absolute;
-bottom:30px;
-width:100px;height:100px;
-border:2px solid cyan;
-border-radius:50%;
-}
-#joyL{left:30px}
-.knob{
-width:40px;height:40px;
-background:cyan;
-border-radius:50%;
-position:absolute;
-top:50%;left:50%;
-transform:translate(-50%,-50%);
-}
-</style>
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--neon); }
+    </style>
 </head>
-
 <body>
 
+<div id="loader"><h2>SINCRONIZANDO AVENIDA...</h2></div>
 <div id="manifesto-zone"><p id="typing-text"></p></div>
-<a id="btn-exit" href="index.html">EXIT</a>
 
-<div id="joyL" class="joy"><div id="knobL" class="knob"></div></div>
+<div id="ui">
+    <a href="index.html" id="btn-exit">SALIR</a>
+    <div id="joy-l" class="joy-frame"><div id="knob-l" class="knob"></div></div>
+    <button id="zoom-btn">ZOOM<br>DETALLE</button>
+    <div id="joy-r" class="joy-frame"><div id="knob-r" class="knob"></div></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://www.gstatic.com/draco/versioned/decoders/1.4.1/draco_decoder.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
+class MatrixFinalRender {
+    constructor() {
+        this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
+        this.isZoom = false;
+        this.state = 'idle';
+        this.init();
+        this.lights();
+        this.load();
+        this.ui();
+        this.loop();
+    }
 
-let scene,camera,renderer,avatar,city,mixer;
-let input={x:0,y:0};
-let clock=new THREE.Clock();
+    init() {
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000003);
+        
+        // Ajuste de cámara para eliminar el "nublado" inicial (cerca/lejos optimizado)
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 1000);
+        
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        document.body.appendChild(this.renderer.domElement);
+        
+        this.clock = new THREE.Clock();
+        this.camBase = new THREE.Group();
+        this.scene.add(this.camBase);
+        this.camBase.add(this.camera);
+    }
 
-init();
-animate();
+    lights() {
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const d = new THREE.DirectionalLight(0xffffff, 1.5);
+        d.position.set(10, 25, 15);
+        this.scene.add(d);
+        this.fL = new THREE.PointLight(0xffffff, 0, 4);
+        this.scene.add(this.fL);
+    }
 
-/* INIT */
-function init(){
+    load() {
+        const gl = new THREE.GLTFLoader();
+        const dr = new THREE.DRACOLoader();
+        dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        gl.setDRACOLoader(dr);
 
-scene=new THREE.Scene();
+        // CIUDAD - UBICACIÓN EXACTA EN AVENIDA
+        gl.load('ciudad_quantum.glb', (g) => {
+            this.city = g.scene;
+            // Ajuste de altura a nivel de asfalto (-0.05 para evitar enterrar pies)
+            this.city.position.set(0, -0.05, -20); 
+            this.scene.add(this.city);
+            
+            this.city.traverse(n => {
+                if(n.isMesh && n.material.map) n.material.map.anisotropy = 16;
+            });
+        });
 
-camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,2000);
-camera.position.set(0,2,5);
+        // AVATAR - SINCRONIZACIÓN DE PASOS
+        gl.load('luis-avatar2.glb', (g) => {
+            this.avatar = g.scene;
+            this.avatar.position.set(0, 0, 0); // Base cero
+            this.scene.add(this.avatar);
+            
+            this.mixer = new THREE.AnimationMixer(this.avatar);
+            this.anims = {};
+            
+            g.animations.forEach(a => {
+                const n = a.name.toLowerCase();
+                // Sincronizamos: La animación que contenga 'walk' o 'run' será la de pasos
+                if(n.includes('walk') || n.includes('run')) this.anims.walk = this.mixer.clipAction(a);
+                if(n.includes('idle')) this.anims.idle = this.mixer.clipAction(a);
+            });
 
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-document.body.appendChild(renderer.domElement);
+            // Fallback si no hay nombres claros
+            if(!this.anims.idle) this.anims.idle = this.mixer.clipAction(g.animations[0]);
+            if(!this.anims.walk) this.anims.walk = this.mixer.clipAction(g.animations[g.animations.length-1]);
 
-scene.add(new THREE.AmbientLight(0xffffff,1));
+            this.anims.idle.play();
+            document.getElementById('loader').style.display = 'none';
+            this.type();
+        });
+    }
 
-/* DRACO */
-const draco=new THREE.DRACOLoader();
-draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.4.1/");
+    type() {
+        const t = "Sincronizando Neural Link... Ya estoy en la avenida principal. Observando datos en tiempo real.";
+        let i = 0; const el = document.getElementById('typing-text');
+        const it = setInterval(() => {
+            if(i < t.length) { el.innerHTML += t.charAt(i); i++; }
+            else { clearInterval(it); setTimeout(() => { document.getElementById('manifesto-zone').style.opacity = '0'; }, 4000); }
+        }, 40);
+    }
 
-const loader=new THREE.GLTFLoader();
-loader.setDRACOLoader(draco);
+    ui() {
+        const setup = (id, kn, move) => {
+            const a = document.getElementById(id), k = document.getElementById(kn);
+            let ok = false;
+            const h = (e) => {
+                if(!ok) return;
+                const p = e.touches ? e.touches[0] : e;
+                const r = a.getBoundingClientRect();
+                const x = (p.clientX - (r.left + 50)) / 50, y = (p.clientY - (r.top + 50)) / 50;
+                const m = Math.min(Math.sqrt(x*x + y*y), 1), an = Math.atan2(y, x);
+                const fx = Math.cos(an) * m, fy = Math.sin(an) * m;
+                k.style.transform = `translate(calc(-50% + ${fx*40}px), calc(-50% + ${fy*40}px))`;
+                if(move) this.input.m = {x: fx, y: fy}; else this.input.l = {x: fx, y: fy};
+            };
+            a.addEventListener('touchstart', () => ok = true);
+            window.addEventListener('touchmove', h);
+            window.addEventListener('touchend', () => { 
+                ok = false; k.style.transform = 'translate(-50%, -50%)'; 
+                if(move) this.input.m = {x:0, y:0}; else this.input.l = {x:0, y:0}; 
+            });
+        };
+        setup('joy-l', 'knob-l', true); setup('joy-r', 'knob-r', false);
+        const z = document.getElementById('zoom-btn');
+        z.ontouchstart = (e) => { e.preventDefault(); this.isZoom = true; z.classList.add('active'); };
+        z.ontouchend = () => { this.isZoom = false; z.classList.remove('active'); };
+    }
 
-/* CIUDAD */
-loader.load("ciudad_quantum.glb",(g)=>{
-city=g.scene;
-city.position.set(0,-2.2,-10); // suelo calibrado
-scene.add(city);
-});
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        const dt = this.clock.getDelta();
+        if(this.mixer) this.mixer.update(dt);
 
-/* AVATAR */
-loader.load("luis-avatar2.glb",(g)=>{
+        if(this.avatar) {
+            // Lógica de Movimiento y Pasos
+            const speed = 0.075;
+            this.avatar.position.x += this.input.m.x * speed;
+            this.avatar.position.z += this.input.m.y * speed;
+            
+            const moving = Math.abs(this.input.m.x) > 0.1 || Math.abs(this.input.m.y) > 0.1;
+            
+            if(moving) {
+                // Sincronizar dirección y pasos
+                this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
+                if(this.state !== 'walk') {
+                    this.anims.idle.fadeOut(0.2);
+                    this.anims.walk.reset().fadeIn(0.2).play();
+                    this.state = 'walk';
+                }
+                // Ajuste de velocidad de animación según el joystick
+                this.mixer.timeScale = Math.sqrt(this.input.m.x**2 + this.input.m.y**2) * 1.2;
+            } else {
+                if(this.state !== 'idle') {
+                    this.anims.walk.fadeOut(0.2);
+                    this.anims.idle.reset().fadeIn(0.2).play();
+                    this.state = 'idle';
+                    this.mixer.timeScale = 1.0;
+                }
+            }
 
-avatar=g.scene;
-scene.add(avatar);
+            // Cámara e Iluminación Facial
+            this.camBase.position.copy(this.avatar.position);
+            this.camBase.rotation.y -= this.input.l.x * 0.05;
 
-mixer=new THREE.AnimationMixer(avatar);
+            const tP = this.isZoom ? new THREE.Vector3(0, 1.65, 0.7) : new THREE.Vector3(0, 1.1, 4.2);
+            this.camera.position.lerp(tP, 0.1);
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 1.65 : 1, 0).add(this.avatar.position));
+            
+            this.fL.position.copy(this.avatar.position).add(new THREE.Vector3(0, 1.65, 0.5));
+            this.fL.intensity = this.isZoom ? 1.7 : 0;
+        }
 
-/* detectar animaciones */
-let walk, idle;
-
-g.animations.forEach(a=>{
-let n=a.name.toLowerCase();
-if(n.includes("walk")) walk=a;
-if(n.includes("idle")) idle=a;
-});
-
-if(!idle) idle=g.animations[0];
-if(!walk) walk=g.animations[g.animations.length-1];
-
-avatar.userData.idle = mixer.clipAction(idle);
-avatar.userData.walk = mixer.clipAction(walk);
-
-avatar.userData.idle.play();
-
-/* quitar loader */
-document.getElementById("typing-text").innerText="Sistema listo";
-
-});
-
+        this.renderer.render(this.scene, this.camera);
+    }
 }
-
-/* JOYSTICK */
-let joy=document.getElementById("joyL");
-let knob=document.getElementById("knobL");
-let active=false;
-
-joy.addEventListener("touchstart",()=>active=true);
-
-window.addEventListener("touchmove",(e)=>{
-if(!active)return;
-
-let t=e.touches[0];
-let r=joy.getBoundingClientRect();
-
-let x=(t.clientX-(r.left+50))/50;
-let y=(t.clientY-(r.top+50))/50;
-
-let len=Math.min(Math.sqrt(x*x+y*y),1);
-let ang=Math.atan2(y,x);
-
-input.x=Math.cos(ang)*len;
-input.y=Math.sin(ang)*len;
-
-knob.style.transform=`translate(calc(-50% + ${input.x*30}px), calc(-50% + ${input.y*30}px))`;
-});
-
-window.addEventListener("touchend",()=>{
-active=false;
-input={x:0,y:0};
-knob.style.transform="translate(-50%,-50%)";
-});
-
-/* LOOP */
-function animate(){
-requestAnimationFrame(animate);
-
-let dt=clock.getDelta();
-
-if(mixer) mixer.update(dt);
-
-if(avatar){
-
-let speed=2;
-
-/* mover */
-avatar.position.x+=input.x*speed*dt;
-avatar.position.z+=input.y*speed*dt;
-
-/* rotar */
-if(input.x||input.y){
-avatar.rotation.y=Math.atan2(input.x,input.y);
-}
-
-/* animaciones sincronizadas */
-let moving=Math.abs(input.x)>0.1||Math.abs(input.y)>0.1;
-
-if(moving){
-
-if(!avatar.userData.walk.isRunning()){
-avatar.userData.idle.fadeOut(0.2);
-avatar.userData.walk.reset().fadeIn(0.2).play();
-}
-
-/* 🔥 sincronización pasos */
-avatar.userData.walk.timeScale = 1.8 * Math.sqrt(input.x*input.x+input.y*input.y);
-
-}else{
-
-if(!avatar.userData.idle.isRunning()){
-avatar.userData.walk.fadeOut(0.2);
-avatar.userData.idle.reset().fadeIn(0.2).play();
-}
-
-}
-
-/* cámara */
-camera.position.lerp(
-new THREE.Vector3(
-avatar.position.x,
-avatar.position.y+1.6,
-avatar.position.z+4
-),0.1);
-
-camera.lookAt(avatar.position);
-
-}
-
-renderer.render(scene,camera);
-}
-
+window.onload = () => new MatrixFinalRender();
 </script>
-
 </body>
 </html>
