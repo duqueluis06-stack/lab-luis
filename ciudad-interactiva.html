@@ -3,20 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUANTUM ENGINE STABLE</title>
+<title>QUANTUM SAFE ENGINE</title>
 
 <style>
 body{margin:0;overflow:hidden;background:#000;font-family:monospace;}
-#debug{position:absolute;top:10px;left:10px;color:#0f0;z-index:10;background:#0008;padding:5px;}
+#debug{position:absolute;top:10px;left:10px;color:#0f0;z-index:10;background:#0008;padding:6px;}
 #exit{position:fixed;top:10px;right:10px;z-index:9999;padding:10px;border:2px solid red;color:red;background:transparent;}
 #loader{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#0ff;z-index:9999;}
-</style>
 
+button{
+    position:fixed;
+    bottom:20px;
+    left:20px;
+    z-index:9999;
+}
+</style>
 </head>
 <body>
 
-<div id="loader">CARGANDO...</div>
+<div id="loader">CARGANDO SISTEMA...</div>
 <div id="debug">INIT</div>
+
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -26,21 +33,22 @@ body{margin:0;overflow:hidden;background:#000;font-family:monospace;}
 <script>
 
 let scene,camera,renderer;
-let avatar,mixer;
+let avatar=null;   // 👈 IMPORTANTE: puede NO existir
+let mixer=null;
 let clock=new THREE.Clock();
 
 let vx=0,vz=0;
 let speed=0.05;
 
 /* =========================
-   SAFE LOG
+   LOG
 ========================= */
 function log(t){
     document.getElementById("debug").innerText=t;
 }
 
 /* =========================
-   SAFE MOVE
+   MOVE SIMPLE
 ========================= */
 function move(x,z){
     vx=x;
@@ -48,7 +56,7 @@ function move(x,z){
 }
 
 /* =========================
-   INIT SAFE ENGINE
+   INIT SAFE
 ========================= */
 function init(){
 
@@ -71,61 +79,31 @@ const loader=new THREE.GLTFLoader();
 loader.setDRACOLoader(draco);
 
 /* =========================
-   CIUDAD SAFE
+   CIUDAD (OBLIGATORIA)
 ========================= */
-loader.load(
-"ciudad_quantum.glb",
+loader.load("ciudad_quantum.glb",(gltf)=>{
 
-(gltf)=>{
-    scene.add(gltf.scene);
-    log("Ciudad OK");
-
-    loadAvatar(loader);
-},
-
-undefined,
-
-(err)=>{
-    log("ERROR CIUDAD");
-    console.error(err);
-}
-
-);
-
-}
+scene.add(gltf.scene);
+log("CIUDAD OK");
 
 /* =========================
-   AVATAR SAFE LOAD
+   AVATAR (OPCIONAL)
 ========================= */
-function loadAvatar(loader){
-
-loader.load(
-"mixamo_character.glb",
-
-(av)=>{
+loader.load("luis_avatar.glb",(av)=>{
 
 avatar=av.scene;
 avatar.scale.set(1,1,1);
 avatar.position.set(0,1,0);
+
 scene.add(avatar);
 
-/* =========================
-   MIXER SAFE
-========================= */
+mixer=new THREE.AnimationMixer(avatar);
+
 if(av.animations && av.animations.length>0){
-
-    mixer=new THREE.AnimationMixer(avatar);
-
-    let clip=av.animations[0]; // SOLO UNO SEGURO
-
-    let action=mixer.clipAction(clip);
-
-    action.play();
-
-    log("ANIM OK");
-
+    mixer.clipAction(av.animations[0]).play();
+    log("AVATAR OK");
 }else{
-    log("SIN ANIMACIONES");
+    log("AVATAR SIN ANIM");
 }
 
 document.getElementById("loader").style.display="none";
@@ -135,9 +113,20 @@ document.getElementById("loader").style.display="none";
 undefined,
 
 (err)=>{
-    log("ERROR AVATAR");
-    console.error(err);
+    log("AVATAR FALLBACK OK");
+    console.warn(err);
     document.getElementById("loader").style.display="none";
+}
+
+);
+
+},
+
+undefined,
+
+(err)=>{
+    log("ERROR CIUDAD");
+    console.error(err);
 }
 
 );
@@ -155,13 +144,16 @@ let delta=clock.getDelta();
 
 if(mixer) mixer.update(delta);
 
+/* =========================
+   SI NO HAY AVATAR → NO CRASHEA
+========================= */
 if(avatar){
 
-let moving = vx !== 0 || vz !== 0;
+let moving=(vx!==0||vz!==0);
 
 if(moving){
-    avatar.position.x += vx * speed;
-    avatar.position.z += vz * speed;
+    avatar.position.x+=vx*speed;
+    avatar.position.z+=vz*speed;
 }
 
 camera.position.lerp(
