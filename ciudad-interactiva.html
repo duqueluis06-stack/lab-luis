@@ -3,53 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum System High-End</title>
+    <title>Quantum Engine Pro: Collision System</title>
     <style>
         :root { --neon: #0ff; --magenta: #f0f; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        
-        /* UI HUD */
         #hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
         .neon-border {
-            pointer-events: auto; background: rgba(0,0,0,0.7);
+            pointer-events: auto; background: rgba(0,0,0,0.8);
             border: 2px solid var(--neon); color: var(--neon);
             box-shadow: 0 0 15px var(--neon), inset 0 0 5px var(--neon);
-            text-transform: uppercase; letter-spacing: 2px;
+            text-transform: uppercase; letter-spacing: 2px; font-weight: bold;
         }
-
         #btn-exit { position: absolute; top: 30px; right: 30px; padding: 12px 25px; border-color: var(--magenta); color: var(--magenta); box-shadow: 0 0 15px var(--magenta); cursor: pointer; }
-
-        /* Joystic Pro */
         #joy-wrapper { position: absolute; bottom: 50px; left: 50px; width: 160px; height: 160px; border-radius: 50%; background: rgba(0,255,255,0.05); display: flex; align-items: center; justify-content: center; }
         #joy-base { width: 120px; height: 120px; border: 2px solid var(--neon); border-radius: 50%; position: relative; }
-        #joy-stick { width: 50px; height: 50px; background: var(--neon); border-radius: 50%; position: absolute; top: 35px; left: 35px; box-shadow: 0 0 20px var(--neon); transition: transform 0.1s ease-out; }
-
-        /* Botones de acción */
+        #joy-stick { width: 50px; height: 50px; background: var(--neon); border-radius: 50%; position: absolute; top: 35px; left: 35px; box-shadow: 0 0 20px var(--neon); }
         #controls-right { position: absolute; bottom: 60px; right: 50px; display: flex; flex-direction: column; gap: 20px; }
         .btn-round { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
         .active { background: var(--neon); color: #000; }
-
-        /* Loader */
         #loader-screen { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
         .bar-container { width: 300px; height: 4px; background: #111; margin-top: 20px; border-radius: 2px; overflow: hidden; }
-        #bar-fill { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width 0.3s; }
+        #bar-fill { width: 0%; height: 100%; background: var(--neon); transition: width 0.3s; }
     </style>
 </head>
 <body>
 
 <div id="loader-screen">
-    <h2 id="load-text">INICIALIZANDO PROTOCOLO QUANTUM...</h2>
+    <h2>SISTEMA DE COLISIONES ACTIVO</h2>
     <div class="bar-container"><div id="bar-fill"></div></div>
-    <p id="debug-log" style="font-size: 10px; margin-top: 10px; color: #555;"></p>
+    <p id="debug-log" style="font-size: 10px; margin-top: 10px;"></p>
 </div>
 
 <div id="hud">
-    <button id="btn-exit" class="neon-border" onclick="window.location.href='index.html'">ABORT_MISSION</button>
-    
-    <div id="joy-wrapper">
-        <div id="joy-base"><div id="joy-stick"></div></div>
-    </div>
-
+    <button id="btn-exit" class="neon-border" onclick="window.location.href='index.html'">SALIR</button>
+    <div id="joy-wrapper"><div id="joy-base"><div id="joy-stick"></div></div></div>
     <div id="controls-right">
         <div id="btn-walk" class="neon-border btn-round">WALK</div>
         <div id="btn-run" class="neon-border btn-round active">RUN</div>
@@ -60,13 +47,11 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-/**
- * CLASE ENGINE: Maneja la arquitectura del sistema
- */
 class QuantumEngine {
     constructor() {
         this.initScene();
         this.initLights();
+        this.initCollisionSystem();
         this.loadModels();
         this.setupEventListeners();
         this.movement = { x: 0, z: 0, running: true, active: false };
@@ -77,112 +62,67 @@ class QuantumEngine {
     initScene() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x020205);
-        this.scene.fog = new THREE.FogExp2(0x020205, 0.002);
-
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-        
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.shadowMap.enabled = true;
         document.body.appendChild(this.renderer.domElement);
     }
 
     initLights() {
-        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambient);
-
-        const spot = new THREE.SpotLight(0x00ffff, 2);
-        spot.position.set(20, 50, 20);
-        spot.castShadow = true;
-        this.scene.add(spot);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0x00ffff, 1);
+        sun.position.set(50, 100, 50);
+        this.scene.add(sun);
     }
 
-    log(msg) {
-        document.getElementById('debug-log').innerText = msg;
-        console.log(msg);
+    initCollisionSystem() {
+        this.raycaster = new THREE.Raycaster();
+        this.collidableObjects = []; // Aquí guardaremos los edificios
     }
 
     loadModels() {
         const manager = new THREE.LoadingManager();
-        manager.onProgress = (url, loaded, total) => {
-            let progress = (loaded / total) * 100;
-            document.getElementById('bar-fill').style.width = progress + '%';
-        };
-        manager.onLoad = () => {
-            setTimeout(() => document.getElementById('loader-screen').style.display = 'none', 500);
-        };
+        manager.onLoad = () => document.getElementById('loader-screen').style.display = 'none';
+        manager.onProgress = (u, l, t) => document.getElementById('bar-fill').style.width = (l/t)*100 + '%';
 
         const loader = new THREE.GLTFLoader(manager);
 
-        // Ciudad
         loader.load('ciudad_quantum.glb', (glb) => {
             this.city = glb.scene;
             this.scene.add(this.city);
-            this.log("Ciudad Quantum Cargada");
-        }, undefined, (e) => this.log("Error Ciudad: " + e.message));
+            // Registramos todos los meshes de la ciudad para colisiones
+            this.city.traverse((child) => {
+                if (child.isMesh) this.collidableObjects.push(child);
+            });
+        });
 
-        // Avatar
         loader.load('luis-avatar2.glb', (glb) => {
             this.avatar = glb.scene;
             this.scene.add(this.avatar);
             this.mixer = new THREE.AnimationMixer(this.avatar);
-            if(glb.animations.length > 0) {
-                this.action = this.mixer.clipAction(glb.animations[0]);
-                this.action.play();
-            }
-            this.log("Avatar Luis Cargado");
-        }, undefined, (e) => this.log("Error Avatar: " + e.message));
+            if(glb.animations.length > 0) this.mixer.clipAction(glb.animations[0]).play();
+        });
     }
 
-    setupEventListeners() {
-        const stick = document.getElementById('joy-stick');
-        const handleTouch = (e) => {
-            const touch = e.touches[0];
-            const rect = document.getElementById('joy-base').getBoundingClientRect();
-            const centerX = rect.left + rect.width/2;
-            const centerY = rect.top + rect.height/2;
-            
-            const dx = touch.clientX - centerX;
-            const dy = touch.clientY - centerY;
-            const distance = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-            const angle = Math.atan2(dy, dx);
+    checkCollision(nextPos) {
+        if (!this.avatar || this.collidableObjects.length === 0) return false;
 
-            const moveX = Math.cos(angle) * distance;
-            const moveY = Math.sin(angle) * distance;
+        // Dirección del movimiento
+        const moveVec = new THREE.Vector3(this.movement.x, 0, this.movement.z).normalize();
+        
+        // Lanzamos un rayo desde la posición actual del avatar en la dirección deseada
+        // El origen es un poco elevado (0.5m) para no chocar con el suelo
+        const rayOrigin = this.avatar.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+        this.raycaster.set(rayOrigin, moveVec);
 
-            stick.style.transform = `translate(${moveX}px, ${moveY}px)`;
-            
-            this.movement.x = Math.cos(angle) * (distance / 50);
-            this.movement.z = Math.sin(angle) * (distance / 50);
-            this.movement.active = true;
-        };
+        const intersections = this.raycaster.intersectObjects(this.collidableObjects);
 
-        window.addEventListener('touchstart', (e) => { if(e.target.id === 'joy-stick') this.movement.active = true; });
-        window.addEventListener('touchmove', (e) => { if(this.movement.active) handleTouch(e); });
-        window.addEventListener('touchend', () => {
-            this.movement.active = false;
-            stick.style.transform = `translate(0px, 0px)`;
-            this.movement.x = 0; this.movement.z = 0;
-        });
-
-        document.getElementById('btn-walk').onclick = () => {
-            this.movement.running = false;
-            document.getElementById('btn-walk').classList.add('active');
-            document.getElementById('btn-run').classList.remove('active');
-        };
-        document.getElementById('btn-run').onclick = () => {
-            this.movement.running = true;
-            document.getElementById('btn-run').classList.add('active');
-            document.getElementById('btn-walk').classList.remove('active');
-        };
-
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        if (intersections.length > 0) {
+            // Si hay un objeto a menos de 0.8 metros, bloqueamos
+            if (intersections[0].distance < 0.8) return true;
+        }
+        return false;
     }
 
     update() {
@@ -190,22 +130,48 @@ class QuantumEngine {
         if (this.mixer) this.mixer.update(delta);
 
         if (this.avatar && this.movement.active) {
-            const speed = this.movement.running ? 0.35 : 0.12;
-            this.avatar.position.x += this.movement.x * speed;
-            this.avatar.position.z += this.movement.z * speed;
+            const speed = (this.movement.running ? 0.3 : 0.12) * (delta * 60);
             
-            // Rotación suave
+            // Calculamos la rotación target
             const targetRotation = Math.atan2(-this.movement.x, -this.movement.z);
-            this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, targetRotation, 0.1);
+            this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, targetRotation, 0.15);
+
+            // DETECCIÓN DE COLISIÓN ANTES DE MOVER
+            if (!this.checkCollision()) {
+                this.avatar.position.x += this.movement.x * speed;
+                this.avatar.position.z += this.movement.z * speed;
+            }
         }
 
         if (this.avatar) {
-            // Cámara en tercera persona dinámica
-            const offset = new THREE.Vector3(0, 5, 10).applyQuaternion(this.avatar.quaternion);
-            const targetPos = this.avatar.position.clone().add(offset);
-            this.camera.position.lerp(targetPos, 0.1);
-            this.camera.lookAt(this.avatar.position.x, this.avatar.position.y + 2, this.avatar.position.z);
+            const offset = new THREE.Vector3(0, 4, 7).applyQuaternion(this.avatar.quaternion);
+            this.camera.position.lerp(this.avatar.position.clone().add(offset), 0.1);
+            this.camera.lookAt(this.avatar.position.x, this.avatar.position.y + 1.5, this.avatar.position.z);
         }
+    }
+
+    setupEventListeners() {
+        const stick = document.getElementById('joy-stick');
+        const handleJoy = (e) => {
+            const t = e.touches[0];
+            const r = document.getElementById('joy-base').getBoundingClientRect();
+            const dx = t.clientX - (r.left + 60);
+            const dy = t.clientY - (r.top + 60);
+            const d = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            const a = Math.atan2(dy, dx);
+            stick.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+            this.movement.x = Math.cos(a);
+            this.movement.z = Math.sin(a);
+            this.movement.active = true;
+        };
+        window.addEventListener('touchstart', (e) => { if(e.target.id === 'joy-stick') this.movement.active = true; });
+        window.addEventListener('touchmove', (e) => { if(this.movement.active) handleJoy(e); });
+        window.addEventListener('touchend', () => {
+            this.movement.active = false;
+            stick.style.transform = `translate(0,0)`;
+        });
+        document.getElementById('btn-walk').onclick = () => { this.movement.running = false; document.getElementById('btn-walk').classList.add('active'); document.getElementById('btn-run').classList.remove('active'); };
+        document.getElementById('btn-run').onclick = () => { this.movement.running = true; document.getElementById('btn-run').classList.add('active'); document.getElementById('btn-walk').classList.remove('active'); };
     }
 
     animate() {
@@ -215,7 +181,6 @@ class QuantumEngine {
     }
 }
 
-// Iniciar aplicación
 new QuantumEngine();
 </script>
 </body>
