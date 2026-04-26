@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Avatar Showcase</title>
+    <title>Quantum Avatar Showcase Pro</title>
     <style>
-        :root { --neon-cyan: #00f6ff; --neon-magenta: #ff00ff; --bg-dark: #020205; }
+        :root { --neon-cyan: #00f6ff; --neon-magenta: #ff00ff; --bg-dark: #010103; }
         body { margin: 0; overflow: hidden; background: var(--bg-dark); font-family: 'Segoe UI', Roboto, sans-serif; color: white; }
         canvas { display: block; }
 
@@ -69,7 +69,7 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <div style="text-transform: uppercase; letter-spacing: 3px; font-weight: bold;">Cargando Rostro IA</div>
+    <div style="text-transform: uppercase; letter-spacing: 3px; font-weight: bold;">Renderizando Quantum System</div>
     <div id="load-status" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">Inicializando...</div>
 </div>
 
@@ -94,18 +94,23 @@
 
 <script>
 /**
- * QUANTUM AVATAR SHOWCASE ENGINE
+ * QUANTUM AVATAR SHOWCASE ENGINE PRO
  */
 class AvatarShowcase {
     constructor() {
         this.clock = new THREE.Clock();
+        
+        // --- CONFIGURACIÓN DE CÁMARA (Cuerpo Completo -> Rostro) ---
+        // Asumimos que la cara del avatar está aprox. a y=1.65m y los pies a y=0m
         this.config = {
             cameraData: {
-                default: { pos: new THREE.Vector3(0, 1.65, 0.8), look: new THREE.Vector3(0, 1.60, 0) }, // Primer plano pecho/cara
-                zoom: { pos: new THREE.Vector3(0, 1.66, 0.4), look: new THREE.Vector3(0, 1.66, 0) }      // Primerísimo primer plano cara
+                // Default: Cuerpo completo (Más lejos, punto de mira céntrico)
+                default: { pos: new THREE.Vector3(0, 1.0, 3.5), look: new THREE.Vector3(0, 0.9, 0) }, 
+                // Zoom: Solo rostro (Cerca, punto de mira alto)
+                zoom: { pos: new THREE.Vector3(0, 1.66, 0.6), look: new THREE.Vector3(0, 1.66, 0) }      
             },
             lerpSpeed: 0.08,
-            rotationSpeed: 0.05
+            rotationSpeed: 0.04
         };
         
         this.state = {
@@ -126,40 +131,50 @@ class AvatarShowcase {
     initGraphics() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x010103);
-        // Niebla para desenfocar la ciudad de fondo y dar profundidad
-        this.scene.fog = new THREE.FogExp2(0x010103, 0.15);
+        
+        // Niebla reducida drásticamente para que la ciudad de fondo sea visible
+        // FogExp2(color, densidad). 0.02 es muy baja, permitiendo ver el fondo.
+        this.scene.fog = new THREE.FogExp2(0x010103, 0.02);
 
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 1000);
-        // Posición inicial de seguridad
-        this.camera.position.set(0, 1.65, 2); 
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 2000);
+        // Iniciamos en la posición de cuerpo completo
+        this.camera.position.copy(this.config.cameraData.default.pos);
         
         this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.outputEncoding = THREE.sRGBEncoding; // Vital para texturas fotorrealistas
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Mejora el contraste de la piel
-        this.renderer.toneMappingExposure = 1.2;
+        
+        // --- MOTOR FOTORREALISTA ---
+        this.renderer.outputEncoding = THREE.sRGBEncoding; // Vital para texturas IA
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Contraste cinematográfico para la piel
+        this.renderer.toneMappingExposure = 1.3; // Exposición ligeramente subida para ver detalles
+        
         document.body.appendChild(this.renderer.domElement);
     }
 
     initLights() {
-        // Luz ambiental suave para rellenar sombras
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+        // 1. Luz ambiental global fuerte para asegurar que todo sea visible (incluida la ciudad)
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-        // Luz de estudio principal (Key Light) - Apunta a la cara
-        this.mainLight = new THREE.DirectionalLight(0xfff0dd, 1.5); // Tono cálido para la piel
-        this.mainLight.position.set(1, 2, 2);
+        // 2. Luz de estudio principal (Key Light) - Apunta a la cara/cuerpo
+        this.mainLight = new THREE.DirectionalLight(0xfff0dd, 1.2); // Tono cálido
+        this.mainLight.position.set(1, 2, 3);
         this.scene.add(this.mainLight);
 
-        // Luz de contra (Rim Light) - Separa el avatar del fondo
-        const rimLight = new THREE.SpotLight(0x00f6ff, 1.2, 10, 0.5);
-        rimLight.position.set(-2, 3, -2);
+        // 3. Luz de contra (Rim Light) Cyan - Separa el avatar del fondo y resalta contornos
+        const rimLight = new THREE.SpotLight(0x00f6ff, 1.5, 15, 0.4);
+        rimLight.position.set(-3, 4, -2);
         this.scene.add(rimLight);
 
-        // Luz específica para el Zoom (se activa/desactiva)
-        this.zoomLight = new THREE.PointLight(0xffffff, 0, 2);
-        this.zoomLight.position.set(0, 1.7, 0.5);
+        // 4. Luz de relleno facial para el Zoom (se activa al presionar el botón)
+        this.zoomLight = new THREE.PointLight(0xffffff, 0, 3);
+        this.zoomLight.position.set(0, 1.7, 1.0);
         this.scene.add(this.zoomLight);
+
+        // 5. Luz específica para iluminar la ciudad de fondo
+        const cityLight = new THREE.DirectionalLight(0x4444ff, 0.5); // Tono azulado nocturno
+        cityLight.position.set(-10, 5, -10); // Desde atrás/izquierda
+        this.scene.add(cityLight);
     }
 
     loadModels() {
@@ -167,40 +182,55 @@ class AvatarShowcase {
         const status = document.getElementById('load-status');
 
         manager.onProgress = (url, loaded, total) => {
-            status.innerText = `Cargando: ${Math.round((loaded/total)*100)}%`;
+            status.innerText = `Cargando Activos GLB: ${Math.round((loaded/total)*100)}%`;
         };
 
         manager.onLoad = () => {
             this.state.loaded = true;
             document.getElementById('loader').style.display = 'none';
-            // Ajuste fino tras cargar: asegurar que la cámara mire al rostro
+            // Enfocar inicialmente al cuerpo completo
             this.camera.lookAt(this.config.cameraData.default.look);
         };
 
         const loader = new THREE.GLTFLoader(manager);
 
-        // 1. Cargar Ciudad (Detrás, origen 0,0,0)
+        // 1. Cargar Ciudad de Fondo (ciudad_quantum.glb)
         loader.load('ciudad_quantum.glb', (gltf) => {
             this.city = gltf.scene;
-            // Escalamos la ciudad si es necesario para que se vea detrás
-            this.city.scale.set(10, 10, 10); 
-            this.city.position.set(0, -2, -5); // La bajamos y alejamos
+            
+            // --- AJUSTE DE VISIBILIDAD DE CIUDAD ---
+            this.city.scale.set(1, 1, 1); // Escala estándar
+            // Posicionada detrás del avatar (z=-10) y sobre el suelo (y=0 o ajustado)
+            // Asegúrate de que el suelo de la ciudad esté en y=0 si el avatar está en y=0
+            this.city.position.set(0, 0, -10); 
             this.scene.add(this.city);
-        }, undefined, (e) => { console.error("Error Ciudad:", e); status.innerText = "Error cargando ciudad"; });
+            
+            // Forzar actualización de materiales si se ven oscuros
+            this.city.traverse(child => {
+                if(child.isMesh) {
+                    child.material.depthWrite = true;
+                    // child.material.emissive = new THREE.Color(0x111111); // Opcional: auto-iluminación tenue
+                }
+            });
 
-        // 2. Cargar Avatar (Al frente)
+        }, undefined, (e) => { console.error("Error Ciudad:", e); status.innerText = "Error: ciudad_quantum.glb no encontrada"; });
+
+        // 2. Cargar Avatar (luis-avatar2.glb)
         loader.load('luis-avatar2.glb', (gltf) => {
             this.avatar = gltf.scene;
-            this.avatar.position.set(0, 0, 0); // En el centro del mundo
+            this.avatar.position.set(0, 0, 0); // Pies en el origen del mundo
             this.scene.add(this.avatar);
             
-            // Si el avatar tiene una animación de "Idle" (respiración, parpadeo), la reproducimos
+            // Habilitar sombras en el avatar para mayor realismo de detalles
+            this.avatar.traverse(child => { if(child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
+
+            // Animación Automática (Idle)
             this.mixer = new THREE.AnimationMixer(this.avatar);
             if(gltf.animations.length > 0) {
-                // Reproducir la primera animación por defecto (suele ser Idle)
+                // Reproducimos la primera (suele ser respiración/idle si es un avatar fotorrealista)
                 this.mixer.clipAction(gltf.animations[0]).play();
             }
-        }, undefined, (e) => { console.error("Error Avatar:", e); status.innerText = "Error cargando avatar"; });
+        }, undefined, (e) => { console.error("Error Avatar:", e); status.innerText = "Error: luis-avatar2.glb no encontrada"; });
     }
 
     setupControls() {
@@ -208,30 +238,26 @@ class AvatarShowcase {
         const container = document.getElementById('joy-container');
         const btnZoom = document.getElementById('btn-zoom');
 
-        // --- Lógica del Joystick Rotacional ---
+        // --- D-Pad Analógico Rotacional ---
         const handleJoyMove = (e) => {
             if(!this.state.joyActive) return;
             const touch = e.touches[0];
             const rect = container.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             
-            // Solo nos importa el movimiento horizontal (X) para rotar Y
+            // Movimiento horizontal (X) controla rotación (Y)
             const dx = touch.clientX - centerX;
             const dist = Math.min(Math.abs(dx), 60);
             const sign = Math.sign(dx);
 
             // Visual del knob
             knob.style.left = `calc(50% + ${sign * dist}px - 30px)`;
-            knob.style.top = `calc(50% - 30px)`; // Mantenemos Y céntrico
-
-            // Guardamos la velocidad de rotación basada en la distancia
+            
+            // Aplicar velocidad de rotación
             this.state.rotationY = sign * (dist / 60) * this.config.rotationSpeed;
         };
 
-        container.addEventListener('touchstart', (e) => { 
-            this.state.joyActive = true; 
-            handleJoyMove(e); 
-        });
+        container.addEventListener('touchstart', (e) => { this.state.joyActive = true; handleJoyMove(e); });
         window.addEventListener('touchmove', handleJoyMove);
         window.addEventListener('touchend', () => {
             this.state.joyActive = false;
@@ -245,17 +271,17 @@ class AvatarShowcase {
             if(active) {
                 btnZoom.classList.add('active');
                 this.state.currentCameraTarget = this.config.cameraData.zoom;
-                this.zoomLight.intensity = 1.0; // Luz de relleno facial
+                this.zoomLight.intensity = 1.2; // Encender luz de relleno facial
             } else {
                 btnZoom.classList.remove('active');
                 this.state.currentCameraTarget = this.config.cameraData.default;
-                this.zoomLight.intensity = 0;
+                this.zoomLight.intensity = 0; // Apagar
             }
         };
 
         btnZoom.addEventListener('touchstart', (e) => { e.preventDefault(); setZoom(true); });
         btnZoom.addEventListener('touchend', () => { setZoom(false); });
-        // Soporte ratón por si acaso
+        // Soporte ratón
         btnZoom.addEventListener('mousedown', () => { setZoom(true); });
         btnZoom.addEventListener('mouseup', () => { setZoom(false); });
 
@@ -283,17 +309,12 @@ class AvatarShowcase {
 
         // 3. Suavizado de Cámara (Lerp)
         if(this.camera) {
-            // Suavizado de posición
+            // Suavizado de posición (Lerp)
             this.camera.position.lerp(this.state.currentCameraTarget.pos, this.config.lerpSpeed);
             
-            // Suavizado de punto de mira
-            // Usamos un vector auxiliar para no modificar el config original
-            const tempLookAt = new THREE.Vector3().lerpVectors(
-                this.camera.getWorldDirection(new THREE.Vector3()).add(this.camera.position), // Dirección actual aproximada
-                this.state.currentCameraTarget.look,
-                this.config.lerpSpeed
-            );
-            this.camera.lookAt(this.state.currentCameraTarget.look); // lookAt directo es más estable para fotorrealismo
+            // Suavizado del punto de mira (lookAt)
+            // Para mantener el realismo fotorrealista, el lookAt directo es más estable
+            this.camera.lookAt(this.state.currentCameraTarget.look);
         }
 
         this.renderer.render(this.scene, this.camera);
