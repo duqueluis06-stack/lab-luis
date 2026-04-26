@@ -3,51 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum City - Debug Mode</title>
+    <title>Quantum Engine r128</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        canvas { display: block; }
-        
-        /* UI Neón */
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        .neon-ui { 
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        #ui { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .neon-btn { 
             pointer-events: auto; background: rgba(0,0,0,0.8); border: 2px solid #0ff; 
-            color: #0ff; box-shadow: 0 0 15px #0ff; text-transform: uppercase; font-weight: bold;
+            color: #0ff; box-shadow: 0 0 15px #0ff; cursor: pointer; font-weight: bold;
         }
-        #btn-exit { position: absolute; top: 20px; right: 20px; padding: 10px 20px; border-color: #f0f; color: #f0f; box-shadow: 0 0 10px #f0f; }
+        #btn-exit { position: absolute; top: 20px; right: 20px; padding: 10px; border-color: #f0f; color: #f0f; }
+        
+        /* Joystick */
+        #joy-con { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; border: 2px dashed #0ff; border-radius: 50%; }
+        #joy-stick { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: #0ff; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px #0ff; }
+        
+        /* Actions */
+        #actions { position: absolute; bottom: 50px; right: 40px; display: flex; gap: 15px; }
+        .btn-act { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
-        /* Pantalla de Carga y Consola */
-        #loading-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; color: #0ff; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; z-index: 100; text-shadow: 0 0 10px #0ff;
-        }
-        #debug-console {
-            position: fixed; top: 10px; left: 10px; color: #0f0; font-size: 12px; 
-            background: rgba(0,0,0,0.5); pointer-events: none; z-index: 101;
-        }
-
-        /* Controles */
-        #joystick { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid #0ff; }
-        #knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: #0ff; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px #0ff; }
-        #actions { position: absolute; bottom: 50px; right: 40px; display: flex; gap: 10px; }
-        .act-btn { width: 70px; height: 70px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        /* Loader */
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #0ff; display: flex; align-items: center; justify-content: center; z-index: 100; text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="debug-console">Iniciando sistema...</div>
-<div id="loading-screen">
-    <h1 id="load-status">CARGANDO NÚCLEO QUANTUM...</h1>
-    <p id="load-details">Esperando modelos GLB...</p>
+<div id="loader">
+    <div>
+        <h1 style="text-shadow: 0 0 10px #0ff;">CONECTANDO A CIUDAD_QUANTUM...</h1>
+        <p id="status">Verificando archivos GLB...</p>
+    </div>
 </div>
 
-<div id="ui-wrapper">
-    <button id="btn-exit" class="neon-ui" onclick="window.location.href='index.html'">SALIR</button>
-    <div id="joystick"><div id="knob"></div></div>
+<div id="ui">
+    <button id="btn-exit" class="neon-btn" onclick="window.location.href='index.html'">SALIR</button>
+    <div id="joy-con"><div id="joy-stick"></div></div>
     <div id="actions">
-        <div id="w-btn" class="neon-ui act-btn">WALK</div>
-        <div id="r-btn" class="neon-ui act-btn" style="border-color:#f0f; color:#f0f;">RUN</div>
+        <div id="w-btn" class="neon-btn btn-act" style="opacity:0.5">WALK</div>
+        <div id="r-btn" class="neon-btn btn-act">RUN</div>
     </div>
 </div>
 
@@ -55,116 +47,109 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-    const debug = (msg) => {
-        console.log(msg);
-        document.getElementById('debug-console').innerText += "\n" + msg;
-        document.getElementById('load-details').innerText = msg;
-    };
-
     let scene, camera, renderer, clock, mixer, avatar, city;
-    let joystickPos = { x: 0, y: 0, active: false };
-    let speed = 0.15;
+    let move = { x: 0, z: 0, active: false, run: true };
+    const status = document.getElementById('status');
 
     function init() {
-        clock = new THREE.Clock();
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205);
-
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
+        
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-        const sun = new THREE.DirectionalLight(0x00ffff, 1.5);
-        sun.position.set(10, 20, 10);
-        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5)); // Luz ambiente extra fuerte
 
         const loader = new THREE.GLTFLoader();
 
         // Cargar Ciudad
-        debug("Intentando cargar ciudad_quantum.glb...");
-        loader.load('ciudad_quantum.glb', 
-            (gltf) => { city = gltf.scene; scene.add(city); debug("Ciudad OK"); checkReady(); },
-            undefined, 
-            (err) => { debug("ERROR CIUDAD: No encontrada o bloqueo CORS"); }
-        );
+        loader.load('ciudad_quantum.glb', (gltf) => {
+            city = gltf.scene;
+            scene.add(city);
+            status.innerText = "Ciudad detectada. Cargando Avatar...";
+            checkReady();
+        }, undefined, (e) => {
+            status.innerHTML = "<span style='color:red'>ERROR: No se encontró ciudad_quantum.glb</span><br>Asegúrate de que el nombre sea exacto.";
+        });
 
         // Cargar Avatar
-        debug("Intentando cargar luis-avatar2.glb...");
-        loader.load('luis-avatar2.glb', 
-            (gltf) => { 
-                avatar = gltf.scene; 
-                scene.add(avatar);
-                mixer = new THREE.AnimationMixer(avatar);
-                if(gltf.animations.length > 0) mixer.clipAction(gltf.animations[0]).play();
-                debug("Avatar OK"); 
-                checkReady(); 
-            },
-            undefined, 
-            (err) => { debug("ERROR AVATAR: No encontrado"); }
-        );
+        loader.load('luis-avatar2.glb', (gltf) => {
+            avatar = gltf.scene;
+            scene.add(avatar);
+            mixer = new THREE.AnimationMixer(avatar);
+            if(gltf.animations.length > 0) mixer.clipAction(gltf.animations[0]).play();
+            status.innerText = "Avatar detectado. Iniciando...";
+            checkReady();
+        }, undefined, (e) => {
+            status.innerHTML = "<span style='color:red'>ERROR: No se encontró luis-avatar2.glb</span>";
+        });
 
         setupControls();
         animate();
     }
 
     function checkReady() {
-        if(city || avatar) { // Entramos aunque solo cargue uno para debuggear
-            setTimeout(() => {
-                document.getElementById('loading-screen').style.display = 'none';
-            }, 1000);
+        if(city && avatar) {
+            document.getElementById('loader').style.display = 'none';
         }
     }
 
     function setupControls() {
-        const joy = document.getElementById('joystick');
-        const knob = document.getElementById('knob');
+        const joy = document.getElementById('joy-con');
+        const stick = document.getElementById('joy-stick');
         
-        const moveJoy = (e) => {
-            if(!joystickPos.active) return;
-            const touch = e.touches[0];
-            const rect = joy.getBoundingClientRect();
-            const dx = touch.clientX - (rect.left + 60);
-            const dy = touch.clientY - (rect.top + 60);
-            const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-            const angle = Math.atan2(dy, dx);
+        const onMove = (e) => {
+            if(!move.active) return;
+            const t = e.touches[0];
+            const r = joy.getBoundingClientRect();
+            const dx = t.clientX - (r.left + 60);
+            const dy = t.clientY - (r.top + 60);
+            const d = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            const a = Math.atan2(dy, dx);
 
-            knob.style.left = `calc(50% + ${Math.cos(angle)*dist}px)`;
-            knob.style.top = `calc(50% + ${Math.sin(angle)*dist}px)`;
+            stick.style.left = `calc(50% + ${Math.cos(a)*d}px)`;
+            stick.style.top = `calc(50% + ${Math.sin(a)*d}px)`;
             
-            joystickPos.x = Math.cos(angle) * (dist/50);
-            joystickPos.y = Math.sin(angle) * (dist/50);
+            move.x = Math.cos(a) * (d/50);
+            move.z = Math.sin(a) * (d/50);
         };
 
-        joy.addEventListener('touchstart', (e) => { joystickPos.active = true; moveJoy(e); });
-        window.addEventListener('touchmove', moveJoy);
+        joy.addEventListener('touchstart', (e) => { move.active = true; onMove(e); });
+        window.addEventListener('touchmove', onMove);
         window.addEventListener('touchend', () => {
-            joystickPos.active = false;
-            knob.style.left = '50%'; knob.style.top = '50%';
-            joystickPos.x = 0; joystickPos.y = 0;
+            move.active = false;
+            stick.style.left = '50%'; stick.style.top = '50%';
+            move.x = 0; move.z = 0;
         });
 
-        document.getElementById('w-btn').ontouchstart = () => speed = 0.1;
-        document.getElementById('r-btn').ontouchstart = () => speed = 0.3;
+        document.getElementById('w-btn').ontouchstart = () => { move.run = false; updateBtn(); };
+        document.getElementById('r-btn').ontouchstart = () => { move.run = true; updateBtn(); };
+    }
+
+    function updateBtn() {
+        document.getElementById('w-btn').style.opacity = move.run ? "0.5" : "1";
+        document.getElementById('r-btn').style.opacity = move.run ? "1" : "0.5";
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        const delta = clock.getDelta();
+        const dt = clock.getDelta();
 
-        if (avatar && (Math.abs(joystickPos.x) > 0.1 || Math.abs(joystickPos.y) > 0.1)) {
-            avatar.position.x += joystickPos.x * speed * 60 * delta;
-            avatar.position.z += joystickPos.y * speed * 60 * delta;
-            avatar.rotation.y = Math.atan2(-joystickPos.x, -joystickPos.y);
-            if (mixer) mixer.update(delta);
+        if (avatar && (Math.abs(move.x) > 0.01 || Math.abs(move.z) > 0.01)) {
+            const s = move.run ? 0.3 : 0.1;
+            avatar.position.x += move.x * s;
+            avatar.position.z += move.z * s;
+            avatar.rotation.y = Math.atan2(-move.x, -move.z);
+            if(mixer) mixer.update(dt);
         }
 
         if (avatar) {
-            const offset = new THREE.Vector3(0, 4, 8).applyQuaternion(avatar.quaternion);
-            camera.position.lerp(avatar.position.clone().add(offset), 0.1);
-            camera.lookAt(avatar.position.x, avatar.position.y + 1.5, avatar.position.z);
+            const camPos = new THREE.Vector3(0, 5, 8).applyQuaternion(avatar.quaternion).add(avatar.position);
+            camera.position.lerp(camPos, 0.1);
+            camera.lookAt(avatar.position.x, avatar.position.y + 2, avatar.position.z);
         }
 
         renderer.render(scene, camera);
