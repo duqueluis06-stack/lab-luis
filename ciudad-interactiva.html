@@ -6,73 +6,64 @@
     <title>CIUDAD INTERACTIVA - QUANTUM</title>
     <style>
         :root { --neon: #00ffff; --rgb: #ff00ff; }
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; }
         
         /* HEADER */
         header {
             position: absolute; top: 0; width: 100%; height: 50px;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: space-between; 
-            align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 100;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: space-between; 
+            align-items: center; padding: 0 15px; box-sizing: border-box; z-index: 200;
             border-bottom: 2px solid var(--neon);
         }
 
         .btn-exit {
             color: #fff; text-decoration: none; background: #ff0000; 
-            padding: 5px 15px; border-radius: 5px; font-weight: bold;
-            text-transform: uppercase; font-size: 12px;
+            padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 12px;
         }
 
-        /* CONTROLES TIPO GTA PARA MÓVIL */
+        /* CONTROLES */
         .controls { 
             position: absolute; bottom: 20px; left: 20px; 
-            display: grid; grid-template-columns: repeat(3, 65px); 
-            grid-template-rows: repeat(2, 65px); gap: 8px; z-index: 100; 
+            display: grid; grid-template-columns: repeat(3, 60px); 
+            grid-template-rows: repeat(2, 60px); gap: 10px; z-index: 200; 
         }
         .btn { 
-            width: 65px; height: 65px; background: rgba(255,255,255,0.1); 
+            width: 60px; height: 60px; background: rgba(0, 255, 255, 0.2); 
             border: 2px solid var(--neon); color: var(--neon); 
-            font-size: 20px; display: flex; align-items: center; 
+            font-size: 25px; display: flex; align-items: center; 
             justify-content: center; cursor: pointer; user-select: none; 
-            border-radius: 12px; backdrop-filter: blur(4px);
+            border-radius: 10px; backdrop-filter: blur(5px);
         }
-        .btn:active { background: var(--neon); color: #000; transform: scale(0.95); }
 
+        /* BOTÓN LOCALIZAR LUIS */
         .panic-btn { 
-            position: absolute; bottom: 20px; right: 20px; width: 70px; height: 70px; 
-            background: var(--rgb); color: #fff; border: none; font-weight: bold; 
-            border-radius: 50%; cursor: pointer; z-index: 100; box-shadow: 0 0 15px var(--rgb);
+            position: absolute; bottom: 20px; right: 20px; width: 80px; height: 80px; 
+            background: var(--rgb); color: #fff; border: 4px solid #fff; font-weight: bold; 
+            border-radius: 50%; cursor: pointer; z-index: 200; box-shadow: 0 0 20px var(--rgb);
+            font-size: 12px; text-align: center;
         }
 
-        #loader { 
-            position: fixed; inset: 0; background: #000; z-index: 1000; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); 
-        }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <h2 id="load-msg">CARGANDO MUNDO 3D...</h2>
-    <div style="width: 200px; height: 10px; border: 1px solid var(--neon); border-radius: 5px;">
-        <div id="bar" style="width: 0%; height: 100%; background: var(--neon);"></div>
-    </div>
+    <h2 id="load-msg">SINCRONIZANDO AVATAR...</h2>
+    <div style="width: 200px; height: 10px; border: 1px solid var(--neon);"><div id="bar" style="width: 0%; height: 100%; background: var(--neon);"></div></div>
 </div>
 
 <header>
-    <div style="color: var(--neon); font-size: 14px; font-weight: bold;">SISTEMA: <span id="st" style="color: #fff;">INICIALIZANDO</span></div>
-    <a href="index.html" class="btn-exit">SALIR AL MENÚ</a>
+    <div style="color: var(--neon);">SISTEMA: <span id="st" style="color:#fff">CONECTANDO</span></div>
+    <a href="index.html" class="btn-exit">SALIR</a>
 </header>
 
 <div class="controls">
-    <div></div>
-    <div class="btn" id="btn-w">↑</div>
-    <div></div>
-    <div class="btn" id="btn-a">←</div>
-    <div class="btn" id="btn-s">↓</div>
-    <div class="btn" id="btn-d">→</div>
+    <div></div><div class="btn" id="btn-w">↑</div><div></div>
+    <div class="btn" id="btn-a">←</div><div class="btn" id="btn-s">↓</div><div class="btn" id="btn-d">→</div>
 </div>
 
-<button class="panic-btn" onclick="resetLuis()">RECENTER</button>
+<button class="panic-btn" onclick="resetLuis()">🎯<br>LOCALIZAR<br>LUIS</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -80,131 +71,113 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
-    let scene, camera, renderer, luis, controls;
+    let scene, camera, renderer, luis, controls, mixerLuis;
     let mixers = []; 
     let moveDir = null;
     const clock = new THREE.Clock();
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
+        scene.background = new THREE.Color(0x020205);
 
         camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 5000);
         
-        // --- RENDERIZADO DE ALTA CALIDAD ---
-        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Evita que se vea cuadrado/pixelado
-        renderer.outputEncoding = THREE.sRGBEncoding; // Mejora los colores
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // Iluminación
-        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(50, 100, 50);
-        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 20, 10);
+        scene.add(light);
 
         const draco = new THREE.DRACOLoader();
         draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
         const loader = new THREE.GLTFLoader();
         loader.setDRACOLoader(draco);
 
-        // CARGAR CIUDAD
+        // 1. CARGAR CIUDAD
         loader.load('ciudad_quantum.glb', (gltf) => {
             scene.add(gltf.scene);
-            
-            // Animación de los AUTOS (si vienen en el GLB de la ciudad)
-            if(gltf.animations && gltf.animations.length) {
+            if(gltf.animations.length) {
                 let mCity = new THREE.AnimationMixer(gltf.scene);
-                gltf.animations.forEach(clip => {
-                    mCity.clipAction(clip).play();
-                });
+                gltf.animations.forEach(c => mCity.clipAction(c).play());
                 mixers.push(mCity);
             }
 
-            // CARGAR AVATAR LUIS
+            // 2. CARGAR AVATAR (Dentro del callback de la ciudad)
             loader.load('luis_avatar.glb', (av) => {
                 luis = av.scene;
-                scene.add(luis);
                 
-                // Ajuste inicial de Luis
-                luis.scale.set(1.5, 1.5, 1.5); 
-                luis.position.set(0, 0, 0);
+                // AJUSTE DE TAMAÑO (Si estaba muy grande, bajamos a 0.5 o menos)
+                luis.scale.set(0.5, 0.5, 0.5); 
+                // POSICIÓN FUERA DE PAREDES
+                luis.position.set(0, 0, 5); 
+                
+                scene.add(luis);
 
-                if(av.animations.length) {
-                    let mLuis = new THREE.AnimationMixer(luis);
-                    mLuis.clipAction(av.animations[0]).play();
-                    mixers.push(mLuis);
+                if(av.animations.length > 0) {
+                    mixerLuis = new THREE.AnimationMixer(luis);
+                    const action = mixerLuis.clipAction(av.animations[0]);
+                    action.play(); // Esto quita los brazos abiertos (T-Pose)
+                    mixers.push(mixerLuis);
                 }
 
                 document.getElementById('loader').style.display = 'none';
-                document.getElementById('st').innerText = "CONECTADO";
-                resetLuis();
+                document.getElementById('st').innerText = "ONLINE";
+                resetLuis(); // Enfocar cámara al iniciar
             });
         }, (xhr) => {
-            let prg = (xhr.loaded / xhr.total * 100);
-            document.getElementById('bar').style.width = prg + '%';
+            document.getElementById('bar').style.width = (xhr.loaded / xhr.total * 100) + '%';
         });
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Movimiento de cámara suave
-
-        setupEvents();
+        setupMobileControls();
     }
 
-    function setupEvents() {
+    function setupMobileControls() {
         const btns = { 'btn-w': 'w', 'btn-a': 'a', 'btn-s': 's', 'btn-d': 'd' };
         Object.keys(btns).forEach(id => {
             const el = document.getElementById(id);
-            const dir = btns[id];
-            
-            // Mouse
-            el.addEventListener('mousedown', () => moveDir = dir);
-            el.addEventListener('mouseup', () => moveDir = null);
-            // Touch
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); moveDir = dir; });
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); moveDir = btns[id]; });
             el.addEventListener('touchend', (e) => { e.preventDefault(); moveDir = null; });
+            el.addEventListener('mousedown', () => moveDir = btns[id]);
+            el.addEventListener('mouseup', () => moveDir = null);
         });
     }
 
+    // FUNCIÓN PARA LOCALIZAR A LUIS (Botón Rosa)
     function resetLuis() {
         if(!luis) return;
-        luis.position.set(0, 0, 0);
-        camera.position.set(0, 8, -15);
+        // Mueve a Luis a un lugar seguro si se pierde
+        luis.position.set(0, 0, 5);
+        // Coloca la cámara detrás de él
+        camera.position.set(luis.position.x, luis.position.y + 5, luis.position.z - 10);
         controls.target.copy(luis.position);
+        controls.update();
     }
 
     function animate() {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
-        
-        // Actualiza animaciones (Autos y Luis)
         mixers.forEach(m => m.update(delta));
 
         if(luis && moveDir) {
-            const speed = 0.3; // Velocidad de movimiento
-            const rotSpeed = 0.05; // Velocidad de giro
-
+            const speed = 0.2;
             if(moveDir === 'w') luis.translateZ(speed);
             if(moveDir === 's') luis.translateZ(-speed);
-            if(moveDir === 'a') luis.rotation.y += rotSpeed;
-            if(moveDir === 'd') luis.rotation.y -= rotSpeed;
+            if(moveDir === 'a') luis.rotation.y += 0.05;
+            if(moveDir === 'd') luis.rotation.y -= 0.05;
 
-            // Seguimiento de cámara suave
-            controls.target.lerp(luis.position, 0.1);
+            // La cámara sigue a Luis suavemente
+            controls.target.copy(luis.position);
         }
         
         controls.update();
         renderer.render(scene, camera);
     }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
 
     init();
     animate();
