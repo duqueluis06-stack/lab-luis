@@ -1,78 +1,116 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUIS QUANTUM - ENGINE PRO</title>
-    <style>
-        :root { --cyan: #00ffff; --magenta: #ff00ff; }
-        body { margin: 0; overflow: hidden; background: #000; position: fixed; width: 100%; height: 100%; font-family: 'Segoe UI', Roboto, sans-serif; }
-        canvas { display: block; touch-action: none; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>QUANTUM CITY - RECONSTRUCCIÓN TOTAL</title>
 
-        /* Interfaz de Usuario */
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
-        .stats { background: rgba(0,0,0,0.7); color: var(--cyan); padding: 10px; border: 1px solid var(--cyan); border-radius: 5px; font-family: monospace; font-size: 12px; pointer-events: auto; }
-        
-        .btn-exit { 
-            pointer-events: auto; background: rgba(255,0,0,0.4); border: 2px solid #ff4444; 
-            color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;
-        }
+<style>
+    /* RESET TOTAL PARA iPHONE */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body{ margin:0; overflow:hidden; background:#000; position:fixed; width:100%; height:100%; font-family:sans-serif; touch-action:none; }
+    canvas{ display:block; touch-action:none; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
 
-        /* Controles Inferiores */
-        .bottom-ui { display: flex; justify-content: space-between; align-items: flex-end; }
-        
-        .joystick-zone { display: grid; grid-template-columns: repeat(3, 70px); gap: 8px; pointer-events: auto; }
-        .btn-control { 
-            width: 70px; height: 70px; background: rgba(0, 255, 255, 0.15); border: 2px solid var(--cyan); 
-            border-radius: 15px; color: var(--cyan); display: flex; align-items: center; justify-content: center; 
-            font-size: 24px; font-weight: bold; -webkit-user-select: none;
-        }
-        .btn-control:active { background: rgba(0, 255, 255, 0.5); transform: scale(0.95); }
+    /* UI PRINCIPAL */
+    #ui{
+        position:absolute; inset:0;
+        display:flex; flex-direction:column;
+        justify-content:space-between;
+        padding:20px;
+        pointer-events:none; /* Deja pasar los toques al canvas si no es un botón */
+        z-index:100;
+    }
 
-        .action-zone { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
-        .btn-action { 
-            width: 100px; height: 50px; background: rgba(255, 0, 255, 0.2); border: 2px solid var(--magenta); 
-            border-radius: 10px; color: white; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center;
-        }
-        .btn-action:active { background: var(--magenta); }
+    /* HEADER */
+    .header{
+        display:flex; justify-content:space-between; align-items:center;
+        pointer-events:auto;
+    }
+    .btn-exit{
+        background:rgba(255,0,0,0.5); border:2px solid #ff4444; color:white;
+        padding:10px 18px; border-radius:8px; text-decoration:none;
+        font-weight:bold; font-size:14px; -webkit-user-select:none;
+    }
 
-        /* Notificaciones de Negocios */
-        #interact-msg { 
-            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); 
-            background: rgba(0,0,0,0.8); border: 2px solid #0f0; color: #0f0; 
-            padding: 20px; border-radius: 15px; display: none; text-align: center; pointer-events: auto;
-        }
+    /* CONTROLES INFERIORES */
+    .bottom-ui{
+        display:flex; justify-content:space-between; align-items:flex-end;
+        pointer-events:none;
+    }
 
-        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--cyan); }
-    </style>
+    /* JOYSTICK (IZQUIERDA) */
+    .controls{
+        display:grid;
+        grid-template-columns:repeat(3,70px);
+        gap:8px;
+        pointer-events:auto;
+    }
+
+    /* ACCIONES (DERECHA) */
+    .actions{
+        display:flex; flex-direction:column; gap:12px;
+        pointer-events:auto;
+    }
+
+    /* BOTONES GENERALES */
+    .btn{
+        width:70px; height:70px;
+        background:rgba(0,255,255,0.15);
+        border:2px solid cyan;
+        display:flex; align-items:center; justify-content:center;
+        color:#0ff; border-radius:15px;
+        font-size:24px; font-weight:bold;
+        user-select:none; -webkit-user-select:none;
+        touch-action:manipulation;
+    }
+    /* Efecto de pulsación para saber que funciona */
+    .btn:active { background: rgba(0,255,255,0.5); transform: scale(0.95); }
+
+    .btn-action{
+        width:90px; height:48px;
+        background:rgba(255,0,255,0.2); border-color:magenta;
+        border-radius:10px; font-size:12px;
+    }
+    .btn-action:active { background:magenta; }
+
+    /* PANTALLA DE CARGA */
+    #loading{
+        position:fixed; inset:0; background:#000;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        color:cyan; z-index:1000;
+    }
+    .spinner {
+        width: 40px; height: 40px; border: 4px solid #0ff;
+        border-top-color: transparent; border-radius: 50%;
+        animation: spin 1s linear infinite; margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
+
 <body>
 
-<div id="loading"><h1>INICIALIZANDO CIUDAD QUANTUM...</h1></div>
-
-<div id="interact-msg">
-    <div id="negocio-nombre">NEGOCIO CERCANO</div>
-    <button onclick="entrarNegocio()" style="margin-top:10px; padding:8px 15px; background:#0f0; border:none; border-radius:5px; font-weight:bold;">ENTRAR</button>
+<div id="loading">
+    <div class="spinner"></div>
+    <div id="load-status">INICIALIZANDO MATRIZ...</div>
 </div>
 
 <div id="ui">
     <div class="header">
         <a href="index.html" class="btn-exit">SALIR</a>
-        <div class="stats">LUIS_OS v4.0<br>POS: <span id="pos-display">0,0</span></div>
+        <div style="color:cyan; font-family:monospace; font-size:12px;">LUIS_ENGINE v6.0</div>
     </div>
 
     <div class="bottom-ui">
-        <div class="joystick-zone">
-            <div></div><div class="btn-control" id="w">↑</div><div></div>
-            <div class="btn-control" id="a">←</div><div class="btn-control" id="s">↓</div><div class="btn-control" id="d">→</div>
+        <div class="controls">
+            <div></div><div class="btn" id="w">↑</div><div></div>
+            <div class="btn" id="a">←</div><div class="btn" id="s">↓</div><div class="btn" id="d">→</div>
         </div>
 
-        <div class="action-zone">
-            <div class="btn-action" id="run">CORRER</div>
-            <div class="btn-action" id="jump">SALTAR</div>
-            <div class="btn-action" onclick="resetPosition()">RESCATE</div>
+        <div class="actions">
+            <div class="btn btn-action" id="run">CORRER 🏃‍♂️</div>
+            <div class="btn btn-action" id="jump">SALTAR ⚡</div>
+            <div class="btn btn-action" onclick="resetLuis()">RESCATE 🆘</div>
         </div>
     </div>
 </div>
@@ -81,146 +119,203 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-    let scene, camera, renderer, luis, mixer, clock = new THREE.Clock();
-    let player = new THREE.Group();
-    let move = { w: false, a: false, s: false, d: false, run: false };
+
+let scene, camera, renderer;
+let player = new THREE.Object3D(); // Pivote del jugador
+let luis, mixer, clock = new THREE.Clock();
+let keys = { w:false, a:false, s:false, d:false, run:false };
+
+// Física de salto
+let velocityY = 0;
+let isJumping = false;
+const gravity = -0.015;
+
+// Estado de carga
+let cityLoaded = false;
+let avatarLoaded = false;
+
+init();
+
+function init() {
+    scene = new THREE.Scene();
+    // Cielo oscuro pero visible
+    scene.background = new THREE.Color(0x05050a);
+
+    // Cámara ajustada para iPhone (FOV 75)
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
     
-    // Física
-    let velocityY = 0;
-    let isJumping = false;
-    const gravity = -0.015;
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    // Crucial para la nitidez en iPhone sin matar el rendimiento
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    document.body.appendChild(renderer.domElement);
 
-    // Base de datos de locales
-    const locales = [
-        { nombre: "LABORATORIO CUÁNTICO", x: 25, z: 25, url: "lab.html" },
-        { nombre: "TIENDA DE AVATARES", x: -15, z: 40, url: "shop.html" }
-    ];
+    // --- ILUMINACIÓN POTENTE (Solución Ciudad Negra) ---
+    // Luz ambiental fuerte
+    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    // Luz direccional ("sol")
+    const sun = new THREE.DirectionalLight(0xffffff, 2);
+    sun.position.set(10, 20, 10);
+    scene.add(sun);
 
-    init();
+    // Añadimos el pivote del jugador a la escena
+    scene.add(player);
 
-    function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020205);
-        scene.fog = new THREE.Fog(0x020205, 50, 500);
+    const loader = new THREE.GLTFLoader();
+    const statusEl = document.getElementById('load-status');
 
-        camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 2000);
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        document.body.appendChild(renderer.domElement);
-
-        // Iluminación Profesional
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(50, 100, 50);
-        scene.add(sun);
-
-        scene.add(player);
-
-        const loader = new THREE.GLTFLoader();
-
-        // 1. CARGA CIUDAD
-        loader.load('ciudad_quantum.glb', (gltf) => {
-            scene.add(gltf.scene);
-            
-            // 2. CARGA AVATAR
-            loader.load('luis_avatar.glb', (avatar) => {
-                luis = avatar.scene;
-                luis.scale.setScalar(1.6);
-                luis.rotation.y = Math.PI; // Ajuste de frente
-                player.add(luis);
-                
-                if(avatar.animations.length) {
-                    mixer = new THREE.AnimationMixer(luis);
-                    mixer.clipAction(avatar.animations[0]).play();
-                }
-                document.getElementById('loading').style.display = 'none';
-            });
-        });
-
-        setupInput();
-        animate();
-    }
-
-    function setupInput() {
-        const ids = ['w', 'a', 's', 'd', 'run', 'jump'];
-        ids.forEach(id => {
-            const el = document.getElementById(id);
-            const start = (e) => { 
-                e.preventDefault(); 
-                if(id === 'jump') { if(!isJumping) { velocityY = 0.4; isJumping = true; } }
-                else { move[id] = true; }
-            };
-            const end = (e) => { e.preventDefault(); move[id] = false; };
-            
-            el.addEventListener('touchstart', start);
-            el.addEventListener('touchend', end);
-            el.onpointerdown = start;
-            el.onpointerup = end;
-        });
-    }
-
-    function resetPosition() {
-        player.position.set(0, 0, 0);
-        velocityY = 0;
-    }
-
-    function entrarNegocio() {
-        alert("Cargando interior...");
-        // window.location.href = url_actual_negocio;
-    }
-
-    function animate() {
-        requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-        if (mixer) mixer.update(delta);
-
-        if (luis) {
-            const speed = (move.run ? 14 : 7) * delta;
-            const rotSpeed = 3 * delta;
-
-            if (move.w) player.translateZ(speed);
-            if (move.s) player.translateZ(-speed);
-            if (move.a) player.rotation.y += rotSpeed;
-            if (move.d) player.rotation.y -= rotSpeed;
-
-            // Física de Salto
-            player.position.y += velocityY;
-            if(player.position.y > 0) { velocityY += gravity; }
-            else { player.position.y = 0; velocityY = 0; isJumping = false; }
-
-            // UI de Posición
-            document.getElementById('pos-display').innerText = 
-                `${Math.round(player.position.x)}, ${Math.round(player.position.z)}`;
-
-            // Detección de Negocios
-            let near = false;
-            locales.forEach(loc => {
-                let dist = player.position.distanceTo(new THREE.Vector3(loc.x, 0, loc.z));
-                if(dist < 6) {
-                    document.getElementById('negocio-nombre').innerText = loc.nombre;
-                    document.getElementById('interact-msg').style.display = 'block';
-                    near = true;
-                }
-            });
-            if(!near) document.getElementById('interact-msg').style.display = 'none';
-
-            // Cámara GTA
-            const camOffset = new THREE.Vector3(0, 4, -9);
-            camOffset.applyQuaternion(player.quaternion);
-            camera.position.lerp(player.position.clone().add(camOffset), 0.1);
-            camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
-        }
-        renderer.render(scene, camera);
-    }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+    // 🌆 CARGAR CIUDAD
+    statusEl.innerText = "DESCARGANDO CIUDAD (4MB)...";
+    loader.load("ciudad_quantum.glb", (gltf) => {
+        scene.add(gltf.scene);
+        cityLoaded = true;
+        checkAllLoaded();
+    }, undefined, (err) => {
+        console.error("Error ciudad:", err);
+        statusEl.innerText = "ERROR CARGANDO CIUDAD";
+        // Suelo de emergencia si falla la ciudad
+        scene.add(new THREE.GridHelper(100, 100, 0x00ffff, 0x004444));
+        cityLoaded = true; // Permitimos continuar
+        checkAllLoaded();
     });
+
+    // 🧍 CARGAR AVATAR
+    loader.load("luis_avatar.glb", (gltf) => {
+        luis = gltf.scene;
+        
+        // --- FIX DEFINITIVO: ROTACIÓN Y POSTURA ---
+        // Rotación 0 para que mire al frente del player
+        luis.rotation.y = 0; 
+        
+        // Escalar dinámicamente a altura humana (1.75m aprox)
+        const box = new THREE.Box3().setFromObject(luis);
+        const size = box.getSize(new THREE.Vector3());
+        const scale = 1.75 / size.y;
+        luis.scale.setScalar(scale);
+
+        // Añadimos Luis al pivote
+        player.add(luis);
+        
+        // Animaciones
+        if(gltf.animations.length){
+            mixer = new THREE.AnimationMixer(luis);
+            // Reproducimos la primera animación (normalmente walk o idle)
+            mixer.clipAction(gltf.animations[0]).play();
+        }
+        avatarLoaded = true;
+        checkAllLoaded();
+    });
+
+    setupControls();
+    animate();
+}
+
+function checkAllLoaded() {
+    if(cityLoaded && avatarLoaded) {
+        document.getElementById('loading').style.display = 'none';
+        resetLuis(); // Posición inicial
+    }
+}
+
+function setupControls() {
+    const ids = ["w", "a", "s", "d", "run"];
+    ids.forEach(id => {
+        const btn = document.getElementById(id);
+        
+        // --- BLINDAJE iPHONE (touchstart) ---
+        // passive:false es necesario para usar preventDefault()
+        btn.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); 
+            keys[id] = true; 
+        }, {passive: false});
+        
+        btn.addEventListener('touchend', (e) => { 
+            e.preventDefault(); 
+            keys[id] = false; 
+        }, {passive: false});
+        
+        // Fallback para PC
+        btn.addEventListener('mousedown', () => keys[id] = true);
+        btn.addEventListener('mouseup', () => keys[id] = false);
+    });
+
+    // Botón Saltar
+    const jumpBtn = document.getElementById('jump');
+    jumpBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if(!isJumping) {
+            velocityY = 0.4; // Fuerza de salto
+            isJumping = true;
+        }
+    }, {passive: false});
+}
+
+function resetLuis() {
+    if(!luis) return;
+    // Teletransporte al origen
+    player.position.set(0, 0, 0);
+    player.rotation.set(0, 0, 0);
+    velocityY = 0;
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+
+    // Actualizar animaciones
+    if (mixer) mixer.update(dt);
+
+    if (luis) {
+        // Velocidades (dependientes del delta time para fluidez)
+        const currentSpeed = keys.run ? 10 : 5;
+        const speed = currentSpeed * dt;
+        const rotSpeed = 2.5 * dt;
+
+        // Movimiento Lógico Relativo (W avanza hacia donde mira el player)
+        if (keys.w) player.translateZ(speed);
+        if (keys.s) player.translateZ(-speed);
+        if (keys.a) player.rotation.y += rotSpeed;
+        if (keys.d) player.rotation.y -= rotSpeed;
+
+        // --- FÍSICA DE SALTO ---
+        player.position.y += velocityY;
+        if(player.position.y > 0) {
+            // Está en el aire, aplicar gravedad
+            velocityY += gravity;
+        } else {
+            // Tocó el suelo
+            player.position.y = 0;
+            velocityY = 0;
+            isJumping = false;
+        }
+
+        // --- CÁMARA GTA III / V (Seguimiento Dinámico) ---
+        // Calculamos la posición ideal: 3 unidades arriba, 7 unidades atrás
+        const idealOffset = new THREE.Vector3(0, 3, -7); 
+        idealOffset.applyQuaternion(player.quaternion); // Rotamos el offset según el player
+        idealOffset.add(player.position); // Sumamos la posición del player
+
+        // Punto al que mirar: 1.5 unidades arriba del player (la cabeza)
+        const idealLookAt = player.position.clone();
+        idealLookAt.y += 1.5;
+
+        // Interpolación (lerp) para suavizado de cámara (0.1 = 10% por frame)
+        camera.position.lerp(idealOffset, 0.1);
+        camera.lookAt(idealLookAt);
+    }
+
+    renderer.render(scene, camera);
+}
+
+// Corregir tamaño al girar el iPhone
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
 </script>
+
 </body>
 </html>
