@@ -1,243 +1,256 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CITY + AVATAR STABLE</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ciudad Quantum - 3D Experience</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
 
-<style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-user-select:none;
-touch-action:none;
-}
+        /* UI Estilo Neón RGB */
+        #ui-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            user-select: none;
+        }
 
-body{
-overflow:hidden;
-background:#000;
-font-family:monospace;
-}
+        .neon-btn {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #0ff;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            border-radius: 10px;
+            text-transform: uppercase;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-/* DEBUG */
-#debug{
-position:absolute;
-top:10px;
-left:10px;
-color:#0f0;
-background:rgba(0,0,0,0.6);
-padding:6px;
-font-size:12px;
-z-index:10;
-}
+        #btn-exit {
+            position: absolute;
+            top: 20px; right: 20px;
+            padding: 10px 20px;
+            border-color: #f0f;
+            color: #f0f;
+            text-shadow: 0 0 10px #f0f;
+        }
 
-/* EXIT */
-#exit{
-position:fixed;
-top:10px;
-right:10px;
-z-index:20;
-padding:10px 14px;
-border:1px solid red;
-color:red;
-background:rgba(0,0,0,0.5);
-}
+        /* Controles Táctiles */
+        #joystick-container {
+            position: absolute;
+            bottom: 40px; left: 40px;
+            width: 150px; height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px dashed #0ff;
+            pointer-events: auto;
+        }
 
-/* LEFT PAD */
-#pad{
-position:fixed;
-bottom:20px;
-left:20px;
-display:grid;
-grid-template-columns:60px 60px 60px;
-grid-template-rows:60px 60px 60px;
-gap:5px;
-z-index:50;
-}
+        #joystick-stick {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 60px; height: 60px;
+            background: radial-gradient(circle, #0ff, #008888);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
 
-#pad button{
-background:#000;
-border:2px solid #0ff;
-color:#0ff;
-border-radius:10px;
-}
+        #action-buttons {
+            position: absolute;
+            bottom: 40px; right: 40px;
+            display: flex; gap: 15px;
+            pointer-events: auto;
+        }
 
-/* ACTIONS */
-#actions{
-position:fixed;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-display:flex;
-gap:10px;
-z-index:50;
-}
-
-#actions button{
-width:60px;
-height:60px;
-background:#000;
-border:2px solid #0ff;
-color:#0ff;
-border-radius:10px;
-}
-</style>
+        .action-btn {
+            width: 80px; height: 80px;
+            display: flex; align-items: center; justify-content: center;
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="debug">INIT</div>
+<div id="ui-container">
+    <button id="btn-exit" class="neon-btn" onclick="window.location.href='index.html'">SALIR</button>
+    
+    <div id="joystick-container">
+        <div id="joystick-stick"></div>
+    </div>
 
-<button id="exit" onclick="location.href='index.html'">SALIR</button>
-
-<!-- PAD MOVIMIENTO -->
-<div id="pad">
-<div></div>
-<button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
-<div></div>
-
-<button ontouchstart="move(-1,0)" ontouchend="move(0,0)">◀</button>
-<div></div>
-<button ontouchstart="move(1,0)" ontouchend="move(0,0)">▶</button>
-
-<div></div>
-<button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▼</button>
-<div></div>
+    <div id="action-buttons">
+        <button id="btn-walk" class="neon-btn action-btn">WALK</button>
+        <button id="btn-run" class="neon-btn action-btn">RUN</button>
+    </div>
 </div>
 
-<!-- ACTIONS -->
-<div id="actions">
-<button onclick="speed=0.03">🚶</button>
-<button onclick="speed=0.08">🏃</button>
-</div>
-
-<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+    // Configuración Base
+    let scene, camera, renderer, clock, mixer;
+    let avatar, city;
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+    let isRunning = false;
+    
+    // Variables de Movimiento
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const speed = { walk: 3, run: 8 };
+    
+    // Joystick Logic
+    let stick = document.getElementById('joystick-stick');
+    let stickActive = false;
+    let stickStart = { x: 0, y: 0 };
 
-/* ================= VARIABLES ================= */
-let scene,camera,renderer;
-let avatar,city;
-let mixer=null;
-let clock=new THREE.Clock();
+    init();
+    animate();
 
-let mx=0,mz=0;
-let speed=0.05;
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020205);
+        scene.fog = new THREE.FogExp2(0x020205, 0.01);
 
-/* ================= INPUT ================= */
-function move(x,z){
-mx=x;
-mz=z;
-}
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        clock = new THREE.Clock();
 
-/* ================= DEBUG ================= */
-function log(t){
-document.getElementById("debug").innerText=t;
-}
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        document.body.appendChild(renderer.domElement);
 
-/* ================= INIT ================= */
-init();
-animate();
+        // Iluminación
+        const ambientLight = new THREE.AmbientLight(0x4040ff, 0.5);
+        scene.add(ambientLight);
 
-function init(){
+        const sunLight = new THREE.DirectionalLight(0xff00ff, 1);
+        sunLight.position.set(10, 50, 10);
+        scene.add(sunLight);
 
-scene=new THREE.Scene();
-scene.background=new THREE.Color(0x000010);
+        const loader = new THREE.GLTFLoader();
 
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,3000);
-camera.position.set(0,5,10);
+        // 1. Cargar Ciudad
+        loader.load('ciudad_quantum.glb', (gltf) => {
+            city = gltf.scene;
+            scene.add(city);
+            console.log("Ciudad cargada");
+        });
 
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-document.body.appendChild(renderer.domElement);
+        // 2. Cargar Avatar
+        loader.load('luis-avatar2.glb', (gltf) => {
+            avatar = gltf.scene;
+            scene.add(avatar);
+            
+            // Animaciones
+            mixer = new THREE.AnimationMixer(avatar);
+            if(gltf.animations.length > 0) {
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
+            
+            avatar.position.set(0, 0, 0);
+        });
 
-scene.add(new THREE.AmbientLight(0xffffff,2));
+        setupControls();
+        window.addEventListener('resize', onWindowResize);
+    }
 
-const loader=new THREE.GLTFLoader();
+    function setupControls() {
+        // Eventos de Botones caminar/correr
+        document.getElementById('btn-walk').addEventListener('touchstart', () => isRunning = false);
+        document.getElementById('btn-run').addEventListener('touchstart', () => isRunning = true);
 
-/* ================= CITY ================= */
-loader.load("ciudad_quantum.glb",(g)=>{
+        // Joystick Visual y Lógica
+        const container = document.getElementById('joystick-container');
 
-city=g.scene;
-scene.add(city);
+        container.addEventListener('touchstart', e => {
+            stickActive = true;
+            stickStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
 
-/* NO tocar demasiado el mundo */
-log("CITY LOADED");
+        window.addEventListener('touchmove', e => {
+            if (!stickActive) return;
+            let touch = e.touches[0];
+            let dx = touch.clientX - stickStart.x;
+            let dy = touch.clientY - stickStart.y;
+            let dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            let angle = Math.atan2(dy, dx);
+            
+            let moveX = Math.cos(angle) * dist;
+            let moveY = Math.sin(angle) * dist;
 
-});
+            stick.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
 
-/* ================= AVATAR ================= */
-loader.load("luis-avatar2.glb",(a)=>{
+            // Umbrales para dirección
+            moveForward = dy < -15;
+            moveBackward = dy > 15;
+            moveLeft = dx < -15;
+            moveRight = dx > 15;
+        });
 
-avatar=a.scene;
-scene.add(avatar);
+        window.addEventListener('touchend', () => {
+            stickActive = false;
+            stick.style.transform = `translate(-50%, -50%)`;
+            moveForward = moveBackward = moveLeft = moveRight = false;
+        });
+    }
 
-/* 🔴 IMPORTANTE: no forzar poses */
-avatar.position.set(0,0,0);
-avatar.scale.set(1,1,1);
+    function updatePhysics(delta) {
+        if (!avatar) return;
 
-/* animación si existe */
-if(a.animations && a.animations.length>0){
+        const currentSpeed = isRunning ? speed.run : speed.walk;
+        
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
 
-mixer=new THREE.AnimationMixer(avatar);
-mixer.clipAction(a.animations[0]).play();
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveLeft) - Number(moveRight);
+        direction.normalize();
 
-log("ANIMATION PLAYING");
+        if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
 
-}else{
+        avatar.translateX(-velocity.x);
+        avatar.translateZ(-velocity.z);
 
-log("NO ANIMATION FOUND");
+        // Rotación suave del avatar hacia la dirección
+        if (moveForward || moveBackward || moveLeft || moveRight) {
+            let targetAngle = Math.atan2(-velocity.x, -velocity.z);
+            avatar.rotation.y = THREE.MathUtils.lerp(avatar.rotation.y, targetAngle, 0.15);
+        }
+    }
 
-}
+    function updateCamera() {
+        if (!avatar) return;
+        
+        // Offset de cámara tercera persona (estilo GTA)
+        const offset = new THREE.Vector3(0, 3, 6);
+        offset.applyQuaternion(avatar.quaternion);
+        
+        camera.position.lerp(avatar.position.clone().add(offset), 0.1);
+        camera.lookAt(avatar.position.x, avatar.position.y + 1.5, avatar.position.z);
+    }
 
-});
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-}
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
 
-/* ================= LOOP ================= */
-function animate(){
+        if (mixer) mixer.update(delta);
+        updatePhysics(delta);
+        updateCamera();
 
-requestAnimationFrame(animate);
-
-let dt=clock.getDelta();
-
-/* animaciones */
-if(mixer) mixer.update(dt);
-
-/* movimiento */
-if(avatar){
-
-avatar.position.x += mx*speed;
-avatar.position.z += mz*speed;
-
-/* rotación */
-if(mx||mz){
-avatar.rotation.y=Math.atan2(mx,mz);
-}
-
-}
-
-/* cámara seguimiento */
-if(avatar){
-
-camera.position.lerp(
-new THREE.Vector3(
-avatar.position.x,
-avatar.position.y+5,
-avatar.position.z+10
-),0.05);
-
-camera.lookAt(avatar.position);
-
-}
-
-renderer.render(scene,camera);
-
-}
-
+        renderer.render(scene, camera);
+    }
 </script>
-
 </body>
 </html>
