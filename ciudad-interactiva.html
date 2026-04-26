@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RESTORE GTA SYSTEM</title>
+<title>RESTORED GTA SYSTEM</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;user-select:none;touch-action:none;}
@@ -28,6 +28,7 @@ border:1px solid #f55;color:#f55;
 background:rgba(0,0,0,0.4);
 }
 
+/* IZQUIERDA */
 .pad{
 position:fixed;bottom:20px;left:20px;
 display:grid;
@@ -40,15 +41,29 @@ gap:5px;z-index:50;
 background:#000;border:2px solid #0ff;
 color:#0ff;border-radius:10px;
 }
+
+/* DERECHA */
+.actions{
+position:fixed;bottom:20px;right:20px;
+display:flex;flex-direction:column;
+gap:10px;z-index:50;
+}
+
+.actions button{
+width:60px;height:60px;
+background:#000;border:2px solid #0ff;
+color:#0ff;border-radius:10px;
+}
 </style>
 </head>
 
 <body>
 
-<div id="loader">CARGANDO...</div>
+<div id="loader">CARGANDO SISTEMA...</div>
 <div id="debug">INIT</div>
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
+<!-- MOVIMIENTO -->
 <div class="pad">
 <div></div>
 <button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
@@ -61,6 +76,12 @@ color:#0ff;border-radius:10px;
 <div></div>
 <button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▼</button>
 <div></div>
+</div>
+
+<!-- ACCIONES -->
+<div class="actions">
+<button onclick="speed=0.03">🚶</button>
+<button onclick="speed=0.08">🏃</button>
 </div>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -101,16 +122,23 @@ scene.add(new THREE.AmbientLight(0xffffff,2));
 
 const loader=new THREE.GLTFLoader();
 
-/* 🌆 CIUDAD (ESTABLE) */
+/* 🌆 CIUDAD (FORZADA VISIBILIDAD) */
 loader.load("ciudad_quantum.glb",(g)=>{
 
 city=g.scene;
 scene.add(city);
 
-/* centrado seguro */
+/* CENTRADO + VISIBILIDAD */
 const box=new THREE.Box3().setFromObject(city);
 const center=box.getCenter(new THREE.Vector3());
 city.position.sub(center);
+
+city.traverse(o=>{
+if(o.isMesh){
+o.frustumCulled=false;
+o.visible=true;
+}
+});
 
 camera.position.set(0,5,10);
 camera.lookAt(0,0,0);
@@ -124,6 +152,13 @@ avatar=a.scene;
 avatar.scale.set(1,1,1);
 avatar.position.set(0,0,0);
 scene.add(avatar);
+
+/* 🔥 FIX T-POSE VISUAL */
+avatar.traverse(o=>{
+if(o.isMesh){
+o.frustumCulled=false;
+}
+});
 
 document.getElementById("loader").style.display="none";
 
@@ -145,8 +180,8 @@ avatar.rotation.y=Math.atan2(vx,vz);
 
 }
 
-/* cámara fija estilo GTA estable */
 if(avatar){
+
 camera.position.lerp(
 new THREE.Vector3(
 avatar.position.x,
@@ -155,6 +190,7 @@ avatar.position.z+6
 ),0.08);
 
 camera.lookAt(avatar.position);
+
 }
 
 renderer.render(scene,camera);
