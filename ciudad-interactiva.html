@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Reality - Final 4K Avenue</title>
+    <title>Quantum Reality - Avenue Zero</title>
     <style>
         :root { --neon: #00f6ff; --magenta: #ff00ff; --matrix: #00ff41; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         
-        /* Mensaje Reubicado: Superior Izquierda para no tapar el Avatar */
+        /* Mensaje en esquina superior para no estorbar */
         #manifesto-zone {
-            position: absolute; top: 85px; left: 20px;
-            z-index: 90; width: 70%; max-width: 350px;
-            background: rgba(0, 0, 0, 0.7); border-left: 2px solid var(--matrix);
+            position: absolute; top: 80px; left: 20px;
+            z-index: 90; width: 280px;
+            background: rgba(0, 0, 0, 0.8); border-left: 2px solid var(--matrix);
             padding: 10px; opacity: 1; transition: opacity 1s; pointer-events: none;
         }
-        #typing-text { color: var(--matrix); text-shadow: 0 0 5px var(--matrix); font-size: 13px; margin: 0; }
+        #typing-text { color: var(--matrix); text-shadow: 0 0 5px var(--matrix); font-size: 12px; margin: 0; }
 
-        /* UI HUD */
+        /* HUD UI */
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
         
         #btn-exit {
@@ -49,7 +49,7 @@
 </head>
 <body>
 
-<div id="loader"><h2>SINCRONIZANDO AVENIDA...</h2></div>
+<div id="loader"><h2>REUBICANDO EN AVENIDA...</h2></div>
 <div id="manifesto-zone"><p id="typing-text"></p></div>
 
 <div id="ui">
@@ -65,7 +65,7 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-class MatrixFinalRender {
+class MatrixFinalFix {
     constructor() {
         this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
         this.isZoom = false;
@@ -81,10 +81,10 @@ class MatrixFinalRender {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000003);
         
-        // Ajuste de cámara para eliminar el "nublado" inicial (cerca/lejos optimizado)
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 1000);
+        // Ajuste de cámara para nitidez total (4K) y evitar el "nublado"
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1500);
         
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -100,10 +100,10 @@ class MatrixFinalRender {
 
     lights() {
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const d = new THREE.DirectionalLight(0xffffff, 1.5);
-        d.position.set(10, 25, 15);
+        const d = new THREE.DirectionalLight(0xffffff, 1.4);
+        d.position.set(10, 20, 10);
         this.scene.add(d);
-        this.fL = new THREE.PointLight(0xffffff, 0, 4);
+        this.fL = new THREE.PointLight(0xffffff, 0, 3);
         this.scene.add(this.fL);
     }
 
@@ -113,11 +113,12 @@ class MatrixFinalRender {
         dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
         gl.setDRACOLoader(dr);
 
-        // CIUDAD - UBICACIÓN EXACTA EN AVENIDA
+        // CIUDAD - DESPLAZAMIENTO FORZADO A LA CALLE
         gl.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            // Ajuste de altura a nivel de asfalto (-0.05 para evitar enterrar pies)
-            this.city.position.set(0, -0.05, -20); 
+            // IMPORTANTE: Hemos movido la ciudad en X y Z para que el avatar no nazca en una casa
+            // y bajado Y a -0.1 para que pise el asfalto.
+            this.city.position.set(-25, -0.1, -15); 
             this.scene.add(this.city);
             
             this.city.traverse(n => {
@@ -125,10 +126,10 @@ class MatrixFinalRender {
             });
         });
 
-        // AVATAR - SINCRONIZACIÓN DE PASOS
+        // AVATAR 4K - SINCRONIZACIÓN
         gl.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
-            this.avatar.position.set(0, 0, 0); // Base cero
+            this.avatar.position.set(0, 0, 0); 
             this.scene.add(this.avatar);
             
             this.mixer = new THREE.AnimationMixer(this.avatar);
@@ -136,14 +137,12 @@ class MatrixFinalRender {
             
             g.animations.forEach(a => {
                 const n = a.name.toLowerCase();
-                // Sincronizamos: La animación que contenga 'walk' o 'run' será la de pasos
                 if(n.includes('walk') || n.includes('run')) this.anims.walk = this.mixer.clipAction(a);
                 if(n.includes('idle')) this.anims.idle = this.mixer.clipAction(a);
             });
 
-            // Fallback si no hay nombres claros
             if(!this.anims.idle) this.anims.idle = this.mixer.clipAction(g.animations[0]);
-            if(!this.anims.walk) this.anims.walk = this.mixer.clipAction(g.animations[g.animations.length-1]);
+            if(!this.anims.walk) this.anims.walk = this.mixer.clipAction(g.animations[1] || g.animations[0]);
 
             this.anims.idle.play();
             document.getElementById('loader').style.display = 'none';
@@ -152,11 +151,11 @@ class MatrixFinalRender {
     }
 
     type() {
-        const t = "Sincronizando Neural Link... Ya estoy en la avenida principal. Observando datos en tiempo real.";
+        const t = "Neural Link Establecido. Posicionamiento en avenida principal confirmado.";
         let i = 0; const el = document.getElementById('typing-text');
         const it = setInterval(() => {
             if(i < t.length) { el.innerHTML += t.charAt(i); i++; }
-            else { clearInterval(it); setTimeout(() => { document.getElementById('manifesto-zone').style.opacity = '0'; }, 4000); }
+            else { clearInterval(it); setTimeout(() => { document.getElementById('manifesto-zone').style.opacity = '0'; }, 3000); }
         }, 40);
     }
 
@@ -193,23 +192,20 @@ class MatrixFinalRender {
         if(this.mixer) this.mixer.update(dt);
 
         if(this.avatar) {
-            // Lógica de Movimiento y Pasos
-            const speed = 0.075;
+            const speed = 0.08;
             this.avatar.position.x += this.input.m.x * speed;
             this.avatar.position.z += this.input.m.y * speed;
             
             const moving = Math.abs(this.input.m.x) > 0.1 || Math.abs(this.input.m.y) > 0.1;
             
             if(moving) {
-                // Sincronizar dirección y pasos
                 this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
                 if(this.state !== 'walk') {
                     this.anims.idle.fadeOut(0.2);
                     this.anims.walk.reset().fadeIn(0.2).play();
                     this.state = 'walk';
                 }
-                // Ajuste de velocidad de animación según el joystick
-                this.mixer.timeScale = Math.sqrt(this.input.m.x**2 + this.input.m.y**2) * 1.2;
+                this.mixer.timeScale = 1.3; // Sincronización de velocidad de pasos
             } else {
                 if(this.state !== 'idle') {
                     this.anims.walk.fadeOut(0.2);
@@ -219,22 +215,21 @@ class MatrixFinalRender {
                 }
             }
 
-            // Cámara e Iluminación Facial
             this.camBase.position.copy(this.avatar.position);
             this.camBase.rotation.y -= this.input.l.x * 0.05;
 
-            const tP = this.isZoom ? new THREE.Vector3(0, 1.65, 0.7) : new THREE.Vector3(0, 1.1, 4.2);
+            const tP = this.isZoom ? new THREE.Vector3(0, 1.65, 0.7) : new THREE.Vector3(0, 1.1, 4.0);
             this.camera.position.lerp(tP, 0.1);
             this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 1.65 : 1, 0).add(this.avatar.position));
             
             this.fL.position.copy(this.avatar.position).add(new THREE.Vector3(0, 1.65, 0.5));
-            this.fL.intensity = this.isZoom ? 1.7 : 0;
+            this.fL.intensity = this.isZoom ? 1.8 : 0;
         }
 
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new MatrixFinalRender();
+window.onload = () => new MatrixFinalFix();
 </script>
 </body>
 </html>
