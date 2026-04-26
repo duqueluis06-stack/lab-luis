@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL | QUANTUM CITY</title>
+    <style>
+        :root { --neon: #00ffff; --magenta: #ff00ff; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        
+        /* HUD DE NAVEGACIÓN */
+        header {
+            position: absolute; top: 0; left: 0; width: 100%; height: 60px;
+            background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--neon);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; box-sizing: border-box; z-index: 50;
+        }
+        .nav-btn {
+            text-decoration: none; color: #fff; border: 1px solid #fff;
+            padding: 8px 15px; font-size: 12px; border-radius: 4px; transition: 0.3s;
+        }
+        .btn-exit { color: var(--magenta); border-color: var(--magenta); }
+        .btn-exit:hover { background: var(--magenta); color: #fff; box-shadow: 0 0 15px var(--magenta); }
+
+        /* PANTALLA DE CARGA */
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: var(--neon); display: flex;
+            flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+        }
+        .spinner { width: 50px; height: 50px; border: 3px solid var(--neon); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="status">INICIALIZANDO CIUDAD...</div>
+    </div>
+
+    <header>
+        <div style="color: var(--neon);">● SYSTEM: CITY_VIEW</div>
+        <div style="display: flex; gap: 10px;">
+            <a href="index.html" class="nav-btn">🏠 INICIO</a>
+            <a href="experimentos.html" class="nav-btn btn-exit">🌀 QUANTUM</a>
+        </div>
+    </header>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020205);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // ILUMINACIÓN NEÓN
+        scene.add(new THREE.AmbientLight(0x4040ff, 0.5));
+        const light = new THREE.PointLight(0x00ffff, 2, 100);
+        light.position.set(5, 10, 5);
+        scene.add(light);
+
+        // CONFIGURAR CARGADORES
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); // Decodificador oficial
+        const loader = new THREE.GLTFLoader();
+        loader.setDRACOLoader(dracoLoader);
+
+        let mixer;
+
+        // 1. CARGAR CIUDAD
+        loader.load('procedural_city_5.glb', (gltf) => {
+            scene.add(gltf.scene);
+            document.getElementById('status').innerText = "CIUDAD OK. CARGANDO AVATAR...";
+            
+            // 2. CARGAR AVATAR (Dentro del callback de la ciudad para orden)
+            loader.load('tu_avatar.glb', (avatarGltf) => {
+                const avatar = avatarGltf.scene;
+                avatar.scale.set(1, 1, 1);
+                scene.add(avatar);
+
+                // ANIMACIÓN
+                mixer = new THREE.AnimationMixer(avatar);
+                if(avatarGltf.animations.length > 0) {
+                    mixer.clipAction(avatarGltf.animations[0]).play();
+                }
+
+                document.getElementById('loader').style.display = 'none';
+            });
+        });
+
+        camera.position.set(0, 5, 15);
+        camera.lookAt(0, 2, 0);
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
