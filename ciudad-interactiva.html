@@ -3,27 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>QUANTUM CITY - FINAL</title>
+    <title>Ciudad-interactiva</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; position: fixed; width: 100%; height: 100%; font-family: sans-serif; }
         canvas { display: block; touch-action: none; }
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
-        .controls { display: grid; grid-template-columns: repeat(3, 70px); gap: 10px; pointer-events: auto; }
-        .btn { width: 70px; height: 70px; border: 3px solid #0ff; display: flex; align-items: center; justify-content: center; color: #0ff; background: rgba(0,255,255,0.1); border-radius: 15px; font-weight: bold; font-size: 24px; -webkit-user-select: none; }
-        .btn:active { background: rgba(0,255,255,0.5); }
-        .actions { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
-        .btn-action { width: 110px; height: 50px; background: rgba(255,0,255,0.2); border: 2px solid #f0f; color: #fff; border-radius: 10px; font-size: 14px; font-weight: bold; }
-        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; display: flex; flex-direction: column; justify-content: space-between; padding: 25px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 75px); gap: 10px; pointer-events: auto; }
+        .btn { width: 70px; height: 70px; border: 3px solid #0ff; display: flex; align-items: center; justify-content: center; color: #0ff; background: rgba(0,255,255,0.1); border-radius: 15px; font-weight: bold; font-size: 24px; -webkit-user-select: none; user-select: none; }
+        .btn:active { background: rgba(0,255,255,0.5); transform: scale(0.9); }
+        .actions { display: flex; flex-direction: column; gap: 15px; pointer-events: auto; }
+        .btn-action { width: 110px; height: 55px; background: rgba(255,0,255,0.2); border: 2px solid #f0f; color: #fff; border-radius: 12px; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        #loading { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #0ff; }
     </style>
 </head>
 <body>
 
-<div id="loading"><h1>CONECTANDO LUIS_QUANTUM...</h1></div>
+<div id="loading">
+    <div style="width: 50px; height: 50px; border: 5px solid #0ff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <h1 id="load-text">CARGANDO RECURSOS...</h1>
+</div>
 
 <div id="ui">
     <div style="display:flex; justify-content: space-between; pointer-events: auto;">
-        <a href="index.html" style="color:white; background:red; padding:12px 20px; text-decoration:none; border-radius:8px; font-weight:bold;">SALIR</a>
-        <div style="color:cyan; font-family:monospace; border:1px solid cyan; padding:5px;">SISTEMA ONLINE</div>
+        <a href="index.html" style="color:white; background:red; padding:12px 24px; text-decoration:none; border-radius:10px; font-weight:bold; border: 2px solid white;">SALIR</a>
+        <div style="color:cyan; border:1px solid cyan; padding:8px; background: rgba(0,0,0,0.5);">POSICIÓN: <span id="pos">0,0</span></div>
     </div>
 
     <div style="display:flex; justify-content: space-between; align-items: flex-end;">
@@ -47,6 +50,7 @@
     let player = new THREE.Group();
     let move = { w: false, a: false, s: false, d: false, run: false };
     let velocityY = 0, isJumping = false;
+    let animations = {};
 
     init();
 
@@ -54,19 +58,21 @@
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x020205);
 
-        camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 10000);
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10000);
         
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // ILUMINACIÓN GLOBAL (Si la ciudad está, se verá)
-        scene.add(new THREE.AmbientLight(0xffffff, 2));
-        const light = new THREE.DirectionalLight(0xffffff, 2);
-        light.position.set(10, 50, 10);
-        scene.add(light);
+        // ILUMINACIÓN QUE SÍ FUNCIONA EN IPHONE
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
+        scene.add(hemiLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(10, 50, 10);
+        scene.add(dirLight);
 
         scene.add(player);
 
@@ -75,30 +81,31 @@
         // 🌆 CARGAR CIUDAD
         loader.load('ciudad_quantum.glb', (gltf) => {
             scene.add(gltf.scene);
-        }, undefined, (err) => {
-            // Cuadrícula solo si falla el archivo
-            scene.add(new THREE.GridHelper(500, 50, 0x00ffff, 0x004444));
+        }, (xhr) => {
+            document.getElementById('load-text').innerText = "CIUDAD: " + Math.round(xhr.loaded / xhr.total * 100) + "%";
+        }, (err) => {
+            scene.add(new THREE.GridHelper(1000, 100, 0x00ffff, 0x004444));
         });
 
         // 🧍 CARGAR AVATAR
         loader.load('luis_avatar.glb', (gltf) => {
             luis = gltf.scene;
             
-            // FIX: Mirar de frente y ajustar escala
+            // FIX ROTACIÓN: Mirar de frente al iniciar
             luis.rotation.y = Math.PI; 
+            
             const box = new THREE.Box3().setFromObject(luis);
             const size = box.getSize(new THREE.Vector3());
             luis.scale.setScalar(1.8 / size.y);
 
             player.add(luis);
             
-            // ANIMACIONES: Forzamos el mixer
-            if(gltf.animations && gltf.animations.length > 0) {
+            // SISTEMA DE ANIMACIÓN CORREGIDO
+            if(gltf.animations.length > 0) {
                 mixer = new THREE.AnimationMixer(luis);
-                // Reproducimos TODAS las animaciones detectadas para romper la Pose en T
-                gltf.animations.forEach(clip => {
-                    mixer.clipAction(clip).play();
-                });
+                // Reproducimos la primera animación (Caminar/Idle) para quitar la Pose T
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
             }
             
             document.getElementById('loading').style.display = 'none';
@@ -109,39 +116,43 @@
     }
 
     function setupInput() {
-        const events = ['w','a','s','d','run'];
-        events.forEach(id => {
+        const bind = (id) => {
             const el = document.getElementById(id);
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); move[id] = true; });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); move[id] = false; });
-        });
+            const start = (e) => { e.preventDefault(); move[id] = true; };
+            const end = (e) => { e.preventDefault(); move[id] = false; };
+            el.addEventListener('touchstart', start, {passive: false});
+            el.addEventListener('touchend', end, {passive: false});
+            el.onpointerdown = start;
+            el.onpointerup = end;
+        };
+        ['w','a','s','d','run'].forEach(bind);
 
         document.getElementById('jump').addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if(!isJumping) { velocityY = 0.35; isJumping = true; }
-        });
+            if(!isJumping) { velocityY = 0.4; isJumping = true; }
+        }, {passive: false});
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        const delta = clock.getDelta();
+        const dt = clock.getDelta();
         
-        if (mixer) mixer.update(delta);
+        if (mixer) mixer.update(dt);
 
         if (luis) {
-            const speed = (move.run ? 15 : 6) * delta;
-            const rotSpeed = 3 * delta;
+            const speed = (move.run ? 16 : 7) * dt;
+            const rotSpeed = 2.8 * dt;
 
-            // Movimiento
+            // MOVIMIENTO
             if (move.w) player.translateZ(speed);
             if (move.s) player.translateZ(-speed);
             if (move.a) player.rotation.y += rotSpeed;
             if (move.d) player.rotation.y -= rotSpeed;
 
-            // Salto (Física corregida)
+            // SALTO
             if (isJumping) {
                 player.position.y += velocityY;
-                velocityY -= 0.015; // Gravedad
+                velocityY -= 0.018; 
                 if (player.position.y <= 0) {
                     player.position.y = 0;
                     isJumping = false;
@@ -149,14 +160,18 @@
                 }
             }
 
-            // Cámara (GTA Dinámica)
-            const camOffset = new THREE.Vector3(0, 3.5, -7);
+            // CÁMARA GTA III (Soldada al jugador)
+            const camOffset = new THREE.Vector3(0, 3.5, -7.5);
             camOffset.applyQuaternion(player.quaternion);
-            camera.position.lerp(player.position.clone().add(camOffset), 0.1);
-            camera.lookAt(player.position.x, player.position.y + 1.5, player.position.z);
+            camera.position.copy(player.position).add(camOffset);
+            camera.lookAt(player.position.x, player.position.y + 1.8, player.position.z);
+            
+            document.getElementById('pos').innerText = Math.round(player.position.x) + "," + Math.round(player.position.z);
         }
         renderer.render(scene, camera);
     }
 </script>
+
+<style> @keyframes spin { to { transform: rotate(360deg); } } </style>
 </body>
 </html>
