@@ -1,124 +1,235 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>LUIS QUANTUM - ANIMACIÓN REAL</title>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
-        .hud { position: absolute; top: 0; width: 100%; padding: 20px; box-sizing: border-box; display: flex; justify-content: space-between; z-index: 100; pointer-events: none; }
-        .btn { pointer-events: auto; padding: 10px 20px; background: rgba(0,255,255,0.2); border: 2px solid #0ff; color: #0ff; cursor: pointer; text-decoration: none; font-weight: bold; }
-        .controls-move { position: absolute; bottom: 30px; left: 30px; z-index: 100; display: flex; gap: 10px; }
-        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
+
+<style>
+    body { margin:0; overflow:hidden; background:#000; font-family:monospace; }
+
+    #debug{
+        position:absolute;
+        top:10px;
+        left:10px;
+        color:#0f0;
+        background:rgba(0,0,0,0.7);
+        padding:8px;
+        z-index:10;
+        font-size:12px;
+    }
+
+    #loader{
+        position:fixed;
+        inset:0;
+        background:#000;
+        color:#0ff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:9999;
+        font-size:16px;
+    }
+
+    /* 🎮 CONTROLES IZQUIERDA (JOYSTICK) */
+    .controls-left{
+        position:fixed;
+        bottom:20px;
+        left:20px;
+        display:grid;
+        grid-template-columns:60px 60px 60px;
+        grid-template-rows:60px 60px 60px;
+        gap:6px;
+        z-index:999;
+    }
+
+    /* 🎮 CONTROLES DERECHA (ACCIONES) */
+    .controls-right{
+        position:fixed;
+        bottom:20px;
+        right:20px;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        z-index:999;
+    }
+
+    button{
+        width:60px;
+        height:60px;
+        border-radius:12px;
+        background:rgba(0,0,0,0.6);
+        border:2px solid #0ff;
+        color:#0ff;
+        font-size:12px;
+        box-shadow:0 0 10px #0ff;
+        touch-action:none;
+    }
+
+    button:active{
+        background:#0ff;
+        color:#000;
+    }
+
+</style>
 </head>
+
 <body>
 
-    <div id="loader">SINCRONIZANDO ADN DIGITAL...</div>
+<div id="loader">CARGANDO SISTEMA QUANTUM...</div>
+<div id="debug">INIT...</div>
 
-    <div class="hud">
-        <div style="color: #0ff; text-shadow: 0 0 10px #0ff;">● LUIS_STATUS: ANIMATED</div>
-        <a href="index.html" class="btn">SALIR</a>
-    </div>
+<!-- 🎮 JOYSTICK IZQUIERDO -->
+<div class="controls-left">
+    <div></div>
+    <button ontouchstart="move('forward',true)" ontouchend="move('forward',false)">▲</button>
+    <div></div>
 
-    <div class="controls-move">
-        <button class="btn" onclick="focusLuis()">🎯 CENTRAR CÁMARA</button>
-    </div>
+    <button ontouchstart="move('left',true)" ontouchend="move('left',false)">◀</button>
+    <div></div>
+    <button ontouchstart="move('right',true)" ontouchend="move('right',false)">▶</button>
 
-    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <div></div>
+    <button ontouchstart="move('back',true)" ontouchend="move('back',false)">▼</button>
+    <div></div>
+</div>
 
-    <script>
-        let scene, camera, renderer, controls, luis;
-        let mixers = []; // Lista de motores de animación
-        const clock = new THREE.Clock();
+<!-- 🎮 ACCIONES DERECHA -->
+<div class="controls-right">
+    <button onclick="action('walk')">🚶</button>
+    <button onclick="action('run')">🏃</button>
+    <button onclick="action('jump')">🟡</button>
+    <button onclick="action('climb')">🧗</button>
+    <button onclick="action('crouch')">🪑</button>
+</div>
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020205);
-            
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 3, 8);
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.outputEncoding = THREE.sRGBEncoding; // Mejora los colores
-            document.body.appendChild(renderer.domElement);
+<script>
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-            const spot = new THREE.SpotLight(0xffffff, 1);
-            spot.position.set(0, 10, 10);
-            scene.add(spot);
+let scene, camera, renderer, luis;
+let mixer, cityMixer;
+let clock = new THREE.Clock();
+let dir = {x:0, z:0};
+let speed = 0.06;
+let controls;
 
-            const draco = new THREE.DRACOLoader();
-            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-            const loader = new THREE.GLTFLoader();
-            loader.setDRACOLoader(draco);
+function log(t){
+    document.getElementById("debug").innerText = t;
+}
 
-            // 1. CARGAR CIUDAD
-            loader.load('ciudad_quantum.glb', (gltf) => {
-                scene.add(gltf.scene);
-                // Si la ciudad tiene animaciones (autos), las activamos todas
-                if(gltf.animations.length) {
-                    const mCity = new THREE.AnimationMixer(gltf.scene);
-                    gltf.animations.forEach(clip => mCity.clipAction(clip).play());
-                    mixers.push(mCity);
-                }
+function init(){
 
-                // 2. CARGAR LUIS (Con sus micromovimientos)
-                loader.load('luis_avatar.glb', (avGltf) => {
-                    luis = avGltf.scene;
-                    luis.scale.set(1.5, 1.5, 1.5); 
-                    luis.position.set(0, 0, 0);
-                    scene.add(luis);
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000010);
 
-                    // MOTOR DE ANIMACIÓN PARA LUIS
-                    if(avGltf.animations.length) {
-                        const mLuis = new THREE.AnimationMixer(luis);
-                        // Esto busca la animación "Idle" o natural y la pone en marcha
-                        avGltf.animations.forEach(clip => {
-                            const action = mLuis.clipAction(clip);
-                            action.play();
-                        });
-                        mixers.push(mLuis);
-                    }
+    camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+    camera.position.set(0,3,6);
 
-                    document.getElementById('loader').style.display = 'none';
-                    focusLuis();
-                });
-            });
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
+    scene.add(new THREE.AmbientLight(0xffffff, 2));
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const draco = new THREE.DRACOLoader();
+    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+
+    const loader = new THREE.GLTFLoader();
+    loader.setDRACOLoader(draco);
+
+    log("Cargando ciudad...");
+
+    loader.load("ciudad_quantum.glb", (gltf)=>{
+
+        scene.add(gltf.scene);
+
+        if(gltf.animations.length){
+            cityMixer = new THREE.AnimationMixer(gltf.scene);
+            gltf.animations.forEach(c=>cityMixer.clipAction(c).play());
         }
 
-        function focusLuis() {
-            if(luis) {
-                controls.target.set(luis.position.x, luis.position.y + 1, luis.position.z);
-                camera.position.set(luis.position.x, luis.position.y + 2, luis.position.z + 5);
+        log("Ciudad OK → cargando avatar");
+
+        loader.load("luis_avatar.glb", (av)=>{
+
+            luis = av.scene;
+
+            // 👤 FIX VISIBILIDAD
+            luis.scale.set(1.2,1.2,1.2);
+            luis.position.set(0,1,0);
+
+            scene.add(luis);
+
+            if(av.animations.length){
+                mixer = new THREE.AnimationMixer(luis);
+                mixer.clipAction(av.animations[0]).play();
             }
-        }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            
-            // ACTUALIZACIÓN DE TODOS LOS MOTORES (Esencial para el movimiento)
-            mixers.forEach(mixer => mixer.update(delta));
-            
-            controls.update();
-            renderer.render(scene, camera);
-        }
+            document.getElementById("loader").style.display="none";
+            log("SISTEMA ONLINE");
 
-        init();
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-    </script>
+
+    });
+
+}
+
+function move(type, active){
+    if(type==="forward") dir.z = active ? -1 : 0;
+    if(type==="back") dir.z = active ? 1 : 0;
+    if(type==="left") dir.x = active ? -1 : 0;
+    if(type==="right") dir.x = active ? 1 : 0;
+}
+
+function action(type){
+    log("ACTION: "+type);
+
+    if(type==="run") speed = 0.12;
+    if(type==="walk") speed = 0.05;
+}
+
+function animate(){
+
+    requestAnimationFrame(animate);
+
+    let delta = clock.getDelta();
+
+    if(mixer) mixer.update(delta);
+    if(cityMixer) cityMixer.update(delta);
+
+    if(luis){
+        luis.position.x += dir.x * speed;
+        luis.position.z += dir.z * speed;
+
+        // 🎯 cámara seguimiento suave
+        camera.position.lerp(
+            new THREE.Vector3(
+                luis.position.x,
+                luis.position.y + 3,
+                luis.position.z + 6
+            ),
+            0.05
+        );
+
+        camera.lookAt(luis.position);
+    }
+
+    if(controls) controls.update();
+
+    renderer.render(scene,camera);
+}
+
+init();
+animate();
+
+</script>
+
 </body>
 </html>
