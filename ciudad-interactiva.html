@@ -2,25 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
+    <title>LUIS QUANTUM - ANIMACIÓN REAL</title>
     <style>
-        body { margin: 0; background: #111; overflow: hidden; font-family: monospace; }
-        #debug { position: absolute; top: 10px; left: 10px; color: #0f0; background: rgba(0,0,0,0.8); padding: 10px; z-index: 1000; }
-        .controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 1000; }
-        button { padding: 15px 25px; background: #000; color: #0ff; border: 2px solid #0ff; cursor: pointer; font-weight: bold; }
-        #loader { position: fixed; inset: 0; background: #000; color: #0ff; display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        .hud { position: absolute; top: 0; width: 100%; padding: 20px; box-sizing: border-box; display: flex; justify-content: space-between; z-index: 100; pointer-events: none; }
+        .btn { pointer-events: auto; padding: 10px 20px; background: rgba(0,255,255,0.2); border: 2px solid #0ff; color: #0ff; cursor: pointer; text-decoration: none; font-weight: bold; }
+        .controls-move { position: absolute; bottom: 30px; left: 30px; z-index: 100; display: flex; gap: 10px; }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: #0ff; }
     </style>
 </head>
 <body>
 
-    <div id="loader">INICIALIZANDO NÚCLEO...</div>
-    <div id="debug">ESTADO: INICIANDO...</div>
-    
-    <div class="controls">
-        <button onmousedown="move='w'" onmouseup="move=null">↑</button>
-        <button onmousedown="move='s'" onmouseup="move=null">↓</button>
-        <button onclick="resetPos()">🎯 RE-SPAWN</button>
-        <button onclick="location.href='index.html'">🏠 SALIR</button>
+    <div id="loader">SINCRONIZANDO ADN DIGITAL...</div>
+
+    <div class="hud">
+        <div style="color: #0ff; text-shadow: 0 0 10px #0ff;">● LUIS_STATUS: ANIMATED</div>
+        <a href="index.html" class="btn">SALIR</a>
+    </div>
+
+    <div class="controls-move">
+        <button class="btn" onclick="focusLuis()">🎯 CENTRAR CÁMARA</button>
     </div>
 
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -29,80 +30,95 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        const log = (t) => document.getElementById('debug').innerText = "LOG: " + t;
-        let scene, camera, renderer, luis, mixer, move = null;
-        let cityMixer;
+        let scene, camera, renderer, controls, luis;
+        let mixers = []; // Lista de motores de animación
         const clock = new THREE.Clock();
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000505);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 20);
+            scene.background = new THREE.Color(0x020205);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3, 8);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.outputEncoding = THREE.sRGBEncoding; // Mejora los colores
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 2));
-
-            // SUELO DE PRUEBA (Si ves esto, Three.js funciona)
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x112211}));
-            floor.rotation.x = -Math.PI/2;
-            scene.add(floor);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            const spot = new THREE.SpotLight(0xffffff, 1);
+            spot.position.set(0, 10, 10);
+            scene.add(spot);
 
             const draco = new THREE.DRACOLoader();
             draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
             const loader = new THREE.GLTFLoader();
             loader.setDRACOLoader(draco);
 
-            log("Cargando ciudad...");
+            // 1. CARGAR CIUDAD
             loader.load('ciudad_quantum.glb', (gltf) => {
                 scene.add(gltf.scene);
+                // Si la ciudad tiene animaciones (autos), las activamos todas
                 if(gltf.animations.length) {
-                    cityMixer = new THREE.AnimationMixer(gltf.scene);
-                    gltf.animations.forEach(clip => cityMixer.clipAction(clip).play());
+                    const mCity = new THREE.AnimationMixer(gltf.scene);
+                    gltf.animations.forEach(clip => mCity.clipAction(clip).play());
+                    mixers.push(mCity);
                 }
-                log("Ciudad OK. Cargando Luis...");
 
-                loader.load('luis_avatar.glb', (av) => {
-                    luis = av.scene;
-                    luis.scale.set(0.015, 0.015, 0.015);
+                // 2. CARGAR LUIS (Con sus micromovimientos)
+                loader.load('luis_avatar.glb', (avGltf) => {
+                    luis = avGltf.scene;
+                    luis.scale.set(1.5, 1.5, 1.5); 
+                    luis.position.set(0, 0, 0);
                     scene.add(luis);
-                    if(av.animations.length) {
-                        mixer = new THREE.AnimationMixer(luis);
-                        mixer.clipAction(av.animations[0]).play();
+
+                    // MOTOR DE ANIMACIÓN PARA LUIS
+                    if(avGltf.animations.length) {
+                        const mLuis = new THREE.AnimationMixer(luis);
+                        // Esto busca la animación "Idle" o natural y la pone en marcha
+                        avGltf.animations.forEach(clip => {
+                            const action = mLuis.clipAction(clip);
+                            action.play();
+                        });
+                        mixers.push(mLuis);
                     }
+
                     document.getElementById('loader').style.display = 'none';
-                    log("SISTEMA ONLINE");
-                }, undefined, (e) => log("Error Luis: " + e));
+                    focusLuis();
+                });
+            });
 
-            }, (xhr) => {
-                let p = Math.round(xhr.loaded / xhr.total * 100);
-                document.getElementById('loader').innerText = "CARGANDO CIUDAD: " + p + "%";
-            }, (e) => log("Error Ciudad: " + e));
-
-            new THREE.OrbitControls(camera, renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
         }
 
-        function resetPos() {
-            if(luis) { luis.position.set(0,0,0); camera.position.set(0,5,10); }
+        function focusLuis() {
+            if(luis) {
+                controls.target.set(luis.position.x, luis.position.y + 1, luis.position.z);
+                camera.position.set(luis.position.x, luis.position.y + 2, luis.position.z + 5);
+            }
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-            if(mixer) mixer.update(delta);
-            if(cityMixer) cityMixer.update(delta);
-            if(luis && move) {
-                if(move === 'w') luis.translateZ(0.2);
-                if(move === 's') luis.translateZ(-0.2);
-            }
+            
+            // ACTUALIZACIÓN DE TODOS LOS MOTORES (Esencial para el movimiento)
+            mixers.forEach(mixer => mixer.update(delta));
+            
+            controls.update();
             renderer.render(scene, camera);
         }
 
         init();
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
