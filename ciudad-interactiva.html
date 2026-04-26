@@ -3,46 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Reality - Ras de Suelo 4K</title>
+    <title>Quantum Reality - 4K Solid Fix</title>
     <style>
-        :root { --neon: #00f6ff; --matrix: #00ff41; --magenta: #ff00ff; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        :root { --neon: #00f6ff; --matrix: #00ff41; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
         
-        #manifesto-zone {
-            position: absolute; top: 20px; left: 20px; z-index: 90; width: 280px;
-            background: rgba(0, 0, 0, 0.9); border-left: 3px solid var(--matrix);
-            padding: 12px; color: var(--matrix); font-size: 11px; pointer-events: none;
+        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
+        
+        #manifesto {
+            position: absolute; top: 20px; left: 20px; width: 250px;
+            background: rgba(0,0,0,0.8); border-left: 3px solid var(--matrix);
+            padding: 10px; color: var(--matrix); font-size: 12px;
         }
 
-        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
-        
-        .joy-frame {
+        .joystick {
             position: absolute; bottom: 40px; width: 100px; height: 100px;
             border: 2px solid var(--neon); border-radius: 50%;
-            background: rgba(0,246,255,0.1); pointer-events: auto; touch-action: none;
+            background: rgba(0,246,255,0.05); pointer-events: auto;
         }
-        #joy-l { left: 30px; } #joy-r { right: 30px; }
-        .knob { width: 42px; height: 42px; background: var(--neon); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px var(--neon); border: 2px solid #fff; }
+        #joy-left { left: 30px; } #joy-right { right: 30px; }
+        .knob { 
+            width: 40px; height: 40px; background: var(--neon); border-radius: 50%; 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px var(--neon);
+        }
 
-        #zoom-btn {
+        #btn-zoom {
             position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-            width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--magenta);
-            background: rgba(0,0,0,0.9); color: var(--magenta); pointer-events: auto; font-size: 10px; font-weight: bold;
-            box-shadow: 0 0 20px var(--magenta); cursor: pointer;
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid #fff;
+            background: rgba(0,0,0,0.9); color: #fff; pointer-events: auto;
+            font-size: 10px; font-weight: bold; cursor: pointer;
         }
 
-        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--neon); }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--neon); }
     </style>
 </head>
 <body>
 
-<div id="loader"><h2>CALIBRANDO GRAVEDAD 4K...</h2></div>
-<div id="manifesto-zone"><p id="typing-text">Sincronización de Altura... <br>Avenida Principal Localizada. <br>Texturas 4K Cargadas.</p></div>
+<div id="loader"><h2>ESTABILIZANDO RENDER 4K...</h2><p>Corrigiendo altura de asfalto...</p></div>
+<div id="manifesto"><b>SISTEMA LUIS 4K</b><br>Colisiones visuales activas.<br>Altura: Nivel Calle.</div>
 
-<div id="ui">
-    <div id="joy-l" class="joy-frame"><div id="knob-l" class="knob"></div></div>
-    <button id="zoom-btn">ZOOM<br>FACIAL</button>
-    <div id="joy-r" class="joy-frame"><div id="knob-r" class="knob"></div></div>
+<div id="ui-layer">
+    <div id="joy-left" class="joystick"><div id="knob-l" class="knob"></div></div>
+    <button id="btn-zoom">ZOOM<br>ROSTRO</button>
+    <div id="joy-right" class="joystick"><div id="knob-r" class="knob"></div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -50,132 +54,128 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-class GroundZeroEngine {
+class SolidEngine {
     constructor() {
-        this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
+        this.move = { x: 0, y: 0 };
+        this.look = { x: 0, y: 0 };
         this.isZoom = false;
         this.init();
         this.lights();
         this.load();
-        this.ui();
-        this.loop();
+        this.setupControls();
+        this.render();
     }
 
     init() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.01, 1000);
-        
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Nitidez 4K
+        this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.body.appendChild(this.renderer.domElement);
+        
         this.clock = new THREE.Clock();
-        this.camBase = new THREE.Group();
-        this.scene.add(this.camBase);
-        this.camBase.add(this.camera);
+        this.container = new THREE.Group();
+        this.scene.add(this.container);
+        this.container.add(this.camera);
     }
 
     lights() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 2.0)); // Más luz para ver la textura
-        const d = new THREE.DirectionalLight(0xffffff, 1.5);
-        d.position.set(5, 10, 7);
-        this.scene.add(d);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+        this.spot = new THREE.PointLight(0xffffff, 2, 10);
+        this.scene.add(this.spot);
     }
 
     load() {
-        const gl = new THREE.GLTFLoader();
-        const dr = new THREE.DRACOLoader();
-        dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
-        gl.setDRACOLoader(dr);
+        const loader = new THREE.GLTFLoader();
+        const draco = new THREE.DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        loader.setDRACOLoader(draco);
 
-        // CIUDAD: Regresamos a altura casi CERO para que no flote
-        gl.load('ciudad_quantum.glb', (g) => {
+        // CIUDAD: Ajuste para evitar encastramiento inicial
+        loader.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            // X: -8 (Avenida), Y: -0.05 (A ras de suelo), Z: 0
-            this.city.position.set(-8, -0.05, 0); 
+            // Movida 15m para nacer en calle abierta y -0.25 para salvar tobillos
+            this.city.position.set(-15, -0.25, -10); 
             this.scene.add(this.city);
         });
 
-        // AVATAR: Sincronización de animaciones
-        gl.load('luis-avatar2.glb', (g) => {
+        loader.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
             this.scene.add(this.avatar);
             this.mixer = new THREE.AnimationMixer(this.avatar);
             
+            // Forzar detección de piernas (animación 1 o última)
             if(g.animations.length > 0) {
-                this.idleAction = this.mixer.clipAction(g.animations[0]);
-                // Forzamos la animación de las piernas (suele ser la última)
-                this.walkAction = this.mixer.clipAction(g.animations[g.animations.length - 1]);
-                this.idleAction.play();
+                this.idle = this.mixer.clipAction(g.animations[0]);
+                this.walk = this.mixer.clipAction(g.animations[g.animations.length - 1]);
+                this.idle.play();
             }
-            
             document.getElementById('loader').style.display = 'none';
         });
     }
 
-    ui() {
-        const setup = (id, kn, move) => {
-            const a = document.getElementById(id), k = document.getElementById(kn);
-            let ok = false;
-            const h = (e) => {
-                if(!ok) return;
+    setupControls() {
+        const handle = (id, kn, isMove) => {
+            const el = document.getElementById(id), k = document.getElementById(kn);
+            let active = false;
+            const move = (e) => {
+                if(!active) return;
                 const p = e.touches ? e.touches[0] : e;
-                const r = a.getBoundingClientRect();
-                const fx = (p.clientX - (r.left + 50)) / 50, fy = (p.clientY - (r.top + 50)) / 50;
-                k.style.transform = `translate(calc(-50% + ${fx*30}px), calc(-50% + ${fy*30}px))`;
-                if(move) this.input.m = {x: fx, y: fy}; else this.input.l = {x: fx, y: fy};
+                const r = el.getBoundingClientRect();
+                const x = (p.clientX - (r.left + 50)) / 50;
+                const y = (p.clientY - (r.top + 50)) / 50;
+                k.style.transform = `translate(calc(-50% + ${x*30}px), calc(-50% + ${y*30}px))`;
+                if(isMove) this.move = {x, y}; else this.look = {x, y};
             };
-            a.addEventListener('touchstart', () => ok = true);
-            window.addEventListener('touchmove', h);
+            el.addEventListener('touchstart', () => active = true);
+            window.addEventListener('touchmove', move);
             window.addEventListener('touchend', () => { 
-                ok = false; k.style.transform = 'translate(-50%, -50%)'; 
-                if(move) this.input.m = {x:0, y:0}; else this.input.l = {x:0, y:0}; 
+                active = false; k.style.transform = 'translate(-50%, -50%)';
+                if(isMove) this.move = {x:0, y:0}; else this.look = {x:0, y:0};
             });
         };
-        setup('joy-l', 'knob-l', true); setup('joy-r', 'knob-r', false);
-        document.getElementById('zoom-btn').onclick = () => { this.isZoom = !this.isZoom; };
+        handle('joy-left', 'knob-l', true);
+        handle('joy-right', 'knob-r', false);
+        document.getElementById('btn-zoom').onclick = () => this.isZoom = !this.isZoom;
     }
 
-    loop() {
-        requestAnimationFrame(() => this.loop());
-        const dt = this.clock.getDelta();
-        if(this.mixer) this.mixer.update(dt);
-        
+    render() {
+        requestAnimationFrame(() => this.render());
+        const delta = this.clock.getDelta();
+        if(this.mixer) this.mixer.update(delta);
+
         if(this.avatar) {
-            const speed = 0.1;
-            this.avatar.position.x += this.input.m.x * speed;
-            this.avatar.position.z += this.input.m.y * speed;
-            
-            const moving = Math.abs(this.input.m.x) > 0.1 || Math.abs(this.input.m.y) > 0.1;
-            if(moving) {
-                this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
-                if(this.walkAction && !this.walkAction.isRunning()) {
-                    this.mixer.stopAllAction();
-                    this.walkAction.fadeIn(0.2).play();
-                }
+            // Movimiento "Sólido"
+            const speed = 0.12;
+            this.avatar.position.x += this.move.x * speed;
+            this.avatar.position.z += this.move.y * speed;
+
+            const isMoving = Math.abs(this.move.x) > 0.1 || Math.abs(this.move.y) > 0.1;
+            if(isMoving) {
+                this.avatar.rotation.y = Math.atan2(this.move.x, this.move.y);
+                if(!this.walk.isRunning()) { this.idle.stop(); this.walk.play(); }
             } else {
-                if(this.idleAction && !this.idleAction.isRunning()) {
-                    this.mixer.stopAllAction();
-                    this.idleAction.fadeIn(0.2).play();
-                }
+                if(!this.idle.isRunning()) { this.walk.stop(); this.idle.play(); }
             }
 
-            this.camBase.position.copy(this.avatar.position);
-            this.camBase.rotation.y -= this.input.l.x * 0.05;
-            
-            // ZOOM AL ROSTRO (Altura 1.70 para centrar la cara)
-            const tP = this.isZoom ? new THREE.Vector3(0, 1.7, 0.6) : new THREE.Vector3(0, 1.2, 3.5);
-            this.camera.position.lerp(tP, 0.1);
-            
-            const targetY = this.isZoom ? 1.7 : 1.1;
-            this.camera.lookAt(new THREE.Vector3(0, targetY, 0).add(this.avatar.position));
+            // Cámara tipo Skate (Seguimiento suave)
+            this.container.position.lerp(this.avatar.position, 0.1);
+            this.container.rotation.y -= this.look.x * 0.04;
+
+            const targetCam = this.isZoom ? new THREE.Vector3(0, 1.72, 0.5) : new THREE.Vector3(0, 1.3, 3.5);
+            this.camera.position.lerp(targetCam, 0.1);
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 1.72 : 1, 0).add(this.avatar.position));
+
+            // Luz 4K frontal
+            this.spot.position.set(this.avatar.position.x, 2, this.avatar.position.z + 1);
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new GroundZeroEngine();
+window.onload = () => new SolidEngine();
 </script>
 </body>
 </html>
