@@ -3,154 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luis 4K - Calibración Final</title>
+    <title>Quantum Reality - Protocolo Final</title>
     <style>
-        :root { --matrix: #00ff41; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        #hud { position: absolute; top: 10px; left: 10px; z-index: 100; color: var(--matrix); font-size: 11px; background: rgba(0,20,0,0.8); padding: 8px; border: 1px solid var(--matrix); }
-        .joy { position: absolute; bottom: 30px; width: 100px; height: 100px; border: 2px solid var(--matrix); border-radius: 50%; z-index: 110; touch-action: none; }
-        #joy-l { left: 20px; } #joy-r { right: 20px; }
-        .stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: var(--matrix); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px var(--matrix); }
-        #zoom { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; z-index: 120; font-weight: bold; cursor: pointer; }
-        #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--matrix); }
+        :root {
+            --matrix-green: #00ff41;
+            --neon-cyan: #00f6ff;
+            --neon-magenta: #ff00ff;
+            --glow: 0 0 15px rgba(0, 255, 65, 0.7);
+            --bg-dark: #000003;
+        }
+
+        body { margin: 0; overflow: hidden; background: var(--bg-dark); font-family: 'Courier New', monospace; color: var(--matrix-green); -webkit-user-select: none; user-select: none; }
+
+        /* Capa de Lluvia Matrix de Fondo */
+        #matrix-canvas { position: fixed; inset: 0; z-index: 1; opacity: 0.15; pointer-events: none; }
+
+        /* UI SUPERIOR: HUD y Reloj */
+        #ui-top {
+            position: absolute; top: 0; left: 0; width: 100%; display: flex;
+            justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 100; pointer-events: none;
+        }
+
+        #terminal {
+            width: 300px; padding: 15px; background: rgba(0, 10, 0, 0.85);
+            border-left: 3px solid var(--matrix-green); box-shadow: var(--glow);
+            font-size: 11px; text-shadow: 0 0 5px var(--matrix-green);
+        }
+        #typing-text::after { content: '|'; animation: blink 1s infinite; }
+
+        #data-stream { display: flex; flex-direction: column; align-items: flex-end; color: var(--neon-cyan); pointer-events: auto; }
+        #digital-clock { font-size: 20px; font-weight: bold; text-shadow: 0 0 10px var(--neon-cyan); margin-bottom: 10px; }
+        
+        #btn-exit {
+            padding: 10px 20px; border: 2px solid var(--neon-magenta);
+            background: rgba(0, 0, 0, 0.8); color: var(--neon-magenta);
+            font-size: 11px; font-weight: bold; text-decoration: none;
+            border-radius: 5px; box-shadow: 0 0 10px var(--neon-magenta);
+            transition: all 0.2s; cursor: pointer;
+        }
+        #btn-exit:hover { background: var(--neon-magenta); color: #000; box-shadow: 0 0 20px var(--neon-magenta); }
+
+        /* UI INFERIOR: Joysticks y Zoom */
+        #ui-bottom {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 200px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 40px 40px 40px; box-sizing: border-box; z-index: 110; pointer-events: none;
+        }
+
+        .joystick-base {
+            width: 120px; height: 120px; border: 3px solid var(--matrix-green);
+            border-radius: 50%; background: rgba(0, 255, 65, 0.03);
+            box-shadow: inset 0 0 15px var(--glow), var(--glow);
+            pointer-events: auto; touch-action: none; position: relative;
+        }
+        .stick {
+            width: 50px; height: 50px; background: var(--matrix-green);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); box-shadow: 0 0 20px var(--matrix-green);
+            border: 2px solid #fff;
+        }
+
+        #btn-zoom-facade {
+            width: 90px; height: 90px; border: 3px solid #fff;
+            border-radius: 50%; background: rgba(0,0,0,0.9); color: #fff;
+            font-size: 10px; font-weight: bold; text-align: center;
+            box-shadow: 0 0 20px #fff; pointer-events: auto;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; color: var(--matrix-green); flex-direction: column; }
+        .bar-bg { width: 200px; height: 2px; background: #111; margin-top: 15px; }
+        .bar-fill { width: 0%; height: 100%; background: var(--matrix-green); box-shadow: var(--glow); }
+
     </style>
 </head>
 <body>
 
-<div id="loader"><h2>SINCRONIZANDO PLANETA...</h2></div>
-<div id="hud">SISTEMA: V6_AUTO_GROUND<br>ALTURA: AUTO-DETECT<br>PIERNAS: SCAN_ACTIVE</div>
+<canvas id="matrix-canvas"></canvas>
 
-<div id="ui">
-    <div id="joy-l" class="joy"><div id="stick-l" class="stick"></div></div>
-    <button id="zoom">ZOOM</button>
-    <div id="joy-r" class="joy"><div id="stick-r" class="stick"></div></div>
+<div id="loader">
+    <h2>CALIBRANDO PROTOCOLO FINAL...</h2>
+    <div class="bar-bg"><div class="bar-fill" id="load-bar"></div></div>
+</div>
+
+<div id="ui-top">
+    <div id="terminal">
+        > LOG: USER_LUIS<br>
+        > STATUS: INMERSIÓN COMPLETA<br>
+        <p id="typing-text"></p>
+    </div>
+    <div id="data-stream">
+        <div id="digital-clock">00:00:00</div>
+        <a href="index.html" id="btn-exit">SALIR (EXIT)</a>
+    </div>
+</div>
+
+<div id="ui-bottom">
+    <div id="joy-move" class="joystick-base"><div id="stick-move" class="stick"></div></div>
+    <button id="btn-zoom-facade">ZOOM<br>NITIDEZ 4K</button>
+    <div id="joy-look" class="joystick-base"><div id="stick-look" class="stick"></div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-class FinalRescueEngine {
+/**
+ * MATRIX AVENUE - PROTOCOLO FINAL
+ * Arquitectura de Renderizado 4K Nitidez Extrema
+ */
+
+// 1. EFECTO DE LLUVIA MATRIX DE FONDO (CANVAS 2D)
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const letters = "日ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ0123456789";
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+
+function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 3, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0f0';
+    ctx.font = fontSize + 'px monospace';
+    for (let i = 0; i < drops.length; i++) {
+        const text = letters.charAt(Math.floor(Math.random() * letters.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.width && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+    }
+}
+setInterval(drawMatrix, 35);
+
+// 2. RELOJ DIGITAL
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('digital-clock').innerText = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// 3. EFECTO TYPING (Metacognición)
+const textToType = "He entrado al sistema. Todo se ve muy raro... pero hay como una metacognición digital entre el mundo real, mi yo real y mi avatar. Soy pura información flotando en la avenida neón.";
+let typeIdx = 0;
+function typeText() {
+    if (typeIdx < textToType.length) {
+        document.getElementById('typing-text').innerHTML += textToType.charAt(typeIdx);
+        typeIdx++;
+        setTimeout(typeText, 50);
+    }
+}
+
+// 4. MOTOR 3D (THREE.JS)
+class QuantumInmersionEngine {
     constructor() {
-        this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
+        this.input = { move: {x:0, y:0}, look: {x:0, y:0} };
         this.isZoom = false;
+        this.time = 0;
         this.init();
-        this.load();
-        this.events();
-        this.render();
+        this.createMatrixGrid();
+        this.loadAvatar();
+        this.controls();
+        this.animate();
     }
 
     init() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.05, 2000);
+        // Niebla verde para profundidad neón
+        this.scene.fog = new THREE.FogExp2(0x000a00, 0.08); 
+
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.01, 1000);
+        
+        // Renderizado de Alta Precisión (Nitidez 4K)
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Nitidez extrema
         this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.3;
         document.body.appendChild(this.renderer.domElement);
+
         this.clock = new THREE.Clock();
-
+        
         this.scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        const d = new THREE.DirectionalLight(0xffffff, 1);
-        d.position.set(5, 10, 5);
-        this.scene.add(d);
-
-        // Suelo de referencia Matrix
-        const grid = new THREE.GridHelper(500, 100, 0x00ff41, 0x002200);
-        this.scene.add(grid);
-
+        
+        // Plataforma de cámara
         this.rig = new THREE.Group();
         this.scene.add(this.rig);
         this.rig.add(this.camera);
     }
 
-    load() {
-        const gl = new THREE.GLTFLoader();
+    createMatrixGrid() {
+        // Suelo Neón Infinito
+        const grid = new THREE.GridHelper(500, 200, 0x00ff41, 0x001100);
+        this.scene.add(grid);
+    }
 
-        // 1. Ciudad al punto Cero
-        gl.load('ciudad_quantum.glb', (g) => {
-            this.city = g.scene;
-            this.city.position.set(0, 0, 0); 
-            this.scene.add(this.city);
-        });
+    loadAvatar() {
+        const loader = new THREE.GLTFLoader();
+        const loadBar = document.getElementById('load-bar');
 
-        // 2. Avatar con auto-posicionamiento
-        gl.load('luis-avatar2.glb', (g) => {
+        loader.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
-            this.avatar.scale.setScalar(0.2); 
-            // Reset de altura: Lo ponemos en 0. Si la ciudad está arriba o abajo, el Grid nos dirá dónde.
-            this.avatar.position.set(0, 0, 0);
+            // No tiene huesos, así que lo escalamos y lo centramos
+            this.avatar.scale.setScalar(0.25); 
+            this.avatar.position.set(0, 0.1, 0); // Un pelín elevado del suelo
             this.scene.add(this.avatar);
             
-            this.mixer = new THREE.AnimationMixer(this.avatar);
-            if(g.animations.length > 0) {
-                // Forzamos TODAS las animaciones a estar disponibles
-                this.actions = g.animations.map(anim => this.mixer.clipAction(anim));
-                this.actions[0].play(); // Idle
-            }
-            document.getElementById('loader').style.display = 'none';
+            // Foco facial de nitidez neón
+            this.faceLight = new THREE.PointLight(0x00f6ff, 3, 2);
+            this.scene.add(this.faceLight);
+
+            loadBar.style.width = "100%";
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                typeText();
+            }, 500);
         });
     }
 
-    events() {
-        const setup = (id, st, move) => {
-            const el = document.getElementById(id), s = document.getElementById(st);
+    controls() {
+        const handleJoy = (id, knobId, isMove) => {
+            const area = document.getElementById(id), knob = document.getElementById(knobId);
             let active = false;
-            const h = (e) => {
+            
+            const process = (e) => {
                 if(!active) return;
                 const p = e.touches ? e.touches[0] : e;
-                const r = el.getBoundingClientRect();
-                const x = (p.clientX - (r.left + 50)) / 50, y = (p.clientY - (r.top + 50)) / 50;
-                s.style.transform = `translate(calc(-50% + ${x*30}px), calc(-50% + ${y*30}px))`;
-                if(move) this.input.m = {x, y}; else this.input.l = {x, y};
+                const r = area.getBoundingClientRect();
+                const x = (p.clientX - (r.left + 60)) / 60, y = (p.clientY - (r.top + 60)) / 60;
+                const m = Math.min(Math.sqrt(x*x + y*y), 1), a = Math.atan2(y, x);
+                const fx = Math.cos(a) * m, fy = Math.sin(a) * m;
+                knob.style.transform = `translate(calc(-50% + ${fx*35}px), calc(-50% + ${fy*35}px))`;
+                if(isMove) this.input.move = {x: fx, y: fy}; else this.input.look = {x: fx, y: fy};
             };
-            el.addEventListener('touchstart', () => active = true);
-            window.addEventListener('touchmove', h);
-            window.addEventListener('touchend', () => { 
-                active = false; s.style.transform = 'translate(-50%, -50%)';
-                if(move) this.input.m = {x:0, y:0}; else this.input.l = {x:0, y:0};
-            });
+            area.addEventListener('touchstart', () => active = true);
+            window.addEventListener('touchmove', process);
+            window.addEventListener('touchend', () => { active = false; knob.style.transform = 'translate(-50%, -50%)'; if(isMove) this.input.move = {x:0, y:0}; else this.input.look = {x:0, y:0}; });
         };
-        setup('joy-l', 'stick-l', true); setup('joy-r', 'stick-r', false);
-        document.getElementById('zoom').onclick = () => this.isZoom = !this.isZoom;
+        handleJoy('joy-move', 'stick-move', true); handleJoy('joy-look', 'stick-look', false);
+        document.getElementById('btn-zoom-facade').onclick = () => this.isZoom = !this.isZoom;
     }
 
-    render() {
-        requestAnimationFrame(() => this.render());
-        const dt = this.clock.getDelta();
-        if(this.mixer) this.mixer.update(dt);
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.time += 0.05;
 
         if(this.avatar) {
-            const speed = 0.12;
-            this.avatar.position.x += this.input.m.x * speed;
-            this.avatar.position.z += this.input.m.y * speed;
+            // ALGORITMO DE LEVITACIÓN MAGNÉTICA (Oscilación suave)
+            // Esto justifica que no mueva las piernas: es un Ente Digital Flotante.
+            this.avatar.position.y = 0.15 + Math.sin(this.time) * 0.03;
+            this.avatar.rotation.z = Math.sin(this.time * 0.5) * 0.01; // Balanceo suave
 
-            const moving = Math.abs(this.input.m.x) > 0.1 || Math.abs(this.input.m.y) > 0.1;
-            if(moving) {
-                this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
-                // Si hay más de una animación, forzamos la segunda (Caminar)
-                if(this.actions && this.actions.length > 1) {
-                    this.actions[0].stop();
-                    this.actions[1].play();
-                }
-            } else {
-                if(this.actions) {
-                    if(this.actions[1]) this.actions[1].stop();
-                    this.actions[0].play();
-                }
+            // Movimiento suave por la Matrix
+            const s = 0.1;
+            this.avatar.position.x += this.input.move.x * s;
+            this.avatar.position.z += this.input.move.y * s;
+            
+            if(Math.abs(this.input.move.x) > 0.1 || Math.abs(this.input.move.y) > 0.1) {
+                const targetRot = Math.atan2(this.input.move.x, this.input.m.y);
+                this.avatar.rotation.y = THREE.MathUtils.lerp(this.avatar.rotation.y, targetRot, 0.1);
             }
 
+            // Seguimiento de cámara pro
             this.rig.position.lerp(this.avatar.position, 0.1);
-            this.rig.rotation.y -= this.input.l.x * 0.05;
+            this.rig.rotation.y -= this.input.look.x * 0.05;
 
-            const tP = this.isZoom ? new THREE.Vector3(0, 0.35, 0.25) : new THREE.Vector3(0, 0.3, 1.2);
-            this.camera.position.lerp(tP, 0.1);
-            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.35 : 0.2, 0).add(this.avatar.position));
+            // Configuración de Nitidez 4K
+            const tCam = this.isZoom ? new THREE.Vector3(0, 0.4, 0.22) : new THREE.Vector3(0, 0.28, 1.3);
+            this.camera.position.lerp(tCam, 0.1);
+            this.camera.lookAt(new THREE.Vector3(0, this.isZoom ? 0.4 : 0.2, 0).add(this.avatar.position));
+            
+            // La luz frontal neón sigue al rostro para máxima nitidez
+            if(this.faceLight) this.faceLight.position.copy(this.avatar.position).add(new THREE.Vector3(0, 0.4, 0.2));
         }
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new FinalRescueEngine();
+window.onload = () => new QuantumInmersionEngine();
 </script>
 </body>
 </html>
