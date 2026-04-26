@@ -3,64 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CITY STABLE RESTORE</title>
+<title>FULL GAME ENGINE STABLE</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;user-select:none;touch-action:none;}
-body{overflow:hidden;background:#000;font-family:monospace;}
+/* ================= GLOBAL ================= */
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+user-select:none;
+touch-action:none;
+}
 
+body{
+overflow:hidden;
+background:#000;
+font-family:monospace;
+}
+
+/* ================= DEBUG ================= */
 #debug{
-position:absolute;top:10px;left:10px;
-color:#0f0;background:rgba(0,0,0,0.6);
-padding:6px;font-size:12px;z-index:10;
+position:absolute;
+top:10px;
+left:10px;
+z-index:20;
+color:#0f0;
+background:rgba(0,0,0,0.6);
+padding:6px;
+font-size:12px;
 }
 
+/* ================= LOADER ================= */
 #loader{
-position:fixed;inset:0;
-display:flex;align-items:center;justify-content:center;
-background:#000;color:#0ff;z-index:9999;
+position:fixed;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+background:#000;
+color:#0ff;
+z-index:9999;
+font-size:18px;
 }
 
+/* ================= EXIT ================= */
 #exit{
-position:fixed;top:10px;right:10px;
-z-index:20;padding:10px 14px;
-border:1px solid #f55;color:#f55;
+position:fixed;
+top:10px;
+right:10px;
+z-index:50;
+padding:10px 14px;
+border:1px solid #f55;
+color:#f55;
 background:rgba(0,0,0,0.4);
 }
 
-.pad{
-position:fixed;bottom:20px;left:20px;
+/* ================= LEFT PAD ================= */
+#pad{
+position:fixed;
+bottom:20px;
+left:20px;
 display:grid;
 grid-template-columns:60px 60px 60px;
 grid-template-rows:60px 60px 60px;
-gap:5px;z-index:50;
+gap:5px;
+z-index:50;
 }
 
-.pad button{
-background:#000;border:2px solid #0ff;
-color:#0ff;border-radius:10px;
+#pad button{
+background:#000;
+border:2px solid #0ff;
+color:#0ff;
+border-radius:10px;
+font-size:14px;
+}
+
+/* ================= RIGHT ACTIONS ================= */
+#actions{
+position:fixed;
+bottom:20px;
+right:20px;
+display:flex;
+flex-direction:column;
+gap:10px;
+z-index:50;
+}
+
+#actions button{
+width:60px;
+height:60px;
+background:#000;
+border:2px solid #0ff;
+color:#0ff;
+border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="loader">CARGANDO...</div>
+<div id="loader">INICIANDO ENGINE...</div>
 <div id="debug">INIT</div>
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
 
-<div class="pad">
+<!-- PAD MOVIMIENTO -->
+<div id="pad">
 <div></div>
-<button ontouchstart="move(0,1)" ontouchend="move(0,0)">▲</button>
+<button ontouchstart="setMove(0,1)" ontouchend="setMove(0,0)">▲</button>
 <div></div>
 
-<button ontouchstart="move(-1,0)" ontouchend="move(0,0)">◀</button>
+<button ontouchstart="setMove(-1,0)" ontouchend="setMove(0,0)">◀</button>
 <div></div>
-<button ontouchstart="move(1,0)" ontouchend="move(0,0)">▶</button>
+<button ontouchstart="setMove(1,0)" ontouchend="setMove(0,0)">▶</button>
 
 <div></div>
-<button ontouchstart="move(0,-1)" ontouchend="move(0,0)">▼</button>
+<button ontouchstart="setMove(0,-1)" ontouchend="setMove(0,0)">▼</button>
 <div></div>
+</div>
+
+<!-- ACCIONES -->
+<div id="actions">
+<button onclick="speed=0.03">🚶</button>
+<button onclick="speed=0.08">🏃</button>
+<button onclick="jump()">⬆</button>
 </div>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -68,26 +133,38 @@ color:#0ff;border-radius:10px;
 
 <script>
 
+/* ================= CORE VARIABLES ================= */
 let scene,camera,renderer;
 let avatar,city;
-let vx=0,vz=0;
+let mixer=null;
+let clock=new THREE.Clock();
+
+/* movimiento */
+let mx=0,mz=0;
 let speed=0.05;
 
-function move(x,z){
-vx=x;
-vz=z;
+/* ================= INPUT ================= */
+function setMove(x,z){
+mx=x;
+mz=z;
 }
 
+/* ================= DEBUG ================= */
+function log(t){
+document.getElementById("debug").innerText=t;
+}
+
+/* ================= INIT ================= */
 init();
 animate();
 
-/* ===================== */
+/* ================= INIT ENGINE ================= */
 function init(){
 
 scene=new THREE.Scene();
 scene.background=new THREE.Color(0x000010);
 
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,2000);
+camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,3000);
 camera.position.set(0,3,6);
 
 renderer=new THREE.WebGLRenderer({antialias:true});
@@ -98,23 +175,38 @@ scene.add(new THREE.AmbientLight(0xffffff,2));
 
 const loader=new THREE.GLTFLoader();
 
-/* 🌆 CIUDAD (SIN MODIFICACIONES AGRESIVAS) */
+/* ================= CITY ================= */
 loader.load("ciudad_quantum.glb",(g)=>{
 
 city=g.scene;
 scene.add(city);
 
-camera.position.set(0,5,10);
-camera.lookAt(0,0,0);
+/* centrar ciudad */
+const box=new THREE.Box3().setFromObject(city);
+const center=box.getCenter(new THREE.Vector3());
+city.position.sub(center);
+
+log("CITY OK");
 
 });
 
-/* 🧍 AVATAR */
+/* ================= AVATAR ================= */
 loader.load("luis-avatar2.glb",(a)=>{
 
 avatar=a.scene;
+avatar.scale.set(1,1,1);
 avatar.position.set(0,0,0);
 scene.add(avatar);
+
+/* animaciones si existen */
+if(a.animations && a.animations.length>0){
+mixer=new THREE.AnimationMixer(avatar);
+let action=mixer.clipAction(a.animations[0]);
+action.play();
+log("ANIM OK");
+}else{
+log("NO ANIM");
+}
 
 document.getElementById("loader").style.display="none";
 
@@ -122,28 +214,38 @@ document.getElementById("loader").style.display="none";
 
 }
 
-/* ===================== */
+/* ================= GAME LOOP ================= */
 function animate(){
 
 requestAnimationFrame(animate);
 
-/* MOVIMIENTO SIMPLE */
-if(avatar && (vx||vz)){
-avatar.position.x += vx*speed;
-avatar.position.z += vz*speed;
-avatar.rotation.y = Math.atan2(vx,vz);
+let dt=clock.getDelta();
+
+/* animaciones */
+if(mixer) mixer.update(dt);
+
+/* movimiento */
+if(avatar && (mx||mz)){
+
+avatar.position.x += mx*speed;
+avatar.position.z += mz*speed;
+
+avatar.rotation.y=Math.atan2(mx,mz);
+
 }
 
-/* CÁMARA SIMPLE */
+/* cámara estilo GTA */
 if(avatar){
-camera.position.lerp(
-new THREE.Vector3(
+
+let target=new THREE.Vector3(
 avatar.position.x,
 avatar.position.y+3,
 avatar.position.z+6
-),0.08);
+);
 
+camera.position.lerp(target,0.08);
 camera.lookAt(avatar.position);
+
 }
 
 renderer.render(scene,camera);
