@@ -2,116 +2,323 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DEBUG ANIMACIÓN AVATAR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SISTEMA DE RECUPERACIÓN QUANTUM</title>
 
 <style>
-body{margin:0;overflow:hidden;background:#000;}
+/* =========================
+   RESET MÓVIL REAL
+========================= */
+*{
+    margin:0;
+    padding:0;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:none;
+    box-sizing:border-box;
+}
+
+body{
+    overflow:hidden;
+    background:#000;
+    font-family:monospace;
+}
+
+/* =========================
+   DEBUG
+========================= */
 #debug{
     position:absolute;
     top:10px;
     left:10px;
     color:#0f0;
-    font-family:monospace;
+    font-size:12px;
     z-index:10;
+    background:rgba(0,0,0,0.6);
+    padding:6px;
 }
+
+/* =========================
+   LOADER
+========================= */
+#loader{
+    position:fixed;
+    inset:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#000;
+    color:#0ff;
+    z-index:9999;
+}
+
+/* =========================
+   SALIR
+========================= */
 #exit{
     position:fixed;
     top:10px;
     right:10px;
-    z-index:999;
+    z-index:9999;
     padding:10px;
     border:2px solid red;
     color:red;
     background:transparent;
 }
-</style>
 
+/* =========================
+   JOYSTICK IZQUIERDO
+========================= */
+.left{
+    position:fixed;
+    bottom:20px;
+    left:20px;
+    display:grid;
+    grid-template-columns:60px 60px 60px;
+    grid-template-rows:60px 60px 60px;
+    gap:6px;
+    z-index:999;
+}
+
+/* =========================
+   ACCIONES DERECHA
+========================= */
+.right{
+    position:fixed;
+    bottom:20px;
+    right:20px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    z-index:999;
+}
+
+/* =========================
+   BOTONES NEÓN
+========================= */
+button{
+    width:60px;
+    height:60px;
+    border-radius:12px;
+    background:rgba(0,0,0,0.6);
+    border:2px solid #0ff;
+    color:#0ff;
+    font-size:12px;
+}
+
+button:active{
+    background:#0ff;
+    color:#000;
+}
+
+</style>
 </head>
+
 <body>
 
+<div id="loader">CARGANDO SISTEMA...</div>
 <div id="debug">INIT</div>
+
 <button id="exit" onclick="location.href='index.html'">SALIR</button>
+
+<!-- JOYSTICK -->
+<div class="left">
+    <div></div>
+    <button ontouchstart="move('f',1)" ontouchend="move('f',0)">▲</button>
+    <div></div>
+
+    <button ontouchstart="move('l',1)" ontouchend="move('l',0)">◀</button>
+    <div></div>
+    <button ontouchstart="move('r',1)" ontouchend="move('r',0)">▶</button>
+
+    <div></div>
+    <button ontouchstart="move('b',1)" ontouchend="move('b',0)">▼</button>
+    <div></div>
+</div>
+
+<!-- ACCIONES -->
+<div class="right">
+    <button onclick="setSpeed(0.05)">🚶</button>
+    <button onclick="setSpeed(0.12)">🏃</button>
+</div>
 
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
 
-let scene, camera, renderer;
-let avatar, mixer;
-let clock = new THREE.Clock();
+/* =========================
+   ENGINE CORE
+========================= */
 
+let scene,camera,renderer;
+let luis,mixer,cityMixer;
+let dir={x:0,z:0};
+let speed=0.06;
+let clock=new THREE.Clock();
+let controls;
+
+/* =========================
+   DEBUG
+========================= */
 function log(t){
-    document.getElementById("debug").innerText = t;
+    document.getElementById("debug").innerText=t;
+}
+
+/* =========================
+   MOVIMIENTO
+========================= */
+function move(t,v){
+    if(t==='f')dir.z=v?-1:0;
+    if(t==='b')dir.z=v?1:0;
+    if(t==='l')dir.x=v?-1:0;
+    if(t==='r')dir.x=v?1:0;
+}
+
+/* =========================
+   VELOCIDAD
+========================= */
+function setSpeed(v){
+    speed=v;
+}
+
+/* =========================
+   INIT
+========================= */
+function init(){
+
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0x000010);
+
+camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+camera.position.set(0,3,6);
+
+renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,2));
+
+controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;
+
+const draco=new THREE.DRACOLoader();
+draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+
+const loader=new THREE.GLTFLoader();
+loader.setDRACOLoader(draco);
+
+log("Cargando ciudad...");
+
+/* =========================
+   CIUDAD
+========================= */
+loader.load("ciudad_quantum.glb",(gltf)=>{
+
+scene.add(gltf.scene);
+
+if(gltf.animations.length){
+    cityMixer=new THREE.AnimationMixer(gltf.scene);
+    gltf.animations.forEach(c=>cityMixer.clipAction(c).play());
+}
+
+log("Ciudad OK → Avatar");
+
+/* =========================
+   AVATAR FIX REAL
+========================= */
+loader.load("luis_avatar.glb",(av)=>{
+
+luis=av.scene;
+
+/* 🔥 ESCALA REAL HUMANA */
+luis.scale.set(1,1,1);
+luis.position.set(0,1,0);
+
+scene.add(luis);
+
+mixer=new THREE.AnimationMixer(luis);
+
+/* =========================
+   FIX T-POSE REAL
+========================= */
+if(av.animations && av.animations.length>0){
+
+    let clip=av.animations[0];
+
+    let action=mixer.clipAction(clip);
+
+    action.reset();
+    action.play();
+
+    log("ANIM OK");
+
+}else{
+    log("SIN ANIMACIONES");
+}
+
+/* FIX SKINNING */
+luis.traverse(o=>{
+    if(o.isSkinnedMesh){
+        o.frustumCulled=false;
+    }
+});
+
+document.getElementById("loader").style.display="none";
+
+});
+
+});
+
+}
+
+/* =========================
+   LOOP
+========================= */
+function animate(){
+
+requestAnimationFrame(animate);
+
+let delta=clock.getDelta();
+
+if(mixer)mixer.update(delta);
+if(cityMixer)cityMixer.update(delta);
+
+if(luis){
+
+let moving=dir.x||dir.z;
+
+/* MOVIMIENTO */
+if(moving){
+    luis.position.x+=dir.x*speed;
+    luis.position.z+=dir.z*speed;
+}
+
+/* CAMARA FOLLOW */
+camera.position.lerp(
+    new THREE.Vector3(
+        luis.position.x,
+        luis.position.y+3,
+        luis.position.z+6
+    ),
+    0.05
+);
+
+camera.lookAt(luis.position);
+
+}
+
+if(controls)controls.update();
+
+renderer.render(scene,camera);
+
 }
 
 init();
 animate();
-
-function init(){
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-
-    camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-    camera.position.set(0,2,5);
-
-    renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(innerWidth, innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 2));
-
-    const draco = new THREE.DRACOLoader();
-    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-
-    const loader = new THREE.GLTFLoader();
-    loader.setDRACOLoader(draco);
-
-    log("Cargando avatar...");
-
-    loader.load("luis_avatar.glb", (gltf)=>{
-
-        avatar = gltf.scene;
-        avatar.scale.set(1,1,1);
-        avatar.position.set(0,0,0);
-
-        scene.add(avatar);
-
-        log("Animaciones: " + (gltf.animations.length || 0));
-
-        /* =========================
-           🔥 FIX CRÍTICO ANIMACIÓN
-        ========================= */
-        mixer = new THREE.AnimationMixer(avatar);
-
-        if(gltf.animations && gltf.animations.length > 0){
-
-            gltf.animations.forEach((clip)=>{
-                mixer.clipAction(clip).play();
-            });
-
-            log("ANIMACIÓN ACTIVA");
-        } else {
-            log("❌ SIN ANIMACIONES EN EL MODELO");
-        }
-
-    });
-
-}
-
-function animate(){
-
-    requestAnimationFrame(animate);
-
-    let delta = clock.getDelta();
-
-    if(mixer) mixer.update(delta);
-
-    renderer.render(scene,camera);
-}
 
 </script>
 
