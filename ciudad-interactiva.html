@@ -3,22 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Reality - Final Precision 4K</title>
+    <title>Quantum Reality - Final Fix 4K</title>
     <style>
         :root { --neon: #00f6ff; --magenta: #ff00ff; --matrix: #00ff41; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         
-        /* Mensaje reincorporado y posicionado */
         #manifesto-zone {
-            position: absolute; top: 20px; left: 20px;
-            z-index: 90; width: 260px;
+            position: absolute; top: 20px; left: 20px; z-index: 90; width: 260px;
             background: rgba(0, 0, 0, 0.85); border-left: 3px solid var(--matrix);
             padding: 12px; opacity: 1; transition: opacity 1s; pointer-events: none;
         }
-        #typing-text { color: var(--matrix); text-shadow: 0 0 5px var(--matrix); font-size: 12px; margin: 0; line-height: 1.4; }
+        #typing-text { color: var(--matrix); text-shadow: 0 0 5px var(--matrix); font-size: 12px; margin: 0; }
 
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 100; padding: 20px; }
-        
         #btn-exit {
             position: absolute; top: 20px; right: 20px; pointer-events: auto;
             width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--magenta);
@@ -32,8 +29,7 @@
             border: 2px solid var(--neon); border-radius: 50%;
             background: rgba(0,246,255,0.1); pointer-events: auto; touch-action: none;
         }
-        #joy-l { left: 30px; } 
-        #joy-r { right: 30px; }
+        #joy-l { left: 30px; } #joy-r { right: 30px; }
         .knob { width: 45px; height: 45px; background: var(--neon); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px var(--neon); border: 2px solid #fff; }
 
         #zoom-btn {
@@ -42,13 +38,12 @@
             background: rgba(0,0,0,0.9); color: #fff; pointer-events: auto; cursor: pointer;
             font-size: 11px; font-weight: bold; box-shadow: 0 0 20px #fff;
         }
-
         #loader { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; color: var(--neon); }
     </style>
 </head>
 <body>
 
-<div id="loader"><h2>CALIBRANDO COORDENADAS 4K...</h2></div>
+<div id="loader"><h2>RECALIBRANDO PASOS...</h2></div>
 <div id="manifesto-zone"><p id="typing-text"></p></div>
 
 <div id="ui">
@@ -64,7 +59,7 @@
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/DRACOLoader.js"></script>
 
 <script>
-class QuantumAvenueEngine {
+class UltimateEngineV2 {
     constructor() {
         this.input = { m: {x:0, y:0}, l: {x:0, y:0} };
         this.isZoom = false;
@@ -83,7 +78,6 @@ class QuantumAvenueEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.body.appendChild(this.renderer.domElement);
         this.clock = new THREE.Clock();
         this.camBase = new THREE.Group();
@@ -106,39 +100,38 @@ class QuantumAvenueEngine {
         dr.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
         gl.setDRACOLoader(dr);
 
-        // CIUDAD: Reubicación agresiva para encontrar la avenida
+        // CIUDAD: Bajamos la ciudad a -0.5 para que los pies queden libres
         gl.load('ciudad_quantum.glb', (g) => {
             this.city = g.scene;
-            // -0.25 baja el suelo para ver tobillos. -30 y -25 te alejan de los edificios iniciales.
-            this.city.position.set(-30, -0.25, -25); 
+            this.city.position.set(-50, -0.50, -40); // Posición en avenida abierta
             this.scene.add(this.city);
         });
 
-        // AVATAR: Forzado de animaciones de piernas
+        // AVATAR: Sincronización de animaciones forzada
         gl.load('luis-avatar2.glb', (g) => {
             this.avatar = g.scene;
             this.scene.add(this.avatar);
             this.mixer = new THREE.AnimationMixer(this.avatar);
             
             this.anims = {};
-            g.animations.forEach((anim) => {
+            // Forzamos la búsqueda: si no encuentra por nombre, usa el índice 1 (típico de caminar)
+            g.animations.forEach((anim, i) => {
                 const n = anim.name.toLowerCase();
                 if(n.includes('walk') || n.includes('run')) this.anims.walk = this.mixer.clipAction(anim);
                 if(n.includes('idle')) this.anims.idle = this.mixer.clipAction(anim);
             });
 
-            // Si el avatar se pone en cruz, intentamos usar el clip por índice para asegurar movimiento
-            if(!this.anims.walk) this.anims.walk = this.mixer.clipAction(g.animations[g.animations.length - 1]);
+            if(!this.anims.walk && g.animations[1]) this.anims.walk = this.mixer.clipAction(g.animations[1]);
             if(!this.anims.idle) this.anims.idle = this.mixer.clipAction(g.animations[0]);
 
-            this.anims.idle.play();
+            if(this.anims.idle) this.anims.idle.play();
             document.getElementById('loader').style.display = 'none';
             this.startMessage();
         });
     }
 
     startMessage() {
-        const t = "Sincronización completa. Posicionamiento en avenida principal despejada. Sistemas 4K activos.";
+        const t = "Sincronización de pasos 4K... Posición en avenida confirmada. Bienvenido, Luis.";
         let i = 0; const el = document.getElementById('typing-text');
         const it = setInterval(() => {
             if(i < t.length) { el.innerHTML += t.charAt(i); i++; }
@@ -185,14 +178,14 @@ class QuantumAvenueEngine {
             
             if(moving) {
                 this.avatar.rotation.y = Math.atan2(this.input.m.x, this.input.m.y);
-                if(this.state !== 'walk') {
-                    if(this.anims.idle) this.anims.idle.fadeOut(0.2);
-                    if(this.anims.walk) this.anims.walk.reset().fadeIn(0.2).play();
+                if(this.state !== 'walk' && this.anims.walk) {
+                    this.anims.idle.fadeOut(0.2);
+                    this.anims.walk.reset().fadeIn(0.2).play();
                     this.state = 'walk';
                 }
-            } else if(this.state !== 'idle') {
-                if(this.anims.walk) this.anims.walk.fadeOut(0.2);
-                if(this.anims.idle) this.anims.idle.reset().fadeIn(0.2).play();
+            } else if(this.state !== 'idle' && this.anims.idle) {
+                this.anims.walk.fadeOut(0.2);
+                this.anims.idle.reset().fadeIn(0.2).play();
                 this.state = 'idle';
             }
 
@@ -207,7 +200,7 @@ class QuantumAvenueEngine {
         this.renderer.render(this.scene, this.camera);
     }
 }
-window.onload = () => new QuantumAvenueEngine();
+window.onload = () => new UltimateEngineV2();
 </script>
 </body>
 </html>
