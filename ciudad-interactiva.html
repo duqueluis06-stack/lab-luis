@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LUIS QUANTUM - DUAL WORLD FINAL</title>
+    <title>LUIS QUANTUM - CIUDAD INTERACTIVA</title>
     <style>
         :root {
             --m-green: #00ff41;
@@ -11,12 +11,13 @@
             --n-pink: #ff0055;
         }
 
-        /* CAPA DE SEGURIDAD */
+        /* CAPA DE SEGURIDAD Y PREVENCIÓN DE SELECCIÓN */
         * { 
             -webkit-user-select: none; 
             user-select: none; 
             -webkit-touch-callout: none; 
             outline: none; 
+            box-sizing: border-box;
         }
 
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
@@ -24,7 +25,7 @@
         /* MATRIX BG */
         #matrix-bg { position: fixed; inset: 0; z-index: 0; opacity: 0.25; pointer-events: none; }
 
-        /* MENSAJE SUPERIOR - AJUSTADO PARA NO TAPAR EL BOTÓN */
+        /* UI SUPERIOR */
         #ui-header {
             position: absolute; top: 0; left: 0; width: 100%;
             z-index: 1000; display: flex; flex-direction: column; align-items: flex-start;
@@ -51,25 +52,30 @@
             background: rgba(0,0,0,0.8); color: var(--n-pink);
             font-weight: bold; text-decoration: none; font-size: 11px;
             border-radius: 5px; box-shadow: 0 0 15px var(--n-pink);
-            pointer-events: auto;
+            pointer-events: auto; cursor: pointer;
         }
 
-        /* UI INFERIOR */
+        /* UI INFERIOR (JOYSTICKS) */
         #ui-bottom {
             position: absolute; bottom: 35px; width: 100%;
             display: flex; justify-content: space-around; align-items: center; z-index: 1000;
+            pointer-events: none;
         }
         .joystick { 
             width: 100px; height: 100px; border: 3px solid var(--m-green); 
             border-radius: 50%; background: rgba(0, 255, 65, 0.15); 
-            position: relative; pointer-events: auto;
+            position: relative; pointer-events: auto; cursor: crosshair;
         }
-        .knob { width: 40px; height: 40px; background: #fff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .knob { 
+            width: 40px; height: 40px; background: #fff; border-radius: 50%; 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            pointer-events: none; 
+        }
         
         #zoom-btn { 
             width: 75px; height: 75px; border: 3px solid var(--n-cyan); 
             background: #000; color: var(--n-cyan); border-radius: 50%; 
-            font-weight: bold; font-size: 10px; cursor: pointer;
+            font-weight: bold; font-size: 10px; cursor: pointer; pointer-events: auto;
         }
     </style>
 </head>
@@ -129,49 +135,75 @@
         // --- 3. MOTOR 3D ---
         class QuantumMirror {
             constructor() {
-                this.input = { mv:{x:0,y:0}, lk:{x:0,y:0} }; this.isZoom = false; this.time = 0;
-                this.idleTimer = null; this.isIdle = false;
+                this.input = { mv:{x:0,y:0}, lk:{x:0,y:0} }; 
+                this.isZoom = false; 
+                this.time = 0;
+                this.idleTimer = null; 
+                this.isIdle = false;
                 this.init(); this.load(); this.events(); this.render();
             }
+
             init() {
                 this.scene = new THREE.Scene();
                 this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 5000);
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 document.body.appendChild(this.renderer.domElement);
+                
                 this.scene.add(new THREE.AmbientLight(0xffffff, 2.8));
                 this.scene.add(new THREE.GridHelper(1000, 80, 0x00ff41, 0x002200));
-                this.rig = new THREE.Group(); this.scene.add(this.rig); this.rig.add(this.camera);
+                
+                this.rig = new THREE.Group(); 
+                this.scene.add(this.rig); 
+                this.rig.add(this.camera);
+
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
             }
+
             load() {
                 const loader = new THREE.GLTFLoader();
                 const draco = new THREE.DRACOLoader();
                 draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
                 loader.setDRACOLoader(draco);
 
+                // Carga de Ciudad y Activación de Animaciones (Autos)
                 loader.load('ciudad_quantum.glb', (g) => {
-                    this.city = g.scene; this.city.position.set(0, 45, -50); 
-                    this.city.rotation.x = Math.PI; this.city.scale.setScalar(7);
+                    this.city = g.scene; 
+                    this.city.position.set(0, 45, -50); 
+                    this.city.rotation.x = Math.PI; 
+                    this.city.scale.setScalar(7);
                     this.scene.add(this.city);
+                    
+                    if(g.animations && g.animations.length > 0) {
+                        this.mixerCity = new THREE.AnimationMixer(this.city);
+                        g.animations.forEach(clip => this.mixerCity.clipAction(clip).play());
+                    }
                 });
 
                 loader.load('luis-avatar2.glb', (g) => {
-                    this.avatarMain = g.scene; this.avatarMain.scale.setScalar(0.28);
+                    this.avatarMain = g.scene; 
+                    this.avatarMain.scale.setScalar(0.28);
                     this.scene.add(this.avatarMain);
                     this.mixerMain = new THREE.AnimationMixer(this.avatarMain);
-                    if(g.animations.length>0) this.mixerMain.clipAction(g.animations[0]).play();
+                    if(g.animations.length > 0) this.mixerMain.clipAction(g.animations[0]).play();
                     this.currentAvatar = this.avatarMain;
                     this.currentMixer = this.mixerMain;
                     type();
                 });
 
                 loader.load('luis-avatar3.glb', (g) => {
-                    this.avatarIdle = g.scene; this.avatarIdle.scale.setScalar(0.28);
+                    this.avatarIdle = g.scene; 
+                    this.avatarIdle.scale.setScalar(0.28);
                     this.avatarIdle.visible = false;
                     this.scene.add(this.avatarIdle);
                     this.mixerIdle = new THREE.AnimationMixer(this.avatarIdle);
-                    if(g.animations.length>0) this.mixerIdle.clipAction(g.animations[0]).play();
+                    if(g.animations.length > 0) this.mixerIdle.clipAction(g.animations[0]).play();
                 });
             }
 
@@ -210,36 +242,79 @@
                 const setup = (id, kId, type) => {
                     const el = document.getElementById(id), kn = document.getElementById(kId);
                     let active = false;
-                    const h = (e) => {
-                        if(!active) return; 
-                        if(audio.paused) audio.play().catch(()=>{}); 
-                        const p = e.touches ? e.touches[0] : e; const r = el.getBoundingClientRect();
-                        const x = (p.clientX-(r.left+50))/50, y = (p.clientY-(r.top+50))/50;
-                        const m = Math.min(Math.sqrt(x*x+y*y), 1), a = Math.atan2(y,x);
+
+                    const moveHandler = (e) => {
+                        if(!active) return;
+                        const p = e.touches ? e.touches[0] : e; 
+                        const r = el.getBoundingClientRect();
+                        const x = (p.clientX - (r.left + 50)) / 50;
+                        const y = (p.clientY - (r.top + 50)) / 50;
+                        const m = Math.min(Math.sqrt(x*x + y*y), 1), a = Math.atan2(y, x);
+                        
                         kn.style.transform = `translate(calc(-50% + ${Math.cos(a)*m*30}px), calc(-50% + ${Math.sin(a)*m*30}px))`;
                         this.input[type] = {x: Math.cos(a)*m, y: Math.sin(a)*m};
                         this.wakeUp();
                     };
-                    el.addEventListener('touchstart', ()=> active=true);
-                    window.addEventListener('touchmove', h);
-                    window.addEventListener('touchend', ()=>{ active=false; kn.style.transform='translate(-50%,-50%)'; this.input[type]={x:0,y:0}; });
+
+                    const startHandler = (e) => { 
+                        active = true; 
+                        if(audio.paused) audio.play().catch(()=>{});
+                        moveHandler(e); 
+                    };
+                    const endHandler = () => { 
+                        active = false; 
+                        kn.style.transform = 'translate(-50%,-50%)'; 
+                        this.input[type] = {x:0, y:0}; 
+                    };
+
+                    // Eventos Híbridos (PC y Móvil)
+                    el.addEventListener('mousedown', startHandler);
+                    window.addEventListener('mousemove', moveHandler);
+                    window.addEventListener('mouseup', endHandler);
+                    
+                    el.addEventListener('touchstart', startHandler, {passive: false});
+                    window.addEventListener('touchmove', moveHandler, {passive: false});
+                    window.addEventListener('touchend', endHandler);
                 };
-                setup('joy-l','knob-l','mv'); setup('joy-r','knob-r','lk');
-                document.getElementById('zoom-btn').onclick = () => { if(audio.paused) audio.play().catch(()=>{}); this.isZoom = !this.isZoom; this.wakeUp(); };
+
+                setup('joy-l', 'knob-l', 'mv'); 
+                setup('joy-r', 'knob-r', 'lk');
+                
+                document.getElementById('zoom-btn').onclick = () => { 
+                    if(audio.paused) audio.play().catch(()=>{}); 
+                    this.isZoom = !this.isZoom; 
+                    this.wakeUp(); 
+                };
+                
                 this.startIdleTimer();
             }
 
             render() {
-                requestAnimationFrame(()=>this.render()); this.time += 0.02;
-                if(this.currentMixer) this.currentMixer.update(0.016);
-                if(this.city) { this.city.rotation.y += 0.001; this.city.position.y = 40 + Math.sin(this.time * 0.4) * 3; }
+                requestAnimationFrame(() => this.render()); 
+                const delta = 0.016; 
+                this.time += 0.02;
+
+                if(this.currentMixer) this.currentMixer.update(delta);
+                if(this.mixerCity) this.mixerCity.update(delta); // ACTUALIZACIÓN DE AUTOS
+
+                if(this.city) { 
+                    this.city.rotation.y += 0.001; 
+                    this.city.position.y = 40 + Math.sin(this.time * 0.4) * 3; 
+                }
+
                 if(this.currentAvatar) {
+                    // Movimiento basado en joystick izquierdo
                     this.currentAvatar.position.x += this.input.mv.x * 0.18;
                     this.currentAvatar.position.z += this.input.mv.y * 0.18;
-                    this.currentAvatar.position.y = 0.1 + Math.sin(this.time*2.5)*0.03;
-                    if(Math.abs(this.input.mv.x)>0.05) this.currentAvatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
+                    this.currentAvatar.position.y = 0.1 + Math.sin(this.time * 2.5) * 0.03;
+                    
+                    if(Math.abs(this.input.mv.x) > 0.05 || Math.abs(this.input.mv.y) > 0.05) {
+                        this.currentAvatar.rotation.y = Math.atan2(this.input.mv.x, this.input.mv.y);
+                    }
+
                     this.rig.position.lerp(this.currentAvatar.position, 0.1);
-                    this.rig.rotation.y -= this.input.lk.x * 0.05;
+                    this.rig.rotation.y -= this.input.lk.x * 0.05; // Rotación cámara joystick derecho
+                    
                     const tZ = this.isZoom ? 0.32 : 1.4, tY = this.isZoom ? 0.46 : 0.35;
                     this.camera.position.lerp(new THREE.Vector3(0, tY, tZ), 0.1);
                     this.camera.lookAt(new THREE.Vector3(0, tY, 0).add(this.currentAvatar.position));
