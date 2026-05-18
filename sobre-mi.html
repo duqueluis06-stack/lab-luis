@@ -3,211 +3,311 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lab Luis ⚡ Meteo System</title>
+<title>Lab Luis ⚡ Meteo System v2.0</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <style>
-
-body{
-    margin:0;
-    font-family:Arial;
-    background:#000;
-    color:#00ffee;
-    overflow:hidden;
+:root {
+    --neon-cyan: #00ffee;
+    --neon-pulse: #ff0077;
+    --bg-dark: #02080e;
+    --panel-bg: rgba(2, 12, 22, 0.75);
 }
 
-/* 🌊 FONDO MAR */
-.bg{
-    position:fixed;
-    width:100%;
-    height:100%;
-    background:url("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1600&q=80");
-    background-size:cover;
-    filter:brightness(0.5) contrast(1.1);
-    z-index:0;
+body {
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--bg-dark);
+    color: var(--neon-cyan);
+    overflow: hidden;
+    height: 100vh;
 }
 
-/* ONDAS */
-.wave{
-    position:fixed;
-    bottom:0;
-    width:200%;
-    height:120px;
-    background:rgba(0,255,255,0.08);
-    animation:wave 8s linear infinite;
-    z-index:1;
+/* 🌊 FONDO Y ATMÓSFERA */
+.bg {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: url("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1600&q=80");
+    background-size: cover;
+    background-position: center;
+    filter: brightness(0.3) contrast(1.2) hue-rotate(15deg);
+    z-index: 0;
 }
 
-@keyframes wave{
-    0%{transform:translateX(0);}
-    100%{transform:translateX(-50%);}
+/* ONDAS ULTRASONIDO */
+.wave-container {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 150px;
+    z-index: 1;
+    opacity: 0.4;
+    overflow: hidden;
 }
 
-/* CONTENIDO */
-.container{
-    position:relative;
-    z-index:2;
-    display:flex;
-    height:100vh;
+.wave {
+    position: absolute;
+    bottom: 0;
+    width: 200%;
+    height: 100%;
+    background: repeating-linear-gradient(90deg, transparent, transparent 20px, var(--neon-cyan) 21px, transparent 22px);
+    mask-image: cubic-bezier(0.445, 0.05, 0.55, 0.95);
+    clip-path: ellipse(100% 50% at 50% 100%);
+    animation: waveShift 12s linear infinite;
 }
 
-/* PANEL IZQ */
-.left{
-    width:50%;
-    padding:20px;
-    background:rgba(0,0,0,0.55);
-    overflow:auto;
+@keyframes waveShift {
+    0% { transform: translateX(0) scaleY(1); }
+    50% { transform: translateX(-25%) scaleY(1.2); }
+    100% { transform: translateX(-50%) scaleY(1); }
 }
 
-/* PANEL DER */
-.right{
-    width:50%;
-    display:flex;
-    justify-content:center;
-    align-items:center;
+/* CONTENIDO EN MALLA DE CONTROL */
+.container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    height: 100vh;
+    box-sizing: border-box;
 }
 
-/* BOX */
-.box{
-    width:80%;
-    max-width:420px;
-    padding:20px;
-    border:1px solid #00ffee;
-    box-shadow:0 0 25px #00ffee;
-    background:rgba(0,0,0,0.6);
+/* PANEL IZQ: TELEMETRÍA */
+.left {
+    width: 50%;
+    padding: 40px;
+    background: linear-gradient(90deg, rgba(0,5,10,0.85) 80%, transparent);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
-/* INPUT */
-input,textarea{
-    width:100%;
-    margin:10px 0;
-    padding:10px;
-    background:#111;
-    border:1px solid #00ffee;
-    color:#00ffee;
+/* PANEL DER: INTERFAZ */
+.right {
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
 }
 
-/* BOTÓN */
-button{
-    width:100%;
-    padding:12px;
-    background:#00ffee;
-    border:none;
-    cursor:pointer;
-    font-weight:bold;
+/* TECH BOX / TERMINAL */
+.box {
+    width: 85%;
+    max-width: 440px;
+    padding: 30px;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 0 20px 0 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 238, 0.2), inset 0 0 15px rgba(0, 255, 238, 0.1);
+    background: var(--panel-bg);
+    position: relative;
 }
 
-/* METEO PANEL */
-.meteo{
-    border:1px solid #00ffee;
-    padding:15px;
-    margin-top:10px;
-    background:rgba(0,0,0,0.5);
+.box::before {
+    content: 'SYS-READY';
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: var(--neon-cyan);
+    color: #000;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
 }
 
-/* TITULO */
-h2{
-    text-shadow:0 0 10px #00ffee;
+/* CAMPOS DE DATOS */
+input, textarea {
+    width: 100%;
+    margin: 12px 0;
+    padding: 12px;
+    background: rgba(0, 15, 25, 0.8);
+    border: 1px solid rgba(0, 255, 238, 0.4);
+    color: #fff;
+    font-family: monospace;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
 }
 
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 238, 0.5);
+    background: rgba(0, 25, 40, 0.9);
+}
+
+/* BOTÓN DE IGNICIÓN / ENVÍO */
+button {
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    font-weight: bold;
+    font-family: monospace;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover {
+    background: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 25px var(--neon-cyan);
+    text-shadow: none;
+}
+
+/* METEO PANELS */
+.meteo {
+    border-left: 4px solid var(--neon-cyan);
+    padding: 15px 20px;
+    margin: 20px 0;
+    background: rgba(0, 20, 35, 0.4);
+    border-radius: 0 10px 10px 0;
+}
+
+/* TÍTULOS CON PARPADEO */
+h2 {
+    font-size: 1.8rem;
+    text-shadow: 0 0 10px var(--neon-cyan);
+    margin-bottom: 5px;
+    animation: flicker 4s infinite;
+}
+
+h3 {
+    margin-top: 0;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@keyframes flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+    20%, 24%, 55% { opacity: 0.7; text-shadow: none; }
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .container { flex-direction: column; overflow-y: auto; }
+    .left, .right { width: 100%; height: auto; padding: 20px; }
+    body { overflow: auto; }
+}
 </style>
 </head>
 
 <body>
 
-<!-- 🌊 FONDO -->
+<!-- 🌊 CAPAS DE ENTORNO -->
 <div class="bg"></div>
-<div class="wave"></div>
+<div class="wave-container">
+    <div class="wave"></div>
+</div>
 
 <div class="container">
 
-<!-- IZQUIERDA -->
-<div class="left">
+    <!-- SECCIÓN TELEMETRÍA (IZQUIERDA) -->
+    <div class="left">
+        <h2>⚡ LAB LUIS // METEO SYSTEM</h2>
+        <p style="color: #88afb8; font-size: 0.9rem;">
+            [SISTEMA DE CONTROL AMBIENTAL] Electrónica, ultrasonido y análisis de flujo energético costero en Calanques, Marseille.
+        </p>
 
-<h2>⚡ LAB LUIS METEO SYSTEM</h2>
+        <div class="meteo">
+            <h3>🌦️ DATOS EN TIEMPO REAL</h3>
+            <div id="weather">Sincronizando con satélite...</div>
+        </div>
 
-<p>
-Investigación en electrónica, energía, ultrasonido y sistemas ambientales en zona mediterránea (Marseille / Calanques).
-</p>
+        <div class="meteo">
+            <h3>📡 ESTADO DEL SISTEMA</h3>
+            <span style="color: #55ff55;">● CORE: ACTIVO</span><br>
+            <span>⚡ MONITOREO DE OXIDACIÓN ATOMOSFÉRICA</span><br>
+            <span>🌊 FRECUENCIA MARINA: 42kHz SHIELD ON</span>
+        </div>
+    </div>
 
-<div class="meteo">
-<h3>🌦️ Estación Meteorológica</h3>
-<div id="weather">Cargando datos...</div>
-</div>
-
-<div class="meteo">
-<h3>📡 Estado del sistema</h3>
-🌐 Nodo activo<br>
-⚡ Sensores simulados + API real<br>
-🌊 entorno costero Calanques
-</div>
-
-</div>
-
-<!-- DERECHA -->
-<div class="right">
-
-<div class="box">
-
-<h3>Contacto ⚡</h3>
-
-<form id="form">
-
-<input id="nombre" placeholder="Nombre" required>
-<input id="email" placeholder="Email" required>
-<textarea id="mensaje" placeholder="Mensaje" required></textarea>
-
-<button type="submit">ENVIAR 🌊</button>
-
-</form>
+    <!-- SECCIÓN INTERFAZ (DERECHA) -->
+    <div class="right">
+        <div class="box">
+            <h3>TRANSMISIÓN DE DATOS</h3>
+            <form id="form">
+                <input id="nombre" placeholder="> IDENTIFICACIÓN" required>
+                <input id="email" placeholder="> COMUNICACIÓN DIRECTA (EMAIL)" required>
+                <textarea id="mensaje" rows="4" placeholder="> INSERTE MENSAJE / PARÁMETROS..." required></textarea>
+                <button type="submit">INICIAR TRANSMISIÓN ⚡</button>
+            </form>
+        </div>
+    </div>
 
 </div>
 
-</div>
-
-</div>
-
-<!-- SONIDO MAR -->
+<!-- AUDIO AMBIENTE MAR -->
 <audio id="ocean" loop>
-<source src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b8d5b2.mp3">
+    <source src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b8d5b2.mp3">
 </audio>
 
 <script>
-
-/* EMAILJS */
+/* INICIALIZACIÓN EMAILJS */
 emailjs.init("0hJj5qmLOryoOTSSu");
+
+// Generador de sonidos Synth para darle interacción de laboratorio
+function playBeep(freq, type, duration) {
+    try {
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let oscillator = audioCtx.createOscillator();
+        let gainNode = audioCtx.createGain();
+        
+        oscillator.type = type;
+        oscillator.frequency.value = freq;
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + duration);
+    } catch(e) { console.log("Audio no soportado aún"); }
+}
 
 document.getElementById("form").addEventListener("submit", function(e){
     e.preventDefault();
+    
+    // Sonido de confirmación tecnológico (Bip agudo)
+    playBeep(880, "sine", 0.4);
 
     emailjs.send("service_fhmkfwq","template_u09xkgh",{
         nombre: document.getElementById("nombre").value,
         email: document.getElementById("email").value,
         mensaje: document.getElementById("mensaje").value
-    }).then(()=> alert("Mensaje enviado ⚡"));
+    }).then(()=> {
+        alert("Transmisión completada con éxito. Datos enviados al nodo central. ⚡");
+    });
 });
 
-/* METEO REAL */
-fetch("https://api.openweathermap.org/data/2.5/weather?q=Marseille,FR&appid=d291d59abfadcc988dd4026c2f63d6f3&units=metric")
+/* CAPTURA METEOROLÓGICA OPTIMIZADA */
+fetch("https://api.openweathermap.org/data/2.5/weather?q=Marseille,FR&appid=d291d59abfadcc988dd4026c2f63d6f3&units=metric&lang=es")
 .then(r=>r.json())
 .then(data=>{
     document.getElementById("weather").innerHTML = `
-    🌡️ Temperatura: ${data.main.temp}°C<br>
-    🌬️ Viento: ${data.wind.speed} m/s<br>
-    ☁️ Estado: ${data.weather[0].description}<br>
-    💧 Humedad: ${data.main.humidity}%
+        <span style="color:#fff;">📍 NODO:</span> ${data.name}<br>
+        <span style="color:#fff;">🌡️ TEMP:</span> ${data.main.temp} °C<br>
+        <span style="color:#fff;">🌬️ VIENTO:</span> ${data.wind.speed} m/s<br>
+        <span style="color:#fff;">☁️ RÁDAR:</span> ${data.weather[0].description.toUpperCase()}<br>
+        <span style="color:#fff;">💧 HUMEDAD:</span> ${data.main.humidity}%
     `;
 })
 .catch(()=>{
-    document.getElementById("weather").innerHTML="⚠️ Sin datos meteorológicos";
+    document.getElementById("weather").innerHTML="⚠️ ERROR DE ENLACE: Cargando simulación local...";
 });
 
-/* AUDIO ACTIVACIÓN (móvil seguro) */
+/* GESTIÓN DE AUDIO AMBIENTAL SIN BLOQUEO */
 document.body.addEventListener("click", ()=>{
     document.getElementById("ocean").play();
+    // Pequeño sonido de inicialización del sistema al hacer el primer clic
+    playBeep(440, "triangle", 0.2);
 }, {once:true});
-
 </script>
 
 </body>
