@@ -3,152 +3,163 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lab Luis ⚡ Meteo System v2.1</title>
+<title>Luis Lab ⚡ Quantum Meteo System</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <style>
 :root {
     --neon-cyan: #00ffee;
-    --neon-pulse: #ff0077;
-    --bg-dark: #02080e;
-    --panel-bg: rgba(2, 12, 22, 0.75);
+    --amber: #ffaa00;
+    --bg-dark: #02060c;
+    --panel-glow: rgba(0, 255, 238, 0.03);
 }
 
-body {
+body, html {
     margin: 0;
-    font-family: 'Courier New', Courier, monospace;
-    background: var(--bg-dark);
-    color: var(--neon-cyan);
-    overflow: hidden;
-    height: 100vh;
-}
-
-/* 🌊 FONDO Y ATMÓSFERA */
-.bg {
-    position: fixed;
+    padding: 0;
     width: 100%;
     height: 100%;
-    background: url("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1600&q=80");
-    background-size: cover;
-    background-position: center;
-    filter: brightness(0.3) contrast(1.2) hue-rotate(15deg);
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--bg-dark);
+    color: var(--neon-cyan);
+    overflow: hidden;
+}
+
+/* 🎬 PANTALLA DE CARGA ESTILO SPIELBERG (BYPASS DE AUDIO) */
+#intro-screen {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, #051424 0%, #010408 100%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 1s ease-out;
+}
+
+.lens-flare {
+    position: absolute;
+    width: 300px; height: 2px;
+    background: radial-gradient(circle, rgba(0,255,238,1) 0%, transparent 70%);
+    box-shadow: 0 0 30px var(--neon-cyan);
+    animation: flareAnim 4s infinite alternate;
+}
+
+@keyframes flareAnim {
+    0% { transform: scaleX(0.5); opacity: 0.5; }
+    100% { transform: scaleX(1.5); opacity: 1; }
+}
+
+.boot-btn {
+    background: transparent;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 20px 40px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    font-family: monospace;
+    cursor: pointer;
+    letter-spacing: 5px;
+    text-shadow: 0 0 10px var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0,255,238,0.2);
+    z-index: 10;
+    transition: all 0.3s;
+}
+
+.boot-btn:hover {
+    background: var(--neon-cyan);
+    color: #000;
+    box-shadow: 0 0 40px var(--neon-cyan);
+}
+
+/* ⚛️ CANVAS DE PARTÍCULAS INTERACTIVAS */
+#particles-canvas {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: all;
+}
+
+/* 🖼️ FONDO ATMOSFÉRICO */
+.bg-cinematic {
+    position: fixed;
+    width: 100%; height: 100%;
+    background: url("https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1600&q=80") center/cover;
+    filter: brightness(0.15) contrast(1.4) saturate(0.6);
     z-index: 0;
 }
 
-/* ONDAS */
-.wave-container {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    height: 150px;
-    z-index: 1;
-    opacity: 0.4;
-    overflow: hidden;
-}
-
-.wave {
-    position: absolute;
-    bottom: 0;
-    width: 200%;
-    height: 100%;
-    background: repeating-linear-gradient(90deg, transparent, transparent 20px, var(--neon-cyan) 21px, transparent 22px);
-    clip-path: ellipse(100% 50% at 50% 100%);
-    animation: waveShift 12s linear infinite;
-}
-
-@keyframes waveShift {
-    0% { transform: translateX(0) scaleY(1); }
-    50% { transform: translateX(-25%) scaleY(1.2); }
-    100% { transform: translateX(-50%) scaleY(1); }
-}
-
-/* CONTENIDO EN MALLA DE CONTROL */
+/* INTERFAZ PRINCIPAL */
 .container {
     position: relative;
     z-index: 2;
     display: flex;
     height: 100vh;
     box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 1.5s ease-in;
 }
 
-/* PANEL IZQ: TELEMETRÍA */
 .left {
-    width: 50%;
+    width: 55%;
     padding: 40px;
-    background: linear-gradient(90deg, rgba(0,5,10,0.85) 80%, transparent);
+    background: linear-gradient(90deg, rgba(1, 5, 12, 0.9) 85%, transparent);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    justify-content: center;
 }
 
-/* PANEL DER: INTERFAZ */
 .right {
-    width: 50%;
+    width: 45%;
     display: flex;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(3px);
 }
 
-/* TECH BOX / TERMINAL */
-.box {
-    width: 85%;
-    max-width: 440px;
-    padding: 30px;
-    border: 2px solid var(--neon-cyan);
-    border-radius: 0 20px 0 20px;
-    box-shadow: 0 0 20px rgba(0, 255, 238, 0.2), inset 0 0 15px rgba(0, 255, 238, 0.1);
-    background: var(--panel-bg);
+/* PANELES HOLOGRÁFICOS MILITARES */
+.panel {
+    border: 1px solid rgba(0, 255, 238, 0.25);
+    background: rgba(2, 10, 18, 0.7);
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: inset 0 0 20px rgba(0, 255, 238, 0.05);
     position: relative;
 }
 
-.box::before {
-    content: 'SYS-READY';
+.panel::before {
+    content: '';
     position: absolute;
-    top: -12px;
-    right: 20px;
-    background: var(--neon-cyan);
-    color: #000;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
+    top: 0; left: 0; width: 10px; height: 10px;
+    border-top: 2px solid var(--neon-cyan);
+    border-left: 2px solid var(--neon-cyan);
 }
 
-/* PANEL DE AUDIO GLOBAL */
-.audio-control-panel {
-    background: rgba(0, 20, 35, 0.8);
+.panel-amber {
+    border-color: rgba(255, 170, 0, 0.3);
+    color: var(--amber);
+}
+.panel-amber::before { border-top-color: var(--amber); border-left-color: var(--amber); }
+
+/* FORMULARIO AVANZADO */
+.box-terminal {
+    width: 85%;
+    max-width: 420px;
+    padding: 35px;
     border: 1px solid var(--neon-cyan);
-    padding: 10px;
-    margin-bottom: 20px;
-    border-radius: 5px;
+    background: rgba(1, 4, 8, 0.85);
+    box-shadow: 0 0 35px rgba(0, 255, 238, 0.15);
+    border-radius: 4px;
 }
 
-.btn-audio {
-    background: transparent;
-    border: 1px solid var(--neon-cyan);
-    color: var(--neon-cyan);
-    padding: 8px 12px;
-    margin: 5px;
-    cursor: pointer;
-    font-family: monospace;
-    font-size: 0.8rem;
-    transition: all 0.2s;
-}
-
-.btn-audio:hover {
-    background: rgba(0, 255, 238, 0.2);
-    box-shadow: 0 0 10px var(--neon-cyan);
-}
-
-/* CAMPOS DE DATOS */
 input, textarea {
     width: 100%;
-    margin: 12px 0;
-    padding: 12px;
-    background: rgba(0, 15, 25, 0.8);
-    border: 1px solid rgba(0, 255, 238, 0.4);
+    margin-bottom: 15px;
+    padding: 14px;
+    background: rgba(0, 10, 15, 0.9);
+    border: 1px solid rgba(0, 255, 238, 0.3);
     color: #fff;
     font-family: monospace;
     box-sizing: border-box;
@@ -157,200 +168,264 @@ input, textarea {
 input:focus, textarea:focus {
     outline: none;
     border-color: var(--neon-cyan);
-    box-shadow: 0 0 10px rgba(0, 255, 238, 0.5);
+    box-shadow: 0 0 15px rgba(0, 255, 238, 0.4);
 }
 
-/* BOTÓN DE TRANSMISIÓN */
-.btn-submit {
+button {
     width: 100%;
-    padding: 15px;
+    padding: 16px;
     background: transparent;
-    border: 2px solid var(--neon-cyan);
+    border: 1px solid var(--neon-cyan);
     color: var(--neon-cyan);
-    cursor: pointer;
     font-weight: bold;
+    cursor: pointer;
     font-family: monospace;
-    letter-spacing: 2px;
-    transition: all 0.3s ease;
+    letter-spacing: 3px;
+    transition: all 0.4s;
 }
 
-.btn-submit:hover {
+button:hover {
     background: var(--neon-cyan);
     color: #000;
-    box-shadow: 0 0 25px var(--neon-cyan);
+    box-shadow: 0 0 30px var(--neon-cyan);
 }
 
-/* METEO PANELS */
-.meteo {
-    border-left: 4px solid var(--neon-cyan);
-    padding: 15px 20px;
-    margin: 20px 0;
-    background: rgba(0, 20, 35, 0.4);
-    border-radius: 0 10px 10px 0;
+/* EFECTOS DE TEXTO */
+.glitch-title {
+    font-size: 2rem;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px var(--neon-cyan);
+    margin: 0 0 20px 0;
 }
 
-h2 {
-    font-size: 1.8rem;
-    text-shadow: 0 0 10px var(--neon-cyan);
-    margin-bottom: 5px;
-    animation: flicker 4s infinite;
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 0.85rem;
 }
 
-h3 {
-    margin-top: 0;
-    color: #fff;
-    text-transform: uppercase;
-}
-
-@keyframes flicker {
-    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-    20%, 24%, 55% { opacity: 0.7; text-shadow: none; }
-}
-
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .container { flex-direction: column; overflow-y: auto; }
-    .left, .right { width: 100%; height: auto; padding: 20px; }
-    body { overflow: auto; }
+    .left, .right { width: 100%; height: auto; }
 }
 </style>
 </head>
 
 <body>
 
-<div class="bg"></div>
-<div class="wave-container">
-    <div class="wave"></div>
+<div id="intro-screen">
+    <div class="lens-flare"></div>
+    <h1 style="color: #fff; letter-spacing: 8px; margin-bottom: 30px; font-size: 1.5rem;">LUIS QUANTUM LAB v3.0</h1>
+    <button class="boot-btn" onclick="initializeSystem()">BOOT SYSTEM</button>
 </div>
 
-<div class="container">
+<canvas id="particles-canvas"></canvas>
+<div class="bg-cinematic"></div>
 
-    <!-- SECCIÓN TELEMETRÍA (IZQUIERDA) -->
+<div class="container" id="main-interface">
+
     <div class="left">
-        <h2>⚡ LAB LUIS // METEO SYSTEM</h2>
+        <h2 class="glitch-title">⚡ LAB LUIS // CORE SUITE</h2>
         
-        <!-- 🔊 NUEVO PANEL DE AUDIO INTERACTIVO -->
-        <div class="audio-control-panel">
-            <span style="font-size:0.8rem; display:block; margin-bottom:5px; color:#fff;">🎛️ CONTROL DE AUDIO DEL LAB:</span>
-            <button class="btn-audio" id="btn-toggle-ocean">🌊 INICIAR ENTORNO MARINO</button>
-            <button class="btn-audio" id="btn-test-sonar">🔊 SONAR (ULTRASONIDO)</button>
+        <div class="panel panel-amber">
+            <h3 style="margin-top:0; color: var(--amber);">📝 ARCHIVO DE INVESTIGACIÓN: LUIS</h3>
+            <p style="font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                Visión orientada al futuro y desarrollo tecnológico disruptivo. Especialista en dinámicas de 
+                <strong>cámaras de vacío</strong>, propagación de <strong>ultrasonidos</strong> y sistemas <strong>láser</strong>. 
+                Desarrollo activo de maquetas de modelismo electrónico avanzado bajo pedido y modelado de sistemas 
+                para la mitigación del calentamiento global a través del análisis de oxidación y gases atmosféricos.
+            </p>
         </div>
 
-        <div class="meteo">
-            <h3>🌦️ DATOS EN TIEMPO REAL</h3>
-            <div id="weather">Sincronizando con satélite...</div>
+        <div class="panel">
+            <h3 style="margin-top:0;">🌦️ DATOS AMBIENTALES DE MARSEILLE</h3>
+            <div id="weather" style="font-size: 1.05rem; line-height: 1.6;">Estableciendo enlace de datos satelital...</div>
         </div>
 
-        <div class="meteo">
-            <h3>📡 ESTADO DEL SISTEMA</h3>
-            <span style="color: #55ff55;">● CORE: ACTIVO</span><br>
-            <span>⚡ MONITOREO DE OXIDACIÓN ATMOSFÉRICA</span><br>
-            <span>🌊 FRECUENCIA MARINA: 42kHz SHIELD ON</span>
+        <div class="panel" style="border-color: rgba(255,255,255,0.15);">
+            <h3 style="margin-top:0; color:#fff;">📡 DIAGNÓSTICO DE HARDWARE</h3>
+            <div class="status-grid">
+                <div>• VACÍO: <span style="color:#55ff55;">OPTIMAL</span></div>
+                <div>• ULTRASONIDO: <span style="color:var(--neon-cyan)">42kHz ACTIVE</span></div>
+                <div>• ANTI-OXIDACIÓN: <span style="color:var(--amber)">MONITORING</span></div>
+                <div>• ENERGÍAS ALT: <span style="color:#55ff55;">100% SECURE</span></div>
+            </div>
         </div>
     </div>
 
-    <!-- SECCIÓN INTERFAZ (DERECHA) -->
     <div class="right">
-        <div class="box">
-            <h3>TRANSMISIÓN DE DATOS</h3>
+        <div class="box-terminal">
+            <h3 style="margin-top:0; border-bottom: 1px solid var(--neon-cyan); padding-bottom: 10px; letter-spacing: 2px;">ENVIAR ARCHIVOS</h3>
             <form id="form">
-                <input id="nombre" placeholder="> IDENTIFICACIÓN" required>
-                <input id="email" placeholder="> COMUNICACIÓN DIRECTA (EMAIL)" required>
-                <textarea id="mensaje" rows="4" placeholder="> INSERTE MENSAJE / PARÁMETROS..." required></textarea>
-                <button type="submit" class="btn-submit">INICIAR TRANSMISIÓN ⚡</button>
+                <input id="nombre" placeholder="// IDENT_USER" required>
+                <input id="email" placeholder="// SECURE_EMAIL" required>
+                <textarea id="mensaje" rows="4" placeholder="// PARÁMETROS DE CONSULTA O MAQUETAS..." required></textarea>
+                <button type="submit">TRANSMITIR DATOS ⚡</button>
             </form>
         </div>
     </div>
 
 </div>
 
-<!-- AUDIO AMBIENTE MAR -->
 <audio id="ocean" loop preload="auto">
     <source src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b8d5b2.mp3" type="audio/mp3">
 </audio>
 
 <script>
-/* INICIALIZACIÓN EMAILJS */
-emailjs.init("0hJj5qmLOryoOTSSu");
+/* ELEMENTOS DEL CONTROL DE INICIO */
+const introScreen = document.getElementById("intro-screen");
+const mainInterface = document.getElementById("main-interface");
+const oceanAudio = document.getElementById("ocean");
 
-// Generador de audio de laboratorio (Sintetizador por código)
+// Audio Sintetizado nativo del laboratorio
 function playBeep(freq, type, duration) {
     try {
         let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let oscillator = audioCtx.createOscillator();
         let gainNode = audioCtx.createGain();
-        
-        oscillator.type = type; // 'sine', 'square', 'sawtooth', 'triangle'
+        oscillator.type = type;
         oscillator.frequency.value = freq;
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-        
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + duration);
-    } catch(e) { console.log("Audio contextual bloqueado o no soportado"); }
+    } catch(e) {}
 }
 
-/* BOTÓN 1: ACTIVAR/DESACTIVAR MAR */
-const oceanAudio = document.getElementById("ocean");
-const btnOcean = document.getElementById("btn-toggle-ocean");
+/* AL PULSAR "BOOT SYSTEM" SE INICIA TODO SIN BLOQUEOS */
+function initializeSystem() {
+    // 1. Iniciamos el mar de fondo con seguridad
+    oceanAudio.play().catch(e => console.log("Permiso requerido"));
+    
+    // 2. Ejecutamos una secuencia de bips de arranque tipo ordenador clásico
+    playBeep(300, "sawtooth", 0.1);
+    setTimeout(() => playBeep(600, "sawtooth", 0.1), 100);
+    setTimeout(() => playBeep(1200, "sine", 0.4), 200);
 
-btnOcean.addEventListener("click", () => {
-    if (oceanAudio.paused) {
-        oceanAudio.play().then(() => {
-            btnOcean.style.background = "var(--neon-cyan)";
-            btnOcean.style.color = "#000";
-            btnOcean.innerText = "⏸️ DETENER ENTORNO MARINO";
-            playBeep(523.25, "sine", 0.15); // Feedback de encendido
-        }).catch(err => {
-            alert("Haz clic primero en la pantalla para permitir el audio.");
-        });
-    } else {
-        oceanAudio.pause();
-        btnOcean.style.background = "transparent";
-        btnOcean.style.color = "var(--neon-cyan)";
-        btnOcean.innerText = "🌊 INICIAR ENTORNO MARINO";
-        playBeep(392, "sine", 0.15); // Feedback de apagado
+    // 3. Transición visual cinematográfica fuera intro e inicio interfaz
+    introScreen.style.opacity = "0";
+    setTimeout(() => {
+        introScreen.style.display = "none";
+        mainInterface.style.opacity = "1";
+    }, 1000);
+}
+
+/* ⚛️ MOTOR DE PARTÍCULAS INTERACTIVAS (CANVAS) */
+const canvas = document.getElementById("particles-canvas");
+const ctx = canvas.getContext("2d");
+
+let particlesArray = [];
+const numberOfParticles = 80;
+const mouse = { x: null, y: null, radius: 120 };
+
+// Ajuste dinámico de pantalla
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Detección de movimiento del ratón/dedo
+window.addEventListener("mousemove", (e) => { mouse.x = e.x; mouse.y = e.y; });
+window.addEventListener("mouseout", () => { mouse.x = null; mouse.y = null; });
+window.addEventListener("touchmove", (e) => { if(e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; } });
+
+class Particle {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 1;
+        this.baseX = this.x;
+        this.baseY = this.y;
+        this.density = (Math.random() * 30) + 1;
+        this.color = Math.random() > 0.3 ? "#00ffee" : "#ffaa00"; // Cian y Ámbar combinados
     }
-});
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+    }
+    update() {
+        // Interacción física: huir del ratón
+        let dx = mouse.x - this.x;
+        let dy = mouse.y - this.y;
+        let distance = Math.hypot(dx, dy);
+        let forceDirectionX = dx / distance;
+        let forceDirectionY = dy / distance;
+        
+        if (distance < mouse.radius) {
+            let force = (mouse.radius - distance) / mouse.radius;
+            let directionX = forceDirectionX * force * this.density;
+            let directionY = forceDirectionY * force * this.density;
+            this.x -= directionX;
+            this.y -= directionY;
+        } else {
+            // Regresar poco a poco a su posición de equilibrio original
+            if (this.x !== this.baseX) {
+                let dxOrig = this.x - this.baseX;
+                this.x -= dxOrig / 20;
+            }
+            if (this.y !== this.baseY) {
+                let dyOrig = this.y - this.baseY;
+                this.y -= dyOrig / 20;
+            }
+        }
+    }
+}
 
-/* BOTÓN 2: SONAR DE PRUEBA (ULTRASONIDO SIMULADO) */
-document.getElementById("btn-test-sonar").addEventListener("click", () => {
-    // Genera un pulso doble tipo radar futurista
-    playBeep(1200, "triangle", 0.3);
-    setTimeout(() => playBeep(1500, "sine", 0.2), 150);
-});
+function initParticles() {
+    particlesArray = [];
+    for (let i = 0; i < numberOfParticles; i++) {
+        particlesArray.push(new Particle());
+    }
+}
+initParticles();
 
-/* ENVÍO DE FORMULARIO CON SONIDO */
+function animateParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < particlesArray.length; i++) {
+        particlesArray[i].update();
+        particlesArray[i].draw();
+    }
+    requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+/* ENVÍO DE CORREOS CON EMAILJS */
+emailjs.init("0hJj5qmLOryoOTSSu");
 document.getElementById("form").addEventListener("submit", function(e){
     e.preventDefault();
-    
-    // Alerta sonora de transmisión
-    playBeep(880, "square", 0.4);
+    playBeep(900, "square", 0.3); // Sonido de transmisión de datos exitosa
 
     emailjs.send("service_fhmkfwq","template_u09xkgh",{
         nombre: document.getElementById("nombre").value,
         email: document.getElementById("email").value,
         mensaje: document.getElementById("mensaje").value
     }).then(()=> {
-        alert("Transmisión completada con éxito. Datos enviados al nodo central. ⚡");
+        alert("DATOS SINCRO-ENVIADOS CON ÉXITO. NODO CENTRAL LUIS OPERATIVO ⚡");
     });
 });
 
-/* CAPTURA METEOROLÓGICA OPTIMIZADA */
+/* FETCH METEOROLÓGICO */
 fetch("https://api.openweathermap.org/data/2.5/weather?q=Marseille,FR&appid=d291d59abfadcc988dd4026c2f63d6f3&units=metric&lang=es")
 .then(r=>r.json())
 .then(data=>{
     document.getElementById("weather").innerHTML = `
-        <span style="color:#fff;">📍 NODO:</span> ${data.name}<br>
-        <span style="color:#fff;">🌡️ TEMP:</span> ${data.main.temp} °C<br>
-        <span style="color:#fff;">🌬️ VIENTO:</span> ${data.wind.speed} m/s<br>
-        <span style="color:#fff;">☁️ RÁDAR:</span> ${data.weather[0].description.toUpperCase()}<br>
-        <span style="color:#fff;">💧 HUMEDAD:</span> ${data.main.humidity}%
+        <span style="color:#fff;">[NODO]:</span> ${data.name.toUpperCase()} (Calanques)<br>
+        <span style="color:var(--neon-cyan)">[TEMP]:</span> ${data.main.temp} °C<br>
+        <span style="color:var(--neon-cyan)">[VIENTO]:</span> ${data.wind.speed} m/s<br>
+        <span style="color:var(--amber)">[SENSACIÓN]:</span> ${data.weather[0].description.toUpperCase()}<br>
+        <span style="color:#fff;">[HUMEDAD]:</span> ${data.main.humidity}%
     `;
 })
 .catch(()=>{
-    document.getElementById("weather").innerHTML="⚠️ ERROR DE ENLACE: Cargando simulación local...";
+    document.getElementById("weather").innerHTML="⚠️ DATA ENLACE CAÍDO: Ejecutando simulación segura...";
 });
 </script>
 
