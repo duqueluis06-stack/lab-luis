@@ -135,7 +135,7 @@
     </div>
 
     <div id="contenedor-avatar">
-        <!-- Iniciamos mostrando tu avatar con microgestos -->
+        <!-- Mostramos tu avatar por defecto -->
         <model-viewer id="avatar-view" 
             src="luis-avatar2.glb" 
             autoplay 
@@ -162,9 +162,6 @@
         const respuestaDiv = document.getElementById('respuesta-texto');
         let intervaloBoca = null;
 
-        // PON TU CLAVE ENTRE LAS COMILLAS EN EL PASO 2:
-        const CLAVE_SECRETA = "AIzaSy..."; 
-
         async function enviarPregunta() {
             const pregunta = document.getElementById('usuario-pregunta').value;
             if(!pregunta) return;
@@ -173,29 +170,29 @@
             detenerLipsync();
             
             try {
-                // Conexión directa y oficial a los servidores de Gemini sin pasar por trucos de Vercel
-                const direccionURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CLAVE_SECRETA}`;
-                
-                const response = await fetch(direccionURL, {
+                // El túnel seguro de Vercel intercepta esta ruta interna automáticamente
+                const response = await fetch('/api-gemini', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: pregunta }] }]
                     })
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Error en el servidor de Google (Código ${response.status})`);
+                    throw new Error(`Error de comunicación con el servidor (Código ${response.status})`);
                 }
                 
                 const data = await response.json();
-                const respuestaIA = data.candidates[0].content.parts[0].text;
+                const textoRespuesta = data.candidates[0].content.parts[0].text;
                 
-                respuestaDiv.innerText = respuestaIA;
-                hacerHablarAvatar(respuestaIA);
+                respuestaDiv.innerText = textoRespuesta;
+                hacerHablarAvatar(textoRespuesta);
 
             } catch (error) {
-                respuestaDiv.innerText = `Ocurrió un error: ${error.message}. Por favor, verifica que la clave copiada en el código sea la correcta.`;
+                respuestaDiv.innerHTML = `<span style="color: #ff3333; font-weight: bold;">⚠️ Fallo de conexión:</span><br>Asegúrate de haber guardado tu GEMINI_API_KEY en las variables del panel de Vercel.`;
                 console.error(error);
             }
         }
@@ -234,15 +231,16 @@
         }
 
         function activarBaile() {
+            // Cancelar voz actual si el avatar estaba hablando
             detenerLipsync();
             if(window.speechSynthesis) window.speechSynthesis.cancel();
             
             respuestaDiv.innerText = "¡Activando el avatar de baile!";
             
-            // Forzamos el cambio de archivo modificando el atributo src nativo del componente
+            // Forzar el cambio al modelo de baile cambiando la fuente del visor
             visor.setAttribute('src', 'luis-avatar3.glb');
             
-            // Baila durante 12 segundos y luego regresa solo al avatar 2
+            // Baila durante 12 segundos y luego regresa de forma automática al avatar normal
             setTimeout(() => {
                 respuestaDiv.innerText = "El avatar regresó a su estado normal.";
                 visor.setAttribute('src', 'luis-avatar2.glb');
