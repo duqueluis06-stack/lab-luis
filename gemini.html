@@ -139,7 +139,7 @@
     </div>
 
     <div id="contenedor-avatar">
-        <!-- Inicia con el avatar 2 (estático con microgestos) -->
+        <!-- Forzamos que cargue las animaciones desde el principio -->
         <model-viewer id="avatar-view" 
             src="luis-avatar2.glb" 
             autoplay 
@@ -174,7 +174,8 @@
             detenerLipsync();
             
             try {
-                const response = await fetch('/api/api', {
+                // Modificamos la ruta de llamada directa absoluta para evitar fallos de reescritura de Vercel
+                const response = await fetch('/api/api.js', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pregunta: pregunta })
@@ -232,15 +233,20 @@
             detenerLipsync();
             if(window.speechSynthesis) window.speechSynthesis.cancel();
             
-            respuestaDiv.innerText = "¡Activando el avatar de baile!";
+            respuestaDiv.innerText = "Cargando avatar de baile...";
             
-            // Simplemente cargamos tu archivo que ya baila por sí solo
+            // Cambiamos la fuente al avatar 3
             visor.src = "luis-avatar3.glb";
             
-            // A los 10 segundos, regresa automáticamente a tu avatar estático con microgestos
+            // ESCUCHADOR CLAVE: Esperamos de forma segura a que el archivo termine de cargar en el navegador
+            visor.addEventListener('load', () => {
+                respuestaDiv.innerText = "¡A bailar!";
+            }, { once: true }); // 'once: true' evita que este evento se quede pegado para siempre
+            
+            // Regresar al avatar original tras 10 segundos
             setTimeout(() => {
+                respuestaDiv.innerText = "Regresando al estado normal...";
                 visor.src = "luis-avatar2.glb";
-                respuestaDiv.innerText = "El avatar ha regresado a su estado normal.";
             }, 10000);
         }
     </script>
