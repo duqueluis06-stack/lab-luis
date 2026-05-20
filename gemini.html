@@ -50,6 +50,7 @@
             box-shadow: 0 0 15px #ff3333;
         }
 
+        /* Contenedor del Avatar con su fondo inicial de laboratorio */
         #contenedor-avatar {
             width: 100%;
             max-width: 500px;
@@ -60,6 +61,7 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 0 15px rgba(255, 0, 255, 0.2);
+            transition: background 0.5s ease; /* Transición suave para el cambio de fondo */
         }
         model-viewer {
             width: 100%;
@@ -135,7 +137,7 @@
     </div>
 
     <div id="contenedor-avatar">
-        <!-- Mostramos tu avatar por defecto -->
+        <!-- Visor 3D con tu avatar por defecto -->
         <model-viewer id="avatar-view" 
             src="luis-avatar2.glb" 
             autoplay 
@@ -158,6 +160,7 @@
     </div>
 
     <script>
+        const contenedor = document.getElementById('contenedor-avatar');
         const visor = document.getElementById('avatar-view');
         const respuestaDiv = document.getElementById('respuesta-texto');
         let intervaloBoca = null;
@@ -170,7 +173,7 @@
             detenerLipsync();
             
             try {
-                // El túnel seguro de Vercel intercepta esta ruta interna automáticamente
+                // Petición limpia a la ruta del túnel de Vercel
                 const response = await fetch('/api-gemini', {
                     method: 'POST',
                     headers: { 
@@ -192,7 +195,7 @@
                 hacerHablarAvatar(textoRespuesta);
 
             } catch (error) {
-                respuestaDiv.innerHTML = `<span style="color: #ff3333; font-weight: bold;">⚠️ Fallo de conexión:</span><br>Asegúrate de haber guardado tu GEMINI_API_KEY en las variables del panel de Vercel.`;
+                respuestaDiv.innerHTML = `<span style="color: #ff3333; font-weight: bold;">⚠️ Fallo de conexión:</span><br>Asegúrate de que el túnel de Vercel y tu clave de entorno estén activos.`;
                 console.error(error);
             }
         }
@@ -231,19 +234,26 @@
         }
 
         function activarBaile() {
-            // Cancelar voz actual si el avatar estaba hablando
             detenerLipsync();
             if(window.speechSynthesis) window.speechSynthesis.cancel();
             
             respuestaDiv.innerText = "¡Activando el avatar de baile!";
             
-            // Forzar el cambio al modelo de baile cambiando la fuente del visor
+            // CORRECCIÓN: Modificamos el fondo del contenedor para que coincida con el estilo de baile
+            contenedor.style.background = "radial-gradient(circle, #002222 0%, #000000 100%)";
+            
+            // Cambiamos el archivo al Avatar 3
             visor.setAttribute('src', 'luis-avatar3.glb');
             
-            // Baila durante 12 segundos y luego regresa de forma automática al avatar normal
+            // Forzamos la recarga interna del modelo para que el visor refresque la animación
+            visor.dismissPoster();
+
+            // Después de 12 segundos, devolvemos todo a la configuración inicial del laboratorio
             setTimeout(() => {
                 respuestaDiv.innerText = "El avatar regresó a su estado normal.";
+                contenedor.style.background = "radial-gradient(circle, #220022 0%, #000000 100%)";
                 visor.setAttribute('src', 'luis-avatar2.glb');
+                visor.dismissPoster();
             }, 12000);
         }
     </script>
