@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio IA - Avatar Gemini</title>
+    <!-- Visor 3D estándar de Google -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #ff00ff;
+            text-shadow: 2px 2px #000000;
+            margin-bottom: 20px;
+        }
+        #contenedor-avatar {
+            width: 100%;
+            max-width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #220022 0%, #000000 100%);
+            border: 3px solid #ff00ff;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        model-viewer {
+            width: 100%;
+            height: 100%;
+        }
+        #interaccion {
+            width: 100%;
+            max-width: 500px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input[type="text"] {
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #ff00ff;
+            background-color: #111;
+            color: white;
+            font-size: 16px;
+        }
+        .botones-container {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        #btn-preguntar {
+            background-color: #ff00ff;
+            color: white;
+        }
+        #btn-bailar {
+            background-color: #00ffff;
+            color: black;
+        }
+        button:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+        }
+        #respuesta-texto {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #111;
+            border-left: 4px solid #ff00ff;
+            border-radius: 4px;
+            min-height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Laboratorio IA - Luis Duque</h1>
+
+    <div id="contenedor-avatar">
+        <!-- Visor que arranca con tu avatar en posición normal -->
+        <model-viewer id="avatar-view" 
+            src="parado luis-avatar2.glb" 
+            autoplay 
+            camera-controls 
+            interaction-prompt="none"
+            shadow-intensity="1" 
+            environment-image="neutral">
+        </model-viewer>
+    </div>
+
+    <div id="interaccion">
+        <input type="text" id="usuario-pregunta" placeholder="Pregúntame sobre ciencia, gravedad, vacío o el futuro...">
+        
+        <div class="botones-container">
+            <button id="btn-preguntar" onclick="enviarPregunta()">Preguntar a Gemini</button>
+            <button id="btn-bailar" onclick="activarBaile()">¡A bailar!</button>
+        </div>
+
+        <div id="respuesta-texto">El avatar está esperando tu pregunta...</div>
+    </div>
+
+    <script>
+        const visor = document.getElementById('avatar-view');
+        const respuestaDiv = document.getElementById('respuesta-texto');
+        let intervaloBoca = null;
+
+        // 1. Conexión segura con tu api.js en Vercel
+        async function enviarPregunta() {
+            const pregunta = document.getElementById('usuario-pregunta').value;
+            if(!pregunta) return;
+
+            respuestaDiv.innerText = "Pensando...";
+            detenerLipsync(); // Limpia cualquier movimiento previo
+            
+            try {
+                // Llama de forma automática a tu backend en Vercel
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pregunta: pregunta })
+                });
+                
+                const data = await response.json();
+                respuestaDiv.innerText = data.respuesta;
+                
+                // Activa la voz y el movimiento de labios
+                hacerHablarAvatar(data.respuesta);
+
+            } catch (error) {
+                respuestaDiv.innerText = "Error al conectar con Gemini en Vercel.";
+                console.error(error);
+            }
+        }
+
+        // 2. Función para que el navegador hable y mueva la boca del GLB
+        function hacerHablarAvatar(texto) {
+            const sintentizador = window.speechSynthesis;
+            const lectura = new SpeechSynthesisUtterance(texto);
+            
+            lectura.onstart = () => {
+                // Sincronización labial (Lipsync) por simulación matemática rítmica
+                // Modifica las expresiones faciales (morphTargets) del estándar Ready Player Me
+                intervaloBoca = setInterval(() => {
+                    if (visor.model && visor.model.materials) {
+                        // Genera un movimiento aleatorio simulando fonemas (A, E, O)
+                        const apertura = Math.random() * 0.6; 
+                        visor.queryGraph('//jawOpen').forEach(node => node.weight = apertura);
+                        visor.queryGraph('//mouthOpen').forEach(node => node.weight = apertura);
+                    }
+                }, 120); // Cambia el movimiento cada 120 milisegundos
+            };
+            
+            lectura.onend = () => {
+                detenerLipsync();
+            };
+
+            lectura.onerror = () => {
+                detenerLipsync();
+            };
+            
+            sintentizador.speak(lectura);
+        }
+
+        function detenerLipsync() {
+            if (intervaloBoca) {
+                clearInterval(intervaloBoca);
+                intervaloBoca = null;
+            }
+            // Cierra la boca al terminar de hablar
+            if (visor.model) {
+                visor.queryGraph('//jawOpen').forEach(node => node.weight = 0);
+                visor.queryGraph('//mouthOpen').forEach(node => node.weight = 0);
+            }
+        }
+
+        // 3. Función para activar tu avatar bailarín
+        function activarBaile() {
+            detenerLipsync();
+            window.speechSynthesis.cancel(); // Calla la voz si estaba hablando
+            
+            respuestaDiv.innerText = "¡Activando modo baile!";
+            
+            // Cambia el archivo al avatar animado que corre el baile
+            visor.src = "bailando luis-avatar3.glb";
+            visor.setAttribute('animation-name', '*'); // Fuerza a reproducir su animación interna
+            
+            // Regresa automáticamente al avatar normal parado después de 10 segundos
+            setTimeout(() => {
+                visor.src = "parado luis-avatar2.glb";
+                visor.removeAttribute('animation-name');
+                respuestaDiv.innerText = "El avatar ha vuelto a su posición original.";
+            }, 10000);
+        }
+    </script>
+</body>
+</html>
