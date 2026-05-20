@@ -10,32 +10,66 @@
         body {
             background-color: #000000;
             color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        h1 {
-            color: #ff00ff;
-            text-shadow: 2px 2px #000000;
+        
+        /* Encabezado y barra superior */
+        .header-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
         }
+        h1 {
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        /* Botón Salir */
+        .btn-salir {
+            background-color: transparent;
+            color: #ff3333;
+            border: 2px solid #ff3333;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            text-decoration: none;
+            transition: 0.3s;
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.3);
+        }
+        .btn-salir:hover {
+            background-color: #ff3333;
+            color: white;
+            box-shadow: 0 0 15px #ff3333;
+        }
+
+        /* Contenedor del Avatar 3D */
         #contenedor-avatar {
             width: 100%;
             max-width: 500px;
-            height: 500px;
+            height: 450px;
             background: radial-gradient(circle, #220022 0%, #000000 100%);
             border: 3px solid #ff00ff;
             border-radius: 15px;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.2);
         }
         model-viewer {
             width: 100%;
             height: 100%;
         }
+
+        /* Zona de interacción */
         #interaccion {
             width: 100%;
             max-width: 500px;
@@ -47,10 +81,16 @@
         input[type="text"] {
             padding: 12px;
             border-radius: 8px;
-            border: 2px solid #ff00ff;
+            border: 2px solid #00ffcc;
             background-color: #111;
             color: white;
             font-size: 16px;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px #ff00ff;
         }
         .botones-container {
             display: flex;
@@ -69,13 +109,15 @@
         #btn-preguntar {
             background-color: #ff00ff;
             color: white;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.4);
         }
         #btn-bailar {
             background-color: #00ffff;
             color: black;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
         }
         button:hover {
-            opacity: 0.8;
+            opacity: 0.9;
             transform: scale(1.02);
         }
         #respuesta-texto {
@@ -85,15 +127,20 @@
             border-left: 4px solid #ff00ff;
             border-radius: 4px;
             min-height: 40px;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
 
-    <h1>Laboratorio IA - Luis Duque</h1>
+    <div class="header-container">
+        <h1>Lab Luis - IA</h1>
+        <!-- Botón para volver al index principal -->
+        <a href="index.html" class="btn-salir">🏠 Salir</a>
+    </div>
 
     <div id="contenedor-avatar">
-        <!-- Visor que arranca con tu avatar en posición normal -->
+        <!-- Visor 3D buscando tu archivo de avatar plano -->
         <model-viewer id="avatar-view" 
             src="parado luis-avatar2.glb" 
             autoplay 
@@ -105,7 +152,7 @@
     </div>
 
     <div id="interaccion">
-        <input type="text" id="usuario-pregunta" placeholder="Pregúntame sobre ciencia, gravedad, vacío o el futuro...">
+        <input type="text" id="usuario-pregunta" placeholder="Pregúntame sobre física, vacío, láseres...">
         
         <div class="botones-container">
             <button id="btn-preguntar" onclick="enviarPregunta()">Preguntar a Gemini</button>
@@ -120,59 +167,54 @@
         const respuestaDiv = document.getElementById('respuesta-texto');
         let intervaloBoca = null;
 
-        // 1. Conexión segura con tu api.js en Vercel
         async function enviarPregunta() {
             const pregunta = document.getElementById('usuario-pregunta').value;
             if(!pregunta) return;
 
             respuestaDiv.innerText = "Pensando...";
-            detenerLipsync(); // Limpia cualquier movimiento previo
+            detenerLipsync();
             
             try {
-                // Llama de forma automática a tu backend en Vercel
-                const response = await fetch('/api', {
+                // Llamamos directamente al archivo api.js para evitar bloqueos
+                const response = await fetch('/api.js', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pregunta: pregunta })
                 });
                 
+                if (!response.ok) {
+                    throw new Error("Respuesta de red no okey");
+                }
+                
                 const data = await response.json();
                 respuestaDiv.innerText = data.respuesta;
                 
-                // Activa la voz y el movimiento de labios
                 hacerHablarAvatar(data.respuesta);
 
             } catch (error) {
-                respuestaDiv.innerText = "Error al conectar con Gemini en Vercel.";
+                respuestaDiv.innerText = "Error al conectar con Gemini en Vercel. Verifica el archivo api.js.";
                 console.error(error);
             }
         }
 
-        // 2. Función para que el navegador hable y mueva la boca del GLB
         function hacerHablarAvatar(texto) {
             const sintentizador = window.speechSynthesis;
+            if (!sintentizador) return;
+            
             const lectura = new SpeechSynthesisUtterance(texto);
             
             lectura.onstart = () => {
-                // Sincronización labial (Lipsync) por simulación matemática rítmica
-                // Modifica las expresiones faciales (morphTargets) del estándar Ready Player Me
                 intervaloBoca = setInterval(() => {
-                    if (visor.model && visor.model.materials) {
-                        // Genera un movimiento aleatorio simulando fonemas (A, E, O)
+                    if (visor.model) {
                         const apertura = Math.random() * 0.6; 
                         visor.queryGraph('//jawOpen').forEach(node => node.weight = apertura);
                         visor.queryGraph('//mouthOpen').forEach(node => node.weight = apertura);
                     }
-                }, 120); // Cambia el movimiento cada 120 milisegundos
+                }, 120);
             };
             
-            lectura.onend = () => {
-                detenerLipsync();
-            };
-
-            lectura.onerror = () => {
-                detenerLipsync();
-            };
+            lectura.onend = () => detenerLipsync();
+            lectura.onerror = () => detenerLipsync();
             
             sintentizador.speak(lectura);
         }
@@ -182,25 +224,20 @@
                 clearInterval(intervaloBoca);
                 intervaloBoca = null;
             }
-            // Cierra la boca al terminar de hablar
             if (visor.model) {
                 visor.queryGraph('//jawOpen').forEach(node => node.weight = 0);
                 visor.queryGraph('//mouthOpen').forEach(node => node.weight = 0);
             }
         }
 
-        // 3. Función para activar tu avatar bailarín
         function activarBaile() {
             detenerLipsync();
-            window.speechSynthesis.cancel(); // Calla la voz si estaba hablando
+            if(window.speechSynthesis) window.speechSynthesis.cancel();
             
             respuestaDiv.innerText = "¡Activando modo baile!";
-            
-            // Cambia el archivo al avatar animado que corre el baile
             visor.src = "bailando luis-avatar3.glb";
-            visor.setAttribute('animation-name', '*'); // Fuerza a reproducir su animación interna
+            visor.setAttribute('animation-name', '*');
             
-            // Regresa automáticamente al avatar normal parado después de 10 segundos
             setTimeout(() => {
                 visor.src = "parado luis-avatar2.glb";
                 visor.removeAttribute('animation-name');
