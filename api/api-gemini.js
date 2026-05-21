@@ -1,4 +1,12 @@
+export const config = {
+  runtime: "nodejs"
+};
+
 export default async function handler(req, res) {
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST allowed" });
@@ -9,19 +17,15 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Missing API KEY" });
+      return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
     }
-
-    const body = req.body;
 
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
       }
     );
 
@@ -29,7 +33,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(data);
 
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 }
