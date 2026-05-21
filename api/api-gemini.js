@@ -1,9 +1,5 @@
 export default async function handler(req, res) {
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST allowed" });
   }
@@ -16,14 +12,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing API KEY" });
     }
 
-    // 🔥 FIX IMPORTANTE: asegurar body válido
-    const body = req.body || {};
-
-    if (!body.contents) {
-      return res.status(400).json({
-        error: "Missing contents in request body"
-      });
-    }
+    const body = req.body;
 
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
@@ -40,7 +29,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(data);
 
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 }
