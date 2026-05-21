@@ -11,7 +11,6 @@ src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.j
 </script>
 
 <style>
-
 body{
     background:#000;
     color:white;
@@ -114,8 +113,8 @@ button{
     border-radius:5px;
     min-height:50px;
     line-height:1.5;
+    white-space:pre-wrap;
 }
-
 </style>
 </head>
 
@@ -127,7 +126,6 @@ button{
 </div>
 
 <div id="contenedor-avatar">
-
 <model-viewer
 id="avatar"
 src="luis-avatar2.glb"
@@ -137,31 +135,18 @@ shadow-intensity="1"
 environment-image="neutral"
 interaction-prompt="none">
 </model-viewer>
-
 </div>
 
 <div id="interaccion">
 
-<input
-type="text"
-id="pregunta"
-placeholder="Haz una pregunta a Gemini...">
+<input type="text" id="pregunta" placeholder="Haz una pregunta a Gemini...">
 
 <div class="botones">
-
-<button id="btn-preguntar">
-Preguntar
-</button>
-
-<button id="btn-bailar">
-🕺 Bailar
-</button>
-
+<button id="btn-preguntar">Preguntar</button>
+<button id="btn-bailar">🕺 Bailar</button>
 </div>
 
-<div id="respuesta">
-Esperando pregunta...
-</div>
+<div id="respuesta">Esperando pregunta...</div>
 
 </div>
 
@@ -173,11 +158,6 @@ const preguntaInput = document.getElementById("pregunta");
 const btnPreguntar = document.getElementById("btn-preguntar");
 const btnBailar = document.getElementById("btn-bailar");
 const contenedor = document.getElementById("contenedor-avatar");
-
-
-// =======================
-// PREGUNTAR A GEMINI
-// =======================
 
 btnPreguntar.addEventListener("click", enviarPregunta);
 
@@ -192,80 +172,45 @@ async function enviarPregunta(){
 
     respuesta.innerHTML = "🧠 Pensando...";
 
-    console.log("Enviando pregunta...");
-
     try{
 
-       const response = await fetch("/api-gemini", {
-
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/json"
+        const response = await fetch("/api-gemini", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
             },
-
-            body:JSON.stringify({
-                contents:[
+            body: JSON.stringify({
+                contents: [
                     {
-                        parts:[
-                            {
-                                text:pregunta
-                            }
+                        parts: [
+                            { text: pregunta }
                         ]
                     }
                 ]
             })
-
         });
-
-        console.log("STATUS:",response.status);
-
-        if(!response.ok){
-
-            throw new Error(
-                "Error servidor: " + response.status
-            );
-        }
 
         const data = await response.json();
 
-        console.log(data);
+        console.log("RESPUESTA COMPLETA:", data);
 
-        let texto = "No hubo respuesta.";
+        let texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if(
-            data.candidates &&
-            data.candidates[0] &&
-            data.candidates[0].content &&
-            data.candidates[0].content.parts &&
-            data.candidates[0].content.parts[0]
-        ){
-
-            texto =
-            data.candidates[0]
-            .content.parts[0].text;
+        if(!texto){
+            texto = "❌ Sin respuesta válida de Gemini (revisar consola)";
         }
 
         respuesta.innerHTML = texto;
-
         hablar(texto);
 
-    }catch(error){
+    } catch(error){
 
         console.error(error);
 
-respuesta.innerHTML = `
-❌ ERROR REAL:<br><br>
-${error.message}
-`;
+        respuesta.innerHTML =
+        "❌ ERROR REAL:\n" + error.message;
     }
 }
-
-
-
-// =======================
-// VOZ
-// =======================
 
 function hablar(texto){
 
@@ -273,51 +218,36 @@ function hablar(texto){
 
     window.speechSynthesis.cancel();
 
-    const speech =
-    new SpeechSynthesisUtterance(texto);
-
+    const speech = new SpeechSynthesisUtterance(texto);
     speech.lang = "es-ES";
-
     speech.rate = 1;
 
     window.speechSynthesis.speak(speech);
 }
 
-
-
-// =======================
-// BAILE
-// =======================
-
-btnBailar.addEventListener("click", activarBaile);
-
-function activarBaile(){
+btnBailar.addEventListener("click", () => {
 
     window.speechSynthesis.cancel();
 
-    respuesta.innerHTML =
-    "🕺 Avatar 3 activado.";
+    respuesta.innerHTML = "🕺 Avatar en modo baile";
 
     contenedor.style.background =
-    "radial-gradient(circle,#002222 0%,#000000 100%)";
+        "radial-gradient(circle,#002222 0%,#000000 100%)";
 
-    // FORZAR RECARGA
-    avatar.src =
-    "luis-avatar3.glb?v=" + Date.now();
+    avatar.src = "luis-avatar3.glb?v=" + Date.now();
 
-    setTimeout(()=>{
+    setTimeout(() => {
 
-        respuesta.innerHTML =
-        "🔬 Regresando al laboratorio.";
+        respuesta.innerHTML = "🔬 Regresando al laboratorio";
 
         contenedor.style.background =
-        "radial-gradient(circle,#220022 0%,#000000 100%)";
+            "radial-gradient(circle,#220022 0%,#000000 100%)";
 
-        avatar.src =
-        "luis-avatar2.glb?v=" + Date.now();
+        avatar.src = "luis-avatar2.glb?v=" + Date.now();
 
-    },12000);
-}
+    }, 12000);
+
+});
 
 </script>
 
