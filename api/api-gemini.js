@@ -1,18 +1,23 @@
 export default async function handler(req, res) {
 
-  // ✅ CORS FIX
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  // ✅ Preflight request (CLAVE)
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
   }
 
   try {
 
     const apiKey = process.env.GEMINI_API_KEY;
+
+    // 🔥 IMPORTANTE: asegurar body válido
+    const body = typeof req.body === "string"
+      ? JSON.parse(req.body)
+      : req.body;
+
+    if (!body || !body.contents) {
+      return res.status(400).json({
+        error: "Body inválido o sin contents"
+      });
+    }
 
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
@@ -21,7 +26,7 @@ export default async function handler(req, res) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(body)
       }
     );
 
