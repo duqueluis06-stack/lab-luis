@@ -1,58 +1,37 @@
 export default async function handler(req, res) {
 
-  try {
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Only POST" });
-    }
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
+  }
+
+  try {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // 🔥 DEBUG CLAVE
     if (!apiKey) {
-      return res.status(500).json({
-        error: "API KEY no existe en Vercel"
-      });
+      return res.status(500).json({ error: "Missing API KEY" });
     }
 
     const body = req.body;
 
-    if (!body?.contents) {
-      return res.status(400).json({
-        error: "Body sin contents"
-      });
-    }
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }
+    );
 
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
-      apiKey;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-
-    const text = await response.text();
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return res.status(500).json({
-        error: "Respuesta no JSON de Gemini",
-        raw: text
-      });
-    }
+    const data = await response.json();
 
     return res.status(200).json(data);
 
-  } catch (err) {
-    return res.status(500).json({
-      error: err.message,
-      stack: err.stack
-    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 }
