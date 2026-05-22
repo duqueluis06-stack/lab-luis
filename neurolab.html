@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>NeuroLab AI</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
 <style>
 body {
   margin: 0;
@@ -11,7 +14,6 @@ body {
   color: #00ffe5;
   font-family: Arial;
   text-align: center;
-  overflow: hidden;
 }
 
 .topbar {
@@ -24,56 +26,56 @@ button {
   background: black;
   border: 1px solid #00ffe5;
   color: #00ffe5;
-  padding: 10px;
+  padding: 10px 14px;
   cursor: pointer;
+  box-shadow: 0 0 10px #00ffe5;
 }
 
 h1 {
-  margin-top: 60px;
+  margin-top: 20px;
   text-shadow: 0 0 10px #00ffe5;
 }
 
 input {
   width: 60%;
   padding: 12px;
-  margin-top: 20px;
+  margin-top: 10px;
   background: #111;
   border: 1px solid #00ffe5;
   color: #00ffe5;
+  outline: none;
 }
 
 #response {
-  margin-top: 30px;
-  padding: 10px;
-  min-height: 100px;
+  margin-top: 20px;
+  min-height: 80px;
   white-space: pre-wrap;
-  text-shadow: 0 0 5px #00ffe5;
+  text-shadow: 0 0 6px #00ffe5;
 }
 
-.glow {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, #00ffe5, transparent);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  filter: blur(60px);
-  opacity: 0.2;
-  z-index: -1;
+/* AVATAR */
+#avatar-container {
+  width: 100%;
+  height: 320px;
+  margin-top: 10px;
+}
+
+canvas {
+  display: block;
+  margin: auto;
 }
 </style>
 </head>
 
 <body>
 
-<div class="glow"></div>
-
 <div class="topbar">
   <button onclick="location.href='index.html'">⬅ Volver</button>
 </div>
 
 <h1>NEUROLAB AI SYSTEM</h1>
+
+<div id="avatar-container"></div>
 
 <input id="input" placeholder="Habla con la IA..." />
 <br>
@@ -82,6 +84,11 @@ input {
 <div id="response"></div>
 
 <script>
+
+/* ================= IA ================= */
+let isSpeaking = false;
+let audioTime = 0;
+
 async function send() {
   const text = document.getElementById("input").value;
 
@@ -92,16 +99,80 @@ async function send() {
   });
 
   const data = await res.json();
+  const reply = data.reply || "Sin respuesta";
 
-  const reply = data.reply;
   document.getElementById("response").innerText = reply;
 
-  // 🔊 VOZ
+  // 🔊 VOZ + CONTROL ANIMACIÓN
   const speech = new SpeechSynthesisUtterance(reply);
   speech.lang = "es-ES";
   speech.rate = 1;
+
+  isSpeaking = true;
+
+  speech.onend = () => {
+    isSpeaking = false;
+    audioTime = 0;
+  };
+
   window.speechSynthesis.speak(speech);
 }
+
+/* ================= AVATAR ================= */
+let scene, camera, renderer, model;
+
+function initAvatar() {
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  camera.position.z = 2;
+
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(300, 300);
+
+  document.getElementById("avatar-container").appendChild(renderer.domElement);
+
+  const light = new THREE.AmbientLight(0xffffff, 1);
+  scene.add(light);
+
+  const loader = new THREE.GLTFLoader();
+  loader.load("luis-avatar2.glb", function(gltf){
+    model = gltf.scene;
+    scene.add(model);
+  });
+
+  animate();
+}
+
+/* ================= ANIMACIÓN “VIDA” ================= */
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (model) {
+
+    // 🌬 respiración
+    const breathe = 1 + Math.sin(Date.now() * 0.002) * 0.02;
+    model.scale.set(breathe, breathe, breathe);
+
+    // 🔄 rotación base
+    model.rotation.y += 0.004;
+
+    // 🤖 reacción al hablar
+    if (isSpeaking) {
+      model.rotation.x = Math.sin(audioTime) * 0.05;
+      model.rotation.y += 0.01;
+      audioTime += 0.08;
+    } else {
+      model.rotation.x *= 0.95;
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+initAvatar();
+
 </script>
 
 </body>
