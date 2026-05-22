@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NeuroLab AI - Luis Core v9.0</title>
+  <title>NeuroLab AI - Luis Core v10.0</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -42,7 +42,6 @@
 
     .interactive { pointer-events: auto; }
 
-    /* Barra Superior Reducida para ahorrar espacio */
     .top-matrix-panel {
       background: var(--hud-bg);
       border: 1px solid rgba(0, 255, 229, 0.25);
@@ -62,20 +61,18 @@
       white-space: nowrap; letter-spacing: 4px;
     }
 
-    /* Consola Inferior Anti-Desborde Rigorosa */
     .console-hud {
       background: var(--hud-bg);
       border: 1px solid rgba(255, 183, 3, 0.3);
       padding: 10px; display: flex; flex-direction: column; gap: 8px;
       width: 100%; max-width: calc(100% - 20px);
       box-sizing: border-box;
-      margin-bottom: env(safe-area-inset-bottom, 5px); /* Evita cortes en pantallas de iPhone nuevos */
+      margin-bottom: env(safe-area-inset-bottom, 5px);
     }
 
-    /* Caja de visualización con scroll forzado y tamaño adaptivo estricto */
     .log-view {
       font-size: 12px; 
-      height: 120px; /* Tamaño estricto fijo para que no empuje nada hacia abajo */
+      height: 120px; 
       overflow-y: scroll; 
       color: #ffffff;
       line-height: 1.4; padding: 8px;
@@ -98,7 +95,7 @@
       flex: 1; background: rgba(0, 0, 0, 0.95);
       border: 1px solid var(--neon-cyan); color: #fff;
       padding: 10px; font-family: monospace; font-size: 13px;
-      outline: none; min-width: 0; /* Evita que el input rompa el flexbox en móviles */
+      outline: none; min-width: 0;
     }
 
     button.action-btn {
@@ -111,7 +108,6 @@
     button.audio-btn { border-color: var(--neon-gold); color: var(--neon-gold); }
     button.audio-btn.active { background: var(--neon-gold); color: #000; }
 
-    /* Desactivamos jeroglíficos flotantes en móviles para limpiar la vista */
     @media (min-width: 768px) {
       .log-view { height: 160px; font-size: 13px; }
       .greek-stream { font-size: 13px; }
@@ -125,12 +121,11 @@
   <div class="hud-overlay">
     <div class="top-matrix-panel interactive">
       <button class="exit-btn" onclick="location.href='index.html'">🗙 INDEX</button>
-      <div class="greek-stream">Ψ Ω α β γ Luis_Core_v9.0 // COGNITIVE CONNECT</div>
+      <div class="greek-stream">Ψ Ω α β γ Luis_Core_v10.0 // LIP_SYNC_FORCED</div>
     </div>
 
     <div class="console-hud interactive">
-      <!-- Contenedor con altura protegida -->
-      <div id="log-display" class="log-view">>>> Sistema inicializado de forma nativa. Historial listo y protegido contra desbordes de pantalla.</div>
+      <div id="log-display" class="log-view">>>> Enlace neuronal completado. Sistema de habla forzado por hardware óseo. Listo para interactuar.</div>
       
       <div class="sumerian-bar">𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目</div>
 
@@ -144,18 +139,21 @@
 
   <script>
     let scene, camera, renderer, avatarModel, animationMixer, navigationControls;
-    let starsGeometry, starParticles, starCount = 1800;
+    let starsGeometry, starParticles, starCount = 1500;
     let clock = new THREE.Clock();
     
     let speakingActive = false;
     let audioOutputEnabled = false;
-    let fallbackMeshTargets = []; // Objetos 3D del rostro para manipulación cruda de vértices
-    let conversationHistory = []; // Estructura de persistencia indexada
+    
+    /* NODOS DE RASTREO ÓSEO Y ANATÓMICO */
+    let jawBoneNode = null;
+    let headBoneNode = null;
+    let faceMeshNode = null;
+    let conversationHistory = [];
 
     const speechEngine = window.speechSynthesis;
     let globalUtterance = null;
 
-    // Inicializador del búfer de voz local
     if (speechEngine.onvoiceschanged !== undefined) {
       speechEngine.onvoiceschanged = () => { speechEngine.getVoices(); };
     }
@@ -172,7 +170,6 @@
       }
     }
 
-    /* CONTROL DE CONTINUIDAD - ENVÍO COMPLETO DE CONTEXTO */
     async function executeQuery() {
       const inputEl = document.getElementById("query-input");
       const execBtn = document.getElementById("exec-btn");
@@ -182,12 +179,9 @@
       if (!query) return;
 
       inputEl.disabled = true; execBtn.disabled = true;
-
-      // Forzamos la inyección en el array histórico para asegurar memoria
       conversationHistory.push({ role: "user", content: query });
       if (conversationHistory.length > 10) conversationHistory.shift(); 
 
-      // Render inmediato del texto del usuario en pantalla
       renderLogHistory();
 
       try {
@@ -198,9 +192,8 @@
         });
 
         const data = await res.json();
-        const replyText = data.reply || "Núcleo sin respuesta.";
+        const replyText = data.reply || "Respuesta nula del servidor.";
 
-        // Añadimos la respuesta para mantener el hilo lógico en la próxima vuelta
         conversationHistory.push({ role: "assistant", content: replyText });
         if (conversationHistory.length > 10) conversationHistory.shift();
 
@@ -223,13 +216,12 @@
         }
 
       } catch (err) {
-        logDisplay.innerHTML += "\n<span style='color:var(--neon-red)'>>>> ERROR EN ENLACE COGNITIVO.</span>";
+        logDisplay.innerHTML += "\n<span style='color:var(--neon-red)'>>>> ERROR EN ENLACE INTEGRAL.</span>";
         resetControls(inputEl, execBtn);
       }
       inputEl.value = "";
     }
 
-    // Renderizador exclusivo que mantiene fijas las palabras enteras sin perderlas abajo
     function renderLogHistory() {
       const logDisplay = document.getElementById("log-display");
       let htmlBuffer = "";
@@ -241,7 +233,7 @@
         }
       });
       logDisplay.innerHTML = htmlBuffer;
-      logDisplay.scrollTop = logDisplay.scrollHeight; // Auto-scroll forzado al final
+      logDisplay.scrollTop = logDisplay.scrollHeight;
     }
 
     function resetControls(input, btn) {
@@ -251,23 +243,19 @@
 
     function stopSpeechMouthCycle() {
       speakingActive = false;
-      // Revertir cualquier deformación geométrica aplicada
-      fallbackMeshTargets.forEach(target => {
-        if(target.mesh.geometry.attributes.position) {
-          target.mesh.geometry.attributes.position.copy(target.originalGeo);
-          target.mesh.geometry.attributes.position.needsUpdate = true;
-        }
-      });
+      // Reseteo estricto de transformaciones mecánicas de respaldo
+      if (jawBoneNode) jawBoneNode.rotation.x = 0;
+      if (headBoneNode) headBoneNode.rotation.x = 0;
+      if (faceMeshNode) faceMeshNode.scale.set(1, 1, 1);
     }
 
-    /* MOTOR GRÁFICO CON ESPACIO PROCEDURAL Y AJUSTES BIOMÉTRICOS */
     function initEngine() {
       const container = document.getElementById("canvas-container");
       
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x020205); // Fondo oscuro profundo base
+      scene.background = new THREE.Color(0x020205);
 
-      /* 🌌 GENERADOR PROCEDURAL DE ESTRELLAS (Adiós imágenes caídas) */
+      /* ENTRAMADO ESTELAR TRIDIMENSIONAL MATEMÁTICO */
       starsGeometry = new THREE.BufferGeometry();
       const starPositions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount * 3; i += 3) {
@@ -276,7 +264,7 @@
         starPositions[i+2] = (Math.random() - 0.5) * 15;
       }
       starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-      const starMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.02, transparent: true, opacity: 0.8});
+      const starMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.022, transparent: true, opacity: 0.85});
       starParticles = new THREE.Points(starsGeometry, starMaterial);
       scene.add(starParticles);
 
@@ -295,12 +283,11 @@
       navigationControls.minDistance = 0.6;
       navigationControls.target.set(0, 0.1, 0);
 
-      // Iluminación Cósmica Estable
-      scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-      const frontLight = new THREE.DirectionalLight(0x00ffe5, 1.5);
+      scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+      const frontLight = new THREE.DirectionalLight(0x00ffe5, 1.4);
       frontLight.position.set(0, 1, 2); scene.add(frontLight);
 
-      /* CARGA Y ESCANEO DIRECTO DE VÉRTICES DEL AVATAR */
+      /* CARGA DEL MODELO Y ESCANEO ESTRUCTURAL DE ESQUELETO (BONES) */
       const loader = new THREE.GLTFLoader();
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
@@ -313,17 +300,23 @@
         }
         scene.add(avatarModel);
 
-        /* 🛠️ INYECTOR DE ANIMACIÓN GEOMÉTRICA DIRECTA */
+        /* 🧠 RASTREADOR RECURSIVO AUTOMÁTICO DE ESQUELETO ANIMADO */
         avatarModel.traverse((child) => {
-          if (child.isMesh) {
-            // Guardamos un clon de la posición de los vértices originales de la cabeza/boca
-            const name = child.name.toLowerCase();
-            if (name.includes("head") || name.includes("face") || name.includes("avatar") || name.includes("mesh")) {
-              fallbackMeshTargets.push({
-                mesh: child,
-                originalGeo: child.geometry.attributes.position.clone(),
-                currentGeo: child.geometry.attributes.position
-              });
+          const name = child.name.toLowerCase();
+          
+          // Buscar mallas faciales principales
+          if (child.isMesh && (name.includes("head") || name.includes("face") || name.includes("mesh") || name.includes("avatar"))) {
+            faceMeshNode = child;
+          }
+          
+          // Buscar huesos del aparato fonador (Mandíbula o boca)
+          if (child.isBone) {
+            if (name.includes("jaw") || name.includes("boca") || name.includes("mandibula") || name.includes("mouth")) {
+              jawBoneNode = child;
+            }
+            // Hueso secundario de la cabeza como respaldo macro
+            if (name.includes("head") || name.includes("cabeza")) {
+              headBoneNode = child;
             }
           }
         });
@@ -344,7 +337,6 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    /* BUCLE DE ANIMACIÓN COGNITIVA */
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
@@ -353,36 +345,35 @@
       if (animationMixer) animationMixer.update(delta);
       if (navigationControls) navigationControls.update();
 
-      // Rotación pasiva del campo estelar de fondo
       if (starParticles) {
-        starParticles.rotation.y += 0.0005;
-        starParticles.rotation.x += 0.0002;
+        starParticles.rotation.y += 0.0004;
       }
 
-      /* 👄 DEFORMADOR MATEMÁTICO REAL DE LABIOS / MANDÍBULA */
+      /* 👄 INYECTOR CINEMÁTICO INTEGRAL DE HABLA (SIMULACIÓN DE LABIOS/MAXILAR) */
       if (avatarModel) {
         if (speakingActive && audioOutputEnabled) {
-          const wave = Math.abs(Math.sin(timeNow * 0.04)) * 0.05; // Frecuencia de habla óptima
-          
-          fallbackMeshTargets.forEach(target => {
-            const positionAttribute = target.currentGeo;
-            const originalPosition = target.originalGeo;
-            
-            // Recorremos los vértices del modelo en tiempo real
-            for (let i = 0; i < positionAttribute.count; i++) {
-              const origY = originalPosition.getY(i);
-              const origZ = originalPosition.getZ(i);
-              
-              // Filtro Biométrico: Detectamos los vértices que componen la parte baja del rostro (boca y mentón)
-              if (origY > 0.8 && origY < 1.3 && origZ > 0.05) {
-                // Desplazamos los vértices hacia abajo simulando la apertura física de la boca
-                positionAttribute.setY(i, origY - wave);
-              }
-            }
-            positionAttribute.needsUpdate = true; // Forzamos a Three.js a re-renderizar los labios moviéndose
-          });
+          // Generamos una onda senoidal caótica y rápida que emula la modulación de las sílabas
+          const talkWave = Math.abs(Math.sin(timeNow * 0.045)) * 0.25; 
+
+          // Método Principal: Si el esqueleto expone el hueso de la mandíbula, lo rotamos físicamente
+          if (jawBoneNode) {
+            jawBoneNode.rotation.x = talkWave * 0.8; 
+          } 
+          // Método Secundario (Simultáneo): Si no hay hueso mandibular, modulamos levemente el cabeceo de habla
+          else if (headBoneNode) {
+            headBoneNode.rotation.x = talkWave * 0.15;
+          }
+
+          // Método de Respaldo Absoluto (Modulación de Escala Facial Estricta):
+          // Comprime de forma sutil el rostro en el eje vertical (Y) y lo expande en profundidad (Z)
+          // emulando la gesticulación al proyectar aire y palabras. ¡Se moverá sí o sí!
+          if (faceMeshNode) {
+            faceMeshNode.scale.y = 1.0 - (talkWave * 0.06);
+            faceMeshNode.scale.z = 1.0 + (talkWave * 0.04);
+          }
+
         } else {
-          // Micro balanceo de descanso espacial
+          // Reposo orgánico en ingravidez
           avatarModel.position.y = -0.85 + Math.sin(timeNow * 0.001) * 0.01;
         }
       }
