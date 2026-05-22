@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NeuroLab AI - Luis Core v12.0</title>
+  <title>NeuroLab AI - Luis Core v13.0</title>
 
+  <!-- Librerías de Renderizado y Control de Escena -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -14,14 +15,14 @@
       --neon-cyan: #00ffe5;
       --neon-gold: #ffb703;
       --neon-red: #ff0055;
-      --hud-bg: rgba(6, 3, 14, 0.94);
-      --matrix-glow: 0 0 10px rgba(0, 255, 229, 0.4);
+      --hud-bg: rgba(5, 3, 12, 0.95);
+      --panel-glow: 0 0 15px rgba(0, 255, 229, 0.35);
     }
 
     body, html {
       margin: 0; padding: 0;
       width: 100%; height: 100%;
-      background-color: #010003;
+      background-color: #010004;
       color: var(--neon-cyan);
       font-family: 'Courier New', Courier, monospace;
       overflow: hidden;
@@ -33,114 +34,188 @@
       width: 100%; height: 100%; z-index: 1;
     }
 
+    /* CAPA PRINCIPAL DE INTERFAZ HUD */
     .hud-overlay {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%; z-index: 10;
       display: flex; flex-direction: column;
       justify-content: space-between;
-      box-sizing: border-box; padding: 12px;
+      box-sizing: border-box; padding: 10px;
       pointer-events: none;
     }
 
     .interactive { pointer-events: auto; }
 
+    /* Barra Superior Táctica */
     .top-matrix-panel {
       background: var(--hud-bg);
       border: 1px solid rgba(0, 255, 229, 0.3);
-      padding: 8px; text-align: center;
-      box-shadow: var(--matrix-glow);
-      position: relative;
-    }
-    
-    .exit-btn {
-      position: absolute; left: 10px; top: 6px;
-      background: #000; border: 1px solid var(--neon-red);
-      color: var(--neon-red); padding: 4px 10px;
-      cursor: pointer; font-size: 11px; font-weight: bold;
-      font-family: monospace;
+      padding: 6px; display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 0 10px rgba(0, 255, 229, 0.2);
     }
 
     .greek-stream {
-      font-size: 12px; color: var(--neon-cyan);
-      white-space: nowrap; letter-spacing: 5px;
+      font-size: 11px; color: var(--neon-cyan);
+      white-space: nowrap; letter-spacing: 3px;
       text-shadow: 0 0 5px var(--neon-cyan);
     }
 
+    /* MÓDULO DE LOGIN OBLIGATORIO (MODAL HOLOGRÁFICO) */
+    #login-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(2, 1, 5, 0.93); z-index: 100;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .login-box {
+      background: var(--hud-bg); border: 2px solid var(--neon-cyan);
+      padding: 30px; text-align: center; box-shadow: var(--panel-glow);
+      max-width: 400px; width: 85%;
+    }
+
+    /* SISTEMA DE HERRAMIENTAS FLOTANTES (SUPERIOR DERECHA) */
+    .toolbox-container {
+      position: absolute; top: 55px; right: 10px; z-index: 20;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
+    .tool-tab-btn {
+      background: #000; border: 1px solid var(--neon-gold); color: var(--neon-gold);
+      padding: 6px 12px; font-family: monospace; font-size: 11px; cursor: pointer; font-weight: bold;
+    }
+    .tool-tab-btn:hover, .tool-tab-btn.active { background: var(--neon-gold); color: #000; }
+    
+    .tool-window {
+      background: var(--hud-bg); border: 1px solid var(--neon-gold);
+      width: 280px; padding: 10px; display: none; flex-direction: column; gap: 6px;
+      box-shadow: 0 0 12px rgba(255, 183, 3, 0.25);
+    }
+    .tool-window h4 { margin: 0 0 5px 0; font-size: 11px; color: var(--neon-gold); border-bottom: 1px dashed rgba(255, 183, 3, 0.4); padding-bottom: 3px;}
+    .tool-window select, .tool-window input {
+      background: #000; border: 1px solid var(--neon-gold); color: #fff; padding: 5px; font-family: monospace; font-size: 11px; outline: none;
+    }
+
+    /* CONSOLA INFERIOR DE COMUNICACIONES BLINDADA */
     .console-hud {
       background: var(--hud-bg);
       border: 1px solid rgba(255, 183, 3, 0.3);
-      padding: 12px; display: flex; flex-direction: column; gap: 8px;
-      width: 100%; max-width: calc(100% - 24px);
-      box-sizing: border-box;
+      padding: 10px; display: flex; flex-direction: column; gap: 6px;
+      width: 100%; max-width: calc(100% - 20px); box-sizing: border-box;
       margin-bottom: env(safe-area-inset-bottom, 2px);
     }
 
     .log-view {
-      font-size: 12px; 
-      height: 130px; 
-      overflow-y: auto; 
-      color: #ffffff;
-      line-height: 1.4; padding: 10px;
-      background: rgba(0, 0, 0, 0.9);
-      border-left: 3px solid var(--neon-gold);
-      word-wrap: break-word; 
-      white-space: pre-wrap;
+      font-size: 12px; height: 125px; overflow-y: auto; color: #ffffff;
+      line-height: 1.4; padding: 8px; background: rgba(0, 0, 0, 0.9);
+      border-left: 3px solid var(--neon-gold); word-wrap: break-word; white-space: pre-wrap;
     }
 
-    .sumerian-bar {
-      font-size: 10px; color: var(--neon-gold);
-      opacity: 0.6; text-align: center;
-      letter-spacing: 3px;
-      white-space: nowrap; overflow: hidden;
-      text-overflow: ellipsis;
+    /* CONTADORES Y METADATOS */
+    .meta-metrics-bar {
+      display: flex; justify-content: space-between; font-size: 10px; color: var(--neon-gold);
+      opacity: 0.8; border-bottom: 1px dashed rgba(255, 183, 3, 0.2); padding-bottom: 4px;
     }
 
-    .input-group { display: flex; gap: 8px; }
-
-    input {
-      flex: 1; background: rgba(0, 0, 0, 0.95);
-      border: 1px solid var(--neon-cyan); color: #fff;
-      padding: 12px; font-family: monospace; font-size: 13px;
-      outline: none; min-width: 0;
+    .input-group { display: flex; gap: 6px; }
+    input.main-chat-input {
+      flex: 1; background: rgba(0, 0, 0, 0.95); border: 1px solid var(--neon-cyan);
+      color: #fff; padding: 10px; font-family: monospace; font-size: 13px; outline: none; min-width: 0;
     }
-    input:focus { box-shadow: var(--matrix-glow); }
 
     button.action-btn {
-      background: #000; border: 1px solid var(--neon-cyan);
-      color: var(--neon-cyan); padding: 12px 16px;
-      font-family: monospace; cursor: pointer; font-weight: bold;
-      font-size: 12px; flex-shrink: 0;
+      background: #000; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+      padding: 10px 14px; font-family: monospace; cursor: pointer; font-weight: bold; font-size: 12px; flex-shrink: 0;
     }
     button.action-btn:hover { background: var(--neon-cyan); color: #000; }
-    
     button.audio-btn { border-color: var(--neon-gold); color: var(--neon-gold); }
-    button.audio-btn.active { background: var(--neon-gold); color: #000; box-shadow: 0 0 8px var(--neon-gold); }
+    button.audio-btn.active { background: var(--neon-gold); color: #000; }
+
+    /* CLÁUSULA RIGUROSA DE PRIVACIDAD INTEGRADA DEBAJO DE LA PANTALLA */
+    .privacy-notice {
+      font-size: 9px; color: var(--neon-red); text-align: center; opacity: 0.85;
+      letter-spacing: 1px; margin-top: 2px; text-transform: uppercase;
+    }
 
     @media (min-width: 768px) {
-      .log-view { height: 160px; font-size: 14px; }
-      .greek-stream { font-size: 14px; }
+      .log-view { height: 170px; font-size: 13px; }
+      .greek-stream { font-size: 13px; }
+      .tool-window { width: 320px; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Pantalla de Bloqueo / Inyección de Identidad -->
+  <div id="login-screen" class="interactive">
+    <div class="login-box">
+      <h3 style="color: var(--neon-cyan); margin-top:0;">CONEXIÓN NEUROLÁB AI</h3>
+      <p style="font-size: 11px; color: #aaa; margin-bottom: 20px;">Introduce tu nombre de operador para segmentar los canales de memoria inmediata de la sesión.</p>
+      <input type="text" id="username-input" placeholder="Nombre del usuario..." style="width:80%; text-align:center; margin-bottom:15px;" onkeydown="if(event.key==='Enter') registerUser()"/>
+      <br>
+      <button class="action-btn" onclick="registerUser()">INICIAR ENLACE</button>
+    </div>
+  </div>
+
+  <!-- Contenedor del Motor 3D -->
   <div id="canvas-container"></div>
 
+  <!-- Herramientas Flotantes (Superior Derecha) -->
+  <div class="toolbox-container interactive">
+    <div>
+      <button id="tab-calc" class="tool-tab-btn" onclick="toggleTool('calc')">🖩 CALC ESPECTRAL</button>
+      <button id="tab-lang" class="tool-tab-btn" onclick="toggleTool('lang')">𓁐 TRADUCTOR LINGÜÍSTICO</button>
+    </div>
+
+    <!-- Calculadora Científica Espectral Avanzada -->
+    <div id="window-calc" class="tool-window">
+      <h4>CALCULADORA DE ENERGÍA Y VACÍO</h4>
+      <div style="font-size:10px; color:#ccc; margin-bottom:4px;">Ecuación Fotónica: E = h × ν</div>
+      <select id="calc-preset" onchange="runSpectralCalc()">
+        <option value="632">Láser Helio-Neón (632 nm)</option>
+        <option value="532">Láser Verde KTP (532 nm)</option>
+        <option value="1064">Láser Nd:YAG (1064 nm)</option>
+      </select>
+      <div id="calc-result" style="font-size:11px; color:var(--neon-cyan); background:#000; padding:6px; margin-top:4px; border:1px solid #333;">Energía Calculada: --</div>
+    </div>
+
+    <!-- Traductor Lingüístico de Jeroglíficos -->
+    <div id="window-lang" class="tool-window">
+      <h4>CODEX JEROGLÍFICO A COMANDOS</h4>
+      <select id="glyph-selector" onchange="translateGlyph()">
+        <option value="">Selecciona un carácter antiguo...</option>
+        <option value="𓋹 Ankh - Matriz de Energía Alternativa Vital">𓋹 (Ankh)</option>
+        <option value="𓎳 Djed - Estabilidad en Cámara de Vacío">𓎳 (Djed)</option>
+        <option value="𓏃 Khepri - Transformación y Transmutación Cuántica">𓏃 (Khepri)</option>
+        <option value="𓃠 Bastet - Sensor de Frecuencias de Ultrasonido">𓃠 (Bastet)</option>
+      </select>
+      <div id="lang-result" style="font-size:11px; color:var(--neon-gold); background:#000; padding:6px; margin-top:4px; border:1px solid #333;">Traducción: --</div>
+    </div>
+  </div>
+
+  <!-- Capa HUD e Interfaz Inferior -->
   <div class="hud-overlay">
     <div class="top-matrix-panel interactive">
-      <button class="exit-btn" onclick="location.href='index.html'">🗙 INDEX</button>
-      <div class="greek-stream">Ω α β γ Luis_Core_v12.0 // STABLE_PROPORTIONS // LIP_SYNC</div>
+      <div class="greek-stream">Ω Luis_Core_v13.0 // RENDERING ESTABLE // CONEXIÓN CIFRADA LOCAL</div>
     </div>
 
     <div class="console-hud interactive">
-      <div id="log-display" class="log-view">>>> Escala del avatar estabilizada correctamente. Encuadre óptico optimizado para gesticulación natural. listo, Luis.</div>
+      <!-- Barra de Metadatos: Nombre de Usuario y Tiempo de Diálogo -->
+      <div class="meta-metrics-bar">
+        <div>OPERADOR ACTIVO: <span id="hud-user-tag" style="color:#fff;">ANÓNIMO</span></div>
+        <div>TIEMPO DE DIÁLOGO: <span id="hud-timer-tag" style="color:#fff;">00:00</span></div>
+      </div>
+
+      <div id="log-display" class="log-view">>>> Consola limpia. Esperando inicio de transmisión...</div>
       
       <div class="sumerian-bar">𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目</div>
 
       <div class="input-group">
         <button id="mute-btn" class="action-btn audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
-        <input id="query-input" placeholder="Escribe tu mensaje aquí, Luis..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
+        <input id="query-input" class="main-chat-input" placeholder="Escribe tu consulta táctica aquí..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
         <button id="exec-btn" class="action-btn" onclick="executeQuery()">ENVIAR</button>
+      </div>
+
+      <!-- AVISO ESTRICTO DE NO RECOPILACIÓN DE DATOS -->
+      <div class="privacy-notice">
+        ▲ ADVERTENCIA DE SEGURIDAD: ESTE SITIO NO RECOPILA DATOS, NO GUARDA COOKIES NI HISTORIAL EN SERVIDORES EXTERNOS. MEMORIA VOLÁTIL DE SESIÓN ABIERTA ▲
       </div>
     </div>
   </div>
@@ -153,13 +228,75 @@
     let speakingActive = false;
     let audioOutputEnabled = false;
     let conversationHistory = []; 
-    let targetFaceMeshes = []; 
+
+    // Parámetros de Sesión
+    let userName = "Usuario";
+    let sessionSeconds = 0;
+    let timerInterval = null;
 
     const speechEngine = window.speechSynthesis;
     let globalUtterance = null;
 
-    if (speechEngine.onvoiceschanged !== undefined) {
-      speechEngine.onvoiceschanged = () => { speechEngine.getVoices(); };
+    // Registro inicial del Usuario
+    function registerUser() {
+      const input = document.getElementById("username-input");
+      const name = input.value.trim();
+      if(name) {
+        userName = name;
+        document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("log-display").innerText = `>>> Enlace establecido con exitosamente. Operador: ${userName}.\n>>> Sistema listo para preguntas básicas o simulaciones.`;
+        startSessionTimer();
+      }
+    }
+
+    // Cronómetro de Diálogo Activo
+    function startSessionTimer() {
+      timerInterval = setInterval(() => {
+        sessionSeconds++;
+        const mins = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+        const secs = String(sessionSeconds % 60).padStart(2, '0');
+        document.getElementById("hud-timer-tag").innerText = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    // Alternar ventanas de herramientas de la parte superior derecha
+    function toggleTool(tool) {
+      const calcWin = document.getElementById("window-calc");
+      const langWin = document.getElementById("window-lang");
+      const calcBtn = document.getElementById("tab-calc");
+      const langBtn = document.getElementById("tab-lang");
+
+      if (tool === 'calc') {
+        const isVisible = calcWin.style.display === "flex";
+        calcWin.style.display = isVisible ? "none" : "flex";
+        calcBtn.classList.toggle("active", !isVisible);
+        langWin.style.display = "none";
+        langBtn.classList.remove("active");
+        if(!isVisible) runSpectralCalc();
+      } else {
+        const isVisible = langWin.style.display === "flex";
+        langWin.style.display = isVisible ? "none" : "flex";
+        langBtn.classList.toggle("active", !isVisible);
+        calcWin.style.display = "none";
+        calcBtn.classList.remove("active");
+      }
+    }
+
+    // Lógica Matemática de la Calculadora Espectral
+    function runSpectralCalc() {
+      const lambda = parseFloat(document.getElementById("calc-preset").value);
+      // E = (h * c) / lambda -> h = 6.626e-34, c = 3e8
+      const hc = 1.98644586e-25;
+      const energy = hc / (lambda * 1e-9);
+      const ev = energy / 1.602176634e-19;
+      document.getElementById("calc-result").innerText = `E = ${ev.toFixed(4)} eV (${energy.toExponential(3)} J)`;
+    }
+
+    // Traductor Lingüístico
+    function translateGlyph() {
+      const val = document.getElementById("glyph-selector").value;
+      document.getElementById("lang-result").innerText = val ? `Significado: ${val}` : "Traducción: --";
     }
 
     function toggleAudioMaster() {
@@ -170,10 +307,11 @@
       } else {
         btn.innerText = "🔇 MUTE"; btn.classList.remove("active");
         if (speechEngine.speaking) speechEngine.cancel();
-        stopSpeechMouthCycle();
+        speakingActive = false;
       }
     }
 
+    // Transmisión con mantenimiento rígido de nombres y separación de párrafos
     async function executeQuery() {
       const inputEl = document.getElementById("query-input");
       const execBtn = document.getElementById("exec-btn");
@@ -195,7 +333,7 @@
         });
 
         const data = await res.json();
-        const replyText = data.reply || "Error: Núcleo sin respuesta.";
+        const replyText = data.reply || "Fallo en el procesador central.";
 
         conversationHistory.push({ role: "assistant", content: replyText });
         if (conversationHistory.length > 10) conversationHistory.shift();
@@ -208,60 +346,44 @@
           globalUtterance.lang = 'es-ES';
           globalUtterance.rate = 1.0;
           globalUtterance.pitch = 0.95;
-
           speakingActive = true;
-          globalUtterance.onend = () => { resetControls(inputEl, execBtn); };
-          globalUtterance.onerror = () => { resetControls(inputEl, execBtn); };
+          globalUtterance.onend = () => { inputEl.disabled = false; execBtn.disabled = false; speakingActive = false; };
+          globalUtterance.onerror = () => { inputEl.disabled = false; execBtn.disabled = false; speakingActive = false; };
           speechEngine.speak(globalUtterance);
         } else {
-          resetControls(inputEl, execBtn);
+          inputEl.disabled = false; execBtn.disabled = false;
         }
 
       } catch (err) {
-        logDisplay.innerHTML += "\n<span style='color:var(--neon-red)'>>>> FALLO EN EL ENLACE DE DATOS.</span>";
-        resetControls(inputEl, execBtn);
+        logDisplay.innerHTML += "\n<span style='color:var(--neon-red)'>>>> ERROR TOTAL EN LA LÍNEA DE COMANDOS.</span>";
+        inputEl.disabled = false; execBtn.disabled = false;
       }
       inputEl.value = "";
     }
 
+    // Impresor Estricto con Separación Nominal de Canales
     function renderLogHistory() {
       const logDisplay = document.getElementById("log-display");
       let htmlBuffer = "";
       conversationHistory.forEach(msg => {
         if(msg.role === "user") {
-          htmlBuffer += `<b style="color:var(--neon-cyan)">Luis:</b> ${msg.content}\n`;
+          htmlBuffer += `<b style="color:var(--neon-cyan)">[${userName.toUpperCase()}]:</b> ${msg.content}\n`;
         } else {
-          htmlBuffer += `<b style="color:var(--neon-gold)">AI:</b> ${msg.content}\n\n`;
+          htmlBuffer += `<b style="color:var(--neon-gold)">[LUIS IA]:</b> ${msg.content}\n\n`;
         }
       });
       logDisplay.innerHTML = htmlBuffer;
       logDisplay.scrollTop = logDisplay.scrollHeight; 
     }
 
-    function resetControls(input, btn) {
-      input.disabled = false; btn.disabled = false;
-      stopSpeechMouthCycle();
-    }
-
-    function stopSpeechMouthCycle() {
-      speakingActive = false;
-      targetFaceMeshes.forEach(target => {
-        if (target.hasMorphs) {
-          target.morphKeys.forEach(key => target.mesh.morphTargetInfluences[key] = 0);
-        } else if (target.mesh.geometry.attributes.position) {
-          target.mesh.geometry.attributes.position.copy(target.originalPositionBuffer);
-          target.mesh.geometry.attributes.position.needsUpdate = true;
-        }
-      });
-    }
-
+    // Inicialización del Motor de Renderizado Correcto
     function initEngine() {
       const container = document.getElementById("canvas-container");
       
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x020106);
 
-      /* FONDO ESTELAR MATEMÁTICO */
+      /* SISTEMA ESTELAR PROCEDURAL */
       const starsGeometry = new THREE.BufferGeometry();
       const starPositions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount * 3; i += 3) {
@@ -274,22 +396,18 @@
       starParticles = new THREE.Points(starsGeometry, starMaterial);
       scene.add(starParticles);
 
-      /* NEBULOSA PROCEDURAL DE FONDO */
+      /* NEBULOSA CÓSMICA MATEMÁTICA */
       const nebulaGeo = new THREE.PlaneGeometry(14, 14, 2, 2);
       const nebulaMat = new THREE.MeshBasicMaterial({
-        color: 0x16082e,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide
+        color: 0x16082e, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
       });
       nebulaMesh = new THREE.Mesh(nebulaGeo, nebulaMat);
       nebulaMesh.position.set(0, 0, -5);
       scene.add(nebulaMesh);
 
-      // CONFIGURACIÓN ÓPTICA PROTEGIDA (Aleja la cámara para evitar que el avatar se vea gigante)
+      // Óptica y Cámara Estable
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-      camera.position.set(0, 0.25, 2.3); // Mayor distancia focal base
+      camera.position.set(0, 0.25, 2.3);
 
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -301,61 +419,24 @@
       navigationControls.dampingFactor = 0.05;
       navigationControls.maxDistance = 4.5;
       navigationControls.minDistance = 1.0;
-      navigationControls.target.set(0, 0.2, 0); // Apunta directamente al pecho/rostro
+      navigationControls.target.set(0, 0.2, 0);
 
       scene.add(new THREE.AmbientLight(0xffffff, 1.2));
       const tacticalLight = new THREE.DirectionalLight(0x00ffe5, 1.5);
       tacticalLight.position.set(0, 1, 3);
       scene.add(tacticalLight);
 
-      /* CARGA Y CALIBRACIÓN DE ESCALA RIGUROSA */
+      /* CARGA Y CONFIGURACIÓN ESTÁTICA SEGURO DEL AVATAR */
       const loader = new THREE.GLTFLoader();
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
-        
-        // Posicionamiento anatómico en la parte inferior del visor
         avatarModel.position.set(0, -0.65, 0);
         
-        // ESCALA CONTROLADA: Valores normalizados para evitar gigantismo en cualquier pantalla
+        // Relación de escala equilibrada (Evita el gigantismo)
         const currentRatio = window.innerWidth / window.innerHeight;
-        let modelScale = 0.65; // Escala óptima estándar para PC
-        
-        if (currentRatio < 1) { 
-          modelScale = 0.52; // Escala protectora compacta para pantallas verticales/móviles
-        }
-        
-        avatarModel.scale.set(modelScale, modelScale, modelScale);
+        const scaleFactor = currentRatio < 1 ? 0.52 : 0.65;
+        avatarModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
         scene.add(avatarModel);
-
-        /* MAPEO BIOMÉTRICO PARA LIP-SYNC ESTABLE */
-        avatarModel.traverse((child) => {
-          if (child.isMesh) {
-            const name = child.name.toLowerCase();
-            
-            if (child.morphTargetDictionary) {
-              let morphKeysFound = [];
-              for (let key in child.morphTargetDictionary) {
-                const kLower = key.toLowerCase();
-                if (kLower.includes("open") || kLower.includes("mouth") || kLower.includes("lip") || kLower.includes("jaw") || kLower.includes("viseme")) {
-                  morphKeysFound.push(child.morphTargetDictionary[key]);
-                }
-              }
-              if (morphKeysFound.length > 0) {
-                targetFaceMeshes.push({ mesh: child, hasMorphs: true, morphKeys: morphKeysFound });
-                return;
-              }
-            }
-
-            if (name.includes("head") || name.includes("face") || name.includes("mesh") || name.includes("avatar")) {
-              targetFaceMeshes.push({
-                mesh: child,
-                hasMorphs: false,
-                originalPositionBuffer: child.geometry.attributes.position.clone(),
-                currentPositionBuffer: child.geometry.attributes.position
-              });
-            }
-          }
-        });
 
         if (gltf.animations && gltf.animations.length > 0) {
           animationMixer = new THREE.AnimationMixer(avatarModel);
@@ -371,8 +452,6 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      
-      // Recalibración dinámica de dimensiones en tiempo de ejecución
       if (avatarModel) {
         const currentRatio = window.innerWidth / window.innerHeight;
         const dynamicScale = currentRatio < 1 ? 0.52 : 0.65;
@@ -391,39 +470,9 @@
       if (starParticles) starParticles.rotation.y += 0.0002;
       if (nebulaMesh) nebulaMesh.rotation.z = Math.sin(timeNow * 0.00008) * 0.05;
 
-      /* GESTICULACIÓN Y MODULACIÓN LABIAL FILTRADA */
       if (avatarModel) {
-        if (speakingActive && audioOutputEnabled) {
-          // Onda fluida senoidal amortiguada para evitar el temblor de la cabeza y centrarse en la boca
-          const SpeechPulse = Math.abs(Math.sin(timeNow * 0.032) * 0.7 + Math.cos(timeNow * 0.012) * 0.3);
-
-          targetFaceMeshes.forEach(target => {
-            if (target.hasMorphs) {
-              target.morphKeys.forEach(key => {
-                target.mesh.morphTargetInfluences[key] = SpeechPulse * 0.8;
-              });
-            } 
-            else if (target.mesh.geometry.attributes.position) {
-              const posAttr = target.currentPositionBuffer;
-              const origAttr = target.originalPositionBuffer;
-              
-              // Localizador geométrico estricto basado en la escala normalizada del entorno
-              for (let i = 0; i < posAttr.count; i++) {
-                const origY = origAttr.getY(i);
-                const origZ = origAttr.getZ(i);
-
-                // Afecta exclusivamente a los vértices de la boca sin generar vibraciones parasitarias en el cráneo
-                if (origY > 0.2 && origY < 0.55 && origZ > 0.06) {
-                  posAttr.setY(i, origY - (SpeechPulse * 0.025));
-                }
-              }
-              posAttr.needsUpdate = true;
-            }
-          });
-        } else {
-          // Balanceo inercial orgánico suave
-          avatarModel.position.y = -0.65 + Math.sin(timeNow * 0.001) * 0.008;
-        }
+        // Balanceo estático sutil de respiración para dar sensación orgánica de fondo
+        avatarModel.position.y = -0.65 + Math.sin(timeNow * 0.001) * 0.008;
       }
 
       renderer.render(scene, camera);
