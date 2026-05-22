@@ -2,65 +2,31 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>NeuroLab AI - T-800 Interface</title>
+<title>NeuroLab AI - Tactical HUD</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <style>
-body {
+:root {
+  --neon-cyan: #00ffe5;
+  --neon-red: #ff0055;
+  --hud-bg: rgba(5, 7, 15, 0.85);
+}
+
+body, html {
   margin: 0;
-  background: #050508;
-  color: #00ffe5;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #020205;
+  color: var(--neon-cyan);
   font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
   user-select: none;
 }
 
-/* Capa de interfaz de usuario de ciencia ficción (HUD) */
-.hud-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-sizing: border-box;
-  padding: 20px;
-  pointer-events: none;
-}
-
-.interactive {
-  pointer-events: auto;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px dashed #ff0055;
-  padding-bottom: 10px;
-  background: rgba(0, 0, 0, 0.6);
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-  letter-spacing: 3px;
-  text-shadow: 0 0 15px #ff0055;
-  color: #ff0055;
-}
-
-.system-status {
-  font-size: 12px;
-  color: #00ffe5;
-  text-shadow: 0 0 5px #00ffe5;
-}
-
-/* Contenedor central del Avatar */
+/* Lienzo 3D de fondo */
 #avatar-container {
   position: absolute;
   top: 0;
@@ -70,146 +36,230 @@ h1 {
   z-index: 1;
 }
 
-/* Panel Inferior de Control */
-.bottom-panel {
-  background: rgba(5, 5, 10, 0.85);
-  border: 1px solid #00ffe5;
-  box-shadow: 0 0 20px rgba(0, 255, 229, 0.2);
-  padding: 20px;
-  border-radius: 6px;
-  max-width: 800px;
-  margin: 0 auto;
+/* Contenedor HUD sobrepuesto */
+.hud-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: grid;
+  grid-template-rows: 60px 1fr 180px;
+  grid-template-columns: 280px 1fr 280px;
   box-sizing: border-box;
+  padding: 15px;
+  pointer-events: none;
+  gap: 15px;
 }
 
-.controls-grid {
+.interactive {
+  pointer-events: auto;
+}
+
+/* Estilo común para módulos del HUD */
+.hud-module {
+  background: var(--hud-bg);
+  border: 1px solid rgba(0, 255, 229, 0.25);
+  box-shadow: 0 0 15px rgba(0, 255, 229, 0.05);
+  padding: 15px;
+  box-sizing: border-box;
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 15px;
+  flex-direction: column;
+}
+
+/* MARCO SUPERIOR */
+.header-panel {
+  grid-column: 1 / span 3;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--neon-red);
+}
+
+.header-panel h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 4px;
+  color: var(--neon-red);
+  text-shadow: 0 0 10px var(--neon-red);
+}
+
+/* PANELES LATERALES (Diagnóstico Táctico) */
+.side-panel {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.side-panel h3 {
+  margin-top: 0;
+  border-bottom: 1px solid var(--neon-cyan);
+  padding-bottom: 4px;
+  letter-spacing: 1px;
+}
+
+/* PANEL INFERIOR (Controles y Consola) */
+.footer-panel {
+  grid-column: 1 / span 3;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  border-top: 1px solid rgba(0, 255, 229, 0.4);
+}
+
+/* Botones de postura en barra vertical */
+.pose-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 button {
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #00ffe5;
-  color: #00ffe5;
-  padding: 8px 16px;
-  cursor: pointer;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  padding: 8px 12px;
   font-family: 'Courier New', Courier, monospace;
   font-weight: bold;
-  transition: all 0.3s ease;
+  cursor: pointer;
+  transition: all 0.2s ease;
   text-transform: uppercase;
+  font-size: 11px;
 }
 
 button:hover {
-  background: #00ffe5;
+  background: var(--neon-cyan);
   color: #000;
-  box-shadow: 0 0 15px #00ffe5;
+  box-shadow: 0 0 10px var(--neon-cyan);
 }
 
-button.danger {
-  border-color: #ff0055;
-  color: #ff0055;
+button.danger-btn {
+  border-color: var(--neon-red);
+  color: var(--neon-red);
 }
-
-button.danger:hover {
-  background: #ff0055;
+button.danger-btn:hover {
+  background: var(--neon-red);
   color: #000;
-  box-shadow: 0 0 15px #ff0055;
+  box-shadow: 0 0 10px var(--neon-red);
 }
 
-.input-group {
+/* Consola de texto */
+.terminal-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+#response {
+  flex: 1;
+  font-size: 13px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--neon-red);
+  color: #fff;
+}
+
+.input-row {
   display: flex;
   gap: 10px;
 }
 
 input {
   flex: 1;
-  padding: 12px;
   background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #ff0055;
+  border: 1px solid var(--neon-cyan);
   color: #fff;
+  padding: 10px;
   font-family: 'Courier New', Courier, monospace;
   outline: none;
-  font-size: 14px;
 }
 
-input:focus {
-  border-color: #00ffe5;
-  box-shadow: 0 0 10px rgba(0, 255, 229, 0.5);
-}
-
-#response {
-  margin-top: 15px;
-  font-size: 14px;
-  min-height: 40px;
-  max-height: 80px;
-  overflow-y: auto;
-  text-align: left;
-  border-left: 3px solid #00ffe5;
-  padding-left: 10px;
-  color: #ffffff;
-  text-shadow: 0 0 5px rgba(0, 255, 229, 0.5);
-}
-
-.scanlines {
+/* Líneas de barrido de monitor CRT antiguo */
+.screen-fx {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  background-size: 100% 4px, 6px 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+  background-size: 100% 4px;
   z-index: 20;
   pointer-events: none;
 }
 </style>
 </head>
-
 <body>
 
-<div class="scanlines"></div>
+<div class="screen-fx"></div>
 <div id="avatar-container"></div>
 
-<div class="hud-container">
+<div class="hud-grid">
   
-  <div class="topbar interactive">
-    <button onclick="location.href='index.html'" class="danger">🗙 TERMINAR CONEXIÓN</button>
-    <h1>NEUROLAB T-800 SYSTEM v4.26</h1>
-    <div class="system-status" id="status-text">ESTADO: OPERATIVO // NÚCLEO ESTABLE</div>
+  <!-- CABECERA -->
+  <div class="hud-module header-panel interactive">
+    <button onclick="location.href='index.html'" class="danger-btn">🗙 DISCONNECT</button>
+    <h1>NEUROLAB CORE INTEL v4.26</h1>
+    <div id="status-text" style="font-size: 11px;">SYS_STATUS: ACTIVE // STABLE</div>
   </div>
 
-  <div class="bottom-panel interactive">
+  <!-- DIAGNÓSTICO IZQUIERDO -->
+  <div class="hud-module side-panel">
+    <h3>DATA ANALYTICS</h3>
+    <p>MODEL: T-800 ANDROID</p>
+    <p>COGNITION: REMOT_AI</p>
+    <p>LIP_SYNC: TARGET_MORPH</p>
+    <p>FRAME_RATE: VARIABLE</p>
+  </div>
+
+  <!-- ESPACIO CENTRAL LIBRE PARA EL AVATAR -->
+  <div></div>
+
+  <!-- DIAGNÓSTICO DERECHO -->
+  <div class="hud-module side-panel">
+    <h3>ENVIRONMENT</h3>
+    <p>LOC: DEEP_SPACE_04</p>
+    <p>RAD_LEVEL: 0.04 mSv</p>
+    <p>LIGHTNING: DETECTED</p>
+    <p>CHASSIS_TEMP: 34.2°C</p>
+  </div>
+
+  <!-- CONTROL INFERIOR -->
+  <div class="hud-module footer-panel interactive">
     
-    <div class="controls-grid">
+    <!-- Selector de Posición/Ángulo -->
+    <div class="pose-selector">
       <button onclick="changePose('defecto')">Vista Estándar</button>
       <button onclick="changePose('analisis')">Escanear Rostro</button>
       <button onclick="changePose('combate')">Modo Alerta</button>
-      <button onclick="changePose('orbita')">Cámara Libre</button>
     </div>
 
-    <div class="input-group">
-      <input id="input" placeholder="SYS_REQ: Escribe un comando o pregunta al T-800..." onkeydown="if(event.key === 'Enter') send()"/>
-      <button onclick="send()">EJECUTAR</button>
+    <!-- Módulo de Terminal -->
+    <div class="terminal-box">
+      <div id="response">>>> Terminal lista. Ingrese secuencia de consulta...</div>
+      <div class="input-row">
+        <input id="input" placeholder="Escribe tu comando al sistema..." onkeydown="if(event.key === 'Enter') send()"/>
+        <button onclick="send()" style="width: 100px;">ENVIAR</button>
+      </div>
     </div>
 
-    <div id="response">>>> Esperando transmisión de datos...</div>
   </div>
 
 </div>
 
 <script>
 
-/* ================= VARIABLES GLOBALES ================= */
+/* ================= CONTEXTO GLOBAL ================= */
 let scene, camera, renderer, model, mixer;
-let clock = new THREE.Clock(); // Necesario para calcular el tiempo de las animaciones del GLB
-let stars, starGeo, starCount = 1200; 
-let lightningLight; 
+let clock = new THREE.Clock();
+let stars, starGeo, starCount = 1000;
+let lightningLight;
 let isSpeaking = false;
 let currentPose = 'defecto';
+
+// Arreglo para guardar las mallas de la cara que contienen los movimientos de labios
+let faceMeshes = []; 
 
 const synth = window.speechSynthesis;
 let speechUtterance = null;
 
-/* ================= ASYNCHRONOUS DATA BUS (IA) ================= */
+/* ================= CONEXIÓN DE DATOS (IA) ================= */
 async function send() {
   const inputEl = document.getElementById("input");
   const text = inputEl.value.trim();
@@ -218,8 +268,8 @@ async function send() {
   const responseEl = document.getElementById("response");
   const statusEl = document.getElementById("status-text");
   
-  responseEl.innerHTML = ">>> PROCESANDO ENTRADA EN NÚCLEO INTEGRADO...";
-  statusEl.innerText = "ESTADO: GENERANDO RESPUESTA COGNITIVA";
+  responseEl.innerHTML = ">>> PROCESANDO COMANDO AUDIOVISUAL...";
+  statusEl.innerText = "SYS_STATUS: COMPUTING_REPLY";
   statusEl.style.color = "#ff0055";
   
   inputEl.value = "";
@@ -232,51 +282,56 @@ async function send() {
     });
 
     const data = await res.json();
-    const reply = data.reply || "ERROR: Sin respuesta del servidor remoto.";
+    const reply = data.reply || "COM_ERROR: Respuesta vacía.";
 
     responseEl.innerText = `T-800: ${reply}`;
     
-    if(synth.speaking) {
-      synth.cancel();
-    }
+    if(synth.speaking) synth.cancel();
 
     speechUtterance = new SpeechSynthesisUtterance(reply);
     speechUtterance.lang = "es-ES";
     speechUtterance.rate = 0.95; 
-    speechUtterance.pitch = 0.7; 
+    speechUtterance.pitch = 0.6; 
 
     isSpeaking = true;
-    statusEl.innerText = "ESTADO: TRANSMITIENDO AUDIO // PROCESANDO LABIOS";
+    statusEl.innerText = "SYS_STATUS: TRANSMITTING_VOICE_STREAM";
     statusEl.style.color = "#00ffe5";
 
-    speechUtterance.onend = () => {
-      isSpeaking = false;
-      statusEl.innerText = "ESTADO: OPERATIVO // NÚCLEO ESTABLE";
-    };
-
-    speechUtterance.onerror = () => {
-      isSpeaking = false;
-      statusEl.innerText = "ESTADO: OPERATIVO // NÚCLEO ESTABLE";
-    };
+    speechUtterance.onend = () => { resetSpeechStatus(statusEl); };
+    speechUtterance.onerror = () => { resetSpeechStatus(statusEl); };
 
     synth.speak(speechUtterance);
 
   } catch (error) {
-    responseEl.innerText = ">>> CONFIG_ERROR: Fallo de enlace con la Red de Datos.";
-    statusEl.innerText = "ESTADO: CRÍTICO // ERROR DE RED";
+    responseEl.innerText = ">>> CONFIG_ERROR: Fallo crítico de red.";
+    statusEl.innerText = "SYS_STATUS: LINK_UNSTABLE";
     isSpeaking = false;
   }
 }
 
-/* ================= SISTEMA 3D (THREE.JS) ================= */
+function resetSpeechStatus(element) {
+  isSpeaking = false;
+  element.innerText = "SYS_STATUS: ACTIVE // STABLE";
+  // Forzar cierre completo de los labios al terminar el habla
+  faceMeshes.forEach(mesh => {
+    if(mesh.morphTargetInfluences) {
+      // Limpiamos los canales comunes de apertura de boca
+      setMorphValue(mesh, 'mouthOpen', 0);
+      setMorphValue(mesh, 'viseme_O', 0);
+      setMorphValue(mesh, 'viseme_aa', 0);
+    }
+  });
+}
+
+/* ================= MOTOR 3D PRINCIPAL ================= */
 function init() {
   const container = document.getElementById("avatar-container");
   
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020205);
-  scene.fog = new THREE.FogExp2(0x020205, 0.15);
+  scene.background = new THREE.Color(0x020206);
+  scene.fog = new THREE.FogExp2(0x020206, 0.08);
 
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 500);
   setCameraPose('defecto');
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -284,40 +339,40 @@ function init() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0x0f2027, 1.8);
+  // Luces fijas de contraste cinematográfico
+  const ambientLight = new THREE.AmbientLight(0x0a1520, 2.0);
   scene.add(ambientLight);
 
-  const cyanLight = new THREE.PointLight(0x00ffe5, 2, 50);
-  cyanLight.position.set(-3, 2, 3);
+  const cyanLight = new THREE.PointLight(0x00ffe5, 2.5, 30);
+  cyanLight.position.set(-2, 1.5, 2);
   scene.add(cyanLight);
 
-  const redLight = new THREE.PointLight(0xff0055, 3, 50);
-  redLight.position.set(3, 1, 2);
+  const redLight = new THREE.PointLight(0xff0055, 3, 30);
+  redLight.position.set(2, 0.8, 1.5);
   scene.add(redLight);
 
   lightningLight = new THREE.DirectionalLight(0xffffff, 0);
-  lightningLight.position.set(-1, 5, -2);
+  lightningLight.position.set(0, 4, -2);
   scene.add(lightningLight);
 
-  /* 🌌 FONDO DE PARTÍCULAS */
+  /* 🌌 UNIVERSO DE PARTÍCULAS INTERESTELARES */
   starGeo = new THREE.BufferGeometry();
   const starPositions = new Float32Array(starCount * 3);
   const starVelocity = [];
 
   for (let i = 0; i < starCount; i++) {
-    starPositions[i * 3] = (Math.random() - 0.5) * 15;
-    starPositions[i * 3 + 1] = (Math.random() - 0.5) * 15;
-    starPositions[i * 3 + 2] = Math.random() * -40; 
-    starVelocity.push(0.2 + Math.random() * 0.4);
+    starPositions[i * 3] = (Math.random() - 0.5) * 16;
+    starPositions[i * 3 + 1] = (Math.random() - 0.5) * 12;
+    starPositions[i * 3 + 2] = Math.random() * -35; 
+    starVelocity.push(0.15 + Math.random() * 0.25);
   }
 
   starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  
   const pMaterial = new THREE.PointsMaterial({
     color: 0x00ffe5,
-    size: 0.06,
+    size: 0.05,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.7,
     blending: THREE.AdditiveBlending
   });
 
@@ -325,33 +380,46 @@ function init() {
   stars.userData = { velocities: starVelocity };
   scene.add(stars);
 
-  /* 🤖 CARGA DEL AVATAR GLTF CON CORRECCIÓN DE ESCALA Y ANIMACIONES */
+  /* 🤖 CARGA DEL AVATAR CON MAPEO DE LABIOS */
   const loader = new THREE.GLTFLoader();
   loader.load("luis-avatar2.glb", function (gltf) {
     model = gltf.scene;
     
-    // ⬇️ REDUCCIÓN DE ESCALA CRÍTICA (Evita que se vea gigante)
+    // Escala controlada y centrada (no gigante, cuerpo firme)
     model.position.set(0, -0.65, 0); 
-    model.scale.set(0.6, 0.6, 0.6); 
-    
+    model.scale.set(0.55, 0.55, 0.55); 
     scene.add(model);
 
-    // 🏃‍♂️ CONTROLADOR DE ANIMACIONES NATIVAS DEL ARCHIVO GLB (Quita los brazos abiertos)
+    // Buscamos las mallas que contengan Morph Targets para los labios
+    model.traverse((child) => {
+      if (child.isMesh && child.morphTargetDictionary) {
+        faceMeshes.push(child);
+      }
+    });
+
+    // Iniciar animación en bucle nativa (Idle) para quitar la pose de brazos abiertos
     if (gltf.animations && gltf.animations.length > 0) {
       mixer = new THREE.AnimationMixer(model);
-      // Ejecuta la primera animación que encuentre (suele ser el Idle/Reposo)
-      const action = mixer.clipAction(gltf.animations[0]);
-      action.play();
+      mixer.clipAction(gltf.animations[0]).play();
     }
-  }, undefined, function(err) {
-    console.error("No se pudo ubicar el archivo 'luis-avatar2.glb'");
   });
 
   window.addEventListener('resize', onWindowResize);
   animate();
 }
 
-/* ================= INTERACTIVOS: POSTURAS Y CÁMARA ================= */
+/* Helper para modificar el Morph Target por su nombre o aproximación */
+function setMorphValue(mesh, targetName, value) {
+  const dict = mesh.morphTargetDictionary;
+  // Intenta buscar el índice por el nombre exacto o que contenga la palabra clave
+  for (let key in dict) {
+    if (key.toLowerCase().includes(targetName.toLowerCase())) {
+      mesh.morphTargetInfluences[dict[key]] = value;
+    }
+  }
+}
+
+/* ================= POSICIONES DE CÁMARA E INTERFAZ ================= */
 function changePose(pose) {
   currentPose = pose;
   setCameraPose(pose);
@@ -359,20 +427,15 @@ function changePose(pose) {
 
 function setCameraPose(pose) {
   if(!camera) return;
-  
-  // Ajuste de encuadre según la nueva escala reducida
   if (pose === 'defecto') {
-    camera.position.set(0, 0.2, 1.4);
-    camera.lookAt(0, 0.1, 0);
+    camera.position.set(0, 0.15, 1.3);
+    camera.lookAt(0, 0.05, 0);
   } else if (pose === 'analisis') {
-    camera.position.set(0, 0.25, 0.7); 
-    camera.lookAt(0, 0.2, 0);
+    camera.position.set(0, 0.22, 0.65); 
+    camera.lookAt(0, 0.18, 0);
   } else if (pose === 'combate') {
-    camera.position.set(-0.4, 0.1, 1.2); 
-    camera.lookAt(0, 0.15, 0);
-  } else if (pose === 'orbita') {
-    camera.position.set(1.0, 0.4, 1.5); 
-    camera.lookAt(0, 0.0, 0);
+    camera.position.set(-0.3, 0.05, 1.1); 
+    camera.lookAt(0, 0.1, 0);
   }
 }
 
@@ -382,70 +445,57 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-/* ================= LOOP DE ANIMACIÓN ================= */
+/* ================= BUCLE DE RENDERIZADO (ANIMATE) ================= */
 function animate() {
   requestAnimationFrame(animate);
   const time = Date.now();
-  const delta = clock.getDelta(); // Obtiene el tiempo transcurrido para los fotogramas de animación
+  const delta = clock.getDelta();
 
-  // Actualizar los movimientos del esqueleto del GLB
   if (mixer) mixer.update(delta);
 
-  /* 🌌 1. Partículas del espacio */
+  /* 1. Movimiento del espacio interestelar */
   const positions = stars.geometry.attributes.position.array;
   const vels = stars.userData.velocities;
-
   for (let i = 0; i < starCount; i++) {
     positions[i * 3 + 2] += vels[i];
-    if (positions[i * 3 + 2] > 5) {
-      positions[i * 3 + 2] = -40;
-      positions[i * 3] = (Math.random() - 0.5) * 15;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+    if (positions[i * 3 + 2] > 2) {
+      positions[i * 3 + 2] = -35;
     }
   }
   stars.geometry.attributes.position.needsUpdate = true;
 
-  /* ⚡ 2. Relámpagos intermitentes */
-  if (Math.random() > 0.97) {
-    lightningLight.intensity = 2.5 + Math.random() * 2;
-    if(stars) stars.material.color.setHex(0xffffff);
+  /* 2. Destellos espaciales */
+  if (Math.random() > 0.98) {
+    lightningLight.intensity = 2.0 + Math.random() * 2;
   } else {
-    lightningLight.intensity *= 0.8;
-    if(stars && Math.random() > 0.8) stars.material.color.setHex(0x00ffe5);
+    lightningLight.intensity *= 0.85;
   }
 
-  /* 🤖 3. Deformación de gesticulación del chasis */
+  /* 3. CONTROL DE LABIOS REAL (Sin temblar el modelo) */
   if (model) {
-    const breathe = 1 + Math.sin(time * 0.0015) * 0.01;
-    
     if (isSpeaking) {
-      const lipSyncY = breathe * (1 + Math.sin(time * 0.035) * 0.03);
-      const lipSyncZ = breathe * (1 + Math.cos(time * 0.028) * 0.02);
+      // Generamos un valor de apertura de boca oscilante y asimétrico (como al hablar real)
+      const mouthOpenValue = Math.abs(Math.sin(time * 0.025)) * 0.7 + (Math.cos(time * 0.012) * 0.2);
       
-      // Aplicamos la deformación sobre la nueva escala controlada (0.6)
-      model.scale.set(0.6 * breathe, 0.6 * lipSyncY, 0.6 * lipSyncZ);
-      model.rotation.x = Math.sin(time * 0.05) * 0.01;
+      faceMeshes.forEach(mesh => {
+        // Modifica únicamente los morphs de la boca manteniendo la cabeza fija
+        setMorphValue(mesh, 'mouthOpen', mouthOpenValue);
+        setMorphValue(mesh, 'viseme_O', mouthOpenValue * 0.4);
+        setMorphValue(mesh, 'viseme_aa', mouthOpenValue * 0.5);
+      });
+      
+      // Una respiración mínima casi imperceptible en el pecho, sin oscilaciones salvajes
+      model.scale.set(0.55, 0.55 + Math.sin(time * 0.002) * 0.003, 0.55);
     } else {
-      model.scale.set(0.6, 0.6 * breathe, 0.6);
-      model.rotation.x = 0;
-      
-      if (currentPose === 'orbita') {
-        model.rotation.y = time * 0.0004;
-      } else if (currentPose === 'combate') {
-        model.rotation.y = -0.2 + Math.sin(time * 0.001) * 0.03;
-      } else {
-        model.rotation.y = Math.sin(time * 0.0008) * 0.04;
-      }
+      // Si no habla, el cuerpo mantiene su tamaño base exacto de 0.55
+      model.scale.set(0.55, 0.55, 0.55);
     }
   }
 
   renderer.render(scene, camera);
 }
 
-window.onload = () => {
-  init();
-};
-
+window.onload = init;
 </script>
 
 </body>
