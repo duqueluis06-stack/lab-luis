@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>NeuroLab AI - Luis Core v14.0</title>
+  <title>NeuroLab AI - Luis Core v14.1</title>
 
   <!-- Librerías de Renderizado y Control de Escena -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -143,7 +143,6 @@
     button.audio-btn { border-color: var(--neon-gold); color: var(--neon-gold); }
     button.audio-btn.active { background: var(--neon-gold); color: #000; }
     
-    /* Estado Dinámico para Detención Auditiva Urgente */
     button#exec-btn.stop-active {
       border-color: var(--neon-red); color: #fff; background: var(--neon-red);
       animation: alertGlow 1s infinite alternate;
@@ -219,7 +218,7 @@
   <div class="hud-overlay">
     <div class="top-matrix-panel interactive">
       <button class="exit-btn" onclick="location.href='index.html'">🗙 INDEX</button>
-      <div class="greek-stream">Ω Luis_Core_v14.0 // RESPONSIVE ADAPTATION // MATRIX CONTROL</div>
+      <div class="greek-stream">Ω Luis_Core_v14.1 // ADAPTATIVE LIP SYNC // NÚCLEO AUTÓNOMO</div>
     </div>
 
     <div class="console-hud interactive">
@@ -235,7 +234,6 @@
       <div class="input-group">
         <button id="mute-btn" class="action-btn audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
         <input id="query-input" class="main-chat-input" placeholder="Escribe tu consulta táctica aquí..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
-        <!-- Este botón conmuta dinámicamente entre ENVIAR y STOP DIÁLOGO -->
         <button id="exec-btn" class="action-btn" onclick="handleExecutionClick()">ENVIAR</button>
       </div>
 
@@ -250,7 +248,10 @@
     let starParticles, nebulaMesh, neonPyramid, starCount = 1200;
     let clock = new THREE.Clock();
     
+    // 🔥 1. VARIABLES GLOBALES INTEGRADAS DE MANERA ESTRICTA
+    let mouthMeshes = [];
     let speakingActive = false;
+
     let audioOutputEnabled = false;
     let conversationHistory = []; 
 
@@ -268,7 +269,7 @@
         userName = name;
         document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Interfaz optimizada para dispositivos móviles e interactivos.`;
+        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema adaptativo con desacoplamiento de elementos geométricos secundarios.`;
         startSessionTimer();
       }
     }
@@ -328,7 +329,6 @@
       }
     }
 
-    // GESTOR DE ACCIONES DEL BOTÓN DE EJECUCIÓN/INTERRUPCIÓN
     function handleExecutionClick() {
       if (speakingActive) {
         stopDialogAudio();
@@ -355,7 +355,7 @@
       if (active) {
         execBtn.innerText = "🛑 STOP";
         execBtn.classList.add("stop-active");
-        execBtn.disabled = false; // Habilitado para permitir cancelar
+        execBtn.disabled = false;
       } else {
         execBtn.innerText = "ENVIAR";
         execBtn.classList.remove("stop-active");
@@ -391,14 +391,26 @@
         renderLogHistory();
 
         if (audioOutputEnabled) {
-          setSpeakingState(true);
           globalUtterance = new SpeechSynthesisUtterance(replyText);
           globalUtterance.lang = 'es-ES';
           globalUtterance.rate = 1.0;
           globalUtterance.pitch = 0.95;
 
-          globalUtterance.onend = () => setSpeakingState(false);
-          globalUtterance.onerror = () => setSpeakingState(false);
+          // 🔥 4. CONEXIÓN DIRECTA CON DISPARADORES DE VOZ REALES (CRÍTICO)
+          globalUtterance.onstart = () => {
+            speakingActive = true;
+            setSpeakingState(true);
+          };
+
+          globalUtterance.onend = () => {
+            speakingActive = false;
+            setSpeakingState(false);
+          };
+
+          globalUtterance.onerror = () => {
+            speakingActive = false;
+            setSpeakingState(false);
+          };
 
           speechEngine.speak(globalUtterance);
         } else {
@@ -454,13 +466,11 @@
       nebulaMesh.position.set(0, 0, -5);
       scene.add(nebulaMesh);
 
-      // 🔥 CREACIÓN DE LA PIRÁMIDE DE NEÓN SUPERIOR
-      const pyramidGeo = new THREE.ConeGeometry(0.4, 0.6, 4);
+      // 🌟 PIRÁMIDE DE NEÓN SEPARADA (Se mueve a zona superior limpia para que no interfiera abajo)
+      const pyramidGeo = new THREE.ConeGeometry(0.3, 0.5, 4);
       const pyramidWire = new THREE.WireframeGeometry(pyramidGeo);
       const pyramidMat = new THREE.LineBasicMaterial({ color: 0x00ffe5, linewidth: 2 });
       neonPyramid = new THREE.LineSegments(pyramidWire, pyramidMat);
-      // Ubicación debajo de donde se posiciona el avatar de forma estándar
-      neonPyramid.position.set(0, -0.68, 0); 
       scene.add(neonPyramid);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -486,7 +496,53 @@
       const loader = new THREE.GLTFLoader();
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
-        repositionAvatarAccordingToDevice();
+        
+        // Configurar escalas iniciales base antes de recorrer vértices
+        const currentRatio = window.innerWidth / window.innerHeight;
+        const scaleFactor = currentRatio < 1 ? 0.48 : 0.65;
+        avatarModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+        // 🧬 🔥 2. INYECCIÓN DEL BLOQUE DE DETECCIÓN DE LIP SYNC JUSTO ANTES DE scene.add()
+        avatarModel.traverse((c) => {
+          if (!c.isMesh) return;
+
+          const name = (c.name || "").toLowerCase();
+
+          // 🎯 MORPH TARGET LIPS
+          if (c.morphTargetDictionary) {
+            let mouthKeys = [];
+
+            Object.keys(c.morphTargetDictionary).forEach((k) => {
+              const kl = k.toLowerCase();
+
+              if (
+                kl.includes("mouth") ||
+                kl.includes("jaw") ||
+                kl.includes("lip") ||
+                kl.includes("viseme")
+              ) {
+                mouthKeys.push(c.morphTargetDictionary[k]);
+              }
+            });
+
+            if (mouthKeys.length > 0) {
+              mouthMeshes.push({
+                mesh: c,
+                keys: mouthKeys
+              });
+            }
+          }
+
+          // fallback cara
+          if (name.includes("face") || name.includes("head")) {
+            mouthMeshes.push({
+              mesh: c,
+              keys: []
+            });
+          }
+        });
+
+        repositionLayoutAccordingToDevice();
         scene.add(avatarModel);
 
         if (gltf.animations && gltf.animations.length > 0) {
@@ -499,25 +555,30 @@
       animate();
     }
 
-    // CONTROL INTELIGENTE DE ENCUADRE ANTISOLAPAMIENTO MÓVIL
-    function repositionAvatarAccordingToDevice() {
-      if (!avatarModel) return;
+    // CONTROL COMPACTO DE ENTORNOS SEPARADOS Y ANTISOLAPAMIENTO
+    function repositionLayoutAccordingToDevice() {
       const isMobile = window.innerWidth / window.innerHeight < 1;
       
-      if (isMobile) {
-        // En móviles se sube en Y y se aleja levemente para que la consola no lo tape
-        avatarModel.position.set(0, -0.15, -0.2);
-        avatarModel.scale.set(0.48, 0.48, 0.48);
-        if(neonPyramid) {
-          neonPyramid.position.set(0, -0.18, -0.2);
-          neonPyramid.scale.set(0.8, 0.8, 0.8);
+      if (avatarModel) {
+        if (isMobile) {
+          // En móviles se desplaza al tercio superior libre, alejando ligeramente la cámara/modelo
+          avatarModel.position.set(0, 0.15, -0.3);
+          avatarModel.scale.set(0.46, 0.46, 0.46);
+        } else {
+          // PC / Pantalla Horizontal Limpia
+          avatarModel.position.set(0, -0.62, 0);
+          avatarModel.scale.set(0.65, 0.65, 0.65);
         }
-      } else {
-        // Escritorio y Tablets Horizontales estándar
-        avatarModel.position.set(0, -0.62, 0);
-        avatarModel.scale.set(0.65, 0.65, 0.65);
-        if(neonPyramid) {
-          neonPyramid.position.set(0, -0.68, 0);
+      }
+
+      if (neonPyramid) {
+        if (isMobile) {
+          // Flota independientemente arriba a la izquierda del rostro en móviles sin pisar nada
+          neonPyramid.position.set(-0.45, 0.6, -0.2);
+          neonPyramid.scale.set(0.7, 0.7, 0.7);
+        } else {
+          // Se sitúa como nodo táctico izquierdo flotando de forma equilibrada en PC
+          neonPyramid.position.set(-0.9, 0.1, 0);
           neonPyramid.scale.set(1.0, 1.0, 1.0);
         }
       }
@@ -526,11 +587,11 @@
     function adjustCameraAndLayout() {
       const isMobile = window.innerWidth / window.innerHeight < 1;
       if (isMobile) {
-        camera.position.set(0, 0.35, 2.5);
+        camera.position.set(0, 0.45, 2.6);
       } else {
         camera.position.set(0, 0.25, 2.3);
       }
-      if(navigationControls) navigationControls.target.set(0, isMobile ? 0.35 : 0.2, 0);
+      if(navigationControls) navigationControls.target.set(0, isMobile ? 0.4 : 0.2, 0);
     }
 
     function onWindowResize() {
@@ -538,7 +599,7 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
       adjustCameraAndLayout();
-      repositionAvatarAccordingToDevice();
+      repositionLayoutAccordingToDevice();
     }
 
     function animate() {
@@ -552,17 +613,52 @@
       if (starParticles) starParticles.rotation.y += 0.0002;
       if (nebulaMesh) nebulaMesh.rotation.z = Math.sin(timeNow * 0.00008) * 0.05;
       
-      // Rotación y efecto pulsante de la pirámide de neón
+      // Dinámica de la pirámide cuántica flotante
       if (neonPyramid) {
-        neonPyramid.rotation.y += 0.008;
-        const pulse = 1 + Math.sin(timeNow * 0.002) * 0.08;
-        neonPyramid.scale.y = pulse * (window.innerWidth / window.innerHeight < 1 ? 0.8 : 1.0);
+        neonPyramid.rotation.y += 0.01;
+        neonPyramid.rotation.x = Math.sin(timeNow * 0.001) * 0.1; 
+        neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0005; // Leve balanceo ingrávido
       }
 
-      // Animación de respiración del avatar
+      // 🔥 3. CICLO ACTIVO DE ANIMACIÓN Y GESTIÓN DE LABIOS / RESPIRACIÓN BASE
       if (avatarModel) {
-        const baseOffset = window.innerWidth / window.innerHeight < 1 ? -0.15 : -0.62;
-        avatarModel.position.y = baseOffset + Math.sin(timeNow * 0.001) * 0.008;
+        if (speakingActive) {
+
+          const t = Date.now() * 0.01;
+          const mouth = Math.abs(Math.sin(t * 0.6) * 0.6 + Math.sin(t * 1.9) * 0.4);
+
+          mouthMeshes.forEach((m) => {
+
+            if (m.mesh.morphTargetInfluences && m.keys.length) {
+
+              m.keys.forEach((k) => {
+                m.mesh.morphTargetInfluences[k] = mouth;
+              });
+
+            } else if (m.mesh.geometry) {
+
+              const pos = m.mesh.geometry.attributes.position;
+
+              for (let i = 0; i < pos.count; i++) {
+
+                const y = pos.getY(i);
+                const z = pos.getZ(i);
+
+                if (y > 0.2 && y < 0.6 && z > 0.05) {
+                  pos.setY(i, y + mouth * 0.01);
+                }
+
+              }
+
+              pos.needsUpdate = true;
+            }
+          });
+
+        } else {
+          // respiración estable
+          const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
+          avatarModel.position.y = base + Math.sin(Date.now() * 0.001) * 0.008;
+        }
       }
 
       renderer.render(scene, camera);
