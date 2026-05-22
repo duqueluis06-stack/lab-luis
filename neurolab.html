@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NeuroLab AI - Luis Core</title>
+  <title>NeuroLab AI - Luis Core v6.0</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -12,13 +12,14 @@
     :root {
       --neon-cyan: #00ffe5;
       --neon-purple: #9d4edd;
-      --hud-bg: rgba(4, 2, 8, 0.8);
+      --neon-red: #ff0055;
+      --hud-bg: rgba(4, 2, 8, 0.85);
     }
 
     body, html {
       margin: 0; padding: 0;
       width: 100%; height: 100%;
-      background-color: #000;
+      background-color: #020106;
       color: var(--neon-cyan);
       font-family: monospace;
       overflow: hidden;
@@ -29,14 +30,14 @@
       width: 100%; height: 100%; z-index: 1;
     }
 
-    /* HUD Periférico Adaptable a Teléfonos y Escritorio */
+    /* Interfaz HUD Adaptable */
     .interface-wrapper {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%; z-index: 10;
       display: flex; flex-direction: column;
       justify-content: space-between;
       box-sizing: border-box;
-      padding: 10px; pointer-events: none;
+      padding: 12px; pointer-events: none;
     }
 
     .interactive { pointer-events: auto; }
@@ -44,7 +45,7 @@
     .header-hud {
       background: var(--hud-bg);
       border: 1px solid rgba(157, 78, 221, 0.3);
-      padding: 10px; display: flex;
+      padding: 10px 15px; display: flex;
       justify-content: space-between; align-items: center;
       font-size: 11px; box-shadow: 0 0 15px rgba(0,255,229,0.1);
     }
@@ -53,7 +54,7 @@
       color: #fff; font-weight: bold; letter-spacing: 2px;
     }
 
-    /* Consola Inferior Compacta */
+    /* Consola de Comunicación Inferior */
     .console-hud {
       background: var(--hud-bg);
       border: 1px solid rgba(0, 255, 229, 0.3);
@@ -63,7 +64,7 @@
     .log-view {
       font-size: 12px; max-height: 80px;
       overflow-y: auto; color: #fff;
-      line-height: 1.4; padding-left: 4px;
+      line-height: 1.4; padding-left: 6px;
       border-left: 2px solid var(--neon-purple);
     }
 
@@ -88,15 +89,20 @@
       box-shadow: 0 0 10px var(--neon-purple);
     }
 
+    button.exit-btn {
+      border-color: var(--neon-red); color: var(--neon-red);
+    }
+    button.exit-btn:hover {
+      background: var(--neon-red); color: #000;
+      box-shadow: 0 0 10px var(--neon-red);
+    }
+
     button.audio-btn { border-color: var(--neon-cyan); color: var(--neon-cyan); }
     button.audio-btn.active { background: var(--neon-cyan); color: #000; }
 
-    /* Estilos responsivos específicos para pantallas pequeñas */
     @media (max-width: 600px) {
-      .header-hud { flex-direction: column; gap: 4px; align-items: flex-start; }
+      .header-hud { flex-direction: column; gap: 6px; align-items: stretch; text-align: center; }
       .log-view { max-height: 60px; font-size: 11px; }
-      input { padding: 8px; font-size: 11px; }
-      button { padding: 8px 10px; font-size: 10px; }
     }
   </style>
 </head>
@@ -105,64 +111,43 @@
   <div id="canvas-container"></div>
 
   <div class="interface-wrapper">
-    <!-- TOP BAR -->
+    <!-- BARRA SUPERIOR CON BOTÓN DE SALIDA -->
     <div class="header-hud interactive">
+      <button class="exit-btn" onclick="location.href='index.html'">🗙 DISCONNECT</button>
       <span class="main-title">CORE INTERFACE: LUIS</span>
-      <span id="lang-indicator">LANG: AUTO (ES/EN)</span>
       <span id="status-field">STATUS: READY</span>
     </div>
 
-    <!-- BOTTOM TERMINAL -->
+    <!-- TERMINAL INFERIOR -->
     <div class="console-hud interactive">
-      <div id="log-display" class="log-view">>>> Conexión establecida con éxito. Sistema de memoria activado.</div>
+      <div id="log-display" class="log-view">>>> Conexión establecida de forma segura. Torbellino estabilizado en plano de fondo.</div>
       
       <div class="input-group">
         <button id="mute-btn" class="audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
-        <input id="query-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
+        <input id="query-input" placeholder="Escribe un comando a enviar..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
         <button id="exec-btn" onclick="executeQuery()">ENVIAR</button>
       </div>
     </div>
   </div>
 
   <script>
-    /* MOTOR GRÁFICO GLOBAL */
+    /* COMPONENTES DEL MOTOR GRÁFICO */
     let scene, camera, renderer, avatarModel, animationMixer;
-    let particleVortex, vortexGeometry, particleCount = 1500;
+    let particleVortex, vortexGeometry, particleCount = 1200;
     let clock = new THREE.Clock();
     
-    /* ESTADOS DE DIÁLOGO Y VOZ */
+    /* CONTROL DE AUDIO Y SINCRO */
     let speakingActive = false;
     let audioOutputEnabled = false;
-    let dialogueMemory = [];
     let discoveredFaceMeshes = [];
     let speechEngine = window.speechSynthesis;
     let globalUtterance = null;
 
-    // Precarga e inicialización rápida del bus de voz para evitar demoras/delays
     if (speechEngine.onvoiceschanged !== undefined) {
       speechEngine.onvoiceschanged = () => { speechEngine.getVoices(); };
     }
 
-    /* ==========================================================================
-       1. SISTEMA DE MEMORIA Y LOGICA DE IDIOMA
-       ========================================================================== */
-    function loadLocalMemory() {
-      try {
-        const stored = localStorage.getItem("luis_ai_memory");
-        if (stored) {
-          dialogueMemory = JSON.parse(stored);
-          const lastInteraction = dialogueMemory[dialogueMemory.length - 1];
-          document.getElementById("log-display").innerText = `MEMORIA RECOBRADA:\nLuis: ${lastInteraction.user}\nAI: ${lastInteraction.ai}`;
-        }
-      } catch (e) { console.warn("No se pudo cargar la memoria local."); }
-    }
-
-    function saveToMemory(userText, aiText) {
-      dialogueMemory.push({ user: userText, ai: aiText });
-      if (dialogueMemory.length > 5) dialogueMemory.shift(); // Mantiene solo los últimos 5 diálogos para ligereza
-      localStorage.setItem("luis_ai_memory", JSON.stringify(dialogueMemory));
-    }
-
+    /* CONTROL DE COMUNICACIÓN E IDIOMA */
     function toggleAudioMaster() {
       audioOutputEnabled = !audioOutputEnabled;
       const btn = document.getElementById("mute-btn");
@@ -177,12 +162,7 @@
 
     function autoDetectLanguage(text) {
       const enPatterns = /\b(the|you|is|are|hello|thanks|processing|system|mode)\b/i;
-      if (enPatterns.test(text)) {
-        document.getElementById("lang-indicator").innerText = "LANG: EN-US";
-        return 'en-US';
-      }
-      document.getElementById("lang-indicator").innerText = "LANG: ES-ES";
-      return 'es-ES';
+      return enPatterns.test(text) ? 'en-US' : 'es-ES';
     }
 
     async function executeQuery() {
@@ -195,7 +175,7 @@
       if (!query) return;
 
       inputEl.disabled = true; execBtn.disabled = true;
-      statusField.innerText = "STATUS: PROCESSING";
+      statusField.innerText = "STATUS: COMPUTING";
       statusField.style.color = "var(--neon-purple)";
 
       try {
@@ -206,12 +186,11 @@
         });
 
         const data = await res.json();
-        const replyText = data.reply || "Error: Respuesta vacía.";
+        const replyText = data.reply || "Respuesta del sistema vacía.";
 
         logDisplay.innerText = `Luis: ${query}\nAI: ${replyText}`;
         logDisplay.scrollTop = logDisplay.scrollHeight;
 
-        saveToMemory(query, replyText);
         const langMode = autoDetectLanguage(replyText);
 
         if (speechEngine.speaking) speechEngine.cancel();
@@ -219,7 +198,7 @@
         if (audioOutputEnabled) {
           globalUtterance = new SpeechSynthesisUtterance(replyText);
           globalUtterance.lang = langMode;
-          globalUtterance.rate = 1.0; // Velocidad óptima humana
+          globalUtterance.rate = 1.0;
           globalUtterance.pitch = 0.85;
 
           speakingActive = true;
@@ -235,7 +214,7 @@
         }
 
       } catch (err) {
-        logDisplay.innerText = ">>> ERROR DE ENLACE COGNITIVO.";
+        logDisplay.innerText = ">>> ERROR AL CONECTAR CON EL NÚCLEO.";
         resetControls(inputEl, execBtn, statusField);
       }
       inputEl.value = "";
@@ -251,58 +230,58 @@
       speakingActive = false;
       discoveredFaceMeshes.forEach(mesh => {
         if (mesh.morphTargetInfluences) {
-          forceMorph(mesh, 'mouthOpen', 0);
+          forceMorph(mesh, 'mouth', 0);
+          forceMorph(mesh, 'open', 0);
           forceMorph(mesh, 'viseme', 0);
         }
       });
-      if(avatarModel) avatarModel.rotation.x = 0; // Resetea cabeceo alternativo
     }
 
-    /* ==========================================================================
-       2. MOTOR GRÁFICO THREE.JS - AGUJERÓ NEGRO E INTERFAZ RESPONSIVA
-       ========================================================================== */
+    /* INITIALIZE MOTOR THREE.JS */
     function initEngine() {
       const container = document.getElementById("canvas-container");
       
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x020005);
-      scene.fog = new THREE.FogExp2(0x020005, 0.1);
+      scene.background = new THREE.Color(0x010003);
+      scene.fog = new THREE.FogExp2(0x010003, 0.08);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
       adjustCameraView();
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      // Iluminación Cósmica
-      scene.add(new THREE.AmbientLight(0x110a25, 2.5));
-      const purpleLight = new THREE.PointLight(0x9d4edd, 4, 20);
-      purpleLight.position.set(2, 2, 2); scene.add(purpleLight);
-      const cyanLight = new THREE.PointLight(0x00ffe5, 3, 20);
-      cyanLight.position.set(-2, 1, 2); scene.add(cyanLight);
+      // Esquema de Iluminación
+      scene.add(new THREE.AmbientLight(0x0f0b1e, 2.2));
+      const purpleLight = new THREE.PointLight(0x9d4edd, 5, 25);
+      purpleLight.position.set(2.5, 2, 2); scene.add(purpleLight);
+      const cyanLight = new THREE.PointLight(0x00ffe5, 4, 25);
+      cyanLight.position.set(-2.5, 1, 2); scene.add(cyanLight);
 
-      /* 🌪️ CREACIÓN DEL TORBELLINO / AGUJERÓ NEGRO INTERDIMENSIONAL */
+      /* 🌪️ TORBELLINO INTERDIMENSIONAL (DESPLAZADO AL FONDO) */
       vortexGeometry = new THREE.BufferGeometry();
       const positions = new Float32Array(particleCount * 3);
       const angleOffsets = [];
       const radii = [];
 
       for (let i = 0; i < particleCount; i++) {
-        const radius = 0.4 + Math.random() * 4.5; // Concentración hacia el centro
+        // Incrementamos el radio interno mínimo (1.5) para que no toquen el centro donde está el avatar
+        const radius = 1.5 + Math.random() * 4.5; 
         const angle = Math.random() * Math.PI * 2;
         radii.push(radius);
         angleOffsets.push(angle);
 
         positions[i * 3] = Math.cos(angle) * radius;
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.5; // Espesor del disco
-        positions[i * 3 + 2] = Math.sin(angle) * radius;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.4;
+        // Desplazamiento nativo hacia atrás en el plano Z para evitar que manche el rostro
+        positions[i * 3 + 2] = (Math.sin(angle) * radius) - 1.8; 
       }
 
       vortexGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       const particleMat = new THREE.PointsMaterial({
-        color: 0x00ffe5, size: 0.035, transparent: true, opacity: 0.75,
+        color: 0x00ffe5, size: 0.032, transparent: true, opacity: 0.55,
         blending: THREE.AdditiveBlending
       });
 
@@ -310,22 +289,24 @@
       particleVortex.userData = { angleOffsets: angleOffsets, radii: radii };
       scene.add(particleVortex);
 
-      /* 🤖 CARGA Y ENCUADRE AUTOMÁTICO DE LUIS-AVATAR */
+      /* 🤖 CARGA Y AJUSTE DE MATERIALES DE LUIS-AVATAR */
       const loader = new THREE.GLTFLoader();
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
         
-        // Posicionamiento de cuerpo entero
+        // Colocación limpia de cuerpo entero en primer plano (Z = 0)
         avatarModel.position.set(0, -1.0, 0);
         applyResponsiveModelScale();
         scene.add(avatarModel);
 
-        // Mapeo adaptivo para rastrear morfología de labios
         avatarModel.traverse((child) => {
           if (child.isMesh) {
             if (child.morphTargetDictionary) discoveredFaceMeshes.push(child);
-            // Asegura que los materiales brillen bajo las luces del agujero negro
-            if (child.material) child.material.roughness = 0.4;
+            // Optimizamos propiedades para que el sombreado reaccione al contraste interdimensional
+            if (child.material) {
+              child.material.roughness = 0.5;
+              child.material.metalness = 0.2;
+            }
           }
         });
 
@@ -336,7 +317,6 @@
       });
 
       window.addEventListener('resize', onWindowResize);
-      loadLocalMemory();
       animate();
     }
 
@@ -349,12 +329,11 @@
       }
     }
 
-    /* ENCUADRES ADAPTABLES (MÓVIL VS ESCRITORIO) */
     function adjustCameraView() {
       if (window.innerWidth < 600) {
-        camera.position.set(0, 0.2, 3.2); // Más lejos en teléfonos para capturar cuerpo entero
+        camera.position.set(0, 0.1, 3.2); // Vista alejada para encuadre vertical en teléfonos
       } else {
-        camera.position.set(0, 0.1, 2.2); // Plano estándar en PC
+        camera.position.set(0, 0.0, 2.1); // Vista en escritorio
       }
       camera.lookAt(0, -0.1, 0);
     }
@@ -362,9 +341,9 @@
     function applyResponsiveModelScale() {
       if (!avatarModel) return;
       if (window.innerWidth < 600) {
-        avatarModel.scale.set(0.65, 0.65, 0.65); // Ajuste fino para pantallas verticales
+        avatarModel.scale.set(0.68, 0.68, 0.68);
       } else {
-        avatarModel.scale.set(0.8, 0.8, 0.8);
+        avatarModel.scale.set(0.85, 0.85, 0.85);
       }
     }
 
@@ -376,9 +355,7 @@
       applyResponsiveModelScale();
     }
 
-    /* ==========================================================================
-       3. BUCLE DE ANIMACIÓN DE ALTO RENDIMIENTO
-       ========================================================================== */
+    /* BUCLE DE RENDER (ANIMATE) */
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
@@ -386,46 +363,39 @@
 
       if (animationMixer) animationMixer.update(delta);
 
-      /* Simulación del Vórtice / Torbellino del Agujero Negro */
+      /* Dinámica del Torbellino en Segundo Plano */
       if (particleVortex) {
         const positions = particleVortex.geometry.attributes.position.array;
         const offsets = particleVortex.userData.angleOffsets;
         const radii = particleVortex.userData.radii;
 
         for (let i = 0; i < particleCount; i++) {
-          // Velocidad inversamente proporcional al radio (física de agujeros negros)
-          offsets[i] += (0.015 + (0.02 / radii[i])); 
-          
+          offsets[i] += (0.012 + (0.015 / radii[i])); 
           positions[i * 3] = Math.cos(offsets[i]) * radii[i];
-          // Añade una distorsión cuántica ondulante vertical en el torbellino
-          positions[i * 3 + 1] = Math.sin(timeNow * 0.002 + radii[i]) * 0.15;
-          positions[i * 3 + 2] = Math.sin(offsets[i]) * radii[i];
+          positions[i * 3 + 1] = Math.sin(timeNow * 0.0018 + radii[i]) * 0.12;
+          // Mantiene el desplazamiento hacia atrás fijo
+          positions[i * 3 + 2] = (Math.sin(offsets[i]) * radii[i]) - 1.8;
         }
         particleVortex.geometry.attributes.position.needsUpdate = true;
-        particleVortex.rotation.y += 0.002; // Rotación lenta del conjunto completo
+        particleVortex.rotation.z += 0.001;
       }
 
-      /* Animación de Habla Híbrida Inteligente (Cero Temblores) */
+      /* Gesticulación Facial Pura (Cuerpo Estoniano Fijo) */
       if (avatarModel) {
-        if (speakingActive && audioOutputEnabled) {
-          const wave = Math.abs(Math.sin(timeNow * 0.03)) * 0.8;
-          
-          if (discoveredFaceMeshes.length > 0) {
-            // Intentar interactuar con los morph targets nativos de los labios
-            discoveredFaceMeshes.forEach(mesh => {
-              forceMorph(mesh, 'mouth', wave);
-              forceMorph(mesh, 'open', wave);
-              forceMorph(mesh, 'viseme', wave);
-            });
-          } else {
-            // MÉTODO DE RESPALDO: Si el modelo no tiene claves de labios instaladas,
-            // genera un cabeceo mecánico sutil alternado para que nunca se vea estático.
-            avatarModel.rotation.x = Math.sin(timeNow * 0.02) * 0.04;
-          }
-        } else {
-          // Balanceo gravitatorio pasivo mientras flota en el agujero negro
-          avatarModel.position.y = -1.0 + Math.sin(timeNow * 0.0015) * 0.04;
-          avatarModel.rotation.y = Math.cos(timeNow * 0.001) * 0.03;
+        if (speakingActive && audioOutputEnabled && discoveredFaceMeshes.length > 0) {
+          // Genera oscilaciones exclusivas para las mallas que tengan morphs de labios
+          const mouthWave = Math.abs(Math.sin(timeNow * 0.032)) * 0.85;
+          discoveredFaceMeshes.forEach(mesh => {
+            forceMorph(mesh, 'mouth', mouthWave);
+            forceMorph(mesh, 'open', mouthWave);
+            forceMorph(mesh, 'viseme', mouthWave);
+          });
+        }
+        
+        // Micro balanceo pasivo del cuerpo entero simulando ingravidez cuántica (Cero sacudidas)
+        if (!speakingActive) {
+          avatarModel.position.y = -1.0 + Math.sin(timeNow * 0.0012) * 0.03;
+          avatarModel.rotation.y = Math.cos(timeNow * 0.0008) * 0.02;
         }
       }
 
