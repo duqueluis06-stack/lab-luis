@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>NeuroLab AI</title>
+<title>NeuroLab AI - T-800 Interface</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -10,186 +10,456 @@
 <style>
 body {
   margin: 0;
-  background: #000;
+  background: #050508;
   color: #00ffe5;
-  font-family: Arial;
-  text-align: center;
-  overflow-x: hidden;
+  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Capa de interfaz de usuario de ciencia ficción (HUD) */
+.hud-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 20px;
+  pointer-events: none; /* Deja pasar clicks al fondo si es necesario */
+}
+
+/* Todos los elementos interactivos necesitan recuperar el click */
+.interactive {
+  pointer-events: auto;
 }
 
 .topbar {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-}
-
-button {
-  background: black;
-  border: 1px solid #00ffe5;
-  color: #00ffe5;
-  padding: 10px 14px;
-  cursor: pointer;
-  box-shadow: 0 0 10px #00ffe5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px dashed #ff0055;
+  padding-bottom: 10px;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 h1 {
-  margin-top: 20px;
-  text-shadow: 0 0 10px #00ffe5;
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px #ff0055;
+  color: #ff0055;
+}
+
+.system-status {
+  font-size: 12px;
+  color: #00ffe5;
+  text-shadow: 0 0 5px #00ffe5;
+}
+
+/* Contenedor central del Avatar */
+#avatar-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Panel Inferior de Control */
+.bottom-panel {
+  background: rgba(5, 5, 10, 0.85);
+  border: 1px solid #00ffe5;
+  box-shadow: 0 0 20px rgba(0, 255, 229, 0.2);
+  padding: 20px;
+  border-radius: 6px;
+  max-width: 800px;
+  margin: 0 auto w;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Grid de botones de postura */
+.controls-grid {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+button {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ffe5;
+  color: #00ffe5;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+button:hover {
+  background: #00ffe5;
+  color: #000;
+  box-shadow: 0 0 15px #00ffe5;
+}
+
+button.danger {
+  border-color: #ff0055;
+  color: #ff0055;
+}
+
+button.danger:hover {
+  background: #ff0055;
+  color: #000;
+  box-shadow: 0 0 15px #ff0055;
+}
+
+/* Consola de Entrada e Historial */
+.input-group {
+  display: flex;
+  gap: 10px;
 }
 
 input {
-  width: 60%;
+  flex: 1;
   padding: 12px;
-  margin-top: 10px;
-  background: #111;
-  border: 1px solid #00ffe5;
-  color: #00ffe5;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #ff0055;
+  color: #fff;
+  font-family: 'Courier New', Courier, monospace;
   outline: none;
+  font-size: 14px;
+}
+
+input:focus {
+  border-color: #00ffe5;
+  box-shadow: 0 0 10px rgba(0, 255, 229, 0.5);
 }
 
 #response {
-  margin-top: 20px;
-  min-height: 80px;
-  white-space: pre-wrap;
-  text-shadow: 0 0 6px #00ffe5;
+  margin-top: 15px;
+  font-size: 14px;
+  min-height: 40px;
+  max-height: 80px;
+  overflow-y: auto;
+  text-align: left;
+  border-left: 3px solid #00ffe5;
+  padding-left: 10px;
+  color: #ffffff;
+  text-shadow: 0 0 5px rgba(0, 255, 229, 0.5);
 }
 
-/* AVATAR */
-#avatar-container {
-  width: 100%;
-  height: 360px;
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-canvas {
-  display: block;
+/* Efecto de interferencia de líneas de TV vieja */
+.scanlines {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 6px 100%;
+  z-index: 20;
+  pointer-events: none;
 }
 </style>
 </head>
 
 <body>
 
-<div class="topbar">
-  <button onclick="location.href='index.html'">⬅ Volver</button>
-</div>
-
-<h1>NEUROLAB AI SYSTEM</h1>
-
+<div class="scanlines"></div>
 <div id="avatar-container"></div>
 
-<input id="input" placeholder="Habla con la IA..." />
-<br>
-<button onclick="send()">Enviar</button>
+<div class="hud-container">
+  
+  <!-- BARRA SUPERIOR -->
+  <div class="topbar interactive">
+    <button onclick="location.href='index.html'" class="danger">🗙 TERMINAR CONEXIÓN</button>
+    <h1>NEUROLAB T-800 SYSTEM v4.26</h1>
+    <div class="system-status" id="status-text">ESTADO: OPERATIVO // NÚCLEO ESTABLE</div>
+  </div>
 
-<div id="response"></div>
+  <!-- PANEL DE TERMINAL INFERIOR -->
+  <div class="bottom-panel interactive">
+    
+    <!-- Selectores de Posturas / Ángulos de cámara rápidos -->
+    <div class="controls-grid">
+      <button onclick="changePose('defecto')">Vista Estándar</button>
+      <button onclick="changePose('analisis')">Escanear Rostro</button>
+      <button onclick="changePose('combate')">Modo Alerta</button>
+      <button onclick="changePose('orbita')">Cámara Libre</button>
+    </div>
+
+    <!-- Inputs de comunicación -->
+    <div class="input-group">
+      <input id="input" placeholder="SYS_REQ: Escribe un comando o pregunta al T-800..." onkeydown="if(event.key === 'Enter') send()"/>
+      <button onclick="send()">EJECUTAR</button>
+    </div>
+
+    <!-- Pantalla de salida de datos -->
+    <div id="response">>>> Esperando transmisión de datos...</div>
+  </div>
+
+</div>
 
 <script>
 
-/* ================= IA ================= */
+/* ================= VARIABLES GLOBALES ================= */
+let scene, camera, renderer, model;
+let stars, starGeo, starCount = 1200; // Sistema de rayos espaciales
+let lightningLight; // Luz de destellos tipo rayos
 let isSpeaking = false;
+let currentPose = 'defecto';
 
+// Manejo del sintetizador de voz nativo
+const synth = window.speechSynthesis;
+let speechUtterance = null;
+
+/* ================= ASYNCHRONOUS DATA BUS (IA) ================= */
 async function send() {
-  const text = document.getElementById("input").value;
+  const inputEl = document.getElementById("input");
+  const text = inputEl.value.trim();
+  if(!text) return;
 
-  const res = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: text })
-  });
+  const responseEl = document.getElementById("response");
+  const statusEl = document.getElementById("status-text");
+  
+  responseEl.innerHTML = ">>> PROCESANDO ENTRADA EN NÚCLEO INTEGRADO...";
+  statusEl.innerText = "ESTADO: GENERANDO RESPUESTA COGNITIVA";
+  statusEl.style.color = "#ff0055";
+  
+  inputEl.value = "";
 
-  const data = await res.json();
-  const reply = data.reply || "Sin respuesta";
+  try {
+    const res = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
 
-  document.getElementById("response").innerText = reply;
+    const data = await res.json();
+    const reply = data.reply || "ERROR: Sin respuesta del servidor remoto.";
 
-  const speech = new SpeechSynthesisUtterance(reply);
-  speech.lang = "es-ES";
-  speech.rate = 1;
+    responseEl.innerText = `T-800: ${reply}`;
+    
+    // Detener cualquier audio previo antes de hablar de nuevo
+    if(synth.speaking) {
+      synth.cancel();
+    }
 
-  isSpeaking = true;
-  speech.onend = () => isSpeaking = false;
+    speechUtterance = new SpeechSynthesisUtterance(reply);
+    speechUtterance.lang = "es-ES";
+    speechUtterance.rate = 0.95; // Un toque ligeramente más pausado y robótico
+    speechUtterance.pitch = 0.7; // Tono más grave tipo T-800 si el navegador lo soporta
 
-  window.speechSynthesis.speak(speech);
+    isSpeaking = true;
+    statusEl.innerText = "ESTADO: TRANSMITIENDO AUDIO // PROCESANDO LABIOS";
+    statusEl.style.color = "#00ffe5";
+
+    speechUtterance.onend = () => {
+      isSpeaking = false;
+      statusEl.innerText = "ESTADO: OPERATIVO // NÚCLEO ESTABLE";
+    };
+
+    speechUtterance.onerror = () => {
+      isSpeaking = false;
+      statusEl.innerText = "ESTADO: OPERATIVO // NÚCLEO ESTABLE";
+    };
+
+    synth.speak(speechUtterance);
+
+  } catch (error) {
+    responseEl.innerText = ">>> CONFIG_ERROR: Fallo de enlace con la Red de Datos.";
+    statusEl.innerText = "ESTADO: CRÍTICO // ERROR DE RED";
+    isSpeaking = false;
+  }
 }
 
-/* ================= THREE.JS ================= */
-let scene, camera, renderer, model;
-
-function initAvatar() {
-
+/* ================= SISTEMA 3D (THREE.JS) ================= */
+function init() {
+  const container = document.getElementById("avatar-container");
+  
   scene = new THREE.Scene();
+  // Espacio profundo nebuloso oscuro
+  scene.background = new THREE.Color(0x020205);
+  scene.fog = new THREE.FogExp2(0x020205, 0.15);
 
-  // 🌌 fondo negro limpio
-  scene.background = new THREE.Color(0x000000);
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+  setCameraPose('defecto');
 
-  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
 
-  // 📌 cámara más lejos (evita cabeza cortada)
-  camera.position.set(0, 0.6, 3);
+  /* 💡 ILUMINACIÓN ESTILO SKYNET (Rojos y Cianes duros) */
+  const ambientLight = new THREE.AmbientLight(0x0f2027, 1.5);
+  scene.add(ambientLight);
 
-  renderer = new THREE.WebGLRenderer({
-    alpha: false,
-    antialias: true
+  const cyanLight = new THREE.PointLight(0x00ffe5, 2, 50);
+  cyanLight.position.set(-3, 2, 3);
+  scene.add(cyanLight);
+
+  const redLight = new THREE.PointLight(0xff0055, 3, 50);
+  redLight.position.set(3, 1, 2);
+  scene.add(redLight);
+
+  // Luz estroboscópica para simular los relámpagos del fondo espacial
+  lightningLight = new THREE.DirectionalLight(0xffffff, 0);
+  lightningLight.position.set(-1, 5, -2);
+  scene.add(lightningLight);
+
+  /* 🌌 CREACIÓN DEL FONDO DE RAYOS/PARTÍCULAS INTERESTELARES */
+  starGeo = new THREE.BufferGeometry();
+  const starPositions = new Float32Array(starCount * 3);
+  const starVelocity = [];
+
+  for (let i = 0; i < starCount; i++) {
+    // Generar un túnel largo de partículas en el eje Z
+    starPositions[i * 3] = (Math.random() - 0.5) * 15;
+    starPositions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+    starPositions[i * 3 + 2] = Math.random() * -40; // Hacia el fondo
+    
+    // Almacenamos velocidades individuales para el efecto túnel
+    starVelocity.push(0.2 + Math.random() * 0.4);
+  }
+
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  
+  // Textura generada por código para que las partículas parezcan líneas veloces (rayos)
+  const pMaterial = new THREE.PointsMaterial({
+    color: 0x00ffe5,
+    size: 0.06,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending
   });
 
-  renderer.setSize(360, 360);
+  stars = new THREE.Points(starGeo, pMaterial);
+  stars.userData = { velocities: starVelocity };
+  scene.add(stars);
 
-  document.getElementById("avatar-container").appendChild(renderer.domElement);
-
-  // 💡 luces correctas
-  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-  scene.add(ambient);
-
-  const directional = new THREE.DirectionalLight(0xffffff, 0.6);
-  directional.position.set(2, 2, 2);
-  scene.add(directional);
-
-  // 🤖 carga modelo
+  /* 🤖 CARGA DEL AVATAR GLTF */
   const loader = new THREE.GLTFLoader();
-
   loader.load("luis-avatar2.glb", function (gltf) {
-
     model = gltf.scene;
-
-    // 📏 CORRECCIÓN CRÍTICA DE POSICIÓN
-    model.position.set(0, -1.0, 0);
-
-    // 📏 escala correcta (evita “sin cabeza” o gigante)
+    
+    // Ajuste dinámico estándar según tu modelo previo
+    model.position.set(0, -1.1, 0);
     model.scale.set(1.5, 1.5, 1.5);
-
+    
     scene.add(model);
+  }, undefined, function(err) {
+    console.error("No se pudo ubicar el archivo 'luis-avatar2.glb', usando geometría de reemplazo.");
   });
 
+  window.addEventListener('resize', onWindowResize);
   animate();
 }
 
-/* ================= ANIMACIÓN ================= */
+/* ================= INTERACTIVOS: POSTURAS Y CÁMARA ================= */
+function changePose(pose) {
+  currentPose = pose;
+  setCameraPose(pose);
+}
+
+function setCameraPose(pose) {
+  if(!camera) return;
+  
+  // Transiciones de cámara para simular diagnósticos tácticos
+  if (pose === 'defecto') {
+    camera.position.set(0, 0.4, 2.2);
+    camera.lookAt(0, 0.2, 0);
+  } else if (pose === 'analisis') {
+    camera.position.set(0, 0.5, 1.1); // Zoom directo a la cabeza/rostro
+    camera.lookAt(0, 0.4, 0);
+  } else if (pose === 'combate') {
+    camera.position.set(-0.6, 0.2, 1.8); // Ángulo contrapicado amenazante
+    camera.lookAt(0, 0.3, 0);
+  } else if (pose === 'orbita') {
+    camera.position.set(1.5, 0.8, 2.5); // Vista lateral de diagnóstico estructural
+    camera.lookAt(0, 0.1, 0);
+  }
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* ================= LOOP DE ANIMACIÓN Y FÍSICA VISUAL ================= */
 function animate() {
   requestAnimationFrame(animate);
+  const time = Date.now();
 
+  /* 🌌 1. Animación del Fondo de Rayos Interestelares */
+  const positions = stars.geometry.attributes.position.array;
+  const vels = stars.userData.velocities;
+
+  for (let i = 0; i < starCount; i++) {
+    positions[i * 3 + 2] += vels[i]; // Mover hacia la cámara en Z
+    
+    // Si la partícula pasa la cámara, la reiniciamos bien al fondo
+    if (positions[i * 3 + 2] > 5) {
+      positions[i * 3 + 2] = -40;
+      positions[i * 3] = (Math.random() - 0.5) * 15;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+    }
+  }
+  stars.geometry.attributes.position.needsUpdate = true;
+
+  /* ⚡ 2. Efecto de Tormenta de Rayos Eléctricos (Flicker de Luz) */
+  if (Math.random() > 0.97) {
+    lightningLight.intensity = 2.5 + Math.random() * 2; // Destello fuerte
+    if(stars) stars.material.color.setHex(0xffffff); // Los rayos espaciales se vuelven blancos momentáneamente
+  } else {
+    lightningLight.intensity *= 0.8; // Extinción rápida del destello
+    if(stars && Math.random() > 0.8) stars.material.color.setHex(0x00ffe5);
+  }
+
+  /* 🤖 3. Animaciones del Avatar y Simulación del Movimiento de Labios */
   if (model) {
-
-    // 🌬 respiración suave
-    const breathe = 1 + Math.sin(Date.now() * 0.0015) * 0.02;
-    model.scale.set(breathe, breathe, breathe);
-
-    // 🔄 rotación mínima
-    model.rotation.y += 0.003;
-
-    // 🤖 reacción al hablar
+    // Respiración constante del chasis
+    const breathe = 1 + Math.sin(time * 0.0015) * 0.015;
+    
     if (isSpeaking) {
-      model.rotation.y += 0.01;
+      // 🔊 SIMULACIÓN MATEMÁTICA DE MOVIMIENTO DE LABIOS / MANDÍBULA ROBÓTICA
+      // Genera una oscilación de alta frecuencia que deforma levemente el eje vertical y de profundidad del mesh de la cabeza simulando fonemas.
+      const lipSyncY = breathe * (1 + Math.sin(time * 0.035) * 0.04);
+      const lipSyncZ = breathe * (1 + Math.cos(time * 0.028) * 0.03);
+      
+      model.scale.set(1.5 * breathe, 1.5 * lipSyncY, 1.5 * lipSyncZ);
+      
+      // Vibración de cabeza sutil por procesamiento de datos pesado
+      model.rotation.x = Math.sin(time * 0.05) * 0.01;
+      model.rotation.y = (currentPose === 'combate' ? -0.3 : 0) + Math.cos(time * 0.01) * 0.02;
+    } else {
+      // Estado de reposo (Idle)
+      model.scale.set(1.5, 1.5 * breathe, 1.5);
+      model.rotation.x = 0;
+      
+      // Rotación leve de vigilancia según la postura
+      if (currentPose === 'orbita') {
+        model.rotation.y = time * 0.0004;
+      } else if (currentPose === 'combate') {
+        model.rotation.y = -0.3 + Math.sin(time * 0.001) * 0.03;
+      } else {
+        model.rotation.y = Math.sin(time * 0.0008) * 0.05;
+      }
     }
   }
 
   renderer.render(scene, camera);
 }
 
-initAvatar();
+// Inicializar el sistema completo al cargar
+window.onload = () => {
+  init();
+};
 
 </script>
 
