@@ -2,723 +2,437 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NeuroLab AI - Tactical HUD System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NeuroLab AI - Luis Core</title>
 
-  <!-- Librerías de Renderizado 3D de confianza -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN DE ESTILOS BASE (CSS)
-       ========================================================================== */
     :root {
       --neon-cyan: #00ffe5;
-      --neon-red: #ff0055;
-      --neon-green: #39ff14;
-      --hud-bg-dark: rgba(3, 5, 10, 0.9);
-      --hud-bg-light: rgba(10, 15, 30, 0.75);
-      --border-glow: 1px solid rgba(0, 255, 229, 0.3);
+      --neon-purple: #9d4edd;
+      --hud-bg: rgba(4, 2, 8, 0.8);
     }
 
     body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #010103;
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background-color: #000;
       color: var(--neon-cyan);
-      font-family: 'Courier New', Courier, monospace;
-      overflow: hidden;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    /* Contenedor del Canvas 3D */
-    #avatar-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-    }
-
-    /* ==========================================================================
-       2. DISEÑO DEL HUD COMPLETO (SISTEMA GRID PERIFÉRICO)
-       ========================================================================== */
-    .hud-grid-wrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 10;
-      display: grid;
-      grid-template-rows: 70px 1fr 220px;
-      grid-template-columns: 320px 1fr 320px;
-      box-sizing: border-box;
-      padding: 20px;
-      gap: 20px;
-      pointer-events: none; /* Permite interactuar con el fondo 3D si es necesario */
-    }
-
-    /* Clase global para reactivar clicks en elementos del HUD */
-    .hud-interactive {
-      pointer-events: auto;
-    }
-
-    .hud-module {
-      background: var(--hud-bg-dark);
-      border: var(--border-glow);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      box-shadow: 0 0 25px rgba(0, 255, 229, 0.05);
-      padding: 18px;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
-
-    /* Esquinas decorativas de ciencia ficción */
-    .hud-module::before, .hud-module::after {
-      content: '';
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-color: var(--neon-cyan);
-      border-style: solid;
-      pointer-events: none;
-    }
-    .hud-module::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-    .hud-module::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
-
-    /* ==========================================================================
-       3. COMPONENTES ESPECÍFICOS DEL INTERFAZ
-       ========================================================================== */
-    
-    /* Cabecera */
-    .header-panel {
-      grid-column: 1 / span 3;
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid var(--neon-red);
-    }
-
-    .header-panel::before { border-color: var(--neon-red); }
-    .header-panel::after { border-color: var(--neon-red); }
-
-    .header-title-group h1 {
-      margin: 0;
-      font-size: 22px;
-      letter-spacing: 5px;
-      color: var(--neon-red);
-      text-shadow: 0 0 12px var(--neon-red);
-    }
-
-    /* Paneles de Diagnóstico Técnico (Laterales) */
-    .side-panel {
-      font-size: 12px;
-      line-height: 1.8;
-      overflow-y: auto;
-    }
-
-    .side-panel h3 {
-      margin-top: 0;
-      margin-bottom: 12px;
-      border-bottom: 1px dashed var(--neon-cyan);
-      padding-bottom: 6px;
-      letter-spacing: 2px;
-      font-size: 14px;
-    }
-
-    .data-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-
-    .data-value {
-      color: #fff;
-      text-shadow: 0 0 5px var(--neon-cyan);
-    }
-
-    /* Panel del Centro (Vacio en la Grid para dejar ver al avatar) */
-    .center-spacer {
-      grid-column: 2;
-    }
-
-    /* Panel de Control Inferior */
-    .footer-panel {
-      grid-column: 1 / span 3;
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      gap: 20px;
-      border-top: 1px solid rgba(255, 0, 85, 0.4);
-    }
-
-    /* Controles de Posturas y Audio */
-    .control-sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* Consola y Terminal de Mensajes */
-    .terminal-container {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 100%;
+      font-family: monospace;
       overflow: hidden;
     }
 
-    /* Área de salida de texto arreglada (Evita desbordes inferiores) */
-    .response-area {
-      flex: 1;
-      font-size: 14px;
-      overflow-y: auto;
-      margin-bottom: 12px;
-      padding: 10px;
-      background: rgba(0, 0, 0, 0.5);
-      border-left: 3px solid var(--neon-red);
-      color: #ffffff;
-      line-height: 1.5;
-      word-wrap: break-word;
-      max-height: 110px; /* Altura estricta para asegurar que el input no se desplace abajo */
+    #canvas-container {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; z-index: 1;
     }
 
-    .input-wrapper {
-      display: flex;
-      gap: 12px;
+    /* HUD Periférico Adaptable a Teléfonos y Escritorio */
+    .interface-wrapper {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; z-index: 10;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+      padding: 10px; pointer-events: none;
     }
 
-    /* ELEMENTOS DE FORMULARIO - INTERACTIVOS */
+    .interactive { pointer-events: auto; }
+
+    .header-hud {
+      background: var(--hud-bg);
+      border: 1px solid rgba(157, 78, 221, 0.3);
+      padding: 10px; display: flex;
+      justify-content: space-between; align-items: center;
+      font-size: 11px; box-shadow: 0 0 15px rgba(0,255,229,0.1);
+    }
+
+    .main-title {
+      color: #fff; font-weight: bold; letter-spacing: 2px;
+    }
+
+    /* Consola Inferior Compacta */
+    .console-hud {
+      background: var(--hud-bg);
+      border: 1px solid rgba(0, 255, 229, 0.3);
+      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .log-view {
+      font-size: 12px; max-height: 80px;
+      overflow-y: auto; color: #fff;
+      line-height: 1.4; padding-left: 4px;
+      border-left: 2px solid var(--neon-purple);
+    }
+
+    .input-group { display: flex; gap: 8px; }
+
     input {
-      flex: 1;
-      background: rgba(0, 0, 0, 0.8);
-      border: 1px solid var(--neon-cyan);
-      color: #fff;
-      padding: 12px;
-      font-family: 'Courier New', Courier, monospace;
+      flex: 1; background: rgba(0, 0, 0, 0.9);
+      border: 1px solid var(--neon-cyan); color: #fff;
+      padding: 10px; font-family: monospace; font-size: 13px;
       outline: none;
-      font-size: 13px;
-    }
-
-    input:focus {
-      box-shadow: 0 0 10px rgba(0, 255, 229, 0.4);
-      border-color: #fff;
     }
 
     button {
-      background: rgba(0, 0, 0, 0.7);
-      border: 1px solid var(--neon-cyan);
-      color: var(--neon-cyan);
-      padding: 10px 16px;
-      font-family: 'Courier New', Courier, monospace;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.2s ease-in-out;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 1px;
+      background: #000; border: 1px solid var(--neon-purple);
+      color: var(--neon-purple); padding: 10px 14px;
+      font-family: monospace; cursor: pointer; font-weight: bold;
+      font-size: 11px; transition: all 0.2s;
     }
 
     button:hover {
-      background: var(--neon-cyan);
-      color: #000;
-      box-shadow: 0 0 12px var(--neon-cyan);
+      background: var(--neon-purple); color: #000;
+      box-shadow: 0 0 10px var(--neon-purple);
     }
 
-    button:disabled {
-      border-color: #444;
-      color: #444;
-      background: rgba(20, 20, 20, 0.8);
-      cursor: not-allowed;
-      box-shadow: none;
-    }
+    button.audio-btn { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+    button.audio-btn.active { background: var(--neon-cyan); color: #000; }
 
-    button.danger-action {
-      border-color: var(--neon-red);
-      color: var(--neon-red);
-    }
-
-    button.danger-action:hover {
-      background: var(--neon-red);
-      color: #000;
-      box-shadow: 0 0 12px var(--neon-red);
-    }
-
-    /* Botón de Audio Especializado */
-    button.audio-active {
-      border-color: var(--neon-green);
-      color: var(--neon-green);
-    }
-    button.audio-active:hover {
-      background: var(--neon-green);
-      color: #000;
-      box-shadow: 0 0 12px var(--neon-green);
-    }
-
-    /* Efecto CRT de líneas antiguas */
-    .crt-scanlines {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.18) 50%);
-      background-size: 100% 4px;
-      z-index: 100;
-      pointer-events: none;
+    /* Estilos responsivos específicos para pantallas pequeñas */
+    @media (max-width: 600px) {
+      .header-hud { flex-direction: column; gap: 4px; align-items: flex-start; }
+      .log-view { max-height: 60px; font-size: 11px; }
+      input { padding: 8px; font-size: 11px; }
+      button { padding: 8px 10px; font-size: 10px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Capas de efectos de pantalla -->
-  <div class="crt-scanlines"></div>
-  
-  <!-- Contenedor del renderizador 3D -->
-  <div id="avatar-container"></div>
+  <div id="canvas-container"></div>
 
-  <!-- Capa del Grid del HUD -->
-  <div class="hud-grid-wrapper">
-    
-    <!-- 1. BARRA SUPERIOR -->
-    <div class="hud-module header-panel hud-interactive">
-      <button onclick="location.href='index.html'" class="danger-action">🗙 DISCONNECT</button>
-      <div class="header-title-group">
-        <h1>NEUROLAB COGNITIVE HUD v5.0</h1>
-      </div>
-      <div id="status-display" style="font-size: 11px; letter-spacing: 1px;">SYS_STATUS: CORE_STABLE // CONNECTED</div>
+  <div class="interface-wrapper">
+    <!-- TOP BAR -->
+    <div class="header-hud interactive">
+      <span class="main-title">CORE INTERFACE: LUIS</span>
+      <span id="lang-indicator">LANG: AUTO (ES/EN)</span>
+      <span id="status-field">STATUS: READY</span>
     </div>
 
-    <!-- 2. DIAGNÓSTICO IZQUIERDO -->
-    <div class="hud-module side-panel">
-      <h3>TACTICAL ANALYSIS</h3>
-      <div class="data-row"><span>UNIT TYPE:</span><span class="data-value">T-800 CYBORG</span></div>
-      <div class="data-row"><span>AUDIO BUS:</span><span id="gui-audio-status" class="data-value">MUTED</span></div>
-      <div class="data-row"><span>LANG_MODE:</span><span id="gui-lang-status" class="data-value">AUTO_DETECT</span></div>
-      <div class="data-row"><span>MORPH_ENG:</span><span class="data-value">MESH_TARGET_v2</span></div>
-      <div class="data-row"><span>RENDERER:</span><span class="data-value">WEBGL_THREE</span></div>
-    </div>
-
-    <!-- 3. ESPACIO CENTRAL VACIO (Dejar libre para ver el rostro) -->
-    <div class="center-spacer"></div>
-
-    <!-- 4. DIAGNÓSTICO DERECHO -->
-    <div class="hud-module side-panel">
-      <h3>TELEMETRY DATA</h3>
-      <div class="data-row"><span>LOCATION:</span><span class="data-value">INTERSTELLAR_GRID</span></div>
-      <div class="data-row"><span>LIGHTNING:</span><span id="gui-lightning" class="data-value">MONITORING</span></div>
-      <div class="data-row"><span>CHASSIS_T:</span><span class="data-value">36.8 °C</span></div>
-      <div class="data-row"><span>FPS RATE:</span><span class="data-value">60.0 HZ</span></div>
-      <div class="data-row"><span>FOG DENSITY:</span><span class="data-value">0.08 EXP2</span></div>
-    </div>
-
-    <!-- 5. PANEL INFERIOR COMPLETO -->
-    <div class="hud-module footer-panel hud-interactive">
+    <!-- BOTTOM TERMINAL -->
+    <div class="console-hud interactive">
+      <div id="log-display" class="log-view">>>> Conexión establecida con éxito. Sistema de memoria activado.</div>
       
-      <!-- Panel lateral de acciones rápidas -->
-      <div class="control-sidebar">
-        <!-- Control de Audio Mute/Unmute -->
-        <button id="audio-toggle-btn" onclick="toggleAudioMaster()" class="danger-action">🔇 AUDIO: SILENCIADO</button>
-        
-        <!-- Posturas tácticas -->
-        <button onclick="triggerCameraPose('defecto')">Vista Estándar</button>
-        <button onclick="triggerCameraPose('analisis')">Escanear Rostro</button>
-        <button onclick="triggerCameraPose('combate')">Modo Alerta</button>
+      <div class="input-group">
+        <button id="mute-btn" class="audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
+        <input id="query-input" placeholder="Escribe un mensaje..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
+        <button id="exec-btn" onclick="executeQuery()">ENVIAR</button>
       </div>
-
-      <!-- Consola de comandos e historial -->
-      <div class="terminal-container">
-        <!-- Contenedor con scroll controlado para evitar desbordes -->
-        <div id="response" class="response-area">>>> Sistema inicializado correctamente. Esperando transmisión de secuencia...</div>
-        
-        <!-- Controles de escritura de comandos -->
-        <div class="input-wrapper">
-          <input id="input-field" placeholder="SYS_REQ: Ingrese comando de comunicación..." onkeydown="if(event.key === 'Enter' && !this.disabled) sendCommand()"/>
-          <button id="send-btn" onclick="sendCommand()">EXECUTE</button>
-        </div>
-      </div>
-
     </div>
-
   </div>
 
-  <!-- ==========================================================================
-       6. LOGICA LOGICIAL Y CONTROLADORES 3D (JAVASCRIPT)
-       ========================================================================== -->
   <script>
-    /* VARIABLES GLOBALES DEL MOTOR */
-    let scene, camera, renderer, model, mixer;
+    /* MOTOR GRÁFICO GLOBAL */
+    let scene, camera, renderer, avatarModel, animationMixer;
+    let particleVortex, vortexGeometry, particleCount = 1500;
     let clock = new THREE.Clock();
-    let stars, starGeometry, starCount = 1100;
-    let lightningSource;
     
-    /* CONTROLADORES DE ESTADO INTERNO */
-    let isSpeaking = false;
-    let audioMasterActive = false; // Por defecto inicia silenciado para cumplir regulaciones del navegador
-    let detectedLanguageCode = 'es-ES';
-    let currentPoseID = 'defecto';
-    let targetFaceMeshes = [];
+    /* ESTADOS DE DIÁLOGO Y VOZ */
+    let speakingActive = false;
+    let audioOutputEnabled = false;
+    let dialogueMemory = [];
+    let discoveredFaceMeshes = [];
+    let speechEngine = window.speechSynthesis;
+    let globalUtterance = null;
 
-    /* CONTROL DE SÍNTESIS DE AUDIO */
-    const speechSynthesizer = window.speechSynthesis;
-    let activeUtterance = null;
+    // Precarga e inicialización rápida del bus de voz para evitar demoras/delays
+    if (speechEngine.onvoiceschanged !== undefined) {
+      speechEngine.onvoiceschanged = () => { speechEngine.getVoices(); };
+    }
 
     /* ==========================================================================
-       A. GESTIÓN DE IDIOMA Y REPRODUCCIÓN AUDIO-TEXTO (CORREGIDO)
+       1. SISTEMA DE MEMORIA Y LOGICA DE IDIOMA
        ========================================================================== */
-    
-    // Función para activar o silenciar el sistema completo
-    function toggleAudioMaster() {
-      const btn = document.getElementById("audio-toggle-btn");
-      const guiStatus = document.getElementById("gui-audio-status");
-      
-      audioMasterActive = !audioMasterActive;
-      
-      if (audioMasterActive) {
-        btn.innerText = "🔊 AUDIO: ACTIVO";
-        btn.className = "audio-active";
-        guiStatus.innerText = "ONLINE_LIVE";
-        guiStatus.style.color = "var(--neon-green)";
-      } else {
-        btn.innerText = "🔇 AUDIO: SILENCIADO";
-        btn.className = "danger-action";
-        guiStatus.innerText = "MUTED";
-        guiStatus.style.color = "var(--neon-red)";
-        
-        // Detener de inmediato cualquier sonido en reproducción
-        if (speechSynthesizer.speaking) {
-          speechSynthesizer.cancel();
+    function loadLocalMemory() {
+      try {
+        const stored = localStorage.getItem("luis_ai_memory");
+        if (stored) {
+          dialogueMemory = JSON.parse(stored);
+          const lastInteraction = dialogueMemory[dialogueMemory.length - 1];
+          document.getElementById("log-display").innerText = `MEMORIA RECOBRADA:\nLuis: ${lastInteraction.user}\nAI: ${lastInteraction.ai}`;
         }
-        terminateSpeechCycle();
-      }
+      } catch (e) { console.warn("No se pudo cargar la memoria local."); }
     }
 
-    // Analizador simple de texto para determinar si la respuesta es español o inglés
-    function detectTextLanguage(payloadText) {
-      // Lista de palabras comunes en inglés
-      const englishKeywords = ['the', 'you', 'is', 'are', 'not', 'hello', 'system', 'error', 'processing', 'connection'];
-      const textLower = payloadText.toLowerCase();
-      
-      let englishHits = 0;
-      englishKeywords.forEach(word => {
-        if (textLower.includes(word)) englishHits++;
-      });
+    function saveToMemory(userText, aiText) {
+      dialogueMemory.push({ user: userText, ai: aiText });
+      if (dialogueMemory.length > 5) dialogueMemory.shift(); // Mantiene solo los últimos 5 diálogos para ligereza
+      localStorage.setItem("luis_ai_memory", JSON.stringify(dialogueMemory));
+    }
 
-      // Si encuentra coincidencias de palabras comunes inglesas, cambia el perfil de voz
-      if (englishHits > 1) {
-        document.getElementById("gui-lang-status").innerText = "EN-US MODE";
-        return 'en-US';
+    function toggleAudioMaster() {
+      audioOutputEnabled = !audioOutputEnabled;
+      const btn = document.getElementById("mute-btn");
+      if (audioOutputEnabled) {
+        btn.innerText = "🔊 AUDIO"; btn.classList.add("active");
       } else {
-        document.getElementById("gui-lang-status").innerText = "ES-ES MODE";
-        return 'es-ES';
+        btn.innerText = "🔇 MUTE"; btn.classList.remove("active");
+        if (speechEngine.speaking) speechEngine.cancel();
+        stopSpeechMouthCycle();
       }
     }
 
-    // Disparador de procesamiento e invocación remota de datos
-    async function sendCommand() {
-      const inputEl = document.getElementById("input-field");
-      const sendBtn = document.getElementById("send-btn");
-      const responseBox = document.getElementById("response");
-      const statusBox = document.getElementById("status-display");
-      
-      const rawText = inputEl.value.trim();
-      if (!rawText) return;
+    function autoDetectLanguage(text) {
+      const enPatterns = /\b(the|you|is|are|hello|thanks|processing|system|mode)\b/i;
+      if (enPatterns.test(text)) {
+        document.getElementById("lang-indicator").innerText = "LANG: EN-US";
+        return 'en-US';
+      }
+      document.getElementById("lang-indicator").innerText = "LANG: ES-ES";
+      return 'es-ES';
+    }
 
-      // Bloquear controles de inmediato para evitar que el usuario los use mientras procesa o habla
-      inputEl.disabled = true;
-      sendBtn.disabled = true;
-      
-      responseBox.innerHTML = ">>> ENVIANDO TRANSMISIÓN... ESPERANDO RESPUESTA DEL NÚCLEO COGNITIVO...";
-      statusBox.innerText = "SYS_STATUS: COMPUTING_REMOTE_DATA";
-      statusBox.style.color = "var(--neon-red)";
-      
-      inputEl.value = "";
+    async function executeQuery() {
+      const inputEl = document.getElementById("query-input");
+      const execBtn = document.getElementById("exec-btn");
+      const logDisplay = document.getElementById("log-display");
+      const statusField = document.getElementById("status-field");
+
+      const query = inputEl.value.trim();
+      if (!query) return;
+
+      inputEl.disabled = true; execBtn.disabled = true;
+      statusField.innerText = "STATUS: PROCESSING";
+      statusField.style.color = "var(--neon-purple)";
 
       try {
-        const responseBus = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
+        const res = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: rawText })
+          body: JSON.stringify({ message: query })
         });
 
-        const unifiedData = await responseBus.json();
-        const mainReplyText = unifiedData.reply || "ERROR_BUS: Estructura de datos vacía.";
+        const data = await res.json();
+        const replyText = data.reply || "Error: Respuesta vacía.";
 
-        // Renderizar el texto en la caja y desplazar el scroll al final automáticamente
-        responseBox.innerText = `T-800: ${mainReplyText}`;
-        responseBox.scrollTop = responseBox.scrollHeight;
+        logDisplay.innerText = `Luis: ${query}\nAI: ${replyText}`;
+        logDisplay.scrollTop = logDisplay.scrollHeight;
 
-        // Detectar dinámicamente el idioma basándonos en lo que la IA respondió
-        detectedLanguageCode = detectTextLanguage(mainReplyText);
+        saveToMemory(query, replyText);
+        const langMode = autoDetectLanguage(replyText);
 
-        // Cancelar buffers de voz previos estancados
-        if (speechSynthesizer.speaking) {
-          speechSynthesizer.cancel();
-        }
+        if (speechEngine.speaking) speechEngine.cancel();
 
-        // Si el audio maestro está encendido, reproducimos la voz de forma controlada
-        if (audioMasterActive) {
-          activeUtterance = new SpeechSynthesisUtterance(mainReplyText);
-          activeUtterance.lang = detectedLanguageCode;
-          
-          // Velocidad ligeramente controlada para emular un procesador mecánico real
-          activeUtterance.rate = 0.95; 
-          activeUtterance.pitch = 0.65; 
+        if (audioOutputEnabled) {
+          globalUtterance = new SpeechSynthesisUtterance(replyText);
+          globalUtterance.lang = langMode;
+          globalUtterance.rate = 1.0; // Velocidad óptima humana
+          globalUtterance.pitch = 0.85;
 
-          isSpeaking = true;
-          statusBox.innerText = "SYS_STATUS: STREAMING_AUDIO_SYNCHRONIZATION";
-          statusBox.style.color = "var(--neon-cyan)";
+          speakingActive = true;
+          statusField.innerText = "STATUS: SPEAKING";
+          statusField.style.color = "var(--neon-cyan)";
 
-          // Captura estricta de eventos de fin para evitar bucles infinitos
-          activeUtterance.onend = () => {
-            terminateSpeechCycle();
-            inputEl.disabled = false;
-            sendBtn.disabled = false;
-            statusBox.innerText = "SYS_STATUS: CORE_STABLE // CONNECTED";
-          };
+          globalUtterance.onend = () => { resetControls(inputEl, execBtn, statusField); };
+          globalUtterance.onerror = () => { resetControls(inputEl, execBtn, statusField); };
 
-          activeUtterance.onerror = () => {
-            terminateSpeechCycle();
-            inputEl.disabled = false;
-            sendBtn.disabled = false;
-            statusBox.innerText = "SYS_STATUS: CORE_STABLE // CONNECTED";
-          };
-
-          speechSynthesizer.speak(activeUtterance);
+          speechEngine.speak(globalUtterance);
         } else {
-          // Si estaba silenciado, devolvemos el control de inmediato sin hablar
-          inputEl.disabled = false;
-          sendBtn.disabled = false;
-          statusBox.innerText = "SYS_STATUS: CORE_STABLE // CONNECTED";
-          statusBox.style.color = "var(--neon-cyan)";
+          resetControls(inputEl, execBtn, statusField);
         }
 
-      } catch (fatalFetchError) {
-        responseBox.innerText = ">>> CONFIG_ERROR: Fallo crítico en el enlace de la API. Reintentar secuencia.";
-        statusBox.innerText = "SYS_STATUS: INTERFACE_LINK_UNSTABLE";
-        
-        // Liberar controles para que pueda volver a intentar escribir
-        inputEl.disabled = false;
-        sendBtn.disabled = false;
-        terminateSpeechCycle();
+      } catch (err) {
+        logDisplay.innerText = ">>> ERROR DE ENLACE COGNITIVO.";
+        resetControls(inputEl, execBtn, statusField);
       }
+      inputEl.value = "";
     }
 
-    function terminateSpeechCycle() {
-      isSpeaking = false;
-      activeUtterance = null;
-      
-      // Aseguramos el cierre inmediato de los labios en todas las mallas encontradas
-      targetFaceMeshes.forEach(mesh => {
+    function resetControls(input, btn, status) {
+      input.disabled = false; btn.disabled = false;
+      status.innerText = "STATUS: READY"; status.style.color = "var(--neon-cyan)";
+      stopSpeechMouthCycle();
+    }
+
+    function stopSpeechMouthCycle() {
+      speakingActive = false;
+      discoveredFaceMeshes.forEach(mesh => {
         if (mesh.morphTargetInfluences) {
-          updateMorphValue(mesh, 'mouthOpen', 0);
-          updateMorphValue(mesh, 'viseme_O', 0);
-          updateMorphValue(mesh, 'viseme_aa', 0);
+          forceMorph(mesh, 'mouthOpen', 0);
+          forceMorph(mesh, 'viseme', 0);
         }
       });
+      if(avatarModel) avatarModel.rotation.x = 0; // Resetea cabeceo alternativo
     }
 
     /* ==========================================================================
-       B. CONTROLADOR DEL ENTORNO DE GRÁFICOS 3D (THREE.JS)
+       2. MOTOR GRÁFICO THREE.JS - AGUJERÓ NEGRO E INTERFAZ RESPONSIVA
        ========================================================================== */
-    function initializeEngine() {
-      const WebGLStage = document.getElementById("avatar-container");
+    function initEngine() {
+      const container = document.getElementById("canvas-container");
       
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x010204);
-      scene.fog = new THREE.FogExp2(0x010204, 0.08);
+      scene.background = new THREE.Color(0x020005);
+      scene.fog = new THREE.FogExp2(0x020005, 0.1);
 
-      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 400);
-      triggerCameraPose('defecto');
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+      adjustCameraView();
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      WebGLStage.appendChild(renderer.domElement);
+      container.appendChild(renderer.domElement);
 
-      /* CONFIGURACIÓN DE LUCES AMBIENTALES CINEMATOGRÁFICAS */
-      const baseAmbientLight = new THREE.AmbientLight(0x0a1424, 2.2);
-      scene.add(baseAmbientLight);
+      // Iluminación Cósmica
+      scene.add(new THREE.AmbientLight(0x110a25, 2.5));
+      const purpleLight = new THREE.PointLight(0x9d4edd, 4, 20);
+      purpleLight.position.set(2, 2, 2); scene.add(purpleLight);
+      const cyanLight = new THREE.PointLight(0x00ffe5, 3, 20);
+      cyanLight.position.set(-2, 1, 2); scene.add(cyanLight);
 
-      const cyanPointLight = new THREE.PointLight(0x00ffe5, 2.5, 35);
-      cyanPointLight.position.set(-2.5, 2.0, 2.0);
-      scene.add(cyanPointLight);
+      /* 🌪️ CREACIÓN DEL TORBELLINO / AGUJERÓ NEGRO INTERDIMENSIONAL */
+      vortexGeometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const angleOffsets = [];
+      const radii = [];
 
-      const redPointLight = new THREE.PointLight(0xff0055, 3.0, 35);
-      redPointLight.position.set(2.5, 1.0, 2.0);
-      scene.add(redPointLight);
+      for (let i = 0; i < particleCount; i++) {
+        const radius = 0.4 + Math.random() * 4.5; // Concentración hacia el centro
+        const angle = Math.random() * Math.PI * 2;
+        radii.push(radius);
+        angleOffsets.push(angle);
 
-      lightningSource = new THREE.DirectionalLight(0xffffff, 0);
-      lightningSource.position.set(0, 5, -3);
-      scene.add(lightningSource);
-
-      /* GENERACIÓN DE RAYOS INTERESTELARES (SISTEMA DE PARTÍCULAS) */
-      starGeometry = new THREE.BufferGeometry();
-      const coordinateArray = new Float32Array(starCount * 3);
-      const velocityArray = [];
-
-      for (let i = 0; i < starCount; i++) {
-        coordinateArray[i * 3] = (Math.random() - 0.5) * 18;
-        coordinateArray[i * 3 + 1] = (Math.random() - 0.5) * 14;
-        coordinateArray[i * 3 + 2] = Math.random() * -35; 
-        velocityArray.push(0.18 + Math.random() * 0.22);
+        positions[i * 3] = Math.cos(angle) * radius;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.5; // Espesor del disco
+        positions[i * 3 + 2] = Math.sin(angle) * radius;
       }
 
-      starGeometry.setAttribute('position', new THREE.BufferAttribute(coordinateArray, 3));
-      
-      const particleMaterial = new THREE.PointsMaterial({
-        color: 0x00ffe5,
-        size: 0.04,
-        transparent: true,
-        opacity: 0.65,
+      vortexGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const particleMat = new THREE.PointsMaterial({
+        color: 0x00ffe5, size: 0.035, transparent: true, opacity: 0.75,
         blending: THREE.AdditiveBlending
       });
 
-      stars = new THREE.Points(starGeometry, particleMaterial);
-      stars.userData = { customVelocities: velocityArray };
-      scene.add(stars);
+      particleVortex = new THREE.Points(vortexGeometry, particleMat);
+      particleVortex.userData = { angleOffsets: angleOffsets, radii: radii };
+      scene.add(particleVortex);
 
-      /* CARGA DEL AVATAR CON ESCALADO AJUSTADO */
-      const gltfLoaderInstance = new THREE.GLTFLoader();
-      gltfLoaderInstance.load("luis-avatar2.glb", function (gltfObject) {
-        model = gltfObject.scene;
+      /* 🤖 CARGA Y ENCUADRE AUTOMÁTICO DE LUIS-AVATAR */
+      const loader = new THREE.GLTFLoader();
+      loader.load("luis-avatar2.glb", (gltf) => {
+        avatarModel = gltf.scene;
         
-        // Ajuste simétrico para encuadrar torso y cabeza de forma limpia (No gigante)
-        model.position.set(0, -0.65, 0); 
-        model.scale.set(0.55, 0.55, 0.55); 
-        scene.add(model);
+        // Posicionamiento de cuerpo entero
+        avatarModel.position.set(0, -1.0, 0);
+        applyResponsiveModelScale();
+        scene.add(avatarModel);
 
-        // Mapeo exhaustivo de mallas para aislar los controladores faciales
-        model.traverse((node) => {
-          if (node.isMesh && node.morphTargetDictionary) {
-            targetFaceMeshes.push(node);
+        // Mapeo adaptivo para rastrear morfología de labios
+        avatarModel.traverse((child) => {
+          if (child.isMesh) {
+            if (child.morphTargetDictionary) discoveredFaceMeshes.push(child);
+            // Asegura que los materiales brillen bajo las luces del agujero negro
+            if (child.material) child.material.roughness = 0.4;
           }
         });
 
-        // Activación de la animación de fábrica (Quita los brazos abiertos / T-Pose)
-        if (gltfObject.animations && gltfObject.animations.length > 0) {
-          mixer = new THREE.AnimationMixer(model);
-          mixer.clipAction(gltfObject.animations[0]).play();
+        if (gltf.animations && gltf.animations.length > 0) {
+          animationMixer = new THREE.AnimationMixer(avatarModel);
+          animationMixer.clipAction(gltf.animations[0]).play();
         }
-      }, undefined, function(loadError) {
-        console.error("CRITICAL_3D_ERROR: No se detectó el archivo 'luis-avatar2.glb'.");
       });
 
-      window.addEventListener('resize', executeResponsiveResize);
-      executeRenderLoop();
+      window.addEventListener('resize', onWindowResize);
+      loadLocalMemory();
+      animate();
     }
 
-    // Buscador seguro de morfología de mallas por aproximación de cadenas de texto
-    function updateMorphValue(targetMesh, targetName, targetFloatValue) {
-      const dictionary = targetMesh.morphTargetDictionary;
-      for (let keyName in dictionary) {
-        if (keyName.toLowerCase().includes(targetName.toLowerCase())) {
-          targetMesh.morphTargetInfluences[dictionary[keyName]] = targetFloatValue;
+    function forceMorph(mesh, term, val) {
+      const dict = mesh.morphTargetDictionary;
+      for (let name in dict) {
+        if (name.toLowerCase().includes(term.toLowerCase())) {
+          mesh.morphTargetInfluences[dict[name]] = val;
         }
       }
     }
 
-    /* CONTROLLER DE ENCUADRE DE CÁMARA TÁCTICA */
-    function triggerCameraPose(selectedPoseID) {
-      currentPoseID = selectedPoseID;
-      if (!camera) return;
-      
-      if (selectedPoseID === 'defecto') {
-        camera.position.set(0, 0.18, 1.35);
-        camera.lookAt(0, 0.05, 0);
-      } else if (selectedPoseID === 'analisis') {
-        camera.position.set(0, 0.24, 0.65); 
-        camera.lookAt(0, 0.20, 0);
-      } else if (selectedPoseID === 'combate') {
-        camera.position.set(-0.35, 0.08, 1.15); 
-        camera.lookAt(0, 0.12, 0);
+    /* ENCUADRES ADAPTABLES (MÓVIL VS ESCRITORIO) */
+    function adjustCameraView() {
+      if (window.innerWidth < 600) {
+        camera.position.set(0, 0.2, 3.2); // Más lejos en teléfonos para capturar cuerpo entero
+      } else {
+        camera.position.set(0, 0.1, 2.2); // Plano estándar en PC
+      }
+      camera.lookAt(0, -0.1, 0);
+    }
+
+    function applyResponsiveModelScale() {
+      if (!avatarModel) return;
+      if (window.innerWidth < 600) {
+        avatarModel.scale.set(0.65, 0.65, 0.65); // Ajuste fino para pantallas verticales
+      } else {
+        avatarModel.scale.set(0.8, 0.8, 0.8);
       }
     }
 
-    function executeResponsiveResize() {
+    function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      adjustCameraView();
+      applyResponsiveModelScale();
     }
 
     /* ==========================================================================
-       C. BUCLE DE ACTUALIZACIÓN DE FOTOGRAMAS (ANIMATE ENGINE)
-       ========================================================================= */
-    function executeRenderLoop() {
-      requestAnimationFrame(executeRenderLoop);
-      
-      const absoluteTime = Date.now();
-      const frameDelta = clock.getDelta();
+       3. BUCLE DE ANIMACIÓN DE ALTO RENDIMIENTO
+       ========================================================================== */
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const timeNow = Date.now();
 
-      // Actualizar huesos del esqueleto nativo si existe el mezclador animador
-      if (mixer) mixer.update(frameDelta);
+      if (animationMixer) animationMixer.update(delta);
 
-      /* 1. Avanzar el campo de partículas interestelares */
-      const vertexPositions = stars.geometry.attributes.position.array;
-      const dynamicVelocities = stars.userData.customVelocities;
-      
-      for (let i = 0; i < starCount; i++) {
-        vertexPositions[i * 3 + 2] += dynamicVelocities[i];
-        if (vertexPositions[i * 3 + 2] > 2) {
-          vertexPositions[i * 3 + 2] = -35; // Lo regresa al fondo infinito
-        }
-      }
-      stars.geometry.attributes.position.needsUpdate = true;
+      /* Simulación del Vórtice / Torbellino del Agujero Negro */
+      if (particleVortex) {
+        const positions = particleVortex.geometry.attributes.position.array;
+        const offsets = particleVortex.userData.angleOffsets;
+        const radii = particleVortex.userData.radii;
 
-      /* 2. Control de tormentas galácticas intermitentes */
-      const lightningGUI = document.getElementById("gui-lightning");
-      if (Math.random() > 0.982) {
-        lightningSource.intensity = 2.2 + Math.random() * 1.8;
-        if(lightningGUI) {
-          lightningGUI.innerText = "DISCHARGE_ACTIVE";
-          lightningGUI.style.color = "var(--neon-red)";
+        for (let i = 0; i < particleCount; i++) {
+          // Velocidad inversamente proporcional al radio (física de agujeros negros)
+          offsets[i] += (0.015 + (0.02 / radii[i])); 
+          
+          positions[i * 3] = Math.cos(offsets[i]) * radii[i];
+          // Añade una distorsión cuántica ondulante vertical en el torbellino
+          positions[i * 3 + 1] = Math.sin(timeNow * 0.002 + radii[i]) * 0.15;
+          positions[i * 3 + 2] = Math.sin(offsets[i]) * radii[i];
         }
-      } else {
-        lightningSource.intensity *= 0.82;
-        if(lightningGUI && lightningSource.intensity < 0.2) {
-          lightningGUI.innerText = "MONITORING";
-          lightningGUI.style.color = "var(--neon-cyan)";
-        }
+        particleVortex.geometry.attributes.position.needsUpdate = true;
+        particleVortex.rotation.y += 0.002; // Rotación lenta del conjunto completo
       }
 
-      /* 3. SISTEMA DE LABIOS AVANZADO (EVITA TEMBLORES ESTRUCTURALES) */
-      if (model) {
-        if (isSpeaking && audioMasterActive) {
-          // Movimiento de labios matemático simulado exclusivo para los labios
-          const synchronizedMouthWave = Math.abs(Math.sin(absoluteTime * 0.028)) * 0.75 + (Math.cos(absoluteTime * 0.015) * 0.15);
+      /* Animación de Habla Híbrida Inteligente (Cero Temblores) */
+      if (avatarModel) {
+        if (speakingActive && audioOutputEnabled) {
+          const wave = Math.abs(Math.sin(timeNow * 0.03)) * 0.8;
           
-          targetFaceMeshes.forEach(mesh => {
-            updateMorphValue(mesh, 'mouthOpen', synchronizedMouthWave);
-            updateMorphValue(mesh, 'viseme_O', synchronizedMouthWave * 0.35);
-            updateMorphValue(mesh, 'viseme_aa', synchronizedMouthWave * 0.45);
-          });
-          
-          // Micro respiración interna estabilizada en el pecho, sin sacudir la cabeza
-          model.scale.set(0.55, 0.55 + Math.sin(absoluteTime * 0.002) * 0.002, 0.55);
-        } else {
-          // Mantener al androide rígido e imponente si no está comunicando datos
-          model.scale.set(0.55, 0.55, 0.55);
-          
-          if (currentPoseID === 'combate') {
-            model.rotation.y = -0.15 + Math.sin(absoluteTime * 0.001) * 0.02;
+          if (discoveredFaceMeshes.length > 0) {
+            // Intentar interactuar con los morph targets nativos de los labios
+            discoveredFaceMeshes.forEach(mesh => {
+              forceMorph(mesh, 'mouth', wave);
+              forceMorph(mesh, 'open', wave);
+              forceMorph(mesh, 'viseme', wave);
+            });
           } else {
-            model.rotation.y = Math.sin(absoluteTime * 0.0006) * 0.03;
+            // MÉTODO DE RESPALDO: Si el modelo no tiene claves de labios instaladas,
+            // genera un cabeceo mecánico sutil alternado para que nunca se vea estático.
+            avatarModel.rotation.x = Math.sin(timeNow * 0.02) * 0.04;
           }
+        } else {
+          // Balanceo gravitatorio pasivo mientras flota en el agujero negro
+          avatarModel.position.y = -1.0 + Math.sin(timeNow * 0.0015) * 0.04;
+          avatarModel.rotation.y = Math.cos(timeNow * 0.001) * 0.03;
         }
       }
 
       renderer.render(scene, camera);
     }
 
-    // Inicialización del hilo principal al cargar la ventana de forma limpia
-    window.onload = () => {
-      initializeEngine();
-    };
+    window.onload = initEngine;
   </script>
 </body>
 </html>
