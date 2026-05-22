@@ -3,25 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NeuroLab AI - Luis Core v6.0</title>
+  <title>NeuroLab AI - Luis Core v7.0</title>
 
+  <!-- Tres librerías críticas: Three.js, GLTFLoader y OrbitControls para el ratón -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
   <style>
     :root {
       --neon-cyan: #00ffe5;
-      --neon-purple: #9d4edd;
+      --neon-gold: #ffb703;
       --neon-red: #ff0055;
-      --hud-bg: rgba(4, 2, 8, 0.85);
+      --hud-bg: rgba(6, 4, 12, 0.9);
     }
 
     body, html {
       margin: 0; padding: 0;
       width: 100%; height: 100%;
-      background-color: #020106;
+      background-color: #030207;
       color: var(--neon-cyan);
-      font-family: monospace;
+      font-family: 'Courier New', Courier, monospace;
       overflow: hidden;
     }
 
@@ -30,79 +32,106 @@
       width: 100%; height: 100%; z-index: 1;
     }
 
-    /* Interfaz HUD Adaptable */
-    .interface-wrapper {
+    /* CAPA DEL HUD DE DECORACIÓN HISTÓRICA / CIENTÍFICA */
+    .hud-overlay {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%; z-index: 10;
       display: flex; flex-direction: column;
       justify-content: space-between;
-      box-sizing: border-box;
-      padding: 12px; pointer-events: none;
+      box-sizing: border-box; padding: 15px;
+      pointer-events: none;
     }
 
     .interactive { pointer-events: auto; }
 
-    .header-hud {
+    /* Barra Superior: Panel Alfanumérico y Griego Flotante */
+    .top-matrix-panel {
       background: var(--hud-bg);
-      border: 1px solid rgba(157, 78, 221, 0.3);
-      padding: 10px 15px; display: flex;
-      justify-content: space-between; align-items: center;
-      font-size: 11px; box-shadow: 0 0 15px rgba(0,255,229,0.1);
+      border: 1px solid rgba(0, 255, 229, 0.25);
+      padding: 10px; text-align: center;
+      position: relative; overflow: hidden;
+      box-shadow: 0 0 15px rgba(0, 255, 229, 0.1);
+    }
+    
+    .exit-btn {
+      position: absolute; left: 10px; top: 8px;
+      background: #000; border: 1px solid var(--neon-red);
+      color: var(--neon-red); padding: 5px 12px;
+      cursor: pointer; font-size: 11px; font-weight: bold;
+    }
+    .exit-btn:hover { background: var(--neon-red); color: #000; }
+
+    .greek-stream {
+      font-size: 14px; color: var(--neon-cyan);
+      white-space: nowrap; letter-spacing: 6px;
+      display: inline-block; animation: streamMove 25s linear infinite;
     }
 
-    .main-title {
-      color: #fff; font-weight: bold; letter-spacing: 2px;
+    /* Decoraciones Laterales: Jeroglíficos */
+    .side-hieroglyphs {
+      position: absolute; top: 120px;
+      display: flex; flex-direction: column; gap: 15px;
+      font-size: 22px; color: rgba(255, 183, 3, 0.4);
+      text-shadow: 0 0 8px rgba(255, 183, 3, 0.2);
     }
+    .left-glyphs { left: 20px; }
+    .right-glyphs { right: 20px; }
 
-    /* Consola de Comunicación Inferior */
+    /* Contenedor de la Terminal Inferior Expandida */
     .console-hud {
       background: var(--hud-bg);
-      border: 1px solid rgba(0, 255, 229, 0.3);
-      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+      border: 1px solid rgba(255, 183, 3, 0.3);
+      padding: 15px; display: flex; flex-direction: column; gap: 10px;
+      box-shadow: 0 0 20px rgba(255, 183, 3, 0.05);
     }
 
+    /* Caja de texto inteligente para que la información larga NO se pierda */
     .log-view {
-      font-size: 12px; max-height: 80px;
-      overflow-y: auto; color: #fff;
-      line-height: 1.4; padding-left: 6px;
-      border-left: 2px solid var(--neon-purple);
+      font-size: 13px; max-height: 160px; min-height: 90px;
+      overflow-y: auto; color: #ffffff;
+      line-height: 1.5; padding: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      border-left: 3px solid var(--neon-gold);
+      word-wrap: break-word; white-space: pre-wrap;
     }
 
-    .input-group { display: flex; gap: 8px; }
+    /* Base Sumeria Cuneiforme decorativa justo debajo del texto */
+    .sumerian-bar {
+      font-size: 12px; color: var(--neon-gold);
+      opacity: 0.6; letter-spacing: 4px; text-align: center;
+      border-top: 1px dashed rgba(255, 183, 3, 0.3);
+      padding-top: 5px; margin-top: 2px;
+    }
+
+    .input-group { display: flex; gap: 10px; }
 
     input {
       flex: 1; background: rgba(0, 0, 0, 0.9);
       border: 1px solid var(--neon-cyan); color: #fff;
-      padding: 10px; font-family: monospace; font-size: 13px;
+      padding: 12px; font-family: monospace; font-size: 14px;
       outline: none;
     }
 
-    button {
-      background: #000; border: 1px solid var(--neon-purple);
-      color: var(--neon-purple); padding: 10px 14px;
+    button.action-btn {
+      background: #000; border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan); padding: 12px 20px;
       font-family: monospace; cursor: pointer; font-weight: bold;
-      font-size: 11px; transition: all 0.2s;
+      font-size: 12px; transition: all 0.2s;
     }
+    button.action-btn:hover { background: var(--neon-cyan); color: #000; }
+    
+    button.audio-btn { border-color: var(--neon-gold); color: var(--neon-gold); }
+    button.audio-btn.active { background: var(--neon-gold); color: #000; }
 
-    button:hover {
-      background: var(--neon-purple); color: #000;
-      box-shadow: 0 0 10px var(--neon-purple);
+    @keyframes streamMove {
+      0% { transform: translateX(30%); }
+      100% { transform: translateX(-30%); }
     }
-
-    button.exit-btn {
-      border-color: var(--neon-red); color: var(--neon-red);
-    }
-    button.exit-btn:hover {
-      background: var(--neon-red); color: #000;
-      box-shadow: 0 0 10px var(--neon-red);
-    }
-
-    button.audio-btn { border-color: var(--neon-cyan); color: var(--neon-cyan); }
-    button.audio-btn.active { background: var(--neon-cyan); color: #000; }
 
     @media (max-width: 600px) {
-      .header-hud { flex-direction: column; gap: 6px; align-items: stretch; text-align: center; }
-      .log-view { max-height: 60px; font-size: 11px; }
+      .side-hieroglyphs { display: none; } /* Ocultar jeroglíficos en móvil para no saturar */
+      .log-view { max-height: 110px; font-size: 11px; }
+      .greek-stream { font-size: 11px; }
     }
   </style>
 </head>
@@ -110,44 +139,56 @@
 
   <div id="canvas-container"></div>
 
-  <div class="interface-wrapper">
-    <!-- BARRA SUPERIOR CON BOTÓN DE SALIDA -->
-    <div class="header-hud interactive">
-      <button class="exit-btn" onclick="location.href='index.html'">🗙 DISCONNECT</button>
-      <span class="main-title">CORE INTERFACE: LUIS</span>
-      <span id="status-field">STATUS: READY</span>
+  <div class="hud-overlay">
+    <!-- PANEL SUPERIOR: LETRAS ALFANUMÉRICAS Y GRIEGAS -->
+    <div class="top-matrix-panel interactive">
+      <button class="exit-btn" onclick="location.href='index.html'">🗙 INDEX</button>
+      <div class="greek-stream">
+        Ψ Ω α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ Luis_Core_v7.0 // 010110029 AΞ98-Γ717 ΔΘX88
+      </div>
     </div>
 
-    <!-- TERMINAL INFERIOR -->
+    <!-- SIMBOLOGÍA JEROGLÍFICA LATERAL -->
+    <div class="side-hieroglyphs left-glyphs">
+      <div>𓀀</div><div>𓁐</div><div>𓃠</div><div>𓅃</div><div>𓆗</div><div>𓉔</div>
+    </div>
+    <div class="side-hieroglyphs right-glyphs">
+      <div>𓊝</div><div>𓋹</div><div>𓌔</div><div>𓎵</div><div>𓏃</div><div>𓐍</div>
+    </div>
+
+    <!-- TERMINAL DE COMUNICACIÓN INFERIOR -->
     <div class="console-hud interactive">
-      <div id="log-display" class="log-view">>>> Conexión establecida de forma segura. Torbellino estabilizado en plano de fondo.</div>
+      <!-- Visor de Log con Scroll para textos masivos -->
+      <div id="log-display" class="log-view">>>> Enlace activo. Usa el ratón sobre la pantalla central para rotar, hacer zoom o desplazar la perspectiva visual de Luis.</div>
       
+      <!-- Escritura Sumeria Cuneiforme Base -->
+      <div class="sumerian-bar">
+         Hanging_Garden_Core: 項目 𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目
+      </div>
+
       <div class="input-group">
-        <button id="mute-btn" class="audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
-        <input id="query-input" placeholder="Escribe un comando a enviar..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
-        <button id="exec-btn" onclick="executeQuery()">ENVIAR</button>
+        <button id="mute-btn" class="action-btn audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
+        <input id="query-input" placeholder="Escribe tu consulta al sistema..." onkeydown="if(event.key === 'Enter' && !this.disabled) executeQuery()"/>
+        <button id="exec-btn" class="action-btn" onclick="executeQuery()">ENVIAR</button>
       </div>
     </div>
   </div>
 
   <script>
     /* COMPONENTES DEL MOTOR GRÁFICO */
-    let scene, camera, renderer, avatarModel, animationMixer;
-    let particleVortex, vortexGeometry, particleCount = 1200;
+    let scene, camera, renderer, avatarModel, animationMixer, navigationControls;
     let clock = new THREE.Clock();
     
-    /* CONTROL DE AUDIO Y SINCRO */
+    /* CONTROL DE FLUJO, HISTORIAL Y SINCRO */
     let speakingActive = false;
     let audioOutputEnabled = false;
     let discoveredFaceMeshes = [];
-    let speechEngine = window.speechSynthesis;
+    let jawBoneInstance = null; // Instancia directa para mover la mandíbula de respaldo
+    let conversationContext = []; // Historial de memoria local interna para dar continuidad mínima
+    
+    const speechEngine = window.speechSynthesis;
     let globalUtterance = null;
 
-    if (speechEngine.onvoiceschanged !== undefined) {
-      speechEngine.onvoiceschanged = () => { speechEngine.getVoices(); };
-    }
-
-    /* CONTROL DE COMUNICACIÓN E IDIOMA */
     function toggleAudioMaster() {
       audioOutputEnabled = !audioOutputEnabled;
       const btn = document.getElementById("mute-btn");
@@ -160,153 +201,134 @@
       }
     }
 
-    function autoDetectLanguage(text) {
-      const enPatterns = /\b(the|you|is|are|hello|thanks|processing|system|mode)\b/i;
-      return enPatterns.test(text) ? 'en-US' : 'es-ES';
-    }
-
+    /* CONTROLADORES DE HISTORIAL CONTINUO */
     async function executeQuery() {
       const inputEl = document.getElementById("query-input");
       const execBtn = document.getElementById("exec-btn");
       const logDisplay = document.getElementById("log-display");
-      const statusField = document.getElementById("status-field");
 
       const query = inputEl.value.trim();
       if (!query) return;
 
       inputEl.disabled = true; execBtn.disabled = true;
-      statusField.innerText = "STATUS: COMPUTING";
-      statusField.style.color = "var(--neon-purple)";
+
+      // Almacenamos los últimos diálogos para enviárselos al Worker y lograr continuidad
+      conversationContext.push({ role: "user", content: query });
+      if (conversationContext.length > 6) conversationContext.shift(); // Evitamos desbordes de memoria
 
       try {
         const res = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: query })
+          // Enviamos el historial completo para que el bot entienda el contexto de la conversación previa
+          body: JSON.stringify({ message: query, context: conversationContext })
         });
 
         const data = await res.json();
-        const replyText = data.reply || "Respuesta del sistema vacía.";
+        const replyText = data.reply || "Sin respuesta del núcleo.";
 
-        logDisplay.innerText = `Luis: ${query}\nAI: ${replyText}`;
+        conversationContext.push({ role: "assistant", content: replyText });
+
+        // Pintamos el texto sin riesgo de que se corte (Scroll automático al fondo)
+        logDisplay.innerText = `Luis: ${query}\n\nAI: ${replyText}`;
         logDisplay.scrollTop = logDisplay.scrollHeight;
-
-        const langMode = autoDetectLanguage(replyText);
 
         if (speechEngine.speaking) speechEngine.cancel();
 
         if (audioOutputEnabled) {
           globalUtterance = new SpeechSynthesisUtterance(replyText);
-          globalUtterance.lang = langMode;
+          // Forzado estricto de idioma dependiendo de la entrada
+          globalUtterance.lang = /\b(the|you|is|hello)\b/i.test(replyText) ? 'en-US' : 'es-ES';
           globalUtterance.rate = 1.0;
-          globalUtterance.pitch = 0.85;
+          globalUtterance.pitch = 0.9;
 
           speakingActive = true;
-          statusField.innerText = "STATUS: SPEAKING";
-          statusField.style.color = "var(--neon-cyan)";
 
-          globalUtterance.onend = () => { resetControls(inputEl, execBtn, statusField); };
-          globalUtterance.onerror = () => { resetControls(inputEl, execBtn, statusField); };
+          globalUtterance.onend = () => { resetControls(inputEl, execBtn); };
+          globalUtterance.onerror = () => { resetControls(inputEl, execBtn); };
 
           speechEngine.speak(globalUtterance);
         } else {
-          resetControls(inputEl, execBtn, statusField);
+          resetControls(inputEl, execBtn);
         }
 
       } catch (err) {
-        logDisplay.innerText = ">>> ERROR AL CONECTAR CON EL NÚCLEO.";
-        resetControls(inputEl, execBtn, statusField);
+        logDisplay.innerText = ">>> ERROR AL RECOPILAR LOS DATOS CONTINUOS.";
+        resetControls(inputEl, execBtn);
       }
       inputEl.value = "";
     }
 
-    function resetControls(input, btn, status) {
+    function resetControls(input, btn) {
       input.disabled = false; btn.disabled = false;
-      status.innerText = "STATUS: READY"; status.style.color = "var(--neon-cyan)";
       stopSpeechMouthCycle();
     }
 
     function stopSpeechMouthCycle() {
       speakingActive = false;
+      // Reseteo absoluto de morfologías
       discoveredFaceMeshes.forEach(mesh => {
         if (mesh.morphTargetInfluences) {
           forceMorph(mesh, 'mouth', 0);
           forceMorph(mesh, 'open', 0);
-          forceMorph(mesh, 'viseme', 0);
+          forceMorph(mesh, 'jaw', 0);
         }
       });
+      if (jawBoneInstance) jawBoneInstance.rotation.x = 0; // Cierre de hueso mandibular
     }
 
-    /* INITIALIZE MOTOR THREE.JS */
+    /* INICIALIZACIÓN DEL ENTORNO DE GRÁFICOS 3D */
     function initEngine() {
       const container = document.getElementById("canvas-container");
       
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x010003);
-      scene.fog = new THREE.FogExp2(0x010003, 0.08);
+      scene.background = new THREE.Color(0x020106);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-      adjustCameraView();
+      camera.position.set(0, 0.2, 2.2); // Cámara equilibrada en altura del rostro
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      // Esquema de Iluminación
-      scene.add(new THREE.AmbientLight(0x0f0b1e, 2.2));
-      const purpleLight = new THREE.PointLight(0x9d4edd, 5, 25);
-      purpleLight.position.set(2.5, 2, 2); scene.add(purpleLight);
-      const cyanLight = new THREE.PointLight(0x00ffe5, 4, 25);
-      cyanLight.position.set(-2.5, 1, 2); scene.add(cyanLight);
+      // Activación del ratón (OrbitControls) - Permite rotar, mover y hacer zoom
+      navigationControls = new THREE.OrbitControls(camera, renderer.domElement);
+      navigationControls.enableDamping = true;
+      navigationControls.dampingFactor = 0.05;
+      navigationControls.maxDistance = 6;
+      navigationControls.minDistance = 0.8;
+      navigationControls.target.set(0, 0, 0);
 
-      /* 🌪️ TORBELLINO INTERDIMENSIONAL (DESPLAZADO AL FONDO) */
-      vortexGeometry = new THREE.BufferGeometry();
-      const positions = new Float32Array(particleCount * 3);
-      const angleOffsets = [];
-      const radii = [];
+      // Luces cinemáticas estables
+      scene.add(new THREE.AmbientLight(0x111125, 2.5));
+      const goldLight = new THREE.PointLight(0xffb703, 3.5, 20);
+      goldLight.position.set(3, 2, 2); scene.add(goldLight);
+      const cyanLight = new THREE.PointLight(0x00ffe5, 3.5, 20);
+      cyanLight.position.set(-3, 1, 2); scene.add(cyanLight);
 
-      for (let i = 0; i < particleCount; i++) {
-        // Incrementamos el radio interno mínimo (1.5) para que no toquen el centro donde está el avatar
-        const radius = 1.5 + Math.random() * 4.5; 
-        const angle = Math.random() * Math.PI * 2;
-        radii.push(radius);
-        angleOffsets.push(angle);
-
-        positions[i * 3] = Math.cos(angle) * radius;
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.4;
-        // Desplazamiento nativo hacia atrás en el plano Z para evitar que manche el rostro
-        positions[i * 3 + 2] = (Math.sin(angle) * radius) - 1.8; 
-      }
-
-      vortexGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      const particleMat = new THREE.PointsMaterial({
-        color: 0x00ffe5, size: 0.032, transparent: true, opacity: 0.55,
-        blending: THREE.AdditiveBlending
-      });
-
-      particleVortex = new THREE.Points(vortexGeometry, particleMat);
-      particleVortex.userData = { angleOffsets: angleOffsets, radii: radii };
-      scene.add(particleVortex);
-
-      /* 🤖 CARGA Y AJUSTE DE MATERIALES DE LUIS-AVATAR */
+      /* CARGA DEL AVATAR CON MAPEO AVANZADO DE MANDÍBULA */
       const loader = new THREE.GLTFLoader();
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
         
-        // Colocación limpia de cuerpo entero en primer plano (Z = 0)
-        avatarModel.position.set(0, -1.0, 0);
-        applyResponsiveModelScale();
+        // Centrar y ajustar el tamaño del avatar dinámicamente
+        avatarModel.position.set(0, -0.9, 0);
+        if (window.innerWidth < 600) {
+          avatarModel.scale.set(0.7, 0.7, 0.7);
+        } else {
+          avatarModel.scale.set(0.85, 0.85, 0.85);
+        }
         scene.add(avatarModel);
 
+        // Escaneo profundo de la estructura del modelo
         avatarModel.traverse((child) => {
-          if (child.isMesh) {
-            if (child.morphTargetDictionary) discoveredFaceMeshes.push(child);
-            // Optimizamos propiedades para que el sombreado reaccione al contraste interdimensional
-            if (child.material) {
-              child.material.roughness = 0.5;
-              child.material.metalness = 0.2;
-            }
+          if (child.isMesh && child.morphTargetDictionary) {
+            discoveredFaceMeshes.push(child);
+          }
+          // Si el avatar tiene esqueleto articulado (Huesos), buscamos el de la mandíbula
+          if (child.isBone && (child.name.toLowerCase().includes('jaw') || child.name.toLowerCase().includes('mouth'))) {
+            jawBoneInstance = child;
           }
         });
 
@@ -329,73 +351,43 @@
       }
     }
 
-    function adjustCameraView() {
-      if (window.innerWidth < 600) {
-        camera.position.set(0, 0.1, 3.2); // Vista alejada para encuadre vertical en teléfonos
-      } else {
-        camera.position.set(0, 0.0, 2.1); // Vista en escritorio
-      }
-      camera.lookAt(0, -0.1, 0);
-    }
-
-    function applyResponsiveModelScale() {
-      if (!avatarModel) return;
-      if (window.innerWidth < 600) {
-        avatarModel.scale.set(0.68, 0.68, 0.68);
-      } else {
-        avatarModel.scale.set(0.85, 0.85, 0.85);
-      }
-    }
-
     function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      adjustCameraView();
-      applyResponsiveModelScale();
     }
 
-    /* BUCLE DE RENDER (ANIMATE) */
+    /* BUCLE PRINCIPAL DE ANIMACIÓN */
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
       const timeNow = Date.now();
 
       if (animationMixer) animationMixer.update(delta);
+      if (navigationControls) navigationControls.update(); // Mantiene fluido el control del ratón
 
-      /* Dinámica del Torbellino en Segundo Plano */
-      if (particleVortex) {
-        const positions = particleVortex.geometry.attributes.position.array;
-        const offsets = particleVortex.userData.angleOffsets;
-        const radii = particleVortex.userData.radii;
-
-        for (let i = 0; i < particleCount; i++) {
-          offsets[i] += (0.012 + (0.015 / radii[i])); 
-          positions[i * 3] = Math.cos(offsets[i]) * radii[i];
-          positions[i * 3 + 1] = Math.sin(timeNow * 0.0018 + radii[i]) * 0.12;
-          // Mantiene el desplazamiento hacia atrás fijo
-          positions[i * 3 + 2] = (Math.sin(offsets[i]) * radii[i]) - 1.8;
-        }
-        particleVortex.geometry.attributes.position.needsUpdate = true;
-        particleVortex.rotation.z += 0.001;
-      }
-
-      /* Gesticulación Facial Pura (Cuerpo Estoniano Fijo) */
+      /* ARTICULACIÓN DETALLADA DE LABIOS (CERO TEMBLORES) */
       if (avatarModel) {
-        if (speakingActive && audioOutputEnabled && discoveredFaceMeshes.length > 0) {
-          // Genera oscilaciones exclusivas para las mallas que tengan morphs de labios
-          const mouthWave = Math.abs(Math.sin(timeNow * 0.032)) * 0.85;
-          discoveredFaceMeshes.forEach(mesh => {
-            forceMorph(mesh, 'mouth', mouthWave);
-            forceMorph(mesh, 'open', mouthWave);
-            forceMorph(mesh, 'viseme', mouthWave);
-          });
-        }
-        
-        // Micro balanceo pasivo del cuerpo entero simulando ingravidez cuántica (Cero sacudidas)
-        if (!speakingActive) {
-          avatarModel.position.y = -1.0 + Math.sin(timeNow * 0.0012) * 0.03;
-          avatarModel.rotation.y = Math.cos(timeNow * 0.0008) * 0.02;
+        if (speakingActive && audioOutputEnabled) {
+          // Genera un movimiento oscilatorio orgánico exclusivo de boca
+          const mouthWave = Math.abs(Math.sin(timeNow * 0.035)) * 0.9;
+          
+          if (discoveredFaceMeshes.length > 0) {
+            // Caso 1: Si tiene claves de forma facial, altera solo mallas internas de boca
+            discoveredFaceMeshes.forEach(mesh => {
+              forceMorph(mesh, 'mouth', mouthWave);
+              forceMorph(mesh, 'open', mouthWave);
+              forceMorph(mesh, 'jaw', mouthWave);
+            });
+          } 
+          
+          if (jawBoneInstance) {
+            // Caso 2: Forzado anatómico sobre el hueso maxilar inferior (Garantiza apertura física)
+            jawBoneInstance.rotation.x = mouthWave * 0.15;
+          }
+        } else {
+          // Inactividad: Micro movimientos gravitatorios lentos y fluidos en el espacio
+          avatarModel.position.y = -0.9 + Math.sin(timeNow * 0.001) * 0.02;
         }
       }
 
