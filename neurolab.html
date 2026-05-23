@@ -251,12 +251,13 @@
   <div class="hud-overlay">
     <div class="top-matrix-panel interactive">
       <button class="exit-btn" onclick="location.href='index.html'">𗙚 INDEX</button>
-      <div class="greek-stream">Ω Luis_Core_v14.6 // COGNITIVE DETECTOR // EMERGENCY STABLE PRODUCTION CORE</div>
+      <div class="greek-stream" id="hud-satellite-time">Ω LUIS_CORE // DETECTOR SATELLITAL // BUSCANDO HORARIO INTERNACIONAL...</div>
     </div>
 
     <div class="console-hud interactive">
       <div class="meta-metrics-bar">
         <div>OPERADOR: <span id="hud-user-tag" style="color:#fff;">ANÓNIMO</span></div>
+        <div>ZONA HORARIA: <span id="hud-timezone-tag" style="color:#fff;">DETECTANDO...</span></div>
         <div>TIEMPO SESIÓN: <span id="hud-timer-tag" style="color:#fff;">00:00</span></div>
       </div>
 
@@ -271,7 +272,7 @@
       </div>
 
       <div class="privacy-notice">
-        ▲ PROTOCOLO DE CONVERGENCIA ESTABLE EMITIDO: NATIVO CASTELLANO AJUSTADO ▲
+        ▲ PROTOCOLO DE CONVERGENCIA AUDIO MASCULINO MULTILENGUAJE ACTIVADO ▲
       </div>
     </div>
   </div>
@@ -295,6 +296,25 @@
     let globalUtterance = null;
     let systemVoicesAvailable = [];
 
+    // ================= DETECTOR GLOBAL DE PAÍS Y HORA SATELLITAL =================
+    function initSatelliteClock() {
+      setInterval(() => {
+        const now = new Date();
+        
+        // Obtiene el nombre amigable de la Zona Horaria del dispositivo (ej: "America/Bogota" o "Europe/Madrid")
+        const timeZoneName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.getElementById("hud-timezone-tag").innerText = timeZoneName.split('/').pop().replace('_', ' ').toUpperCase();
+
+        // Formatea la hora completa del país local de manera legible
+        const localTimeStr = now.toLocaleTimeString(navigator.language, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const localDateStr = now.toLocaleDateString(navigator.language, { day: 'numeric', month: 'short', year: 'numeric' });
+        
+        // Actualiza el HUD central superior con la geolocalización de hora del usuario
+        document.getElementById("hud-satellite-time").innerText = `Ω CORE LUIS v14.6 // OPERATIVO // SATELLITE LOC: [${timeZoneName.toUpperCase()}] // ${localDateStr} // ${localTimeStr}`;
+      }, 1000);
+    }
+
+    // ================= ENGINES DE AUDIO AVANZADOS MASCULINOS MULTILENGUAJE =================
     function loadAvailableVoices() {
       if (typeof speechSynthesis !== 'undefined') {
         systemVoicesAvailable = speechSynthesis.getVoices();
@@ -305,6 +325,33 @@
       speechSynthesis.onvoiceschanged = loadAvailableVoices;
     }
 
+    // Detecta el idioma del texto de respuesta para alternar la voz de forma fluida (Multilenguaje)
+    function detectResponseLanguage(text) {
+      const clean = text.toLowerCase();
+      // Patrones simples de verificación rápida
+      if (clean.includes(" the ") || clean.includes(" welcome ") || clean.includes(" system ")) return "en-US";
+      if (clean.includes(" bonjour ") || clean.includes(" système ")) return "fr-FR";
+      if (clean.includes(" ciao ")) return "it-IT";
+      return "es-ES"; // Default nativo preferido de Luis
+    }
+
+    function selectBestMaleVoice(targetLang) {
+      loadAvailableVoices();
+      
+      // 1. Filtrar voces del idioma correspondiente
+      let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(targetLang.substring(0,2)));
+      if (langVoices.length === 0) langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith("es"));
+
+      // 2. Intentar buscar voces explícitamente masculinas usando strings clave (vital en smartphones)
+      let maleVoice = langVoices.find(v => {
+        const name = v.name.toLowerCase();
+        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("microsoft") || name.includes("google") || name.includes("jarvis");
+      });
+
+      // Fallback si no encuentra palabra clave "masculina", tomamos la de mejor calidad del sistema
+      return maleVoice || langVoices[0] || systemVoicesAvailable[0];
+    }
+
     function registerUser() {
       const input = document.getElementById("username-input");
       const name = input.value.trim();
@@ -312,8 +359,9 @@
         userName = name;
         document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema de audio bloqueado en modo estable nativo.`;
+        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema de audio multicanal configurado para avatar masculino.`;
         startSessionTimer();
+        initSatelliteClock();
       }
     }
 
@@ -447,19 +495,18 @@
 
           globalUtterance = new SpeechSynthesisUtterance(cleanText);
           
-          // FORZADO MANDATORIO EN CASTELLANO PARA EVITAR CRUCES DE IDIOMA EN LA TESIS
-          globalUtterance.lang = 'es-ES';
-          globalUtterance.rate = 1.0;
-          globalUtterance.pitch = 0.9;
+          // Detección e inyección dinámica del lenguaje y voz correspondiente
+          const targetLanguage = detectResponseLanguage(cleanText);
+          globalUtterance.lang = targetLanguage;
+          
+          // Forzado de parámetros para robustecer el tono masculino en dispositivos móviles
+          globalUtterance.rate = 0.95;  // Velocidad sutilmente más pausada para ganar cuerpo mecánico
+          globalUtterance.pitch = 0.85; // Bajamos el pitch (tono) para forzar un registro más grave/masculino
           globalUtterance.volume = 1.0;
 
-          loadAvailableVoices(); 
-
-          // Buscar de forma segura cualquier servicio de voz en español nativo cargado en la máquina
-          let stableSpanishVoice = systemVoicesAvailable.find(v => v.lang.toLowerCase().startsWith('es'));
-          
-          if (stableSpanishVoice) {
-            globalUtterance.voice = stableSpanishVoice;
+          const chosenVoice = selectBestMaleVoice(targetLanguage);
+          if (chosenVoice) {
+            globalUtterance.voice = chosenVoice;
           }
 
           globalUtterance.onstart = () => {
