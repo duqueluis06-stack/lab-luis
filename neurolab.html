@@ -282,7 +282,7 @@
     let starParticles, nebulaMesh, neonPyramid, starCount = 1200;
     let clock = new THREE.Clock();
     
-    // 🔥 1. VARIABLES GLOBALES INTEGRADAS DE MANERA ESTRICTA
+    // VARIABLES GLOBALES INTEGRADAS DE MANERA ESTRICTA
     let mouthMeshes = [];
     let speakingActive = false;
 
@@ -425,23 +425,26 @@
         renderLogHistory();
 
         if (audioOutputEnabled) {
-         const cleanText = replyText
-  .replace(/\*/g, "")
-  .replace(/#/g, "")
-  .replace(/_/g, "")
-  .replace(/`/g, "")
-  .replace(/\n/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+          const cleanText = replyText
+            .replace(/\*/g, "")
+            .replace(/#/g, "")
+            .replace(/_/g, "")
+            .replace(/`/g, "")
+            .replace(/\n/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
 
-globalUtterance = new SpeechSynthesisUtterance(cleanText);
+          globalUtterance = new SpeechSynthesisUtterance(cleanText);
 
-globalUtterance.lang = 'es-ES';
-globalUtterance.rate = 0.92;
-globalUtterance.pitch = 1.0;
-globalUtterance.volume = 1.0;
+          // DETECCIÓN DINÁMICA DEL IDIOMA DEL USUARIO
+          const userLang = navigator.language || navigator.userLanguage || 'es-ES';
+          globalUtterance.lang = userLang;
+          
+          globalUtterance.rate = 0.92;
+          globalUtterance.pitch = 1.0;
+          globalUtterance.volume = 1.0;
 
-          // 🔥 4. CONEXIÓN DIRECTA CON DISPARADORES DE VOZ REALES (CRÍTICO)
+          // CONEXIÓN DIRECTA CON DISPARADORES DE VOZ REALES (CRÍTICO)
           globalUtterance.onstart = () => {
             speakingActive = true;
             setSpeakingState(true);
@@ -511,7 +514,7 @@ globalUtterance.volume = 1.0;
       nebulaMesh.position.set(0, 0, -5);
       scene.add(nebulaMesh);
 
-      // 🌟 PIRÁMIDE DE NEÓN SEPARADA (Se mueve a zona superior limpia para que no interfiera abajo)
+      // PIRÁMIDE DE NEÓN SEPARADA
       const pyramidGeo = new THREE.ConeGeometry(0.3, 0.5, 4);
       const pyramidWire = new THREE.WireframeGeometry(pyramidGeo);
       const pyramidMat = new THREE.LineBasicMaterial({ color: 0x00ffe5, linewidth: 2 });
@@ -547,13 +550,13 @@ globalUtterance.volume = 1.0;
         const scaleFactor = currentRatio < 1 ? 0.48 : 0.65;
         avatarModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-        // 🧬 🔥 2. INYECCIÓN DEL BLOQUE DE DETECCIÓN DE LIP SYNC JUSTO ANTES DE scene.add()
+        // INYECCIÓN DEL BLOQUE DE DETECCIÓN DE LIP SYNC JUSTO ANTES DE scene.add()
         avatarModel.traverse((c) => {
           if (!c.isMesh) return;
 
           const name = (c.name || "").toLowerCase();
 
-          // 🎯 MORPH TARGET LIPS
+          // MORPH TARGET LIPS
           if (c.morphTargetDictionary) {
             let mouthKeys = [];
 
@@ -606,11 +609,9 @@ globalUtterance.volume = 1.0;
       
       if (avatarModel) {
         if (isMobile) {
-          // En móviles se desplaza al tercio superior libre, alejando ligeramente la cámara/modelo
           avatarModel.position.set(0, 0.15, -0.3);
           avatarModel.scale.set(0.46, 0.46, 0.46);
         } else {
-          // PC / Pantalla Horizontal Limpia
           avatarModel.position.set(0, -0.62, 0);
           avatarModel.scale.set(0.65, 0.65, 0.65);
         }
@@ -618,11 +619,9 @@ globalUtterance.volume = 1.0;
 
       if (neonPyramid) {
         if (isMobile) {
-          // Flota independientemente arriba a la izquierda del rostro en móviles sin pisar nada
           neonPyramid.position.set(-0.45, 0.6, -0.2);
           neonPyramid.scale.set(0.7, 0.7, 0.7);
         } else {
-          // Se sitúa como nodo táctico izquierdo flotando de forma equilibrada en PC
           neonPyramid.position.set(-0.9, 0.1, 0);
           neonPyramid.scale.set(1.0, 1.0, 1.0);
         }
@@ -658,14 +657,13 @@ globalUtterance.volume = 1.0;
       if (starParticles) starParticles.rotation.y += 0.0002;
       if (nebulaMesh) nebulaMesh.rotation.z = Math.sin(timeNow * 0.00008) * 0.05;
       
-      // Dinámica de la pirámide cuántica flotante
       if (neonPyramid) {
         neonPyramid.rotation.y += 0.01;
         neonPyramid.rotation.x = Math.sin(timeNow * 0.001) * 0.1; 
-        neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0005; // Leve balanceo ingrávido
+        neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0005;
       }
 
-      // 🔥 3. CICLO ACTIVO DE ANIMACIÓN Y GESTIÓN DE LABIOS / RESPIRACIÓN BASE
+      // CICLO ACTIVO DE ANIMACIÓN Y GESTIÓN DE LABIOS
       if (avatarModel) {
         if (speakingActive) {
 
@@ -700,7 +698,6 @@ globalUtterance.volume = 1.0;
           });
 
         } else {
-          // respiración estable
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
           avatarModel.position.y = base + Math.sin(Date.now() * 0.001) * 0.008;
         }
