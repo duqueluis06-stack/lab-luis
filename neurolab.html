@@ -286,6 +286,7 @@
     </div>
   </div>
 
+  <!-- Motor Core y Lógica de Sincronización Labial -->
   <script>
     let scene, camera, renderer, avatarModel, animationMixer, navigationControls;
     let starParticles, nebulaMesh, neonPyramid, starCount = 1200;
@@ -302,7 +303,6 @@
     let timerInterval = null;
 
     const speechEngine = window.speechSynthesis;
-    let globalUtterance = null;
     let systemVoicesAvailable = [];
 
     function initSatelliteClock() {
@@ -422,6 +422,8 @@
       if (speechEngine.speaking) {
         speechEngine.cancel();
       }
+      resetMouthTargets();
+      speakingActive = false;
       setSpeakingState(false);
       document.getElementById("log-display").innerHTML += "\n<span style='color:var(--neon-red)'>>>> Transmisión de voz interrumpida por el operador.</span>";
       const logDisplay = document.getElementById("log-display");
@@ -442,6 +444,16 @@
         inputEl.disabled = false;
         execBtn.disabled = false;
       }
+    }
+
+    function resetMouthTargets() {
+      mouthMeshes.forEach((m) => {
+        if (m.mesh.morphTargetInfluences && m.keys.length) {
+          m.keys.forEach((k) => {
+            m.mesh.morphTargetInfluences[k] = 0;
+          });
+        }
+      });
     }
 
     async function executeQuery() {
@@ -482,44 +494,47 @@
             .replace(/\s+/g, " ")
             .trim();
 
-          globalUtterance = new SpeechSynthesisUtterance(cleanText);
+          const utterance = new SpeechSynthesisUtterance(cleanText);
           const userSelectedLang = document.getElementById("voice-lang-select").value;
-          globalUtterance.lang = userSelectedLang;
+          utterance.lang = userSelectedLang;
           
-          globalUtterance.rate = 0.96;
-          globalUtterance.volume = 1.0;
+          utterance.rate = 0.96;
+          utterance.volume = 1.0;
           
           if (userSelectedLang.startsWith("es")) {
-            globalUtterance.pitch = 0.86;
+            utterance.pitch = 0.86;
           } else if (userSelectedLang.startsWith("fr")) {
-            globalUtterance.pitch = 0.93;
+            utterance.pitch = 0.93;
           } else {
-            globalUtterance.pitch = 0.90;
+            utterance.pitch = 0.90;
           }
 
           const chosenVoice = selectBestVoiceForSelectedLanguage(userSelectedLang);
           if (chosenVoice) {
-            globalUtterance.voice = chosenVoice;
+            utterance.voice = chosenVoice;
           }
 
-          globalUtterance.onstart = () => {
+          utterance.onstart = () => {
             speakingActive = true;
             setSpeakingState(true);
           };
 
-          globalUtterance.onend = () => {
+          utterance.onend = () => {
             speakingActive = false;
+            resetMouthTargets();
             setSpeakingState(false);
             inputEl.disabled = false; execBtn.disabled = false;
           };
 
-          globalUtterance.onerror = () => {
+          utterance.onerror = () => {
             speakingActive = false;
+            resetMouthTargets();
             setSpeakingState(false);
             inputEl.disabled = false; execBtn.disabled = false;
           };
 
-          speechEngine.speak(globalUtterance);
+          window.currentUtterance = utterance;
+          speechEngine.speak(utterance);
         } else {
           inputEl.disabled = false; execBtn.disabled = false;
         }
@@ -612,7 +627,7 @@
             let mouthKeys = [];
             Object.keys(c.morphTargetDictionary).forEach((k) => {
               const kl = k.toLowerCase();
-              if (kl.includes("mouth") || kl.includes("jaw") || kl.includes("lip") || kl.includes("viseme")) {
+              if (kl.includes("mouth") || kl.includes("jaw") || kl.includes("lip") || kl.includes("viseme") || kl.includes("teeth")) {
                 mouthKeys.push(c.morphTargetDictionary[k]);
               }
             });
@@ -621,8 +636,10 @@
             }
           }
 
-          if (name.includes("face") || name.includes("head")) {
-            mouthMeshes.push({ mesh: c, keys: [] });
+          if (name.includes("face") || name.includes("head") || name.includes("mouth")) {
+            if (!mouthMeshes.some(m => m.mesh === c)) {
+              mouthMeshes.push({ mesh: c, keys: [] });
+            }
           }
         });
 
@@ -701,10 +718,9 @@
       if (avatarModel) {
         if (speakingActive) {
           const t = Date.now() * 0.01;
-          const mouth = Math.abs(Math.sin(t * 0.6) * 0.6 + Math.sin(t * 1.9) * 0.4);
+          const mouth = Math.abs(Math.sin(t * 0.8) * 0.5 + Math.sin(t * 2.3) * 0.5);
 
-          avatarModel.rotation.y = Math.sin(timeNow * 0.0015) * 0.03;
-          avatarModel.rotation.z = Math.cos(timeNow * 0.001) * 0.01;
+          avatarModel.rotation.y = Math.sin(timeNow * 0.002) * 0.04;
 
           mouthMeshes.forEach((m) => {
             if (m.mesh.morphTargetInfluences && m.keys.length) {
@@ -717,7 +733,7 @@
                 const y = pos.getY(i);
                 const z = pos.getZ(i);
                 if (y > 0.2 && y < 0.6 && z > 0.05) {
-                  pos.setY(i, y + mouth * 0.01);
+                  pos.setY(i, y + mouth * 0.012);
                 }
               }
               pos.needsUpdate = true;
@@ -727,7 +743,6 @@
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
           avatarModel.position.y = base + Math.sin(timeNow * 0.001) * 0.008;
           avatarModel.rotation.y = Math.sin(timeNow * 0.0005) * 0.01; 
-          avatarModel.rotation.z = 0;
         }
       }
 
