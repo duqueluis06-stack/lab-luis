@@ -143,11 +143,11 @@
       font-family: monospace; font-size: 10px; padding: 2px; outline: none; cursor: pointer;
     }
 
-    /* MEJORADO: Botón Mute con alta visibilidad táctil */
+    /* Botón Mute adaptado para barra de métricas superior sin romper ancho */
     .audio-hud-btn {
       background: #000; border: 1px solid var(--neon-gold); color: var(--neon-gold);
-      font-family: monospace; font-size: 11px; padding: 6px 12px; cursor: pointer; font-weight: bold;
-      text-shadow: 0 0 3px var(--neon-gold); box-shadow: 0 0 5px rgba(255,183,3,0.2);
+      font-family: monospace; font-size: 10px; padding: 2px 8px; cursor: pointer; font-weight: bold;
+      text-shadow: 0 0 3px var(--neon-gold);
     }
     .audio-hud-btn.active { background: var(--neon-gold); color: #000; }
 
@@ -155,7 +155,7 @@
       font-size: 11px; color: rgba(0, 255, 229, 0.4); overflow: hidden; white-space: nowrap; text-overflow: clip;
     }
 
-    /* CONTENEDOR MÁS AMPLIO EN HORIZONTAL */
+    /* CONTENEDOR DE ENTRADA MAXIMIZADO (Sin botón Mute al lado) */
     .input-group { display: flex; gap: 6px; width: 100%; align-items: flex-end; }
      
     textarea.main-chat-input {
@@ -170,7 +170,7 @@
 
     button.action-btn {
       background: #000; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
-      padding: 10px 16px; font-family: monospace; cursor: pointer; font-weight: bold; font-size: 12px; flex-shrink: 0;
+      padding: 10px 20px; font-family: monospace; cursor: pointer; font-weight: bold; font-size: 12px; flex-shrink: 0;
       height: 42px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
     }
     button.action-btn:hover { background: var(--neon-cyan); color: #000; }
@@ -233,6 +233,7 @@
     <div class="console-hud interactive">
       <div class="meta-metrics-bar">
         <div>OPERADOR: <span id="hud-user-tag" style="color:#fff;">ANÓNIMO</span></div>
+        <button id="mute-btn" class="audio-hud-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
         <div class="lang-selector-container">
           <span>IDIOMA DE RESPUESTA:</span>
           <select id="voice-lang-select" class="lang-select">
@@ -248,9 +249,8 @@
        
       <div class="sumerian-bar">𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目 𓋹 𓏃 𓃠</div>
 
-      <!-- MEJORADO: El botón Mute ahora se ve grande y está perfectamente alineado horizontalmente con el chat -->
+      <!-- MEJORADO: El chat ahora toma todo el ancho horizontal disponible junto al botón enviar -->
       <div class="input-group">
-        <button id="mute-btn" class="audio-hud-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
         <textarea id="query-input" class="main-chat-input" placeholder="Escribe tu consulta táctica aquí..." rows="1" oninput="autoExpandTextarea(this)" onkeydown="handleTextareaKey(event)"></textarea>
         <button id="exec-btn" class="action-btn" onclick="handleExecutionClick()">ENVIAR</button>
       </div>
@@ -323,16 +323,14 @@
       }
     }
 
-    // REPARADO: Filtro absoluto y quirúrgico anti-femenino para el sistema táctico móvil
+    // CONTROL RADICAL: Descalificación de firmas de voz femeninas y blindaje de audio grave
     function selectBestVoiceForSelectedLanguage(targetLang) {
       loadAvailableVoices();
       let baseLang = targetLang.substring(0, 2).toLowerCase();
       
-      // 1. Filtrar de entrada por el idioma base requerido (es, en, fr)
       let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(baseLang));
       if (langVoices.length === 0) return null;
 
-      // 2. Lista negra radical de firmas de voz femeninas integradas en sistemas operativos comunes
       let filteredMaleVoices = langVoices.filter(v => {
         const name = v.name.toLowerCase();
         return !name.includes("helena") && !name.includes("sabina") && !name.includes("zira") && 
@@ -343,10 +341,8 @@
                !name.includes("chloe") && !name.includes("samantha") && !name.includes("hazel");
       });
 
-      // Si el filtro estricto nos deja vacíos por culpa del sistema operativo, usamos las disponibles del idioma
       let pool = filteredMaleVoices.length > 0 ? filteredMaleVoices : langVoices;
 
-      // 3. Buscar proactivamente perfiles con etiquetas explícitas masculinas o IDs estándar masculinos
       let preferredVoice = pool.find(v => {
         const name = v.name.toLowerCase();
         if (baseLang === "es") {
@@ -354,7 +350,7 @@
         } else if (baseLang === "fr") {
           return name.includes("paul") || name.includes("homme") || name.includes("male") || name.includes("denis") || name.includes("france");
         } else if (baseLang === "en") {
-          return name.includes("george") || name.includes("david") || name.includes("male") || name.includes("google us english male") || name.includes("mark") || name.includes("ravi");
+          return name.includes("george") || name.includes("david") || name.includes("male") || name.includes("google us english male") || name.includes("mark");
         }
         return name.includes("male") || name.includes("homme") || name.includes("hombre");
       });
@@ -459,8 +455,6 @@
       if (!query) return;
 
       inputEl.disabled = true; execBtn.disabled = true;
-      
-      // Capturar el idioma actual seleccionado en el menú antes de mandar la petición
       const currentSelectedLanguage = document.getElementById("voice-lang-select").value;
       
       conversationHistory.push({ role: "user", content: query });
@@ -474,7 +468,7 @@
           body: JSON.stringify({ 
             message: query, 
             context: conversationHistory,
-            lang: currentSelectedLanguage // Informamos al backend el idioma exacto para evitar cruces
+            lang: currentSelectedLanguage
           })
         });
 
@@ -499,23 +493,16 @@
 
           const utterance = new SpeechSynthesisUtterance(cleanText);
           
-          // Sincronización estricta del motor TTS con el código del selector
           utterance.lang = currentSelectedLanguage;
           utterance.rate = 0.95; 
           utterance.volume = 1.0;
           
-          if (currentSelectedLanguage.startsWith("es")) {
-            utterance.pitch = 0.85; 
-          } else if (currentSelectedLanguage.startsWith("fr")) {
-            utterance.pitch = 0.82; // Ajuste varonil francés
-          } else {
-            utterance.pitch = 0.80;
-          }
+          // ARREGLO EXTREMO: Tono ultra grave (0.65) en cualquier dispositivo móvil para matar agudos femeninos
+          utterance.pitch = 0.65;
 
           const chosenVoice = selectBestVoiceForSelectedLanguage(currentSelectedLanguage);
           if (chosenVoice) {
             utterance.voice = chosenVoice;
-            // Doble validación en vivo para navegadores móviles caprichosos
             if(chosenVoice.lang && !chosenVoice.lang.toLowerCase().startsWith(currentSelectedLanguage.substring(0,2))) {
                utterance.lang = chosenVoice.lang;
             }
