@@ -386,7 +386,6 @@
     }
 
     function setSpeakingState(active) {
-      speakingActive = active;
       const execBtn = document.getElementById("exec-btn");
       const inputEl = document.getElementById("query-input");
 
@@ -445,7 +444,7 @@
           globalUtterance.lang = userLang;
           
           globalUtterance.rate = 0.95;
-          globalUtterance.pitch = 0.9; // Ligera reducción de tono para dar más cuerpo masculino
+          globalUtterance.pitch = 0.9; 
           globalUtterance.volume = 1.0;
 
           // ASIGNACIÓN EXCLUSIVA Y ÚNICA DE VOZ MASCULINA
@@ -569,18 +568,16 @@
       loader.load("luis-avatar2.glb", (gltf) => {
         avatarModel = gltf.scene;
         
-        // Configurar escalas iniciales base antes de recorrer vértices
         const currentRatio = window.innerWidth / window.innerHeight;
         const scaleFactor = currentRatio < 1 ? 0.48 : 0.65;
         avatarModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-        // INYECCIÓN DEL BLOQUE DE DETECCIÓN DE LIP SYNC JUSTO ANTES DE scene.add()
+        // INYECCIÓN DEL BLOQUE DE DETECCIÓN DE LIP SYNC
         avatarModel.traverse((c) => {
           if (!c.isMesh) return;
 
           const name = (c.name || "").toLowerCase();
 
-          // MORPH TARGET LIPS
           if (c.morphTargetDictionary) {
             let mouthKeys = [];
 
@@ -605,7 +602,6 @@
             }
           }
 
-          // fallback cara
           if (name.includes("face") || name.includes("head")) {
             mouthMeshes.push({
               mesh: c,
@@ -627,7 +623,6 @@
       animate();
     }
 
-    // CONTROL COMPACTO DE ENTORNOS SEPARADOS Y ANTISOLAPAMIENTO
     function repositionLayoutAccordingToDevice() {
       const isMobile = window.innerWidth / window.innerHeight < 1;
       
@@ -662,7 +657,8 @@
       if(navigationControls) navigationControls.target.set(0, isMobile ? 0.4 : 0.2, 0);
     }
 
-    onWindowResize() {
+    // EVENTO DE REDIMENSIONAMIENTO CORREGIDO
+    function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -687,40 +683,29 @@
         neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0005;
       }
 
-      // CICLO ACTIVO DE ANIMACIÓN Y GESTIÓN DE LABIOS
+      // ANIMACIÓN ADAPTATIVA DE LABIOS
       if (avatarModel) {
         if (speakingActive) {
-
           const t = Date.now() * 0.01;
           const mouth = Math.abs(Math.sin(t * 0.6) * 0.6 + Math.sin(t * 1.9) * 0.4);
 
           mouthMeshes.forEach((m) => {
-
             if (m.mesh.morphTargetInfluences && m.keys.length) {
-
               m.keys.forEach((k) => {
                 m.mesh.morphTargetInfluences[k] = mouth;
               });
-
             } else if (m.mesh.geometry) {
-
               const pos = m.mesh.geometry.attributes.position;
-
               for (let i = 0; i < pos.count; i++) {
-
                 const y = pos.getY(i);
                 const z = pos.getZ(i);
-
                 if (y > 0.2 && y < 0.6 && z > 0.05) {
                   pos.setY(i, y + mouth * 0.01);
                 }
-
               }
-
               pos.needsUpdate = true;
             }
           });
-
         } else {
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
           avatarModel.position.y = base + Math.sin(Date.now() * 0.001) * 0.008;
