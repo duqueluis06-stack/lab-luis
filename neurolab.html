@@ -135,7 +135,7 @@
       background: #000; border: 1px solid var(--neon-gold); color: #fff; padding: 5px; font-family: monospace; font-size: 11px; outline: none;
     }
 
-    /* CONSOLA DE COMUNICACIONES MULTIDISPOSITIVO ESTRELLADA Y OPTIMIZADA */
+    /* CONSOLA DE COMUNICACIONES MULTIDISPOSITIVO */
     .console-hud {
       background: rgba(5, 3, 12, 0.65);
       backdrop-filter: blur(12px) saturate(160%);
@@ -291,7 +291,6 @@
 
       <div class="input-group">
         <button id="mute-btn" class="action-btn audio-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
-        <!-- Cambiado a Textarea Expandible -->
         <textarea id="query-input" class="main-chat-input" placeholder="Escribe tu consulta táctica aquí..." rows="1" oninput="autoExpandTextarea(this)" onkeydown="handleTextareaKey(event)"></textarea>
         <button id="exec-btn" class="action-btn" onclick="handleExecutionClick()">ENVIAR</button>
       </div>
@@ -340,10 +339,8 @@
       speechSynthesis.onvoiceschanged = loadAvailableVoices;
     }
 
-    // CONTROL INTELIGENTE DE ALTURA DE LA CAJA DE TEXTO
     function autoExpandTextarea(el) {
       el.style.height = 'auto';
-      const baseHeight = window.innerWidth < 768 ? 38 : 42;
       el.style.height = Math.min(el.scrollHeight, 120) + 'px';
     }
 
@@ -357,27 +354,23 @@
       }
     }
 
+    // ARREGLADO: Filtro robusto para evitar acentos cruzados y forzar voz masculina nativa
     function selectBestVoiceForSelectedLanguage(targetLang) {
       loadAvailableVoices();
       let baseLang = targetLang.substring(0, 2).toLowerCase();
       
-      // Filtrar voces que correspondan estrictamente al idioma base
+      // Filtrar voces que correspondan ESTRICTAMENTE al idioma seleccionado
       let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(baseLang));
       
       if (langVoices.length === 0) {
-        // Fallback robusto buscando variantes masculinas globales
-        let absoluteMale = systemVoicesAvailable.find(v => {
-          const n = v.name.toLowerCase();
-          return n.includes("david") || n.includes("microsoft") || n.includes("male") || n.includes("hombre");
-        });
-        return absoluteMale || systemVoicesAvailable[0];
+        return null; // Forzar el uso del motor por defecto del sistema antes que cruzar acentos
       }
 
-      // Búsqueda exhaustiva de patrones masculinos nativos para móviles y PC
+      // Priorizar nombres conocidos de voces masculinas nativas de alta calidad según el idioma
       let preferredVoice = langVoices.find(v => {
         const name = v.name.toLowerCase();
         if (baseLang === "es") {
-          return name.includes("david") || name.includes("hombre") || name.includes("male") || name.includes("julius") || name.includes("mexico") || name.includes("helena") === false;
+          return (name.includes("david") || name.includes("microsoft") || name.includes("hombre") || name.includes("male") || name.includes("julius")) && !name.includes("helena") && !name.includes("sabina");
         } else if (baseLang === "fr") {
           return name.includes("paul") || name.includes("homme") || name.includes("male") || name.includes("denis");
         } else if (baseLang === "en") {
@@ -385,11 +378,6 @@
         }
         return name.includes("male") || name.includes("homme");
       });
-
-      // Si no encuentra coincidencia explícita por palabra clave masculina, evita conocidas voces femeninas fijas por defecto
-      if (!preferredVoice) {
-        preferredVoice = langVoices.find(v => !v.name.toLowerCase().includes("zira") && !v.name.toLowerCase().includes("sabina") && !v.name.toLowerCase().includes("hazel"));
-      }
 
       return preferredVoice || langVoices[0];
     }
@@ -401,9 +389,10 @@
         userName = name;
         document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Selector manual habilitado. Filtros de modulación nativa activados de forma estricta.`;
+        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema de sincronización de labios inicializado.\n>>> Filtros de modulación nativa activados de forma estricta.`;
         startSessionTimer();
         initSatelliteClock();
+        initEngine(); // Inicializa el entorno 3D tras el Login exitoso
       }
     }
 
@@ -559,16 +548,15 @@
           const userSelectedLang = document.getElementById("voice-lang-select").value;
           
           utterance.lang = userSelectedLang;
-          utterance.rate = 0.98;
+          utterance.rate = 0.95;
           utterance.volume = 1.0;
           
-          // Ajuste fino de tono bajo y masculino según lenguaje
           if (userSelectedLang.startsWith("es")) {
-            utterance.pitch = 0.82;
+            utterance.pitch = 0.80; // Tono bajo, más humano y masculino
           } else if (userSelectedLang.startsWith("fr")) {
-            utterance.pitch = 0.85;
+            utterance.pitch = 0.82;
           } else {
-            utterance.pitch = 0.80;
+            utterance.pitch = 0.78;
           }
 
           const chosenVoice = selectBestVoiceForSelectedLanguage(userSelectedLang);
@@ -586,7 +574,7 @@
             resetMouthTargets();
             setSpeakingState(false);
             inputEl.disabled = false; execBtn.disabled = false;
-            inputEl.style.height = 'auto'; // Reset de altura del textarea
+            inputEl.style.height = 'auto';
           };
 
           utterance.onend = endHandler;
@@ -718,6 +706,8 @@
           animationMixer = new THREE.AnimationMixer(avatarModel);
           animationMixer.clipAction(gltf.animations[0]).play();
         }
+      }, undefined, (error) => {
+        console.error("Error cargando el avatar:", error);
       });
 
       window.addEventListener('resize', onWindowResize);
@@ -729,7 +719,6 @@
       
       if (avatarModel) {
         if (isMobile) {
-          // Desplazamiento estratégico hacia arriba en móviles para despejar el área de escritura expandible
           avatarModel.position.set(0, 0.28, -0.3);
           avatarModel.scale.set(0.44, 0.44, 0.44);
         } else {
@@ -767,6 +756,7 @@
       repositionLayoutAccordingToDevice();
     }
 
+    // ARREGLADO: Bucle de animación completo con modulación de labios interactiva
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
@@ -776,47 +766,37 @@
       if (navigationControls) navigationControls.update();
 
       if (starParticles) starParticles.rotation.y += 0.0002;
-      if (nebulaMesh) nebulaMesh.rotation.z = Math.sin(timeNow * 0.00008) * 0.05;
-      
       if (neonPyramid) {
         neonPyramid.rotation.y += 0.01;
-        neonPyramid.rotation.x = Math.sin(timeNow * 0.001) * 0.1; 
         neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0005;
       }
 
-      if (avatarModel) {
-        if (speakingActive) {
-          const t = Date.now() * 0.015;
-          const mouthInfluence = Math.abs(Math.sin(t * 1.2) * 0.45 + Math.sin(t * 2.5) * 0.25);
-          avatarModel.rotation.y = Math.sin(timeNow * 0.002) * 0.04;
-
-          mouthMeshes.forEach((m) => {
-            if (m.mesh.morphTargetInfluences && m.keys.length) {
-              m.keys.forEach((k) => {
-                m.mesh.morphTargetInfluences[k] = mouthInfluence;
-              });
-            } else if (m.mesh.geometry && m.origY) {
-              const pos = m.mesh.geometry.attributes.position;
-              for (let i = 0; i < pos.count; i++) {
-                const baseNormY = m.origY[i];
-                if (baseNormY > 0.2 && baseNormY < 0.6) {
-                  pos.setY(i, baseNormY - mouthInfluence * 0.025);
-                }
+      // Sincronización en tiempo real de los labios del avatar al hablar
+      if (speakingActive && mouthMeshes.length > 0) {
+        mouthMeshes.forEach((m) => {
+          let wave = Math.abs(Math.sin(timeNow * 0.015)) * 0.75 + Math.random() * 0.25;
+          
+          if (m.keys.length > 0 && m.mesh.morphTargetInfluences) {
+            m.keys.forEach((k) => {
+              m.mesh.morphTargetInfluences[k] = wave;
+            });
+          } else if (m.mesh.geometry && m.origY) {
+            // Modulación de deformación geométrica directa en caso de no poseer Morph Targets estructurados
+            const pos = m.mesh.geometry.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              if (i % 4 === 0) { 
+                pos.setY(i, m.origY[i] - (wave * 0.03));
               }
-              pos.needsUpdate = true;
             }
-          });
-        } else {
-          const base = window.innerWidth / window.innerHeight < 1 ? 0.28 : -0.62;
-          avatarModel.position.y = base + Math.sin(timeNow * 0.001) * 0.008;
-          avatarModel.rotation.y = Math.sin(timeNow * 0.0005) * 0.01; 
-        }
+            pos.needsUpdate = true;
+          }
+        });
       }
 
-      renderer.render(scene, camera);
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
     }
-
-    window.onload = initEngine;
   </script>
 </body>
 </html>
