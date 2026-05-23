@@ -314,7 +314,7 @@
     }
 
     function loadAvailableVoices() {
-      if (typeof speechSynthesis !== 'undefined') {
+      if (typeof silverware !== 'undefined' || typeof speechSynthesis !== 'undefined') {
         systemVoicesAvailable = speechSynthesis.getVoices();
       }
     }
@@ -325,17 +325,24 @@
 
     function selectBestVoiceForSelectedLanguage(targetLang) {
       loadAvailableVoices();
-      // Filtrado exacto por idioma base (ej: 'es', 'en', 'fr')
-      let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(targetLang.substring(0,2)));
+      let baseLang = targetLang.substring(0, 2).toLowerCase();
+      let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(baseLang));
       
       if (langVoices.length === 0) {
         return systemVoicesAvailable.find(v => v.lang.toLowerCase().startsWith("es")) || systemVoicesAvailable[0];
       }
 
-      // Priorizar voces masculinas específicas de alta calidad nativa
+      // Filtro inteligente para priorizar timbres masculinos nativos según el código seleccionado
       let preferredVoice = langVoices.find(v => {
         const name = v.name.toLowerCase();
-        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("paul") || name.includes("google us english male") || name.includes("homme") || name.includes("george") || name.includes("microsoft julius");
+        if (baseLang === "es") {
+          return name.includes("david") || name.includes("hombre") || name.includes("male") || name.includes("julius");
+        } else if (baseLang === "fr") {
+          return name.includes("paul") || name.includes("homme") || name.includes("male");
+        } else if (baseLang === "en") {
+          return name.includes("george") || name.includes("david") || name.includes("male") || name.includes("google us english male");
+        }
+        return name.includes("male");
       });
 
       return preferredVoice || langVoices[0];
@@ -348,7 +355,7 @@
         userName = name;
         document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Selector manual habilitado. Selecciona tu idioma preferido directamente en el HUD.`;
+        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Selector manual habilitado. Filtros de modulación nativa activados de forma estricta.`;
         startSessionTimer();
         initSatelliteClock();
       }
@@ -455,7 +462,6 @@
             m.mesh.morphTargetInfluences[k] = 0;
           });
         } else if (m.mesh.geometry && m.origY) {
-          // Restaurar vértices originales si se usó deformación manual
           const pos = m.mesh.geometry.attributes.position;
           for (let i = 0; i < pos.count; i++) {
             pos.setY(i, m.origY[i]);
@@ -505,8 +511,9 @@
 
           const utterance = new SpeechSynthesisUtterance(cleanText);
           const userSelectedLang = document.getElementById("voice-lang-select").value;
-          utterance.lang = userSelectedLang;
           
+          // Vinculación forzada al código de idioma del selector del HUD
+          utterance.lang = userSelectedLang;
           utterance.rate = 0.98;
           utterance.volume = 1.0;
           
@@ -628,7 +635,6 @@
           if (!c.isMesh) return;
           const name = (c.name || "").toLowerCase();
 
-          // Detección de claves de animación nativas del Avatar
           if (c.morphTargetDictionary) {
             let mouthKeys = [];
             Object.keys(c.morphTargetDictionary).forEach((k) => {
@@ -642,7 +648,6 @@
             }
           }
 
-          // Respaldo morfológico manual si la malla es el rostro principal y no tiene morphTargets nativos
           if (name.includes("face") || name.includes("head") || name.includes("mouth")) {
             if (!mouthMeshes.some(m => m.mesh === c)) {
               let origYArray = [];
@@ -731,9 +736,9 @@
 
       if (avatarModel) {
         if (speakingActive) {
-          const t = Date.now() * 0.01;
-          // Ondas compuestas fluidas para simular fonemas orgánicos
-          const mouthInfluence = Math.abs(Math.sin(t * 1.1) * 0.4 + Math.sin(t * 2.7) * 0.3);
+          const t = Date.now() * 0.015;
+          // Ondas compuestas fluidas y naturales de oscilación continua
+          const mouthInfluence = Math.abs(Math.sin(t * 1.2) * 0.45 + Math.sin(t * 2.5) * 0.25);
           avatarModel.rotation.y = Math.sin(timeNow * 0.002) * 0.04;
 
           mouthMeshes.forEach((m) => {
@@ -745,7 +750,6 @@
               const pos = m.mesh.geometry.attributes.position;
               for (let i = 0; i < pos.count; i++) {
                 const baseNormY = m.origY[i];
-                // Deformar la boca basándose en un umbral espacial relativo
                 if (baseNormY > 0.2 && baseNormY < 0.6) {
                   pos.setY(i, baseNormY - mouthInfluence * 0.025);
                 }
@@ -754,7 +758,6 @@
             }
           });
         } else {
-          // Micro-movimiento en reposo (respiración idle)
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
           avatarModel.position.y = base + Math.sin(timeNow * 0.001) * 0.008;
           avatarModel.rotation.y = Math.sin(timeNow * 0.0005) * 0.01; 
