@@ -193,7 +193,6 @@
       letter-spacing: 0.5px; margin-top: 2px; text-transform: uppercase;
     }
 
-    /* RESPONSIVIDAD AVANZADA (TABLETAS Y PC) */
     @media (min-width: 768px) {
       .log-view { height: 160px; font-size: 13px; }
       .greek-stream { font-size: 13px; }
@@ -286,7 +285,6 @@
     </div>
   </div>
 
-  <!-- Motor Core y Lógica de Sincronización Labial -->
   <script>
     let scene, camera, renderer, avatarModel, animationMixer, navigationControls;
     let starParticles, nebulaMesh, neonPyramid, starCount = 1200;
@@ -294,7 +292,6 @@
     
     let mouthMeshes = [];
     let speakingActive = false;
-
     let audioOutputEnabled = false;
     let conversationHistory = []; 
 
@@ -328,15 +325,17 @@
 
     function selectBestVoiceForSelectedLanguage(targetLang) {
       loadAvailableVoices();
+      // Filtrado exacto por idioma base (ej: 'es', 'en', 'fr')
       let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(targetLang.substring(0,2)));
       
       if (langVoices.length === 0) {
         return systemVoicesAvailable.find(v => v.lang.toLowerCase().startsWith("es")) || systemVoicesAvailable[0];
       }
 
+      // Priorizar voces masculinas específicas de alta calidad nativa
       let preferredVoice = langVoices.find(v => {
         const name = v.name.toLowerCase();
-        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("paul") || name.includes("google us english male") || name.includes("homme") || name.includes("george");
+        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("paul") || name.includes("google us english male") || name.includes("homme") || name.includes("george") || name.includes("microsoft julius");
       });
 
       return preferredVoice || langVoices[0];
@@ -422,12 +421,15 @@
       if (speechEngine.speaking) {
         speechEngine.cancel();
       }
-      resetMouthTargets();
       speakingActive = false;
+      resetMouthTargets();
       setSpeakingState(false);
       document.getElementById("log-display").innerHTML += "\n<span style='color:var(--neon-red)'>>>> Transmisión de voz interrumpida por el operador.</span>";
       const logDisplay = document.getElementById("log-display");
       logDisplay.scrollTop = logDisplay.scrollHeight;
+      
+      document.getElementById("query-input").disabled = false;
+      document.getElementById("exec-btn").disabled = false;
     }
 
     function setSpeakingState(active) {
@@ -452,6 +454,13 @@
           m.keys.forEach((k) => {
             m.mesh.morphTargetInfluences[k] = 0;
           });
+        } else if (m.mesh.geometry && m.origY) {
+          // Restaurar vértices originales si se usó deformación manual
+          const pos = m.mesh.geometry.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            pos.setY(i, m.origY[i]);
+          }
+          pos.needsUpdate = true;
         }
       });
     }
@@ -498,11 +507,11 @@
           const userSelectedLang = document.getElementById("voice-lang-select").value;
           utterance.lang = userSelectedLang;
           
-          utterance.rate = 0.96;
+          utterance.rate = 0.98;
           utterance.volume = 1.0;
           
           if (userSelectedLang.startsWith("es")) {
-            utterance.pitch = 0.86;
+            utterance.pitch = 0.88;
           } else if (userSelectedLang.startsWith("fr")) {
             utterance.pitch = 0.93;
           } else {
@@ -519,19 +528,15 @@
             setSpeakingState(true);
           };
 
-          utterance.onend = () => {
+          const endHandler = () => {
             speakingActive = false;
             resetMouthTargets();
             setSpeakingState(false);
             inputEl.disabled = false; execBtn.disabled = false;
           };
 
-          utterance.onerror = () => {
-            speakingActive = false;
-            resetMouthTargets();
-            setSpeakingState(false);
-            inputEl.disabled = false; execBtn.disabled = false;
-          };
+          utterance.onend = endHandler;
+          utterance.onerror = endHandler;
 
           window.currentUtterance = utterance;
           speechEngine.speak(utterance);
@@ -623,11 +628,12 @@
           if (!c.isMesh) return;
           const name = (c.name || "").toLowerCase();
 
+          // Detección de claves de animación nativas del Avatar
           if (c.morphTargetDictionary) {
             let mouthKeys = [];
             Object.keys(c.morphTargetDictionary).forEach((k) => {
               const kl = k.toLowerCase();
-              if (kl.includes("mouth") || kl.includes("jaw") || kl.includes("lip") || kl.includes("viseme") || kl.includes("teeth")) {
+              if (kl.includes("mouth") || kl.includes("jaw") || kl.includes("lip") || kl.includes("viseme") || kl.includes("teeth") || kl.includes("open")) {
                 mouthKeys.push(c.morphTargetDictionary[k]);
               }
             });
@@ -636,9 +642,17 @@
             }
           }
 
+          // Respaldo morfológico manual si la malla es el rostro principal y no tiene morphTargets nativos
           if (name.includes("face") || name.includes("head") || name.includes("mouth")) {
             if (!mouthMeshes.some(m => m.mesh === c)) {
-              mouthMeshes.push({ mesh: c, keys: [] });
+              let origYArray = [];
+              if(c.geometry && c.geometry.attributes.position) {
+                const pos = c.geometry.attributes.position;
+                for(let i=0; i<pos.count; i++) {
+                  origYArray.push(pos.getY(i));
+                }
+              }
+              mouthMeshes.push({ mesh: c, keys: [], origY: origYArray });
             }
           }
         });
@@ -718,28 +732,29 @@
       if (avatarModel) {
         if (speakingActive) {
           const t = Date.now() * 0.01;
-          const mouth = Math.abs(Math.sin(t * 0.8) * 0.5 + Math.sin(t * 2.3) * 0.5);
-
+          // Ondas compuestas fluidas para simular fonemas orgánicos
+          const mouthInfluence = Math.abs(Math.sin(t * 1.1) * 0.4 + Math.sin(t * 2.7) * 0.3);
           avatarModel.rotation.y = Math.sin(timeNow * 0.002) * 0.04;
 
           mouthMeshes.forEach((m) => {
             if (m.mesh.morphTargetInfluences && m.keys.length) {
               m.keys.forEach((k) => {
-                m.mesh.morphTargetInfluences[k] = mouth;
+                m.mesh.morphTargetInfluences[k] = mouthInfluence;
               });
-            } else if (m.mesh.geometry) {
+            } else if (m.mesh.geometry && m.origY) {
               const pos = m.mesh.geometry.attributes.position;
               for (let i = 0; i < pos.count; i++) {
-                const y = pos.getY(i);
-                const z = pos.getZ(i);
-                if (y > 0.2 && y < 0.6 && z > 0.05) {
-                  pos.setY(i, y + mouth * 0.012);
+                const baseNormY = m.origY[i];
+                // Deformar la boca basándose en un umbral espacial relativo
+                if (baseNormY > 0.2 && baseNormY < 0.6) {
+                  pos.setY(i, baseNormY - mouthInfluence * 0.025);
                 }
               }
               pos.needsUpdate = true;
             }
           });
         } else {
+          // Micro-movimiento en reposo (respiración idle)
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
           avatarModel.position.y = base + Math.sin(timeNow * 0.001) * 0.008;
           avatarModel.rotation.y = Math.sin(timeNow * 0.0005) * 0.01; 
