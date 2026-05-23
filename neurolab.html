@@ -29,12 +29,11 @@
   <meta name="twitter:description" content="Laboratorio interactivo de física experimental e inteligencia aplicada.">
   <meta name="twitter:image" content="https://duquemartini.com/logo.png">
 
-  <!-- ================= GOOGLE TAG (NO MODIFICAR FLUJO ACTUAL) ================= -->
+  <!-- ================= GOOGLE TAG ================= -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=GT-MB642KNJ"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-
     gtag('js', new Date());
     gtag('config', 'GT-MB642KNJ');
   </script>
@@ -296,6 +295,11 @@
     const speechEngine = window.speechSynthesis;
     let globalUtterance = null;
 
+    // Asegurar precarga de voces del sistema para evitar buffers vacíos en Chrome/Edge
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = () => { if (window.speechSynthesis) window.speechSynthesis.getVoices(); };
+    }
+
     function registerUser() {
       const input = document.getElementById("username-input");
       const name = input.value.trim();
@@ -440,11 +444,29 @@
           const userLang = navigator.language || navigator.userLanguage || 'es-ES';
           globalUtterance.lang = userLang;
           
-          globalUtterance.rate = 0.92;
-          globalUtterance.pitch = 1.0;
+          globalUtterance.rate = 0.95;
+          globalUtterance.pitch = 0.9; // Ligera reducción de tono para dar más cuerpo masculino
           globalUtterance.volume = 1.0;
 
-          // CONEXIÓN DIRECTA CON DISPARADORES DE VOZ REALES (CRÍTICO)
+          // ASIGNACIÓN EXCLUSIVA Y ÚNICA DE VOZ MASCULINA
+          if (window.speechSynthesis) {
+            const voices = window.speechSynthesis.getVoices();
+            const maleVoice = voices.find(voice => 
+              voice.lang.includes(userLang.split('-')[0]) && 
+              (voice.name.toLowerCase().includes('male') || 
+               voice.name.toLowerCase().includes('hombre') || 
+               voice.name.toLowerCase().includes('jorge') || 
+               voice.name.toLowerCase().includes('carlos') || 
+               voice.name.toLowerCase().includes('microsoft david') ||
+               voice.name.toLowerCase().includes('natural'))
+            );
+            
+            if (maleVoice) {
+              globalUtterance.voice = maleVoice;
+            }
+          }
+
+          // CONEXIÓN DIRECTA CON DISPARADORES DE VOZ REALES
           globalUtterance.onstart = () => {
             speakingActive = true;
             setSpeakingState(true);
@@ -453,11 +475,13 @@
           globalUtterance.onend = () => {
             speakingActive = false;
             setSpeakingState(false);
+            inputEl.disabled = false; execBtn.disabled = false;
           };
 
           globalUtterance.onerror = () => {
             speakingActive = false;
             setSpeakingState(false);
+            inputEl.disabled = false; execBtn.disabled = false;
           };
 
           speechEngine.speak(globalUtterance);
@@ -638,7 +662,7 @@
       if(navigationControls) navigationControls.target.set(0, isMobile ? 0.4 : 0.2, 0);
     }
 
-    function onWindowResize() {
+    onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
