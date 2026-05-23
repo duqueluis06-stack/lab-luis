@@ -272,7 +272,7 @@
       </div>
 
       <div class="privacy-notice">
-        ▲ PROTOCOLO DE CONVERGENCIA AUDIO MASCULINO MULTILENGUAJE ACTIVADO ▲
+        ▲ CORE POLÍGLOTA DINÁMICO: DETECTANDO ACENTO REAL MASCULINO EN ES / EN / FR ▲
       </div>
     </div>
   </div>
@@ -296,25 +296,19 @@
     let globalUtterance = null;
     let systemVoicesAvailable = [];
 
-    // ================= DETECTOR GLOBAL DE PAÍS Y HORA SATELLITAL =================
     function initSatelliteClock() {
       setInterval(() => {
         const now = new Date();
-        
-        // Obtiene el nombre amigable de la Zona Horaria del dispositivo (ej: "America/Bogota" o "Europe/Madrid")
         const timeZoneName = Intl.DateTimeFormat().resolvedOptions().timeZone;
         document.getElementById("hud-timezone-tag").innerText = timeZoneName.split('/').pop().replace('_', ' ').toUpperCase();
 
-        // Formatea la hora completa del país local de manera legible
         const localTimeStr = now.toLocaleTimeString(navigator.language, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const localDateStr = now.toLocaleDateString(navigator.language, { day: 'numeric', month: 'short', year: 'numeric' });
         
-        // Actualiza el HUD central superior con la geolocalización de hora del usuario
         document.getElementById("hud-satellite-time").innerText = `Ω CORE LUIS v14.6 // OPERATIVO // SATELLITE LOC: [${timeZoneName.toUpperCase()}] // ${localDateStr} // ${localTimeStr}`;
       }, 1000);
     }
 
-    // ================= ENGINES DE AUDIO AVANZADOS MASCULINOS MULTILENGUAJE =================
     function loadAvailableVoices() {
       if (typeof speechSynthesis !== 'undefined') {
         systemVoicesAvailable = speechSynthesis.getVoices();
@@ -325,30 +319,41 @@
       speechSynthesis.onvoiceschanged = loadAvailableVoices;
     }
 
-    // Detecta el idioma del texto de respuesta para alternar la voz de forma fluida (Multilenguaje)
+    // ================= DETECTOR MEJORADO DE IDIOMA EN TIEMPO REAL =================
     function detectResponseLanguage(text) {
-      const clean = text.toLowerCase();
-      // Patrones simples de verificación rápida
-      if (clean.includes(" the ") || clean.includes(" welcome ") || clean.includes(" system ")) return "en-US";
-      if (clean.includes(" bonjour ") || clean.includes(" système ")) return "fr-FR";
-      if (clean.includes(" ciao ")) return "it-IT";
-      return "es-ES"; // Default nativo preferido de Luis
+      const clean = text.toLowerCase().trim();
+      
+      // Palabras o estructuras francesas comunes
+      if (clean.startsWith("oui") || clean.includes("le ") || clean.includes("la ") || clean.includes("pourquoi") || clean.includes("système") || clean.includes("bonjour") || clean.includes("ordinateur")) {
+        // Confirmación estricta de que es francés si tiene más conectores clave
+        if (clean.match(/\b(est|un|une|des|en|et|pour|dans|plus|je|tu|il|vous)\b/)) return "fr-FR";
+      }
+      
+      // Palabras o estructuras inglesas comunes
+      if (clean.startsWith("yes") || clean.includes(" the ") || clean.includes(" is ") || clean.includes(" welcome ") || clean.includes(" network ") || clean.includes(" system ") || clean.includes(" processing ")) {
+        return "en-US";
+      }
+      
+      return "es-ES"; // Español por defecto
     }
 
+    // Selecciona de manera inteligente y forzada una voz masculina real del paquete nativo del dispositivo
     function selectBestMaleVoice(targetLang) {
       loadAvailableVoices();
       
-      // 1. Filtrar voces del idioma correspondiente
+      // Filtrar por el lenguaje exacto detectado (es, en, fr)
       let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(targetLang.substring(0,2)));
-      if (langVoices.length === 0) langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith("es"));
+      
+      if (langVoices.length === 0) {
+        langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith("es"));
+      }
 
-      // 2. Intentar buscar voces explícitamente masculinas usando strings clave (vital en smartphones)
+      // Buscar coincidencia de género masculino nativo
       let maleVoice = langVoices.find(v => {
         const name = v.name.toLowerCase();
-        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("microsoft") || name.includes("google") || name.includes("jarvis");
+        return name.includes("male") || name.includes("hombre") || name.includes("david") || name.includes("microsoft") || name.includes("google") || name.includes("homme") || name.includes("paul") || name.includes("george");
       });
 
-      // Fallback si no encuentra palabra clave "masculina", tomamos la de mejor calidad del sistema
       return maleVoice || langVoices[0] || systemVoicesAvailable[0];
     }
 
@@ -359,7 +364,7 @@
         userName = name;
         document.getElementById("hud-user-tag").innerText = userName.toUpperCase();
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema de audio multicanal configurado para avatar masculino.`;
+        document.getElementById("log-display").innerText = `>>> Enlace cuántico establecido. Operador: ${userName}.\n>>> Sistema políglota activo. Detección automática de acentos nativos (ES/EN/FR).`;
         startSessionTimer();
         initSatelliteClock();
       }
@@ -454,7 +459,6 @@
       }
     }
 
-    // CONTROL TOTAL DE RESPUESTA EN PRODUCCIÓN (STABLE CORE)
     async function executeQuery() {
       const inputEl = document.getElementById("query-input");
       const execBtn = document.getElementById("exec-btn");
@@ -495,16 +499,16 @@
 
           globalUtterance = new SpeechSynthesisUtterance(cleanText);
           
-          // Detección e inyección dinámica del lenguaje y voz correspondiente
-          const targetLanguage = detectResponseLanguage(cleanText);
-          globalUtterance.lang = targetLanguage;
+          // Detección dinámica de idioma real para evitar acentos cruzados
+          const detectedLang = detectResponseLanguage(cleanText);
+          globalUtterance.lang = detectedLang;
           
-          // Forzado de parámetros para robustecer el tono masculino en dispositivos móviles
-          globalUtterance.rate = 0.95;  // Velocidad sutilmente más pausada para ganar cuerpo mecánico
-          globalUtterance.pitch = 0.85; // Bajamos el pitch (tono) para forzar un registro más grave/masculino
+          // Ajustes dinámicos de modulación masculina en smartphones
+          globalUtterance.rate = 0.96;
+          globalUtterance.pitch = detectedLang.startsWith("es") ? 0.85 : 0.90; // El francés e inglés usan pitches sutilmente distintos
           globalUtterance.volume = 1.0;
 
-          const chosenVoice = selectBestMaleVoice(targetLanguage);
+          const chosenVoice = selectBestMaleVoice(detectedLang);
           if (chosenVoice) {
             globalUtterance.voice = chosenVoice;
           }
@@ -692,6 +696,7 @@
       repositionLayoutAccordingToDevice();
     }
 
+    // ================= LOOP DE ANIMACIÓN CON GESTOS HUMANOS INTEGRADOS =================
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
@@ -711,8 +716,13 @@
 
       if (avatarModel) {
         if (speakingActive) {
+          // 1. Modulación de boca para fonética adaptativa
           const t = Date.now() * 0.01;
           const mouth = Math.abs(Math.sin(t * 0.6) * 0.6 + Math.sin(t * 1.9) * 0.4);
+
+          // 2. Gesto Humano Adicional: Pequeño balanceo orgánico de cabeza mientras habla
+          avatarModel.rotation.y = Math.sin(timeNow * 0.003) * 0.04;
+          avatarModel.rotation.z = Math.cos(timeNow * 0.002) * 0.02;
 
           mouthMeshes.forEach((m) => {
             if (m.mesh.morphTargetInfluences && m.keys.length) {
@@ -732,8 +742,11 @@
             }
           });
         } else {
+          // Volver a estado de reposo suave con respiración natural equilibrada
           const base = window.innerWidth / window.innerHeight < 1 ? 0.15 : -0.62;
-          avatarModel.position.y = base + Math.sin(Date.now() * 0.001) * 0.008;
+          avatarModel.position.y = base + Math.sin(timeNow * 0.001) * 0.008;
+          avatarModel.rotation.y = Math.sin(timeNow * 0.0005) * 0.02; // Mirada sutil
+          avatarModel.rotation.z = 0;
         }
       }
 
