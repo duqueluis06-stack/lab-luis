@@ -157,7 +157,7 @@
 
     /* CONTENEDOR MÁS AMPLIO EN HORIZONTAL */
     .input-group { display: flex; gap: 6px; width: 100%; align-items: flex-end; }
-    
+     
     textarea.main-chat-input {
       flex: 1; background: rgba(0, 0, 0, 0.85); border: 1px solid var(--neon-cyan);
       color: #fff; padding: 10px; font-family: monospace; font-size: 13px; outline: none; min-width: 0;
@@ -174,7 +174,7 @@
       height: 42px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
     }
     button.action-btn:hover { background: var(--neon-cyan); color: #000; }
-    
+     
     button#exec-btn.stop-active {
       border-color: var(--neon-red); color: #fff; background: var(--neon-red);
       animation: alertGlow 1s infinite alternate;
@@ -245,7 +245,7 @@
       </div>
 
       <div id="log-display" class="log-view">>>> Consola limpia. Esperando inicio de transmisión...</div>
-      
+       
       <div class="sumerian-bar">𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目 𓋹 𓏃 𓃠</div>
 
       <!-- MEJORADO: El botón Mute ahora se ve grande y está perfectamente alineado horizontalmente con el chat -->
@@ -265,7 +265,7 @@
     let scene, camera, renderer, avatarModel, animationMixer, navigationControls;
     let starParticles, nebulaMesh, neonPyramid, starCount = 1200;
     let clock = new THREE.Clock();
-    
+     
     let mouthMeshes = [];
     let speakingActive = false;
     let audioOutputEnabled = false;
@@ -323,38 +323,40 @@
       }
     }
 
-    // ARREGLADO: Bloqueo absoluto de voces femeninas o mezclas raras de idioma en el teléfono
+    // REPARADO: Filtro absoluto y quirúrgico anti-femenino para el sistema táctico móvil
     function selectBestVoiceForSelectedLanguage(targetLang) {
       loadAvailableVoices();
       let baseLang = targetLang.substring(0, 2).toLowerCase();
       
-      // Filtrar estrictamente voces que correspondan al idioma de salida seleccionado
+      // 1. Filtrar de entrada por el idioma base requerido (es, en, fr)
       let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(baseLang));
-      
       if (langVoices.length === 0) return null;
 
-      // Descalificar radicalmente nombres de voces femeninas conocidos en iOS/Android
+      // 2. Lista negra radical de firmas de voz femeninas integradas en sistemas operativos comunes
       let filteredMaleVoices = langVoices.filter(v => {
         const name = v.name.toLowerCase();
         return !name.includes("helena") && !name.includes("sabina") && !name.includes("zira") && 
-               !name.includes("google español de españa") && !name.includes("female") && 
-               !name.includes("mujer") && !name.includes("monica") && !name.includes("paula") &&
-               !name.includes("siri") && !name.includes("marisol") && !name.includes("angelica");
+               !name.includes("google español") && !name.includes("female") && !name.includes("mujer") && 
+               !name.includes("monica") && !name.includes("paula") && !name.includes("siri") && 
+               !name.includes("marisol") && !name.includes("angelica") && !name.includes("carmen") &&
+               !name.includes("soledad") && !name.includes("francisca") && !name.includes("amélie") && 
+               !name.includes("chloe") && !name.includes("samantha") && !name.includes("hazel");
       });
 
+      // Si el filtro estricto nos deja vacíos por culpa del sistema operativo, usamos las disponibles del idioma
       let pool = filteredMaleVoices.length > 0 ? filteredMaleVoices : langVoices;
 
-      // Buscar coincidencia masculina preferida según el idioma real seleccionado
+      // 3. Buscar proactivamente perfiles con etiquetas explícitas masculinas o IDs estándar masculinos
       let preferredVoice = pool.find(v => {
         const name = v.name.toLowerCase();
         if (baseLang === "es") {
-          return name.includes("david") || name.includes("microsoft") || name.includes("hombre") || name.includes("male") || name.includes("julius") || name.includes("mexico");
+          return name.includes("david") || name.includes("microsoft") || name.includes("hombre") || name.includes("male") || name.includes("julius") || name.includes("mexico") || name.includes("enrique");
         } else if (baseLang === "fr") {
           return name.includes("paul") || name.includes("homme") || name.includes("male") || name.includes("denis") || name.includes("france");
         } else if (baseLang === "en") {
-          return name.includes("george") || name.includes("david") || name.includes("male") || name.includes("google us english male") || name.includes("mark");
+          return name.includes("george") || name.includes("david") || name.includes("male") || name.includes("google us english male") || name.includes("mark") || name.includes("ravi");
         }
-        return name.includes("male") || name.includes("homme");
+        return name.includes("male") || name.includes("homme") || name.includes("hombre");
       });
 
       return preferredVoice || pool[0];
@@ -389,7 +391,7 @@
       if (audioOutputEnabled) {
         btn.innerText = "🔊 AUDIO"; btn.classList.add("active");
       } else {
-        btn.innerText = "🔇 MUTE"; btn.classList.remove("remove");
+        btn.innerText = "🔇 MUTE"; btn.classList.remove("active");
         stopDialogAudio();
       }
     }
@@ -497,7 +499,7 @@
 
           const utterance = new SpeechSynthesisUtterance(cleanText);
           
-          // ARREGLADO: Sincronización estricta del motor TTS con el código del selector
+          // Sincronización estricta del motor TTS con el código del selector
           utterance.lang = currentSelectedLanguage;
           utterance.rate = 0.95; 
           utterance.volume = 1.0;
@@ -665,13 +667,12 @@
       animate();
     }
 
-    // ARREGLADO: Reposicionamiento vertical estricto para que nunca se descuadre en el teléfono
     function repositionLayoutAccordingToDevice() {
       const isMobile = window.innerWidth / window.innerHeight < 1;
       
       if (avatarModel) {
         if (isMobile) {
-          avatarModel.position.set(0, -0.45, -0.15); // Bajado estratégicamente para centrar el rostro completo
+          avatarModel.position.set(0, -0.45, -0.15); 
           avatarModel.scale.set(0.48, 0.48, 0.48);
         } else {
           avatarModel.position.set(0, -0.62, 0);
@@ -693,7 +694,7 @@
     function adjustCameraAndLayout() {
       const isMobile = window.innerWidth / window.innerHeight < 1;
       if (isMobile) {
-        camera.position.set(0, 0.0, 1.9); // Cámara ajustada para encuadre móvil perfecto
+        camera.position.set(0, 0.0, 1.9); 
       } else {
         camera.position.set(0, 0.25, 2.3);
       }
@@ -718,14 +719,12 @@
 
       if (starParticles) starParticles.rotation.y += 0.0002;
       
-      // Rotación sutil y continua del avatar y pirámide
       if (avatarModel) avatarModel.rotation.y += 0.003; 
       if (neonPyramid) {
         neonPyramid.rotation.y += 0.005;
         neonPyramid.position.y += Math.sin(timeNow * 0.002) * 0.0003;
       }
 
-      // Sincronización labial interactiva
       if (speakingActive && mouthMeshes.length > 0) {
         mouthMeshes.forEach((m) => {
           let wave = Math.abs(Math.sin(timeNow * 0.018)) * 0.7 + Math.random() * 0.3;
