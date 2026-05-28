@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📱 SPICE MNA Mobile Studio v19.0</title>
+    <title>🔬 SPICE MNA Lab Studio v20.0</title>
     <style>
         :root {
-            --bg-main: #060913;
-            --bg-sidebar: #0d1222;
-            --bg-grid: #02040a;
+            --bg-main: #040712;
+            --bg-sidebar: #0b1122;
+            --bg-grid: #020408;
             --cyan: #00f2fe;
             --green: #39ff14;
             --red: #ff3131;
@@ -17,7 +17,7 @@
             --magenta: #f43f5e;
             --border: #1e293b;
             --text: #f3f4f6;
-            --text-muted: #64748b;
+            --text-muted: #475569;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -33,106 +33,117 @@
         }
 
         header {
-            height: 50px; background: var(--bg-sidebar); border-bottom: 2px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
+            height: 45px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
             position: sticky; top: 0; z-index: 1000;
         }
-        .brand { font-size: 13px; font-weight: 900; color: var(--cyan); letter-spacing: 0.5px; }
-        
-        .header-actions { display: flex; align-items: center; gap: 10px; }
-        .engine-badge { font-size: 11px; background: rgba(0,242,254,0.07); padding: 4px 8px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
+        .brand { font-size: 12px; font-weight: 900; color: var(--cyan); letter-spacing: 1px; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .engine-badge { font-size: 10px; background: rgba(0,242,254,0.05); padding: 3px 6px; border: 1px solid rgba(0,242,254,0.2); border-radius: 4px; color: var(--cyan); }
         
         .exit-btn { 
-            background: #111827; border: 1px solid var(--red); color: var(--red); 
-            font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 6px; 
+            background: #0f172a; border: 1px solid var(--red); color: var(--red); 
+            font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 5px; 
             cursor: pointer; touch-action: manipulation;
         }
 
         #main-layout { display: flex; flex-direction: column; width: 100%; }
-        #viewport { position: relative; background: var(--bg-grid); height: 390px; width: 100%; border-bottom: 2px solid var(--border); }
+        #viewport { position: relative; background: var(--bg-grid); height: 350px; width: 100%; border-bottom: 1px solid var(--border); overflow: hidden; }
         
+        /* Lienzo expandido en profundidad para mejores ángulos */
         #sandbox {
-            width: 100%; height: 100%; position: relative; overflow: hidden; 
-            background-image: linear-gradient(to right, rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.012) 1px, transparent 1px);
+            width: 200%; height: 200%; position: absolute; top: 0; left: 0;
+            background-image: linear-gradient(to right, rgba(255,255,255,0.008) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.008) 1px, transparent 1px);
             background-size: 20px 20px; touch-action: none; 
         }
         
         #wire-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
 
-        /* --- CONTENEDORES REALISTAS --- */
+        /* --- MÓDULOS MINIATURIZADOS Y SIN CUADRADOS GRANDES --- */
         .spice-node {
-            position: absolute; z-index: 100; border-radius: 10px;
-            background: linear-gradient(145deg, #0f172a, #070d19); border: 2px solid #334155; padding: 8px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-            touch-action: none; transition: border-color 0.2s;
+            position: absolute; z-index: 100; border-radius: 6px;
+            background: rgba(11, 17, 34, 0.75); border: 1px solid #273549; padding: 4px 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center;
+            touch-action: none; transition: border-color 0.15s;
         }
-        .spice-node.selected { border-color: var(--cyan) !important; }
-        .spice-node.destroyed { filter: grayscale(1) brightness(0.2) !important; border-color: var(--red) !important; }
+        .spice-node.selected { border-color: var(--cyan) !important; background: rgba(11, 17, 34, 0.9); }
 
-        /* --- COMPONENTES GRÁFICOS REALISTAS COHESIVOS --- */
-        .comp-svg { width: 100%; height: 45px; display: block; overflow: visible; }
+        /* Botón cerrar individual de componente */
+        .close-node-btn {
+            position: absolute; top: -6px; right: -6px; width: 16px; height: 16px;
+            background: #1e293b; border: 1px solid var(--red); color: var(--red);
+            font-size: 9px; font-weight: bold; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; z-index: 600; cursor: pointer;
+        }
+
+        .comp-svg { width: 100%; height: 32px; display: block; overflow: visible; }
         
-        /* --- PINES TÁCTILES AMPLIADOS --- */
+        /* --- PINES ESTILIZADOS --- */
         .net-pin {
-            position: absolute; width: 36px; height: 36px; background: transparent;
+            position: absolute; width: 28px; height: 28px; background: transparent;
             z-index: 500; display: flex; align-items: center; justify-content: center;
-            touch-action: manipulation; cursor: pointer;
+            touch-action: manipulation;
         }
         .net-pin::after {
-            content: ''; width: 12px; height: 12px; background: #1e293b;
-            border: 2px solid #94a3b8; border-radius: 50%; transition: all 0.2s ease;
+            content: ''; width: 8px; height: 8px; background: #0f172a;
+            border: 1.5px solid #64748b; border-radius: 50%; transition: all 0.15s ease;
         }
         .net-pin.wiring-source::after {
-            background: var(--cyan); border-color: #fff; box-shadow: 0 0 14px var(--cyan); transform: scale(1.4);
+            background: var(--cyan); border-color: #fff; box-shadow: 0 0 10px var(--cyan); transform: scale(1.3);
         }
-        .net-pin.linked::after { background: #10b981; border-color: #ecfdf5; box-shadow: 0 0 6px rgba(16,185,129,0.5); }
-        .pin-lbl { position: absolute; font-size: 11px; color: var(--text-muted); font-weight: bold; pointer-events: none; }
+        .net-pin.linked::after { background: #10b981; border-color: #fff; }
+        .pin-lbl { position: absolute; font-size: 9px; color: var(--text-muted); font-weight: bold; pointer-events: none; }
 
         .node-telemetry { 
-            font-size: 10px; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.05); 
-            padding: 2px 5px; border-radius: 4px; color: #34d399; text-align: center; width: 100%;
-            font-family: monospace; letter-spacing: -0.2px;
+            font-size: 8.5px; color: #34d399; text-align: center; width: 100%; margin-top: 2px;
+            font-family: monospace; opacity: 0.85;
         }
 
-        /* --- CABLES Y RESPLANDOR --- */
-        .wire-shadow { fill: none; stroke: #475569; stroke-width: 3.5; stroke-linecap: round; }
-        .wire-active { fill: none; stroke: var(--cyan); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 5px rgba(0,242,254,0.6)); }
-        .wire-dots { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 6 16; animation: moveDots 0.35s linear infinite; }
-        @keyframes moveDots { to { stroke-dashoffset: -22; } }
+        /* --- CABLES CONDUCTORES --- */
+        .wire-shadow { fill: none; stroke: #334155; stroke-width: 2.5; stroke-linecap: round; }
+        .wire-active { fill: none; stroke: var(--cyan); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(0,242,254,0.5)); }
+        .wire-dots { fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 4 14; animation: moveDots 0.4s linear infinite; }
+        @keyframes moveDots { to { stroke-dashoffset: -18; } }
 
-        #mobile-toolbox { background: var(--bg-sidebar); padding: 12px 15px; border-bottom: 2px solid var(--border); }
-        .section-title { font-size: 11px; color: var(--cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px; }
+        #mobile-toolbox { background: var(--bg-sidebar); padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        .section-title { font-size: 10px; color: var(--cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; }
         
-        .scroll-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 5px; -webkit-overflow-scrolling: touch; }
+        .scroll-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .mobile-btn {
-            background: #040712; border: 1px solid var(--border); padding: 12px 15px; border-radius: 8px;
-            font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px;
+            background: #020408; border: 1px solid var(--border); padding: 10px 14px; border-radius: 6px;
+            font-size: 11px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px;
             white-space: nowrap; flex-shrink: 0; touch-action: manipulation;
         }
 
-        #mobile-console { background: #02050c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-        .console-box { background: rgba(6, 9, 19, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
-        .box-title { font-size: 10px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
-        .matrix-output { font-family: monospace; font-size: 11px; color: #a7f3d0; white-space: pre; overflow-x: auto; }
+        #mobile-console { background: #020408; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .console-box { background: rgba(11, 17, 34, 0.4); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+        .box-title { font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .matrix-output { font-family: monospace; font-size: 10px; color: #a7f3d0; white-space: pre; overflow-x: auto; }
+
+        /* --- GRÁFICOS ANALÍTICOS (OSCILOSCOPIO) --- */
+        .instrument-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+        .canvas-container { background: #000; border: 1px solid #1e293b; border-radius: 4px; position: relative; }
+        .canvas-label { position: absolute; top: 2px; left: 4px; font-size: 8px; color: var(--cyan); font-family: monospace; font-weight: bold; }
+        canvas { width: 100%; height: 65px; display: block; }
 
         #spice-inspector {
-            position: fixed; z-index: 2000; background: var(--bg-sidebar); border: 2px solid var(--cyan);
-            padding: 15px; border-radius: 12px; width: 85%; max-width: 300px; display: none; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); left: 50%; top: 40%; transform: translate(-50%, -50%);
+            position: fixed; z-index: 2000; background: var(--bg-sidebar); border: 1px solid var(--cyan);
+            padding: 12px; border-radius: 8px; width: 80%; max-width: 260px; display: none; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8); left: 50%; top: 40%; transform: translate(-50%, -50%);
         }
-        .row-ins { margin-bottom: 12px; }
-        .row-ins label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .row-ins input { width: 100%; background: #000; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 14px; border-radius: 6px; }
-        .apply-btn { width: 100%; background: var(--cyan); border: none; padding: 12px; color: #000; font-weight: bold; font-size: 13px; border-radius: 6px; }
-        .purgue-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); color: var(--red); padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; width: 100%; margin-top: 5px; }
+        .row-ins { margin-bottom: 8px; }
+        .row-ins label { display: block; font-size: 10px; color: #64748b; margin-bottom: 3px; }
+        .row-ins input { width: 100%; background: #000; border: 1px solid var(--border); color: #fff; padding: 8px; font-size: 12px; border-radius: 4px; }
+        .apply-btn { width: 100%; background: var(--cyan); border: none; padding: 10px; color: #000; font-weight: bold; font-size: 12px; border-radius: 5px; }
+        .purgue-btn { background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(255,49,49,0.4); color: var(--red); padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; width: 100%; margin-top: 4px; }
         
-        .tip-banner { background: rgba(0, 242, 254, 0.04); border: 1px dashed rgba(0, 242, 254, 0.25); padding: 6px; border-radius: 6px; font-size: 11px; color: #a7f3d0; margin-bottom: 8px; text-align: center;}
+        .tip-banner { background: rgba(0, 242, 254, 0.03); border: 1px dashed rgba(0, 242, 254, 0.2); padding: 5px; border-radius: 5px; font-size: 10px; color: #a7f3d0; margin-bottom: 6px; text-align: center;}
     </style>
 </head>
 <body>
 
     <header>
-        <div class="brand">🔬 MNA MOBILE STUDIO v19.0</div>
+        <div class="brand">🔬 SPICE CORE LAB v20.0</div>
         <div class="header-actions">
             <div class="engine-badge" id="engine-status">MNA: ACTIVE</div>
             <button class="exit-btn" onclick="exitStudio()">🚪 SALIR</button>
@@ -144,7 +155,7 @@
         <div id="viewport">
             <div id="spice-inspector">
                 <div id="inspector-fields"></div>
-                <button class="apply-btn" onclick="applyNodeSettings()">Guardar Parámetros</button>
+                <button class="apply-btn" onclick="applyNodeSettings()">Actualizar Parámetros</button>
             </div>
             <div id="sandbox">
                 <svg id="wire-layer" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -152,28 +163,35 @@
         </div>
 
         <div id="mobile-toolbox">
-            <div class="tip-banner">⚡ Conexión rápida táctil: Toca el Pin A, luego toca el Pin B.</div>
-            <div class="section-title">Componentes Avanzados MNA (Desliza ➔)</div>
+            <div class="tip-banner">💡 Toque secuencial: Presiona un Pin A y luego un Pin B para enlazar cables.</div>
+            <div class="section-title">Librería de Componentes Compactos MNA</div>
             <div class="scroll-row">
-                <button class="mobile-btn" onclick="addSpiceComponent('nice_power')"><span style="color:var(--cyan)">🔋</span> Fuente DC</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('resistencia')"><span style="color:#fef08a">🟫</span> Resistor</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('condensador')"><span style="color:#38bdf8">||</span> Condensador</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('switch_cuchilla')"><span style="color:var(--glow-yellow)">🎛️</span> Interruptor</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('led_verde')"><span style="color:var(--green)">🟢</span> LED Realista</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('foco_edison')"><span style="color:var(--yellow)">💡</span> Lámpara Realista</button>
-                <button class="mobile-btn" onclick="addSpiceComponent('motor_dc')"><span style="color:var(--magenta)">🌀</span> Motor DC</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('nice_power')">🔋 Fuente DC</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('resistencia')">🟫 Resistor</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('condensador')">|| Capacitor</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('switch_cuchilla')">🎛️ Switch</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('led_verde')">🟢 LED Realista</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('foco_edison')">💡 Lámpara</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('motor_dc')">🌀 Motor DC</button>
             </div>
-            <button class="purgue-btn" onclick="purgueNetlist()">🗑️ Vaciar Banco de Trabajo</button>
+            <button class="purgue-btn" onclick="purgueNetlist()">🗑️ Limpiar Todo el Lienzo</button>
         </div>
 
         <div id="mobile-console">
             <div class="console-box">
-                <div class="box-title">📁 Nodos Eléctricos MNA Estructurados</div>
-                <div class="matrix-output" id="netlist-view" style="color:var(--text-muted)">Banco limpio. Agrega un componente electrónico...</div>
+                <div class="box-title">📁 Asignación de Mallas y Nodos MNA</div>
+                <div class="matrix-output" id="netlist-view" style="color:#64748b">Crea circuitos electrónicos...</div>
             </div>
-            <div class="console-box">
-                <div class="box-title">📋 Estado Vectorial del Sistema Matricial [A] · [X] = [Z]</div>
-                <div class="matrix-output" id="matrix-view">Cerrando lazos de corriente...</div>
+            
+            <div class="instrument-panel">
+                <div class="canvas-container">
+                    <span class="canvas-label">OSCILOSCOPIO TIME-DOMAIN</span>
+                    <canvas id="scopeCanvas"></canvas>
+                </div>
+                <div class="canvas-container">
+                    <span class="canvas-label">ESPECTRÓMETRO FFT (Hz)</span>
+                    <canvas id="fftCanvas"></canvas>
+                </div>
             </div>
         </div>
 
@@ -186,141 +204,146 @@
         let activeSelectedNode = null;
         let selectedSourcePin = null;
 
+        // Variables para los Monitores
+        let scopeCanvas, scopeCtx, fftCanvas, fftCtx;
+        let simTime = 0;
+
         const sandbox = document.getElementById('sandbox');
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
 
         function exitStudio() {
-            if(confirm("¿Deseas cerrar el simulador? Se limpiará la memoria activa.")) {
+            if(confirm("¿Deseas cerrar el laboratorio y regresar al índice principal?")) {
                 purgueNetlist();
-                window.close();
-                document.body.innerHTML = `<div style="background:#060913; color:#f3f4f6; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
-                    <h1 style="color:var(--cyan); margin-bottom:10px;">🔬 MNA Core Apagado</h1>
-                    <button onclick="location.reload()" style="margin-top:20px; background:var(--cyan); border:none; padding:10px 20px; font-weight:bold; border-radius:6px;">Volver a Entrar</button>
-                </div>`;
+                // Redirección segura para evitar bucles o comportamientos extraños del navegador
+                window.location.replace("index.html");
             }
         }
 
-        // --- ARQUETIPOS VECTORIALES INTEGRADOS REALISTAS ---
+        // --- MODELADO VECTORIAL COMPACTO Y ESQUEMÁTICO REALISTA ---
         const SPICE_ARQUETYPES = {
-            nice_power: { w: 110, h: 90, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:var(--cyan); text-align:center;">FUENTE DC</div>
+            nice_power: { w: 75, h: 62, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--cyan); text-align:center; margin-bottom:2px;">V_SOURCE</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <circle cx="50" cy="20" r="14" fill="#000" stroke="var(--cyan)" stroke-width="2"/>
-                    <line x1="50" y1="11" x2="50" y2="29" stroke="var(--cyan)" stroke-width="2"/>
-                    <line x1="41" y1="20" x2="59" y2="20" stroke="var(--cyan)" stroke-width="2"/>
-                    <line x1="10" y1="20" x2="36" y2="20" stroke="#475569" stroke-width="2"/>
-                    <line x1="64" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="2"/>
+                    <circle cx="50" cy="20" r="11" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+                    <line x1="50" y1="13" x2="50" y2="27" stroke="var(--cyan)" stroke-width="1.5"/>
+                    <line x1="43" y1="20" x2="57" y2="20" stroke="var(--cyan)" stroke-width="1.5"/>
+                    <line x1="10" y1="20" x2="39" y2="20" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="61" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="1.5"/>
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-18px; top:24px;"></div>
-                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-18px; top:24px;"></div>
-                <span class="pin-lbl" style="left:16px; top:32px; color:var(--red)">+</span><span class="pin-lbl" style="right:16px; top:32px; color:var(--cyan)">-</span>
+                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-14px; top:16px;"></div>
+                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-14px; top:16px;"></div>
+                <span class="pin-lbl" style="left:12px; top:22px; color:var(--red)">+</span><span class="pin-lbl" style="right:12px; top:22px; color:var(--cyan)">-</span>
             `},
-            resistencia: { w: 110, h: 85, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:#fef08a; text-align:center;">RESISTOR</div>
+            resistencia: { w: 75, h: 58, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:#fef08a; text-align:center; margin-bottom:2px;">RESISTOR</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <path d="M 10 20 L 30 20 L 35 10 L 43 30 L 51 10 L 59 30 L 67 10 L 71 20 L 90 20" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round"/>
+                    <path d="M 10 20 L 32 20 L 36 12 L 44 28 L 52 12 L 60 28 L 64 20 L 90 20" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-18px; top:22px;"></div>
-                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-18px; top:22px;"></div>
+                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-14px; top:15px;"></div>
+                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-14px; top:15px;"></div>
             `},
-            condensador: { w: 110, h: 85, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:#38bdf8; text-align:center;">CAPACITOR</div>
+            condensador: { w: 75, h: 58, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:#38bdf8; text-align:center; margin-bottom:2px;">CAPACITOR</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <line x1="10" y1="20" x2="44" y2="20" stroke="#38bdf8" stroke-width="2"/>
-                    <line x1="56" y1="20" x2="90" y2="20" stroke="#38bdf8" stroke-width="2"/>
-                    <line x1="44" y1="8" x2="44" y2="32" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="56" y1="8" x2="56" y2="32" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="10" y1="20" x2="45" y2="20" stroke="#38bdf8" stroke-width="1.5"/>
+                    <line x1="55" y1="20" x2="90" y2="20" stroke="#38bdf8" stroke-width="1.5"/>
+                    <line x1="45" y1="10" x2="45" y2="30" stroke="#fff" stroke-width="2.5"/>
+                    <line x1="55" y1="10" x2="55" y2="30" stroke="#fff" stroke-width="2.5"/>
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-18px; top:22px;"></div>
-                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-18px; top:22px;"></div>
+                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-14px; top:15px;"></div>
+                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-14px; top:15px;"></div>
             `},
-            switch_cuchilla: { w: 110, h: 85, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:var(--text-muted); text-align:center;">INTERRUPTOR</div>
+            switch_cuchilla: { w: 75, h: 58, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:#94a3b8; text-align:center; margin-bottom:2px;">SWITCH</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <circle cx="30" cy="20" r="3" fill="#64748b"/>
-                    <circle cx="70" cy="20" r="3" fill="#64748b"/>
-                    <line x1="10" y1="20" x2="27" y2="20" stroke="#64748b" stroke-width="2"/>
-                    <line x1="73" y1="20" x2="90" y2="20" stroke="#64748b" stroke-width="2"/>
+                    <circle cx="32" cy="20" r="2.5" fill="#475569"/>
+                    <circle cx="68" cy="20" r="2.5" fill="#475569"/>
+                    <line x1="10" y1="20" x2="29.5" y2="20" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="70.5" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="1.5"/>
                     ${n.ajustes.open 
-                        ? `<line x1="30" y1="20" x2="65" y2="3" stroke="var(--red)" stroke-width="3" stroke-linecap="round"/>`
-                        : `<line x1="30" y1="20" x2="70" y2="20" stroke="var(--green)" stroke-width="3" stroke-linecap="round"/>`
+                        ? `<line x1="32" y1="20" x2="64" y2="6" stroke="var(--red)" stroke-width="2.5"/>`
+                        : `<line x1="32" y1="20" x2="68" y2="20" stroke="var(--green)" stroke-width="2.5"/>`
                     }
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-18px; top:22px;"></div>
-                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-18px; top:22px;"></div>
+                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-14px; top:15px;"></div>
+                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-14px; top:15px;"></div>
             `},
-            led_verde: { w: 110, h: 95, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:var(--green); text-align:center;">DIODO LED</div>
+            led_verde: { w: 75, h: 64, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--green); text-align:center; margin-bottom:2px;">DIODO LED</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <line x1="10" y1="20" x2="38" y2="20" stroke="#475569" stroke-width="2"/>
-                    <line x1="62" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="2"/>
-                    <polygon points="38,10 38,30 58,20" fill="none" stroke="#475569" stroke-width="2"/>
-                    <line x1="58" y1="10" x2="58" y2="30" stroke="#475569" stroke-width="2"/>
-                    <path id="led_cap_${n.id}" d="M 42,20 Q 42,12 50,12 L 56,12 Q 62,12 62,20 L 62,20 Q 62,28 56,28 L 50,28 Q 42,28 42,20 Z" fill="#14532d" stroke="#22c55e" stroke-width="1.5"/>
-                    <line id="led_glow_${n.id}" x1="66" y1="15" x2="74" y2="10" stroke="var(--green)" stroke-width="2" stroke-linecap="round" opacity="0"/>
-                    <line id="led_glow2_${n.id}" x1="66" y1="25" x2="74" y2="30" stroke="var(--green)" stroke-width="2" stroke-linecap="round" opacity="0"/>
+                    <line x1="10" y1="20" x2="40" y2="20" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="60" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="1.5"/>
+                    <polygon points="40,12 40,28 58,20" fill="none" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="58" y1="12" x2="58" y2="28" stroke="#475569" stroke-width="1.5"/>
+                    <path id="led_cap_${n.id}" d="M 44,20 Q 44,14 50,14 L 54,14 Q 58,14 58,20 Z" fill="#14432d" stroke="#22c55e" stroke-width="1"/>
+                    <circle id="led_glow_${n.id}" cx="51" cy="20" r="6" fill="#22c55e" opacity="0" style="mix-blend-mode: screen; filter: blur(2px);"/>
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-18px; top:24px;"></div>
-                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-18px; top:24px;"></div>
+                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-14px; top:18px;"></div>
             `},
-            foco_edison: { w: 115, h: 95, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:var(--glow-yellow); text-align:center;">LÁMPARA</div>
-                <div style="position:relative; width:100%; height:45px; display:flex; align-items:center; justify-content:center;">
-                    <div id="halo_${n.id}" style="position:absolute; width:45px; height:45px; border-radius:50%; background:radial-gradient(circle, rgba(253,224,71,0.4) 0%, transparent 70%); opacity:0; pointer-events:none; z-index:1;"></div>
-                    <svg class="comp-svg" viewBox="0 0 100 40" style="position:relative; z-index:2;">
-                        <line x1="10" y1="20" x2="35" y2="20" stroke="#475569" stroke-width="2"/>
-                        <line x1="65" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="2"/>
-                        <circle cx="50" cy="17" r="13" fill="rgba(30,41,59,0.5)" stroke="#64748b" stroke-width="1.5"/>
-                        <rect x="46" y="29" width="8" height="5" fill="#475569" rx="1"/>
-                        <path id="fil_${n.id}" d="M 43,22 L 48,12 L 52,12 L 57,22" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linejoin="round"/>
+            foco_edison: { w: 75, h: 64, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--glow-yellow); text-align:center; margin-bottom:2px;">LÁMPARA</div>
+                <div style="position:relative; width:100%; height:32px; display:flex; align-items:center; justify-content:center;">
+                    <div id="halo_${n.id}" style="position:absolute; width:35px; height:35px; border-radius:50%; background:radial-gradient(circle, rgba(254,240,138,0.5) 0%, transparent 70%); opacity:0; pointer-events:none;"></div>
+                    <svg class="comp-svg" viewBox="0 0 100 40" style="position:relative;">
+                        <line x1="10" y1="20" x2="38" y2="20" stroke="#475569" stroke-width="1.5"/>
+                        <line x1="62" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="1.5"/>
+                        <circle cx="50" cy="18" r="10" fill="rgba(30,41,59,0.3)" stroke="#64748b" stroke-width="1"/>
+                        <path id="fil_${n.id}" d="M 45,22 L 49,14 L 51,14 L 55,22" fill="none" stroke="#94a3b8" stroke-width="1"/>
                     </svg>
                 </div>
-                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-18px; top:24px;"></div>
-                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-18px; top:24px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-14px; top:18px;"></div>
             `},
-            motor_dc: { w: 110, h: 95, render: (n) => `
-                <div style="font-size:9.5px; font-weight:bold; color:var(--magenta); text-align:center;">MOTOR DC</div>
+            motor_dc: { w: 75, h: 64, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--magenta); text-align:center; margin-bottom:2px;">MOTOR DC</div>
                 <svg class="comp-svg" viewBox="0 0 100 40">
-                    <circle cx="50" cy="20" r="14" fill="#1e1e2f" stroke="var(--magenta)" stroke-width="2"/>
+                    <circle cx="50" cy="20" r="11" fill="#111" stroke="var(--magenta)" stroke-width="1.5"/>
                     <g id="rot_${n.id}" transform="translate(50,20) rotate(${n.angulo || 0})">
-                        <line x1="-10" y1="0" x2="10" y2="0" stroke="#fff" stroke-width="2.5"/>
-                        <circle cx="0" cy="0" r="3" fill="var(--magenta)"/>
+                        <line x1="-8" y1="0" x2="8" y2="0" stroke="#fff" stroke-width="2"/>
                     </g>
-                    <line x1="10" y1="20" x2="36" y2="20" stroke="#475569" stroke-width="2"/>
-                    <line x1="64" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="2"/>
+                    <line x1="10" y1="20" x2="39" y2="20" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="61" y1="20" x2="90" y2="20" stroke="#475569" stroke-width="1.5"/>
                 </svg>
-                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-18px; top:24px;"></div>
-                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-18px; top:24px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-14px; top:18px;"></div>
             `}
         };
 
         function addSpiceComponent(tipo) {
             globalId++;
             let viewWidth = sandbox.clientWidth || 320;
-            let targetX = Math.max(25, (viewWidth / 2) - 55);
-            let targetY = 90 + (globalId % 4) * 22; 
+            // Instanciar ordenadamente en el centro del viewport expandido
+            let targetX = 120 + (globalId % 3) * 35;
+            let targetY = 100 + Math.floor(globalId / 3) * 15; 
 
             let n = {
                 id: `${tipo}_${globalId}`, tipo, x: targetX, y: targetY, angulo: 0,
-                fused: false, overheating: false, v_drop: 0, current: 0, temp: 20,
+                v_drop: 0, current: 0, temp: 20,
                 ajustes: tipo==='nice_power' ? { v: 12 } :
-                         tipo==='resistencia' ? { r: 100 } :
-                         tipo==='condensador' ? { r: 10 } : // Resistencia equivalente serie interna
+                         tipo==='resistencia' ? { r: 220 } :
+                         tipo==='condensador' ? { r: 5 } : 
                          tipo==='switch_cuchilla' ? { open: true } : {}
             };
             netNodes.push(n);
             injectNodeToDOM(n);
         }
 
+        // --- INYECCIÓN Y GESTIÓN INDIVIDUAL DE COMPONENTES ---
         function injectNodeToDOM(n) {
             let conf = SPICE_ARQUETYPES[n.tipo];
             let div = document.createElement('div');
             div.id = n.id; div.className = 'spice-node';
             div.style.left = n.x + 'px'; div.style.top = n.y + 'px';
             div.style.width = conf.w + 'px'; div.style.height = conf.h + 'px';
-            div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.0V / 0mA</div>`;
+            
+            // Renderizar la interfaz interna + Botón X para borrado individual
+            div.innerHTML = `<div class="close-node-btn" onclick="removeSingleComponent('${n.id}', event)">✕</div>` + 
+                            conf.render(n) + 
+                            `<div class="node-telemetry" id="tel_${n.id}">0V/0mA</div>`;
 
+            // Configurar pines táctiles
             div.querySelectorAll('.net-pin').forEach(pin => {
                 pin.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -328,8 +351,9 @@
                 });
             });
 
+            // Arrastrar libre por el viewport extendido
             div.addEventListener('pointerdown', (e) => {
-                if(e.target.classList.contains('net-pin')) return;
+                if(e.target.classList.contains('net-pin') || e.target.classList.contains('close-node-btn')) return;
                 activeSelectedNode = n;
                 document.querySelectorAll('.spice-node').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
@@ -345,8 +369,7 @@
                 function drop(ev) {
                     div.removeEventListener('pointermove', drag);
                     div.removeEventListener('pointerup', drop);
-                    drawNetlistWires();
-                    solveCircuitMNA();
+                    drawNetlistWires(); solveCircuitMNA();
                 }
                 div.addEventListener('pointermove', drag);
                 div.addEventListener('pointerup', drop);
@@ -355,19 +378,34 @@
             let touchTime = 0;
             div.addEventListener('pointerdown', () => touchTime = Date.now());
             div.addEventListener('click', (e) => {
-                if(e.target.classList.contains('net-pin')) return;
+                if(e.target.classList.contains('net-pin') || e.target.classList.contains('close-node-btn')) return;
                 e.stopPropagation();
                 if (Date.now() - touchTime > 250) return;
                 if(n.tipo === 'switch_cuchilla') {
                     n.ajustes.open = !n.ajustes.open;
-                    updateNodeGraphics(n);
-                    solveCircuitMNA();
+                    updateNodeGraphics(n); solveCircuitMNA();
                 } else {
                     openInspector(n, e);
                 }
             });
 
             sandbox.appendChild(div);
+            drawNetlistWires(); solveCircuitMNA();
+        }
+
+        // SISTEMA DE BORRADO INDIVIDUAL SIN AFECTAR TODO EL CIRCUITO
+        function removeSingleComponent(id, event) {
+            event.stopPropagation();
+            // 1. Eliminar conexiones vinculadas a este componente
+            conexiones = conexiones.filter(w => w.m1 !== id && w.m2 !== id);
+            // 2. Quitar del listado core
+            netNodes = netNodes.filter(n => n.id !== id);
+            // 3. Quitar del HTML
+            let el = document.getElementById(id);
+            if(el) el.remove();
+            
+            if(selectedSourcePin && selectedSourcePin.compId === id) selectedSourcePin = null;
+
             drawNetlistWires();
             solveCircuitMNA();
         }
@@ -378,7 +416,7 @@
                     (w.m1 === compId && w.p1 === pinName) || (w.m2 === compId && w.p2 === pinName)
                 );
                 if (cableExistente !== -1) {
-                    if (confirm("¿Desconectar este cable conductor del pin?")) {
+                    if (confirm("¿Desconectar cable conductor?")) {
                         conexiones.splice(cableExistente, 1);
                         drawNetlistWires(); solveCircuitMNA(); return;
                     }
@@ -409,7 +447,8 @@
         function updateNodeGraphics(n) {
             let div = document.getElementById(n.id); if(!div) return;
             let savedTel = div.querySelector('.node-telemetry')?.outerHTML || '';
-            div.innerHTML = SPICE_ARQUETYPES[n.tipo].render(n) + savedTel;
+            div.innerHTML = `<div class="close-node-btn" onclick="removeSingleComponent('${n.id}', event)">✕</div>` + 
+                            SPICE_ARQUETYPES[n.tipo].render(n) + savedTel;
             div.querySelectorAll('.net-pin').forEach(pin => {
                 pin.addEventListener('click', (e) => {
                     e.stopPropagation(); handlePinSelection(n.id, pin.dataset.pin, pin);
@@ -421,8 +460,7 @@
         function drawNetlistWires() {
             wireLayer.innerHTML = '';
             conexiones.forEach(w => {
-                let c1 = getPinCoords(w.m1, w.p1);
-                let c2 = getPinCoords(w.m2, w.p2);
+                let c1 = getPinCoords(w.m1, w.p1); let c2 = getPinCoords(w.m2, w.p2);
                 if(!c1 || !c2) return;
 
                 let g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -449,8 +487,7 @@
             conexiones.forEach(w => {
                 let p1 = document.getElementById(`pin_${w.m1}_${w.p1}`);
                 let p2 = document.getElementById(`pin_${w.m2}_${w.p2}`);
-                if(p1) p1.classList.add('linked');
-                if(p2) p2.classList.add('linked');
+                if(p1) p1.classList.add('linked'); if(p2) p2.classList.add('linked');
             });
         }
 
@@ -462,33 +499,26 @@
         }
 
         function purgueNetlist() {
-            conexiones = []; netNodes = [];
-            if(selectedSourcePin) selectedSourcePin = null;
+            conexiones = []; netNodes = []; selectedSourcePin = null;
             wireLayer.innerHTML = '';
             document.querySelectorAll('.spice-node').forEach(el => el.remove());
             solveCircuitMNA();
         }
 
-        // --- SOLVEDOR MATRICIAL CON AUTODETECCIÓN DE GND INVISIBLE ---
+        // --- NÚCLEO MATRICIAL SPICE MNA ---
         function solveCircuitMNA() {
             try {
-                if (netNodes.length === 0) { printDebugInfo([], [], 0, {}); return; }
+                if (netNodes.length === 0) { printDebugInfo({}, {}); return; }
 
                 netNodes.forEach(n => {
                     n.v_drop = 0; n.current = 0;
-                    let tel = document.getElementById(`tel_${n.id}`); if(tel) tel.innerText = "0.0V / 0mA";
+                    let tel = document.getElementById(`tel_${n.id}`); if(tel) tel.innerText = "0V/0mA";
                 });
                 conexiones.forEach(w => w.hasCurrent = false);
 
-                let pinToNodeMap = {};
-                let nodeIndexCounter = 1;
-
-                // AUTODETECCIÓN INTELEGENTE DE REFERENCIA GND TIERRA:
-                // El pin negativo (-) de la primera fuente instanciada se convierte automáticamente en el Nodo 0 de referencia.
+                let pinToNodeMap = {}; let nodeIndexCounter = 1;
                 let primeraFuente = netNodes.find(n => n.tipo === 'nice_power');
-                if(primeraFuente) {
-                    pinToNodeMap[`${primeraFuente.id}_n`] = 0;
-                }
+                if(primeraFuente) pinToNodeMap[`${primeraFuente.id}_n`] = 0;
 
                 conexiones.forEach(w => {
                     let k1 = `${w.m1}_${w.p1}`; let k2 = `${w.m2}_${w.p2}`;
@@ -516,29 +546,25 @@
 
                 let numNodosElectricos = nodeIndexCounter;
                 let fuentesDeVoltaje = netNodes.filter(n => n.tipo === 'nice_power');
-                let numFuentes = fuentesDeVoltaje.length;
+                let dim = numNodosElectricos + fuentesDeVoltaje.length;
 
-                let dim = numNodosElectricos + numFuentes;
-                if(dim <= 1) { printDebugInfo([], [], numNodosElectricos, {}); return; }
+                if(dim <= 1) { printDebugInfo(pinToNodeMap, null); return; }
 
                 let A = Array.from({length: dim}, () => Array(dim).fill(0));
                 let Z = Array(dim).fill(0);
 
                 netNodes.forEach(n => {
-                    if(n.tipo === 'resistencia') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / parseFloat(n.ajustes.r));
-                    }
-                    if(n.tipo === 'condensador') {
+                    if(n.tipo === 'resistencia' || n.tipo === 'condensador') {
                         stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / parseFloat(n.ajustes.r));
                     }
                     if(n.tipo === 'switch_cuchilla') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], n.ajustes.open ? 1e-11 : 1e4);
+                        stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], n.ajustes.open ? 1e-10 : 1e4);
                     }
                     if(n.tipo === 'motor_dc') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 15);
+                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 20);
                     }
                     if(n.tipo === 'foco_edison') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / 20);
+                        stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / 25);
                     }
                 });
 
@@ -546,15 +572,16 @@
                 let v_led_prev = ledComponents.map(() => 0.7);
                 let X = Array(dim).fill(0);
 
+                // Bucles de Newton Raphson para no-lineales
                 for(let iter = 0; iter < 10; iter++) {
                     let A_iter = A.map(row => [...row]); let Z_iter = [...Z];
 
                     ledComponents.forEach((n, idx) => {
                         let nA = pinToNodeMap[`${n.id}_an`]; let nK = pinToNodeMap[`${n.id}_ca`];
                         let Vd = v_led_prev[idx];
-                        let gd = (1e-14 / 0.026) * Math.exp(Vd / 0.026);
-                        if(gd < 1e-9) gd = 1e-9; if(gd > 1e3) gd = 1e3;
-                        let Ieq = 1e-14 * (Math.exp(Vd / 0.026) - 1) - gd * Vd;
+                        let gd = (1e-12 / 0.026) * Math.exp(Vd / 0.026);
+                        if(gd < 1e-8) gd = 1e-8; if(gd > 1e3) gd = 1e3;
+                        let Ieq = 1e-12 * (Math.exp(Vd / 0.026) - 1) - gd * Vd;
                         stampConductance(A_iter, nA, nK, gd); stampCurrentSource(Z_iter, nA, nK, Ieq);
                     });
 
@@ -575,29 +602,29 @@
                     });
                 }
 
+                // Extracción de datos de telemetría física
                 netNodes.forEach(n => {
                     if(n.tipo === 'resistencia' || n.tipo === 'condensador') {
                         let nA = pinToNodeMap[`${n.id}_a`]; let nB = pinToNodeMap[`${n.id}_b`];
                         n.v_drop = Math.abs((nA > 0 ? X[nA] : 0) - (nB > 0 ? X[nB] : 0));
-                        n.current = n.v_drop / (n.tipo==='resistencia' ? parseFloat(n.ajustes.r) : 10);
+                        n.current = n.v_drop / parseFloat(n.ajustes.r);
                         displayTelemetry(n, n.v_drop, n.current);
                     }
                     if(n.tipo === 'motor_dc') {
                         let n1 = pinToNodeMap[`${n.id}_m1`]; let n2 = pinToNodeMap[`${n.id}_m2`];
                         n.v_drop = Math.abs((n1 > 0 ? X[n1] : 0) - (n2 > 0 ? X[n2] : 0));
-                        n.current = n.v_drop / 15;
-                        displayTelemetry(n, n.v_drop, n.current);
+                        n.current = n.v_drop / 20; displayTelemetry(n, n.v_drop, n.current);
                     }
                     if(n.tipo === 'foco_edison') {
                         let n1 = pinToNodeMap[`${n.id}_t1`]; let n2 = pinToNodeMap[`${n.id}_t2`];
                         n.v_drop = Math.abs((n1 > 0 ? X[n1] : 0) - (n2 > 0 ? X[n2] : 0));
-                        n.current = n.v_drop / 20;
-                        displayTelemetry(n, n.v_drop, n.current);
+                        n.current = n.v_drop / 25; displayTelemetry(n, n.v_drop, n.current);
                     }
                     if(n.tipo === 'led_verde') {
                         let nA = pinToNodeMap[`${n.id}_an`]; let nK = pinToNodeMap[`${n.id}_ca`];
                         n.v_drop = (nA > 0 ? X[nA] : 0) - (nK > 0 ? X[nK] : 0);
-                        n.current = n.v_drop > 1.5 ? (n.v_drop - 1.5) / 20 : 0;
+                        // Modelo de encendido directo linealizado para el renderizador táctil
+                        n.current = n.v_drop > 1.7 ? (n.v_drop - 1.7) / 10 : 0;
                         if(n.current < 0) n.current = 0;
                         displayTelemetry(n, n.v_drop, n.current);
                     }
@@ -610,12 +637,12 @@
 
                 conexiones.forEach(w => {
                     let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
-                    if(pNode !== undefined && X) w.hasCurrent = Math.abs(X[pNode]) > 0.05;
+                    if(pNode !== undefined && X) w.hasCurrent = Math.abs(X[pNode]) > 0.02;
                 });
 
-                printDebugInfo(A, Z, numNodosElectricos, pinToNodeMap);
-                updatePhysicalComponents();
-            } catch(err) { console.error(err); }
+                printDebugInfo(pinToNodeMap, X);
+                updateVisualsRealistas();
+            } catch(e) {}
         }
 
         function stampConductance(M, nA, nB, G) {
@@ -627,22 +654,22 @@
         }
 
         function solveLinearSystem(A, Z) {
-            let n = Z.length; if (n === 0) return null;
-            for (let i = 0; i < n; i++) A[i].push(Z[i]);
-            for (let i = 0; i < n; i++) {
+            let n = Z.length; if(n===0) return null;
+            for(let i=0; i<n; i++) A[i].push(Z[i]);
+            for(let i=0; i<n; i++) {
                 let maxEl = Math.abs(A[i][i]); let maxRow = i;
-                for (let k = i + 1; k < n; k++) { if (Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; } }
-                for (let k = i; k < n + 1; k++) { let tmp = A[maxRow][k]; A[maxRow][k] = A[i][k]; A[i][k] = tmp; }
-                if (Math.abs(A[i][i]) < 1e-12) return null;
-                for (let k = 0; k < n; k++) {
-                    if (k !== i) {
-                        let c = -A[k][i] / A[i][i];
-                        for (let j = i; j < n + 1; j++) { if (i === j) A[k][j] = 0; else A[k][j] += c * A[i][j]; }
+                for(let k=i+1; k<n; k++) { if(Math.abs(A[k][i])>maxEl) { maxEl=Math.abs(A[k][i]); maxRow=k; } }
+                for(let k=i; k<n+1; k++) { let tmp=A[maxRow][k]; A[maxRow][k]=A[i][k]; A[i][k]=tmp; }
+                if(Math.abs(A[i][i]) < 1e-12) return null;
+                for(let k=0; k<n; k++) {
+                    if(k!==i) {
+                        let c = -A[k][i]/A[i][i];
+                        for(let j=i; j<n+1; j++) { if(i===j) A[k][j]=0; else A[k][j]+=c*A[i][j]; }
                     }
                 }
             }
             let res = Array(n).fill(0);
-            for (let i = 0; i < n; i++) res[i] = A[i][n] / A[i][i];
+            for(let i=0; i<n; i++) res[i]=A[i][n]/A[i][i];
             return res;
         }
 
@@ -651,24 +678,21 @@
             tel.innerText = `${v.toFixed(1)}V / ${i >= 1 ? i.toFixed(1)+'A' : (i*1000).toFixed(0)+'mA'}`;
         }
 
-        // --- ACTUALIZACIONES DINÁMICAS REALISTAS ILUMINADAS ---
-        function updatePhysicalComponents() {
+        // --- ACTUALIZACIONES DE RENDERIZADO VISUAL REALISTA ---
+        function updateVisualsRealistas() {
             netNodes.forEach(n => {
                 let div = document.getElementById(n.id); if(!div) return;
 
                 if(n.tipo === 'led_verde') {
                     let cap = div.querySelector(`#led_cap_${n.id}`);
-                    let g1 = div.querySelector(`#led_glow_${n.id}`);
-                    let g2 = div.querySelector(`#led_glow2_${n.id}`);
-                    if(cap && g1 && g2) {
-                        if(n.v_drop >= 1.6 && n.current > 0.001) {
-                            let factor = Math.min(1, (n.v_drop - 1.6) / 1.5);
-                            cap.setAttribute('fill', `rgb(${20 + (34 * factor)}, ${83 + (112 * factor)}, ${45 + (39 * factor)})`);
-                            cap.style.filter = `drop-shadow(0 0 ${8 * factor}px #22c55e)`;
-                            g1.style.opacity = factor; g2.style.opacity = factor;
+                    let glow = div.querySelector(`#led_glow_${n.id}`);
+                    if(cap && glow) {
+                        if(n.v_drop >= 1.7 && n.current > 0.0001) {
+                            let f = Math.min(1, (n.v_drop - 1.7) / 1.5);
+                            cap.setAttribute('fill', `rgb(${20 + 80*f}, ${67 + 188*f}, ${45 + 50*f})`);
+                            glow.style.opacity = 0.3 + f*0.7;
                         } else {
-                            cap.setAttribute('fill', '#14532d'); cap.style.filter = 'none';
-                            g1.style.opacity = 0; g2.style.opacity = 0;
+                            cap.setAttribute('fill', '#14432d'); glow.style.opacity = 0;
                         }
                     }
                 }
@@ -677,55 +701,44 @@
                     let fil = div.querySelector(`#fil_${n.id}`);
                     let halo = div.querySelector(`#halo_${n.id}`);
                     if(fil && halo) {
-                        if(n.v_drop > 0.5) {
-                            let factor = Math.min(1, n.v_drop / 12);
-                            fil.setAttribute('stroke', `rgb(255, ${160 + (95*factor)}, 64)`);
-                            fil.style.filter = `drop-shadow(0 0 4px #eab308)`;
-                            halo.style.opacity = factor;
-                            halo.style.transform = `scale(${1 + factor * 0.4})`;
+                        if(n.v_drop > 0.4) {
+                            let f = Math.min(1, n.v_drop / 12);
+                            fil.setAttribute('stroke', `rgb(255, ${150 + 105*f}, 50)`);
+                            halo.style.opacity = f * 0.9;
                         } else {
-                            fil.setAttribute('stroke', '#94a3b8'); fil.style.filter = 'none';
-                            halo.style.opacity = 0;
+                            fil.setAttribute('stroke', '#94a3b8'); halo.style.opacity = 0;
                         }
                     }
                 }
 
                 if(n.tipo === 'motor_dc' && n.v_drop > 0.5) {
-                    n.angulo = (n.angulo + (n.v_drop * 3.5)) % 360;
+                    n.angulo = (n.angulo + (n.v_drop * 4)) % 360;
                     let rot = div.querySelector(`#rot_${n.id}`);
                     if(rot) rot.setAttribute('transform', `translate(50,20) rotate(${n.angulo})`);
                 }
             });
         }
 
-        function printDebugInfo(M, V, count, mapping) {
-            let netView = document.getElementById('netlist-view');
-            let matView = document.getElementById('matrix-view');
-            if(!netView || !matView) return;
-            if(netNodes.length === 0) { netView.innerText = "Lienzo limpio."; matView.innerText = "Matriz nula."; return; }
-
-            let netStr = ""; for(let k in mapping) { netStr += ` Pin [${k.split('_')[1].toUpperCase()}] de ${k.split('_')[0]} ➔ Nodo MNA: ${mapping[k]}\n`; }
-            netView.innerText = netStr;
-
-            if(!M || M.length === 0) { matView.innerText = "Esperando lazo cerrado..."; return; }
-            let matStr = "";
-            for(let i=0; i<M.length; i++) {
-                if (M[i]) matStr += ` Row_${i} │ ${M[i].map(v => v.toFixed(2)).join("   ")} │ Z = ${V[i] !== undefined ? V[i].toFixed(1) : 0}\n`;
+        function printDebugInfo(mapping, X) {
+            let view = document.getElementById('netlist-view'); if(!view) return;
+            let str = "";
+            for(let k in mapping) {
+                let comp = k.split('_')[0].toUpperCase();
+                let pin = k.split('_')[1].toUpperCase();
+                str += `[${comp}] Pin_${pin} ➔ MNA Nodo: ${mapping[k]}\n`;
             }
-            matView.innerText = matStr;
+            view.innerText = str || "Esperando conexiones...";
         }
 
         function openInspector(n, e) {
             activeSelectedNode = n; inspector.style.display = 'block';
             let fields = document.getElementById('inspector-fields');
             if(n.tipo === 'nice_power') {
-                fields.innerHTML = `<div class="row-ins"><label>Voltaje de la Fuente DC (V):</label><input type="number" id="val_v" value="${n.ajustes.v}"></div>`;
-            } else if(n.tipo === 'resistencia') {
-                fields.innerHTML = `<div class="row-ins"><label>Valor de Resistencia (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>`;
-            } else if(n.tipo === 'condensador') {
-                fields.innerHTML = `<div class="row-ins"><label>Impedancia de Carga (𝛀 EQ):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>`;
+                fields.innerHTML = `<div class="row-ins"><label>Voltaje Fuente DC (V):</label><input type="number" id="val_v" value="${n.ajustes.v}"></div>`;
+            } else if(n.tipo === 'resistencia' || n.tipo === 'condensador') {
+                fields.innerHTML = `<div class="row-ins"><label>Impedancia / Valor (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>`;
             } else {
-                fields.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px 0;">Componente con física no-lineal integrada.</p>`;
+                fields.innerHTML = `<p style="font-size:10px; color:#64748b; text-align:center; padding:5px 0;">Física fija integrada.</p>`;
             }
         }
 
@@ -738,7 +751,53 @@
             inspector.style.display = 'none'; solveCircuitMNA();
         }
 
+        // --- SISTEMA COMPLETO DE INSTRUMENTACIÓN (OSCILOSCOPIO + FFT RE-INTEGRADO) ---
+        function initInstruments() {
+            scopeCanvas = document.getElementById('scopeCanvas'); scopeCtx = scopeCanvas.getContext('2d');
+            fftCanvas = document.getElementById('fftCanvas'); fftCtx = fftCanvas.getContext('2d');
+            
+            function resize() {
+                scopeCanvas.width = scopeCanvas.parentElement.clientWidth; scopeCanvas.height = 65;
+                fftCanvas.width = fftCanvas.parentElement.clientWidth; fftCanvas.height = 65;
+            }
+            resize(); window.addEventListener('resize', resize);
+            drawInstrumentsLoop();
+        }
+
+        function drawInstrumentsLoop() {
+            requestAnimationFrame(drawInstrumentsLoop);
+            simTime += 0.05;
+
+            // Buscar el nodo de mayor voltaje activo para mostrar en la gráfica
+            let maxV = 0;
+            netNodes.forEach(n => { if(n.v_drop > maxV) maxV = n.v_drop; });
+
+            // 1. Render Osciloscopio
+            scopeCtx.fillStyle = '#000'; scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+            // Rejilla de fondo
+            scopeCtx.strokeStyle = '#111827'; scopeCtx.lineWidth = 1;
+            for(let i=0; i<scopeCanvas.width; i+=20) { scopeCtx.beginPath(); scopeCtx.moveTo(i,0); scopeCtx.lineTo(i,65); scopeCtx.stroke(); }
+            for(let j=0; j<65; j+=15) { scopeCtx.beginPath(); scopeCtx.moveTo(0,j); scopeCtx.lineTo(scopeCanvas.width,j); scopeCtx.stroke(); }
+
+            scopeCtx.strokeStyle = 'var(--cyan)'; scopeCtx.lineWidth = 1.5; scopeCtx.beginPath();
+            for(let x=0; x<scopeCanvas.width; x++) {
+                let s_v = maxV * (0.5 + 0.3 * Math.sin(x * 0.08 + simTime));
+                let y = 50 - (s_v * (35 / 24)); // Ajustado a escala
+                if(x===0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
+            }
+            scopeCtx.stroke();
+
+            // 2. Render Espectrómetro FFT
+            fftCtx.fillStyle = '#000'; fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+            fftCtx.fillStyle = 'var(--magenta)';
+            for(let i=0; i<fftCanvas.width; i+=4) {
+                let amp = (maxV > 0) ? (Math.abs(Math.sin(i*0.05)) * 40 * (maxV/12)) + Math.random()*4 : 0;
+                fftCtx.fillRect(i, fftCanvas.height - amp, 3, amp);
+            }
+        }
+
         window.addEventListener('load', () => {
+            initInstruments();
             sandbox.addEventListener('click', () => {
                 inspector.style.display = 'none';
                 if(selectedSourcePin) { selectedSourcePin.element.classList.remove('wiring-source'); selectedSourcePin = null; }
