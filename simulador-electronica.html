@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>⚡ SPICE MNA Engine Studio v18.0 - Professional Circuit Simulator</title>
+    <title>📱 SPICE MNA Mobile Studio v18.0</title>
     <style>
         :root {
             --bg-main: #060913;
@@ -17,134 +17,148 @@
             --border: #1e293b;
             --text: #f3f4f6;
             --text-muted: #64748b;
-            --panel-bg: rgba(13, 18, 34, 0.95);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         
         body { 
             background-color: var(--bg-main); 
             color: var(--text); 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Permite scroll en teléfonos si el contenido es largo */
+            overflow-x: hidden;
         }
 
         header {
-            height: 45px; background: var(--bg-sidebar); border-bottom: 2px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
-            box-shadow: 0 4px 25px rgba(0,0,0,0.7); z-index: 1000;
+            height: 50px; background: var(--bg-sidebar); border-bottom: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
+            position: sticky; top: 0; z-index: 1000;
         }
-        .brand { font-size: 11px; font-weight: 900; color: var(--cyan); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nav-right { display: flex; align-items: center; gap: 8px; }
-        .engine-badge { font-size: 9px; background: rgba(0,242,254,0.07); padding: 2px 6px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); white-space: nowrap; }
-        .exit-btn { background: #1e293b; border: 1px solid var(--red); color: var(--red); font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+        .brand { font-size: 14px; font-weight: 900; color: var(--cyan); letter-spacing: 0.5px; }
+        .engine-badge { font-size: 11px; background: rgba(0,242,254,0.07); padding: 4px 8px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
 
-        #container { display: flex; flex: 1; height: calc(100vh - 45px); overflow: hidden; position: relative; flex-direction: column; }
-        
-        #sidebar {
-            position: absolute; bottom: 0; left: 0; width: 100%; max-height: 50%; 
-            background: var(--bg-sidebar); border-top: 2px solid var(--border); border-right: none;
-            padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 800;
-            transition: transform 0.3s ease; transform: translateY(calc(100% - 35px));
-        }
-        #sidebar.open { transform: translateY(0); }
-        
-        .drag-handle-bar {
-            width: 100%; height: 35px; background: #111827; position: absolute; top: 0; left: 0;
-            display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;
-            color: var(--cyan); border-bottom: 1px solid var(--border); cursor: pointer;
-        }
-        .sidebar-content { margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
-
-        .group-title { font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 2px; margin-top: 5px; }
-        
-        .toolbox-grid {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 6px;
-        }
-        .comp-btn {
-            background: #040712; border: 1px solid var(--border); padding: 8px; border-radius: 6px;
-            cursor: pointer; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: space-between;
+        /* --- CONTENEDOR PRINCIPAL EN VERTICAL PARA TELÉFONOS --- */
+        #main-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
         }
 
-        #viewport { flex: 1; display: flex; flex-direction: column; position: relative; background: var(--bg-grid); overflow: hidden; height: 100%; }
+        /* --- LIENZO DE TRABAJO: Forzado a ser visible en móviles --- */
+        #viewport { 
+            position: relative; 
+            background: var(--bg-grid); 
+            height: 380px; /* Altura fija ideal para la pantalla de cualquier celular */
+            width: 100%;
+            border-bottom: 2px solid var(--border);
+        }
         
         #sandbox {
-            flex: 1; position: relative; overflow: hidden; 
+            width: 100%;
+            height: 100%;
+            position: relative; 
+            overflow: hidden; 
             background-image: linear-gradient(to right, rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.015) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-size: 25px 25px;
             touch-action: none; 
         }
         
         #wire-layer { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            pointer-events: none; z-index: 10; overflow: visible;
+            pointer-events: none; z-index: 10;
         }
 
+        /* --- COMPONENTES VISUALES --- */
         .spice-node {
-            position: absolute; z-index: 100; border-radius: 6px;
-            background: rgba(10, 16, 32, 0.95); border: 2px solid #2e3d59; padding: 8px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 4px;
-            transform-origin: center center;
+            position: absolute; z-index: 100; border-radius: 8px;
+            background: rgba(13, 18, 34, 0.95); border: 2px solid #2e3d59; padding: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 4px;
             touch-action: none;
             cursor: move;
         }
-        .spice-node.selected { border-color: var(--cyan) !important; box-shadow: 0 0 15px rgba(0,242,254,0.35); }
-        .spice-node.hot { border-color: var(--red) !important; background: #3b0707 !important; animation: jitter 0.1s infinite alternate; }
-        .spice-node.destroyed { filter: grayscale(1) brightness(0.2); border-color: #000 !important; pointer-events: none; }
-        
-        @keyframes jitter { from { transform: translate(0.5px, 0.5px); } to { transform: translate(-0.5px, -0.5px); } }
+        .spice-node.selected { border-color: var(--cyan) !important; box-shadow: 0 0 12px rgba(0,242,254,0.4); }
+        .spice-node.destroyed { filter: grayscale(1) brightness(0.3); border-color: #000 !important; }
 
         .net-pin {
-            position: absolute; width: 24px; height: 24px; background: transparent;
+            position: absolute; width: 28px; height: 28px; background: transparent;
             z-index: 500; display: flex; align-items: center; justify-content: center;
             touch-action: none;
-            cursor: crosshair;
         }
         .net-pin::after {
-            content: ''; width: 12px; height: 12px; background: #02040a;
-            border: 2px solid #64748b; border-radius: 50%; display: block;
-            transition: transform 0.1s;
+            content: ''; width: 14px; height: 14px; background: #02040a;
+            border: 2px solid #64748b; border-radius: 50%;
         }
         .net-pin.linked::after { background: var(--cyan); border-color: #fff; box-shadow: 0 0 8px var(--cyan); }
-        .pin-lbl { position: absolute; font-size: 8px; color: var(--text-muted); font-weight: bold; pointer-events: none; z-index: 550;}
+        .pin-lbl { position: absolute; font-size: 10px; color: var(--text-muted); font-weight: bold; pointer-events: none; }
 
         .node-telemetry { 
-            font-size: 9px; background: #000; border: 1px solid var(--border); 
-            padding: 2px 5px; border-radius: 3px; color: #fff; 
-            white-space: nowrap; text-align: center; margin-top: auto;
+            font-size: 10px; background: #000; border: 1px solid var(--border); 
+            padding: 3px; border-radius: 4px; color: #fff; text-align: center; margin-top: auto;
+            font-family: monospace;
         }
 
         .wire-shadow { fill: none; stroke: #1e293b; stroke-width: 4; stroke-linecap: round; }
-        .wire-active { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 5px var(--green)); }
+        .wire-active { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--green)); }
         .wire-dots { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 18; animation: moveDots 0.4s linear infinite; }
         @keyframes moveDots { to { stroke-dashoffset: -24; } }
 
-        #console-bottom {
-            height: 100px; background: var(--bg-sidebar); border-top: 2px solid var(--border);
-            display: flex; padding: 6px; gap: 8px; z-index: 300;
-            margin-bottom: 35px;
+        /* --- CAJA DE COMPONENTES: Estilo teclado inferior para pulgares --- */
+        #mobile-toolbox {
+            background: var(--bg-sidebar);
+            padding: 15px;
+            border-bottom: 2px solid var(--border);
         }
-        .console-card { background: #02050c; border: 1px solid var(--border); border-radius: 6px; padding: 6px; flex: 1; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
-        .console-title { font-size: 8px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #111827; padding-bottom: 2px; }
-        .matrix-row { font-family: monospace; font-size: 9px; color: #a7f3d0; white-space: pre; line-height: 1.2; }
+        .section-title { font-size: 11px; color: var(--cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px; }
+        
+        .scroll-row {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto; /* Permite deslizar los botones de izquierda a derecha con el dedo */
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .scroll-row::-webkit-scrollbar { height: 4px; }
+        .scroll-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+        .mobile-btn {
+            background: #040712; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px;
+            font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 8px;
+            white-space: nowrap; flex-shrink: 0;
+            touch-action: manipulation;
+        }
+        .mobile-btn active { background: var(--border); }
+
+        /* --- PANEL DE TELEMETRÍA Y MATRIZ (Abajo del todo) --- */
+        #mobile-console {
+            background: #02050c;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .console-box {
+            background: rgba(6, 9, 19, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .box-title { font-size: 10px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .matrix-output { font-family: monospace; font-size: 11px; color: #a7f3d0; white-space: pre; overflow-x: auto; }
+
+        /* --- INSPECTOR FLOTANTE COMPATIBLE --- */
         #spice-inspector {
-            position: absolute; z-index: 2000; background: var(--panel-bg); border: 2px solid var(--cyan);
-            padding: 12px; border-radius: 6px; width: 280px; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            left: 50% !important; top: 40% !important; transform: translate(-50%, -50%) !important;
+            position: fixed; z-index: 2000; background: var(--bg-sidebar); border: 2px solid var(--cyan);
+            padding: 15px; border-radius: 12px; width: 85%; max-width: 300px; display: none; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); left: 50%; top: 40%; transform: translate(-50%, -50%);
         }
-        .row-ins { margin-bottom: 8px; }
-        .row-ins label { display: block; font-size: 9px; color: var(--text-muted); font-weight: bold; margin-bottom: 2px; text-transform: uppercase; }
-        .row-ins input { width: 100%; background: #020408; border: 1px solid #2e3d59; color: #fff; padding: 6px; font-size: 12px; }
-        .apply-btn { width: 100%; background: var(--cyan); border: none; padding: 8px; color: #000; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
-
-        .purgue-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); color: #fff; padding: 6px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer; margin-top: 5px; width: 100%; }
+        .row-ins { margin-bottom: 12px; }
+        .row-ins label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .row-ins input { width: 100%; background: #000; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 14px; border-radius: 6px; }
+        .apply-btn { width: 100%; background: var(--cyan); border: none; padding: 12px; color: #000; font-weight: bold; font-size: 13px; border-radius: 6px; }
+        .purgue-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); color: var(--red); padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; width: 100%; margin-top: 5px; }
 
         .rotor-container { border: 2px dashed var(--magenta); border-radius: 50%; margin: 2px auto; display: flex; align-items: center; justify-content: center; }
         .bulb-glass { border-radius: 50% 50% 30% 30%; border: 2px solid #475569; margin: 2px auto; position: relative; }
@@ -154,69 +168,54 @@
 <body>
 
     <header>
-        <div class="brand">🔬 MNA-CORE v18.0</div>
-        <div class="nav-right">
-            <div class="engine-badge" id="engine-status">MNA: OK</div>
-            <button class="exit-btn" onclick="alert('Laboratorio cerrado.');">🚪 SALIR</button>
-        </div>
+        <div class="brand">🔬 MNA MOBILE CORE v18.0</div>
+        <div class="engine-badge" id="engine-status">MNA: OK</div>
     </header>
 
-    <div id="container">
+    <div id="main-layout">
+        
         <div id="viewport">
             <div id="spice-inspector">
                 <div id="inspector-fields"></div>
-                <button class="apply-btn" onclick="applyNodeSettings()">Estampar Netlist</button>
+                <button class="apply-btn" onclick="applyNodeSettings()">Aplicar Cambios</button>
             </div>
-
             <div id="sandbox">
                 <svg id="wire-layer" xmlns="http://www.w3.org/2000/svg"></svg>
             </div>
+        </div>
 
-            <div id="console-bottom">
-                <div class="console-card">
-                    <div class="console-title">📁 Netlist Vectorial</div>
-                    <div class="matrix-row" id="netlist-view" style="color:var(--text-muted)">Nodos...</div>
-                </div>
-                <div class="console-card" style="flex: 1.2;">
-                    <div class="console-title">📋 Matriz [A] · [X] = [Z]</div>
-                    <div class="matrix-row" id="matrix-view">Esperando lazo...</div>
-                </div>
+        <div id="mobile-toolbox">
+            <div class="section-title">Instanciar Componentes (Desliza ➔)</div>
+            <div class="scroll-row">
+                <button class="mobile-btn" onclick="addSpiceComponent('nice_power')"><span style="color:var(--cyan)">🔋</span> Fuente DC</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('gnd_node')"><span style="color:var(--green)">⏚</span> Tierra GND</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('resistencia')"><span style="color:#fef08a">🟫</span> Resistor</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('switch_cuchilla')"><span style="color:var(--yellow)">🎛️</span> Interruptor</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('led_verde')"><span style="color:var(--green)">🟢</span> Diodo LED</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('motor_dc')"><span style="color:var(--magenta)">🌀</span> Motor DC</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('foco_edison')"><span style="color:var(--yellow)">💡</span> Lámpara</button>
+            </div>
+            <button class="purgue-btn" onclick="purgueNetlist()">🗑️ Limpiar Todo el Lienzo</button>
+        </div>
+
+        <div id="mobile-console">
+            <div class="console-box">
+                <div class="box-title">📁 Asignación de Nodos MNA</div>
+                <div class="matrix-output" id="netlist-view" style="color:var(--text-muted)">Añade componentes...</div>
+            </div>
+            <div class="console-box">
+                <div class="box-title">📋 Estado de la Matriz [A] · [X] = [Z]</div>
+                <div class="matrix-output" id="matrix-view">Esperando circuito activo...</div>
             </div>
         </div>
 
-        <div id="sidebar">
-            <div class="drag-handle-bar" onclick="toggleSidebar()">🧰 CAJA DE COMPONENTES (TAP AQUÍ)</div>
-            <div class="sidebar-content">
-                <div class="group-title">Nodos de Potencial Activo</div>
-                <div class="toolbox-grid">
-                    <div class="comp-btn" onclick="addSpiceComponent('nice_power')"><span>📟 Fuente DC</span><b style="color:var(--cyan)">V</b></div>
-                    <div class="comp-btn" onclick="addSpiceComponent('gnd_node')"><span>⏚ Tierra</span><b style="color:var(--green)">GND</b></div>
-                </div>
-
-                <div class="group-title">Conductancias Pasivas</div>
-                <div class="toolbox-grid">
-                    <div class="comp-btn" onclick="addSpiceComponent('resistencia')"><span>🟫 Resistor</span><b style="color:#fef08a">R</b></div>
-                    <div class="comp-btn" onclick="addSpiceComponent('switch_cuchilla')"><span>🎛️ Interruptor</span><b style="color:var(--yellow)">SW</b></div>
-                </div>
-
-                <div class="group-title">Semiconductores y Cargas</div>
-                <div class="toolbox-grid">
-                    <div class="comp-btn" onclick="addSpiceComponent('led_verde')"><span>🟢 Diodo LED</span><b style="color:var(--green)">LED</b></div>
-                    <div class="comp-btn" onclick="addSpiceComponent('motor_dc')"><span>🌀 Motor DC</span><b style="color:var(--magenta)">MOT</b></div>
-                    <div class="comp-btn" onclick="addSpiceComponent('foco_edison')"><span>💡 Lámpara</span><b style="color:var(--yellow)">BULB</b></div>
-                </div>
-
-                <button class="purgue-btn" onclick="purgueNetlist()">Limpiar Todo el Circuito</button>
-            </div>
-        </div>
     </div>
 
     <script>
-        // --- CORE STATE ---
+        // --- ESTADO GLOBAL ---
         let netNodes = [];
         let conexiones = [];
         let globalId = 0;
-
         let activeWirePin = null;
         let svgGuide = null;
         let activeSelectedNode = null;
@@ -224,68 +223,66 @@
         const sandbox = document.getElementById('sandbox');
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
-        const sidebar = document.getElementById('sidebar');
 
-        function toggleSidebar() {
-            sidebar.classList.toggle('open');
-        }
-
-        // --- ARQUETIPOS DE COMPONENTES AVANZADOS SPICE ---
+        // --- MODELOS GRÁFICOS ---
         const SPICE_ARQUETYPES = {
-            nice_power: { w: 140, h: 75, render: (n) => `
-                <div style="font-size:8px; font-weight:bold; color:var(--cyan);">VOLTAGE_SRC (E)</div>
-                <div style="background:#000; color:var(--green); font-size:12px; text-align:center; padding:2px; font-family:monospace; margin-top:2px; border-radius:3px;">${n.ajustes.v.toFixed(1)} V</div>
-                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-12px; top:25px;" title="Ánodo (+)"></div>
-                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-12px; top:25px;" title="Cátodo (-)"></div>
-                <span class="pin-lbl" style="left:14px; top:30px; color:var(--red)">+</span><span class="pin-lbl" style="right:14px; top:30px;">-</span>
+            nice_power: { w: 120, h: 70, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--cyan);">FUENTE V</div>
+                <div style="background:#000; color:var(--green); font-size:11px; text-align:center; padding:2px; margin-top:2px; border-radius:4px;">${n.ajustes.v.toFixed(1)} V</div>
+                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-14px; top:20px;"></div>
+                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-14px; top:20px;"></div>
+                <span class="pin-lbl" style="left:14px; top:24px; color:var(--red)">+</span><span class="pin-lbl" style="right:14px; top:24px;">-</span>
             `},
-            gnd_node: { w: 90, h: 55, render: (n) => `
-                <div style="font-size:8px; font-weight:bold; color:var(--green); text-align:center;">⏚ GROUND</div>
-                <div style="font-size:8px; font-family:monospace; text-align:center; margin-top:4px; color:var(--text-muted)">NODE_0</div>
-                <div class="net-pin" id="pin_${n.id}_g" data-pin="g" style="left:33px; top:-12px;"></div>
+            gnd_node: { w: 90, h: 50, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--green); text-align:center;">⏚ TIERRA</div>
+                <div class="net-pin" id="pin_${n.id}_g" data-pin="g" style="left:31px; top:-14px;"></div>
             `},
-            resistencia: { w: 120, h: 65, render: (n) => `
-                <div style="font-size:8px; font-weight:bold; color:#fef08a;">RESISTOR (G)</div>
-                <div style="background:#000; text-align:center; font-size:11px; font-family:monospace; padding:2px; margin-top:3px; border-radius:3px;">${n.ajustes.r} 𝛀</div>
-                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-12px; top:20px;"></div>
-                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-12px; top:20px;"></div>
+            resistencia: { w: 110, h: 65, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:#fef08a;">RESISTOR</div>
+                <div style="background:#000; text-align:center; font-size:11px; padding:2px; margin-top:3px; border-radius:4px;">${n.ajustes.r} 𝛀</div>
+                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-14px; top:18px;"></div>
             `},
-            switch_cuchilla: { w: 120, h: 65, render: (n) => `
-                <div style="font-size:7px; font-weight:bold; color:var(--text-muted); text-transform:uppercase;">SWITCH</div>
-                <div style="text-align:center; font-weight:bold; font-size:10px; margin-top:4px; color:${n.ajustes.open?'var(--red)':'var(--green)'}">${n.ajustes.open?'ABIERTO':'CERRADO'}</div>
-                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-12px; top:20px;"></div>
-                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-12px; top:20px;"></div>
+            switch_c_cuchilla: { w: 110, h: 65, render: (n) => ` /* fallback name correction */ `},
+            switch_cuchilla: { w: 110, h: 65, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--text-muted);">SW_CONTROL</div>
+                <div style="text-align:center; font-weight:bold; font-size:11px; margin-top:4px; color:${n.ajustes.open?'var(--red)':'var(--green)'}">${n.ajustes.open?'ABIERTO':'CERRADO'}</div>
+                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-14px; top:18px;"></div>
             `},
-            led_verde: { w: 120, h: 80, render: (n) => `
-                <div style="font-size:7px; font-weight:bold; color:var(--green); text-align:center;">DIODE_LED</div>
-                <div id="lit_${n.id}" style="width:20px; height:20px; border-radius:50%; background:rgba(57,255,20,0.02); border:2px solid #334155; margin:3px auto;"></div>
-                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-12px; top:30px;"></div>
-                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-12px; top:30px;"></div>
-                <span class="pin-lbl" style="left:12px; top:32px;">A</span><span class="pin-lbl" style="right:12px; top:32px;">K</span>
+            led_verde: { w: 110, h: 75, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--green); text-align:center;">DIODO LED</div>
+                <div id="lit_${n.id}" style="width:18px; height:18px; border-radius:50%; background:rgba(57,255,20,0.02); border:2px solid #334155; margin:3px auto;"></div>
+                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-14px; top:28px;"></div>
+                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-14px; top:28px;"></div>
             `},
-            motor_dc: { w: 120, h: 85, render: (n) => `
-                <div style="font-size:7px; font-weight:bold; color:var(--magenta); text-align:center;">DC_MOTOR</div>
-                <div class="rotor-container" id="rot_${n.id}" style="width:28px; height:28px; transform: rotate(${n.angulo || 0}deg);">
-                    <div style="width:2px; height:22px; background:var(--magenta);"></div>
+            motor_dc: { w: 110, h: 80, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--magenta); text-align:center;">MOTOR_DC</div>
+                <div class="rotor-container" id="rot_${n.id}" style="width:24px; height:24px; transform: rotate(${n.angulo || 0}deg);">
+                    <div style="width:2px; height:18px; background:var(--magenta);"></div>
                 </div>
-                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-12px; top:30px;"></div>
-                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-12px; top:30px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-14px; top:26px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-14px; top:26px;"></div>
             `},
-            foco_edison: { w: 120, h: 85, render: (n) => `
-                <div style="font-size:7px; font-weight:bold; color:var(--yellow); text-align:center;">EDISON_BULB</div>
-                <div class="bulb-glass" id="bg_${n.id}" style="width:26px; height:26px;">
-                    <div class="filame" id="fil_${n.id}" style="width:10px; height:12px; top:10px; left:6px;"></div>
+            foco_edison: { w: 110, h: 80, render: (n) => `
+                <div style="font-size:9px; font-weight:bold; color:var(--yellow); text-align:center;">LÁMPARA</div>
+                <div class="bulb-glass" id="bg_${n.id}" style="width:24px; height:24px;">
+                    <div class="filame" id="fil_${n.id}" style="width:8px; height:10px; top:8px; left:6px;"></div>
                 </div>
-                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-12px; top:30px;"></div>
-                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-12px; top:30px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-14px; top:26px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-14px; top:26px;"></div>
             `}
         };
 
-        // --- MANEJO DE NODOS DE CONTROL ---
         function addSpiceComponent(tipo) {
             globalId++;
+            // Centrar componente en el medio de la pantalla del móvil automáticamente al tocarlo
+            let viewWidth = sandbox.clientWidth || 300;
+            let targetX = Math.max(20, (viewWidth / 2) - 55);
+            let targetY = 120 + (globalId % 3) * 15; 
+
             let n = {
-                id: `${tipo}_${globalId}`, tipo, x: 100, y: 120, angulo: 0,
+                id: `${tipo}_${globalId}`, tipo, x: targetX, y: targetY, angulo: 0,
                 fused: false, overheating: false, v_drop: 0, current: 0, temp: 20,
                 ajustes: tipo==='nice_power' ? { v: 12 } :
                          tipo==='resistencia' ? { r: 220, max_p: 0.5 } :
@@ -295,13 +292,6 @@
             };
             netNodes.push(n);
             injectNodeToDOM(n);
-            if(sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        }
-
-        function getEventCoords(e) {
-            return { cx: e.clientX, cy: e.clientY };
         }
 
         function injectNodeToDOM(n) {
@@ -310,9 +300,9 @@
             div.id = n.id; div.className = 'spice-node';
             div.style.left = n.x + 'px'; div.style.top = n.y + 'px';
             div.style.width = conf.w + 'px'; div.style.height = conf.h + 'px';
-            div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.00V / 0.0mA</div>`;
+            div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.0V/0mA</div>`;
 
-            // Uso unificado de PointerEvents para máxima compatibilidad
+            // Enlazar pines con PointerEvents unificados para pantallas táctiles de celulares
             div.querySelectorAll('.net-pin').forEach(pin => {
                 pin.addEventListener('pointerdown', (e) => {
                     e.stopPropagation(); e.preventDefault();
@@ -320,7 +310,8 @@
                 });
             });
 
-            const onPointerDragStart = (e) => {
+            // Arrastrar con un dedo de forma limpia
+            div.addEventListener('pointerdown', (e) => {
                 if(e.target.classList.contains('net-pin')) return;
                 activeSelectedNode = n;
                 document.querySelectorAll('.spice-node').forEach(el => el.classList.remove('selected'));
@@ -337,23 +328,18 @@
                 function drop(ev) {
                     div.removeEventListener('pointermove', drag);
                     div.removeEventListener('pointerup', drop);
-                    div.removeEventListener('pointercancel', drop);
                     drawNetlistWires();
                     solveCircuitMNA();
                 }
                 div.addEventListener('pointermove', drag);
                 div.addEventListener('pointerup', drop);
-                div.addEventListener('pointercancel', drop);
-            };
+            });
 
-            div.addEventListener('pointerdown', onPointerDragStart);
-
-            let clickTime = 0;
-            div.addEventListener('pointerdown', () => clickTime = Date.now());
-
+            let touchTime = 0;
+            div.addEventListener('pointerdown', () => touchTime = Date.now());
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (Date.now() - clickTime > 200) return; 
+                if (Date.now() - touchTime > 250) return; // Filtrar arrastres largos
                 if(n.tipo === 'switch_cuchilla') {
                     n.ajustes.open = !n.ajustes.open;
                     updateNodeGraphics(n);
@@ -389,7 +375,7 @@
             svgGuide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             svgGuide.setAttribute('x1', coord.x); svgGuide.setAttribute('y1', coord.y);
             svgGuide.setAttribute('x2', coord.x); svgGuide.setAttribute('y2', coord.y);
-            svgGuide.setAttribute('stroke', 'var(--cyan)'); svgGuide.setAttribute('stroke-width', '3');
+            svgGuide.setAttribute('stroke', 'var(--cyan)'); svgGuide.setAttribute('stroke-width', '4');
             wireLayer.appendChild(svgGuide);
 
             function dragWire(e) {
@@ -402,6 +388,7 @@
                 document.removeEventListener('pointermove', dragWire);
                 document.removeEventListener('pointerup', dropWire);
                 
+                // Mapear el toque físico sobre el pin destino en móviles
                 let targetPin = document.elementFromPoint(e.clientX, e.clientY);
                 if (targetPin && !targetPin.classList.contains('net-pin')) {
                     targetPin = targetPin.closest('.net-pin');
@@ -486,10 +473,9 @@
             wireLayer.innerHTML = '';
             document.querySelectorAll('.spice-node').forEach(el => el.remove());
             solveCircuitMNA();
-            sidebar.classList.remove('open');
         }
 
-        // --- SOLUCIONADOR MODIFICADO DE NODOS MNA (SPICE ENGINE) ---
+        // --- SOLUCIONADOR MATRICIAL MNA ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) {
@@ -500,7 +486,7 @@
                 netNodes.forEach(n => {
                     n.v_drop = 0; n.current = 0;
                     if(!n.fused) n.overheating = false;
-                    let tel = document.getElementById(`tel_${n.id}`); if(tel) tel.innerText = "0.00V / 0.0mA";
+                    let tel = document.getElementById(`tel_${n.id}`); if(tel) tel.innerText = "0.0V/0mA";
                 });
                 conexiones.forEach(w => w.hasCurrent = false);
 
@@ -588,7 +574,7 @@
 
                     X = solveLinearSystem(A_iter, Z_iter);
                     if(!X) {
-                        document.getElementById('engine-status').innerText = "ERR: SINGULARIDAD";
+                        document.getElementById('engine-status').innerText = "ERR_MATRIZ";
                         document.getElementById('engine-status').style.color = "var(--red)";
                         return;
                     }
@@ -672,8 +658,7 @@
         }
 
         function solveLinearSystem(A, Z) {
-            let n = Z.length;
-            if (n === 0) return null;
+            let n = Z.length; if (n === 0) return null;
             for (let i = 0; i < n; i++) A[i].push(Z[i]);
             for (let i = 0; i < n; i++) {
                 let maxEl = Math.abs(A[i][i]); let maxRow = i;
@@ -729,7 +714,7 @@
 
                 if(n.tipo === 'motor_dc') {
                     if(n.v_drop > 0.5) {
-                        n.angulo = (n.angulo + (n.v_drop * 3.5)) % 360;
+                        n.angulo = (n.angulo + (n.v_drop * 4)) % 360;
                         let rot = div.querySelector(`#rot_${n.id}`);
                         if(rot) rot.style.transform = `rotate(${n.angulo}deg)`;
                     }
@@ -741,16 +726,16 @@
             let netView = document.getElementById('netlist-view');
             let matView = document.getElementById('matrix-view');
             if(!netView || !matView) return;
-            if(netNodes.length === 0) { netView.innerText = "Vacío."; matView.innerText = "Nula."; return; }
+            if(netNodes.length === 0) { netView.innerText = "Lienzo limpio."; matView.innerText = "Matriz nula."; return; }
 
-            let netStr = ""; for(let k in mapping) { netStr += `[${k}]->MNA:${mapping[k]}\n`; }
+            let netStr = ""; for(let k in mapping) { netStr += `[${k}] ➔ Nodo MNA:${mapping[k]}\n`; }
             netView.innerText = netStr;
 
-            if(!M || M.length === 0) { matView.innerText = "Esperando lazo..."; return; }
+            if(!M || M.length === 0) { matView.innerText = "A la espera de un lazo cerrado..."; return; }
             let matStr = "";
             for(let i=0; i<M.length; i++) {
                 if (M[i]) {
-                    matStr += `[R_${i}] │ ${M[i].map(v => v.toExponential(1).padStart(7)).join(" ")} │ Z=${V[i] !== undefined ? V[i].toExponential(1) : 0}\n`;
+                    matStr += `[Fila_${i}] │ ${M[i].map(v => v.toExponential(1)).join(" ")} │ Z=${V[i] !== undefined ? V[i].toExponential(1) : 0}\n`;
                 }
             }
             matView.innerText = matStr;
@@ -759,18 +744,17 @@
         function openInspector(n, e) {
             activeSelectedNode = n;
             inspector.style.display = 'block';
-
             let fields = document.getElementById('inspector-fields');
             if(n.tipo === 'nice_power') {
-                fields.innerHTML = `<div class="row-ins"><label>Voltaje DC (V):</label><input type="number" id="val_v" value="${n.ajustes.v}"></div>`;
+                fields.innerHTML = `<div class="row-ins"><label>Voltaje de Fuente DC (Voltios):</label><input type="number" id="val_v" value="${n.ajustes.v}"></div>`;
             } else if(n.tipo === 'resistencia') {
                 fields.innerHTML = `
-                    <div class="row-ins"><label>Resistencia (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>
-                    <div class="row-ins"><label>Potencia Máx (W):</label><input type="number" id="val_p" value="${n.ajustes.max_p}"></div>`;
+                    <div class="row-ins"><label>Valor Ohmico (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>
+                    <div class="row-ins"><label>Potencia Disipación Máx (W):</label><input type="number" id="val_p" value="${n.ajustes.max_p}"></div>`;
             } else if(n.tipo === 'foco_edison') {
-                fields.innerHTML = `<div class="row-ins"><label>Resistencia Nominal (𝛀):</label><input type="number" id="val_rn" value="${n.ajustes.r_nominal}"></div>`;
+                fields.innerHTML = `<div class="row-ins"><label>Resistencia del Filamento (𝛀):</label><input type="number" id="val_rn" value="${n.ajustes.r_nominal}"></div>`;
             } else {
-                fields.innerHTML = `<p style="font-size:10px; color:var(--text-muted); text-align:center; padding:10px 0;">Componente de silicio fijo.</p>`;
+                fields.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center; padding:5px 0;">Componente electrónico no-lineal.</p>`;
             }
         }
 
@@ -789,9 +773,8 @@
 
         window.addEventListener('load', () => {
             sandbox.addEventListener('click', () => inspector.style.display = 'none');
-            
             setInterval(() => {
-                netNodes.forEach(n => { if(n.temp > 20) n.temp -= 0.5; });
+                netNodes.forEach(n => { if(n.temp > 20) n.temp -= 0.4; });
                 solveCircuitMNA();
             }, 50);
         });
