@@ -753,35 +753,21 @@
             }
         }
 
-<script>
-
-function applyNodeSettings() {
-    if(activeSelectedNode) {
-        if(activeSelectedNode.tipo === 'nice_power')
-            activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
-
-        if(activeSelectedNode.tipo === 'resistencia')
-            activeSelectedNode.ajustes.r = parseFloat(document.getElementById('val_r').value) || 1;
-
-        if(activeSelectedNode.tipo === 'condensador') {
-            activeSelectedNode.ajustes.c = parseFloat(document.getElementById('val_c').value) || 1;
-            activeSelectedNode.ajustes.v_hist = 0;
+        function applyNodeSettings() {
+            if(activeSelectedNode) {
+                if(activeSelectedNode.tipo === 'nice_power') activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
+                if(activeSelectedNode.tipo === 'resistencia') activeSelectedNode.ajustes.r = parseFloat(document.getElementById('val_r').value) || 1;
+                if(activeSelectedNode.tipo === 'condensador') {
+                    activeSelectedNode.ajustes.c = parseFloat(document.getElementById('val_c').value) || 1;
+                    activeSelectedNode.ajustes.v_hist = 0; 
+                }
+                if(activeSelectedNode.tipo === 'motor_dc') activeSelectedNode.ajustes.max_rpm = parseFloat(document.getElementById('val_rpm').value) || 1000;
+            }
+            updateComponentGraphics(activeSelectedNode);
+            inspector.style.display = 'none'; solveCircuitMNA();
         }
 
-        if(activeSelectedNode.tipo === 'motor_dc') {
-            activeSelectedNode.ajustes.max_rpm = parseFloat(document.getElementById('val_rpm').value) || 1000;
-        }
-    }
-
-    updateComponentGraphics(activeSelectedNode);
-    inspector.style.display = 'none';
-    solveCircuitMNA();
-}
-
-/* =========================
-   OSCILOSCOPIO FINAL ESTABLE
-   ========================= */
-
+  /* OSCILOSCOPIO REDISEÑADO SIN ERRORES DE SINTAXIS */
 function initOscilloscope() {
 
     scopeCanvas = document.getElementById('scopeCanvas');
@@ -792,14 +778,19 @@ function initOscilloscope() {
     function resizeScope() {
         const rect = scopeCanvas.parentElement.getBoundingClientRect();
 
-        const w = rect.width;
-        const h = rect.height;
+        // 📱 SAFE AREA FIX (iPhone + Android navbar)
+        const safeBottom = parseInt(
+            getComputedStyle(document.documentElement)
+                .getPropertyValue('env(safe-area-inset-bottom)') || 0
+        );
 
-        scopeCanvas.width = w * dpr;
-        scopeCanvas.height = h * dpr;
+        const height = 85 + safeBottom;
 
-        scopeCanvas.style.width = w + 'px';
-        scopeCanvas.style.height = h + 'px';
+        scopeCanvas.width = rect.width * dpr;
+        scopeCanvas.height = height * dpr;
+
+        scopeCanvas.style.width = rect.width + 'px';
+        scopeCanvas.style.height = height + 'px';
 
         scopeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
@@ -819,12 +810,14 @@ function initOscilloscope() {
         const h = scopeCanvas.height / dpr;
 
         if (pointsBuffer.length !== Math.floor(w)) {
-            pointsBuffer = Array(Math.floor(w)).fill(h / 2);
+            pointsBuffer = Array(Math.floor(w)).fill(70);
         }
 
+        // 🟢 fondo estable
         scopeCtx.fillStyle = '#001100';
         scopeCtx.fillRect(0, 0, w, h);
 
+        // 🧩 rejilla suave
         scopeCtx.strokeStyle = '#012a01';
         scopeCtx.lineWidth = 1;
 
@@ -842,8 +835,12 @@ function initOscilloscope() {
             scopeCtx.stroke();
         }
 
+        // 🌊 señal
         let noise = (Math.random() - 0.5) * 0.01;
-        let v = Math.abs(graphVoltage) > 0.01 ? graphVoltage + noise : 0;
+
+        let v = Math.abs(graphVoltage) > 0.01
+            ? graphVoltage + noise
+            : 0;
 
         let y = (h - 10) - (v * (55 / 12));
 
@@ -852,8 +849,10 @@ function initOscilloscope() {
 
         pointsBuffer[xTrace] = y;
 
+        // ✨ línea verde suave
         scopeCtx.strokeStyle = '#39ff14';
         scopeCtx.lineWidth = 2;
+
         scopeCtx.shadowBlur = 6;
         scopeCtx.shadowColor = '#39ff14';
 
@@ -869,6 +868,7 @@ function initOscilloscope() {
 
         xTrace = (xTrace + 1) % w;
 
+        // 📟 OSD ajustado arriba (evita corte inferior)
         scopeCtx.fillStyle = '#39ff14';
         scopeCtx.font = '10px monospace';
 
@@ -895,12 +895,11 @@ window.addEventListener('load', () => {
         inspector.style.display = 'none';
     });
 
+    // ⚡ MOTOR SPICE
     setInterval(() => {
         solveCircuitMNA();
     }, 60);
 });
-
-</script>
-
+    </script>
 </body>
 </html>
