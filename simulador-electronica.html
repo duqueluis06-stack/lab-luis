@@ -27,7 +27,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Permite scroll en teléfonos si el contenido es largo */
+            overflow-y: auto;
             overflow-x: hidden;
         }
 
@@ -36,21 +36,40 @@
             display: flex; align-items: center; justify-content: space-between; padding: 0 15px;
             position: sticky; top: 0; z-index: 1000;
         }
-        .brand { font-size: 14px; font-weight: 900; color: var(--cyan); letter-spacing: 0.5px; }
-        .engine-badge { font-size: 11px; background: rgba(0,242,254,0.07); padding: 4px 8px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
+        .brand { font-size: 13px; font-weight: 900; color: var(--cyan); letter-spacing: 0.5px; }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-        /* --- CONTENEDOR PRINCIPAL EN VERTICAL PARA TELÉFONOS --- */
+        .engine-badge { font-size: 11px; background: rgba(0,242,254,0.07); padding: 4px 8px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
+        
+        /* BOTÓN DE SALIDA DESTACADO EN ROJO */
+        .exit-btn { 
+            background: #111827; 
+            border: 1px solid var(--red); 
+            color: var(--red); 
+            font-size: 11px; 
+            font-weight: bold; 
+            padding: 5px 10px; 
+            border-radius: 6px; 
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .exit-btn:active { background: rgba(255, 49, 49, 0.2); }
+
         #main-layout {
             display: flex;
             flex-direction: column;
             width: 100%;
         }
 
-        /* --- LIENZO DE TRABAJO: Forzado a ser visible en móviles --- */
         #viewport { 
             position: relative; 
             background: var(--bg-grid); 
-            height: 380px; /* Altura fija ideal para la pantalla de cualquier celular */
+            height: 380px; 
             width: 100%;
             border-bottom: 2px solid var(--border);
         }
@@ -70,7 +89,6 @@
             pointer-events: none; z-index: 10;
         }
 
-        /* --- COMPONENTES VISUALES --- */
         .spice-node {
             position: absolute; z-index: 100; border-radius: 8px;
             background: rgba(13, 18, 34, 0.95); border: 2px solid #2e3d59; padding: 10px;
@@ -104,7 +122,6 @@
         .wire-dots { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 18; animation: moveDots 0.4s linear infinite; }
         @keyframes moveDots { to { stroke-dashoffset: -24; } }
 
-        /* --- CAJA DE COMPONENTES: Estilo teclado inferior para pulgares --- */
         #mobile-toolbox {
             background: var(--bg-sidebar);
             padding: 15px;
@@ -115,7 +132,7 @@
         .scroll-row {
             display: flex;
             gap: 10px;
-            overflow-x: auto; /* Permite deslizar los botones de izquierda a derecha con el dedo */
+            overflow-x: auto;
             padding-bottom: 10px;
             margin-bottom: 10px;
             -webkit-overflow-scrolling: touch;
@@ -129,9 +146,7 @@
             white-space: nowrap; flex-shrink: 0;
             touch-action: manipulation;
         }
-        .mobile-btn active { background: var(--border); }
 
-        /* --- PANEL DE TELEMETRÍA Y MATRIZ (Abajo del todo) --- */
         #mobile-console {
             background: #02050c;
             padding: 12px;
@@ -148,7 +163,6 @@
         .box-title { font-size: 10px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
         .matrix-output { font-family: monospace; font-size: 11px; color: #a7f3d0; white-space: pre; overflow-x: auto; }
 
-        /* --- INSPECTOR FLOTANTE COMPATIBLE --- */
         #spice-inspector {
             position: fixed; z-index: 2000; background: var(--bg-sidebar); border: 2px solid var(--cyan);
             padding: 15px; border-radius: 12px; width: 85%; max-width: 300px; display: none; 
@@ -169,7 +183,10 @@
 
     <header>
         <div class="brand">🔬 MNA MOBILE CORE v18.0</div>
-        <div class="engine-badge" id="engine-status">MNA: OK</div>
+        <div class="header-actions">
+            <div class="engine-badge" id="engine-status">MNA: OK</div>
+            <button class="exit-btn" onclick="exitStudio()">🚪 SALIR</button>
+        </div>
     </header>
 
     <div id="main-layout">
@@ -212,7 +229,6 @@
     </div>
 
     <script>
-        // --- ESTADO GLOBAL ---
         let netNodes = [];
         let conexiones = [];
         let globalId = 0;
@@ -224,7 +240,20 @@
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
 
-        // --- MODELOS GRÁFICOS ---
+        // FUNCIÓN DE SALIDA SEGURA
+        function exitStudio() {
+            if(confirm("¿Estás seguro de que quieres salir del laboratorio? Se borrará el circuito actual.")) {
+                purgueNetlist();
+                // Intenta cerrar la ventana; si el navegador lo bloquea, redirige a una pantalla limpia de salida
+                window.close();
+                document.body.innerHTML = `<div style="background:#060913; color:#f3f4f6; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+                    <h1 style="color:var(--cyan); margin-bottom:10px;">🔬 Laboratorio Cerrado</h1>
+                    <p style="color:var(--text-muted); font-size:14px;">Has salido de forma segura del simulador SPICE MNA.</p>
+                    <button onclick="location.reload()" style="margin-top:20px; background:var(--cyan); border:none; padding:10px 20px; font-weight:bold; border-radius:6px; cursor:pointer;">Reiniciar Simulador</button>
+                </div>`;
+            }
+        }
+
         const SPICE_ARQUETYPES = {
             nice_power: { w: 120, h: 70, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--cyan);">FUENTE V</div>
@@ -243,7 +272,6 @@
                 <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-14px; top:18px;"></div>
                 <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-14px; top:18px;"></div>
             `},
-            switch_c_cuchilla: { w: 110, h: 65, render: (n) => ` /* fallback name correction */ `},
             switch_cuchilla: { w: 110, h: 65, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--text-muted);">SW_CONTROL</div>
                 <div style="text-align:center; font-weight:bold; font-size:11px; margin-top:4px; color:${n.ajustes.open?'var(--red)':'var(--green)'}">${n.ajustes.open?'ABIERTO':'CERRADO'}</div>
@@ -276,7 +304,6 @@
 
         function addSpiceComponent(tipo) {
             globalId++;
-            // Centrar componente en el medio de la pantalla del móvil automáticamente al tocarlo
             let viewWidth = sandbox.clientWidth || 300;
             let targetX = Math.max(20, (viewWidth / 2) - 55);
             let targetY = 120 + (globalId % 3) * 15; 
@@ -302,7 +329,6 @@
             div.style.width = conf.w + 'px'; div.style.height = conf.h + 'px';
             div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.0V/0mA</div>`;
 
-            // Enlazar pines con PointerEvents unificados para pantallas táctiles de celulares
             div.querySelectorAll('.net-pin').forEach(pin => {
                 pin.addEventListener('pointerdown', (e) => {
                     e.stopPropagation(); e.preventDefault();
@@ -310,7 +336,6 @@
                 });
             });
 
-            // Arrastrar con un dedo de forma limpia
             div.addEventListener('pointerdown', (e) => {
                 if(e.target.classList.contains('net-pin')) return;
                 activeSelectedNode = n;
@@ -339,7 +364,7 @@
             div.addEventListener('pointerdown', () => touchTime = Date.now());
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (Date.now() - touchTime > 250) return; // Filtrar arrastres largos
+                if (Date.now() - touchTime > 250) return;
                 if(n.tipo === 'switch_cuchilla') {
                     n.ajustes.open = !n.ajustes.open;
                     updateNodeGraphics(n);
@@ -388,7 +413,6 @@
                 document.removeEventListener('pointermove', dragWire);
                 document.removeEventListener('pointerup', dropWire);
                 
-                // Mapear el toque físico sobre el pin destino en móviles
                 let targetPin = document.elementFromPoint(e.clientX, e.clientY);
                 if (targetPin && !targetPin.classList.contains('net-pin')) {
                     targetPin = targetPin.closest('.net-pin');
@@ -475,7 +499,6 @@
             solveCircuitMNA();
         }
 
-        // --- SOLUCIONADOR MATRICIAL MNA ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) {
