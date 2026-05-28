@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🔬 SPICE Real-Look Lab Studio v21.0</title>
+    <title>🔬 SPICE Real-Look Lab Studio v22.0</title>
     <style>
         :root {
             --bg-main: #060814;
@@ -51,7 +51,7 @@
         
         #wire-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
 
-        /* --- CONTENEDORES SILUETEADOS REALISTAS (SIN CAJAS GRANDES) --- */
+        /* --- CONTENEDORES SILUETEADOS REALISTAS --- */
         .spice-node {
             position: absolute; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;
             touch-action: none; padding: 5px; background: transparent; border: none;
@@ -91,7 +91,7 @@
         .wire-dots { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 12; animation: flows 0.3s linear infinite; }
         @keyframes flows { to { stroke-dashoffset: -17; } }
 
-        /* ANIMACIÓN DE LA HÉLICE DEL MOTOR */
+        /* ANIMACIONES INTERNAS */
         @keyframes spinPropeller {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -108,7 +108,6 @@
         .console-box { background: rgba(14, 17, 38, 0.5); border: 1.5px solid var(--border); border-radius: 6px; padding: 6px; }
         .box-title { font-size: 9px; color: #506396; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; }
         
-        /* --- INSTRUMENTO OSCILOSCOPIO CORREGIDO --- */
         .canvas-container { background: #020702; border: 2px solid #1c3d1c; border-radius: 4px; position: relative; overflow: hidden; }
         canvas { width: 100%; height: 75px; display: block; }
 
@@ -126,7 +125,7 @@
 <body>
 
     <header>
-        <div class="brand">🔬 SPICE VISUAL LAB v21.0</div>
+        <div class="brand">🔬 SPICE VISUAL LAB v22.0</div>
         <button class="exit-btn" onclick="exitStudio()">🚪 SALIR</button>
     </header>
 
@@ -145,6 +144,7 @@
         <div id="mobile-toolbox">
             <div class="scroll-row">
                 <button class="mobile-btn" onclick="addSpiceComponent('nice_power')">🔋 Batería DC</button>
+                <button class="mobile-btn" onclick="addSpiceComponent('switch_cuchilla')">🎛️ Switch Real</button>
                 <button class="mobile-btn" onclick="addSpiceComponent('resistencia')">🟫 Resistor</button>
                 <button class="mobile-btn" onclick="addSpiceComponent('condensador')">🔋 Capacitor</button>
                 <button class="mobile-btn" onclick="addSpiceComponent('led_verde')">🟢 Diodo LED</button>
@@ -199,6 +199,23 @@
                     </svg>
                     <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-16px; top:10px;"></div>
                     <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-16px; top:10px;"></div>
+                </div>
+            `},
+            switch_cuchilla: { w: 85, h: 70, render: (n) => `
+                <div class="comp-body">
+                    <svg width="75" height="45" viewBox="0 0 75 45">
+                        <rect x="15" y="10" width="45" height="25" rx="2" fill="#475569" stroke="#334155" stroke-width="1.5"/>
+                        <circle cx="23" cy="22" r="4" fill="#cbd5e1"/>
+                        <circle cx="52" cy="22" r="4" fill="#cbd5e1"/>
+                        <line x1="0" y1="22" x2="15" y2="22" stroke="#94a3b8" stroke-width="2"/>
+                        <line x1="60" y1="22" x2="75" y2="22" stroke="#94a3b8" stroke-width="2"/>
+                        ${n.ajustes.open 
+                            ? `<line x1="23" y1="22" x2="48" y2="3" stroke="#ff2a2a" stroke-width="4.5" stroke-linecap="round"/>`
+                            : `<line x1="23" y1="22" x2="52" y2="22" stroke="#00ff00" stroke-width="4.5" stroke-linecap="round"/>`
+                        }
+                    </svg>
+                    <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-16px; top:10px;"></div>
+                    <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-16px; top:10px;"></div>
                 </div>
             `},
             resistencia: { w: 90, h: 60, render: (n) => `
@@ -281,7 +298,8 @@
                 v_drop: 0, current: 0,
                 ajustes: tipo==='nice_power' ? { v: 12 } :
                          tipo==='resistencia' ? { r: 100 } :
-                         tipo==='condensador' ? { r: 2 } : {}
+                         tipo==='condensador' ? { r: 2 } :
+                         tipo==='switch_cuchilla' ? { open: true } : {}
             };
             netNodes.push(n);
             injectNodeToDOM(n);
@@ -327,14 +345,33 @@
                 div.addEventListener('pointerup', drop);
             });
 
+            // ACCION DE PULSADO INDIVIDUAL
             div.addEventListener('click', (e) => {
                 if(e.target.classList.contains('net-pin') || e.target.classList.contains('close-node-btn')) return;
                 e.stopPropagation();
-                openInspector(n, e);
+                if(n.tipo === 'switch_cuchilla') {
+                    n.ajustes.open = !n.ajustes.open;
+                    updateSwitchGraphics(n); solveCircuitMNA();
+                } else {
+                    openInspector(n, e);
+                }
             });
 
             sandbox.appendChild(div);
             drawNetlistWires(); solveCircuitMNA();
+        }
+
+        function updateSwitchGraphics(n) {
+            let div = document.getElementById(n.id); if(!div) return;
+            let savedTel = div.querySelector('.node-telemetry')?.outerHTML || '';
+            div.innerHTML = `<div class="close-node-btn" onclick="removeSingleComponent('${n.id}', event)">✕</div>` + 
+                            SPICE_ARQUETYPES[n.tipo].render(n) + savedTel;
+            div.querySelectorAll('.net-pin').forEach(pin => {
+                pin.addEventListener('click', (e) => {
+                    e.stopPropagation(); handlePinSelection(n.id, pin.dataset.pin, pin);
+                });
+            });
+            refreshPinStates();
         }
 
         function removeSingleComponent(id, event) {
@@ -420,7 +457,7 @@
             solveCircuitMNA();
         }
 
-        // --- NÚCLEO MATRICIAL SPICE CON EXTRACCIÓN DIRECTA ---
+        // --- NÚCLEO MATRICIAL SPICE CON INTERRUPTOR FÍSICO MNA ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) { graphVoltage = 0; return; }
@@ -456,6 +493,10 @@
                 netNodes.forEach(n => {
                     if(n.tipo === 'resistencia' || n.tipo === 'condensador') {
                         stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / parseFloat(n.ajustes.r));
+                    }
+                    if(n.tipo === 'switch_cuchilla') {
+                        // Resistencia altísima si está abierto (aislante), bajísima si está cerrado (conductor)
+                        stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], n.ajustes.open ? 1e-12 : 1e4);
                     }
                     if(n.tipo === 'motor_dc') stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 15);
                     if(n.tipo === 'foco_edison') stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / 20);
@@ -500,6 +541,11 @@
                         n.v_drop = Math.abs((nA > 0 ? X[nA] : 0) - (nB > 0 ? X[nB] : 0));
                         if(tel) tel.innerText = `${n.v_drop.toFixed(1)}V`;
                     }
+                    if(n.tipo === 'switch_cuchilla') {
+                        let n1 = pinToNodeMap[`${n.id}_1`]; let n2 = pinToNodeMap[`${n.id}_2`];
+                        n.v_drop = Math.abs((n1 > 0 ? X[n1] : 0) - (n2 > 0 ? X[n2] : 0));
+                        if(tel) tel.innerText = n.ajustes.open ? "ABIERTO" : "CERRADO";
+                    }
                     if(n.tipo === 'motor_dc') {
                         let n1 = pinToNodeMap[`${n.id}_m1`]; let n2 = pinToNodeMap[`${n.id}_m2`];
                         n.v_drop = Math.abs((n1 > 0 ? X[n1] : 0) - (n2 > 0 ? X[n2] : 0));
@@ -519,10 +565,12 @@
                         n.v_drop = n.ajustes.v;
                         if(tel) tel.innerText = `${n.v_drop.toFixed(1)}V`;
                     }
-                    if(n.v_drop > activeMaxV) activeMaxV = n.v_drop;
+                    // Capturar el voltaje dinámico de los componentes reactivos
+                    if(n.tipo !== 'nice_power' && n.v_drop > activeMaxV) activeMaxV = n.v_drop;
                 });
 
-                graphVoltage = activeMaxV; // Pasar lectura pura al osciloscopio
+                // Si el circuito está abierto o no hay caídas de voltaje reales en cargas, es 0V
+                graphVoltage = activeMaxV;
 
                 conexiones.forEach(w => {
                     let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
@@ -566,28 +614,28 @@
             netNodes.forEach(n => {
                 let div = document.getElementById(n.id); if(!div) return;
 
-                // 1. CONTROL TOTAL DE ENCENDIDO LED
+                // 1. ENCENDIDO LED
                 if(n.tipo === 'led_verde') {
                     let bulb = div.querySelector(`#led_bulb_${n.id}`);
                     if(bulb) {
                         if(n.v_drop >= 1.6) {
-                            bulb.setAttribute('fill', '#00ff00'); // Verde Neón Brillante garantizado
+                            bulb.setAttribute('fill', '#00ff00');
                             bulb.style.filter = 'drop-shadow(0 0 8px #00ff00)';
                         } else {
-                            bulb.setAttribute('fill', '#064e3b'); // Apagado oscuro
+                            bulb.setAttribute('fill', '#064e3b');
                             bulb.style.filter = 'none';
                         }
                     }
                 }
 
-                // 2. CONTROL TOTAL DE ENCENDIDO LÁMPARA
+                // 2. ENCENDIDO LÁMPARA
                 if(n.tipo === 'foco_edison') {
                     let glass = div.querySelector(`#lamp_glass_${n.id}`);
                     let fil = div.querySelector(`#lamp_fil_${n.id}`);
                     if(glass && fil) {
                         if(n.v_drop >= 1.5) {
-                            glass.setAttribute('fill', '#ffff00'); // Bombilla amarilla encendida completa
-                            fil.setAttribute('stroke', '#ff7700'); // Filamento incandescente
+                            glass.setAttribute('fill', '#ffff00');
+                            fil.setAttribute('stroke', '#ff7700');
                         } else {
                             glass.setAttribute('fill', 'rgba(255,255,255,0.05)');
                             fil.setAttribute('stroke', '#475569');
@@ -600,7 +648,6 @@
                     let prop = div.querySelector(`#propeller_${n.id}`);
                     if(prop) {
                         if(n.v_drop >= 1.5) {
-                            // Aplicar rotación continua por CSS directamente
                             let speed = Math.max(0.1, 2 / n.v_drop);
                             prop.style.animation = `spinPropeller ${speed}s linear infinite`;
                         } else {
@@ -619,7 +666,7 @@
             } else if(n.tipo === 'resistencia' || n.tipo === 'condensador') {
                 fields.innerHTML = `<div class="row-ins"><label>Valor Ohmio (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>`;
             } else {
-                fields.innerHTML = `<p style="font-size:11px; color:#506396; text-align:center; padding:10px 0;">Componente electrónico listo.</p>`;
+                fields.innerHTML = `<p style="font-size:11px; color:#506396; text-align:center; padding:10px 0;">Componente listo.</p>`;
             }
         }
 
@@ -631,35 +678,27 @@
             inspector.style.display = 'none'; solveCircuitMNA();
         }
 
-        // --- RE-INGENIERÍA TOTAL DEL OSCILOSCOPIO (ESTABLE CON DC) ---
+        // --- OSCILOSCOPIO PROFESIONAL ---
         function initOscilloscope() {
             scopeCanvas = document.getElementById('scopeCanvas');
             scopeCtx = scopeCanvas.getContext('2d');
             scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
             scopeCanvas.height = 75;
 
-            let xOffset = 0;
-
             function renderScope() {
                 requestAnimationFrame(renderScope);
-                xOffset += 1;
-
                 scopeCtx.fillStyle = '#020702';
                 scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
 
-                // Rejilla clásica verde de osciloscopio
                 scopeCtx.strokeStyle = '#051a05';
                 scopeCtx.lineWidth = 1;
                 for(let i=0; i<scopeCanvas.width; i+=25) { scopeCtx.beginPath(); scopeCtx.moveTo(i,0); scopeCtx.lineTo(i,75); scopeCtx.stroke(); }
-                for(let j=0; j<75; j+=15) { scopeCtx.beginPath(); scopeCtx.moveTo(0,j); scopeCtx.lineTo(scopeCanvas.width,j); scopeCtx.stroke(); }
+                for(let j=0; j<75; j+=15) { scopeCtx.beginPath(); scopeCtx.moveTo(0,j); scopeCtx.lineTo(scopeCanvas.width,j); strokeCtx = scopeCtx.stroke(); }
 
-                // Línea de fósforo verde brillante reactiva a la Batería/Circuitos
                 scopeCtx.strokeStyle = '#00ff00';
                 scopeCtx.lineWidth = 2;
                 scopeCtx.beginPath();
 
-                // Calcular altura basada en voltios directos (DC)
-                // 0V está en la parte inferior (altura 65), 24V está en la superior (altura 10)
                 let targetY = 65 - (graphVoltage * (50 / 24));
                 if(targetY < 5) targetY = 5;
 
@@ -667,7 +706,6 @@
                 scopeCtx.lineTo(scopeCanvas.width, targetY);
                 scopeCtx.stroke();
                 
-                // Pequeño indicador de texto en pantalla
                 scopeCtx.fillStyle = '#00ff00';
                 scopeCtx.font = '9px monospace';
                 scopeCtx.fillText(`CH1 AUTO: ${graphVoltage.toFixed(1)} VDC`, 10, 15);
