@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📱 SPICE MNA Mobile Studio v18.0</title>
+    <title>📱 SPICE MNA Mobile Studio v18.5</title>
     <style>
         :root {
             --bg-main: #060913;
@@ -46,17 +46,10 @@
 
         .engine-badge { font-size: 11px; background: rgba(0,242,254,0.07); padding: 4px 8px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
         
-        /* BOTÓN DE SALIDA DESTACADO EN ROJO */
         .exit-btn { 
-            background: #111827; 
-            border: 1px solid var(--red); 
-            color: var(--red); 
-            font-size: 11px; 
-            font-weight: bold; 
-            padding: 5px 10px; 
-            border-radius: 6px; 
-            cursor: pointer;
-            touch-action: manipulation;
+            background: #111827; border: 1px solid var(--red); color: var(--red); 
+            font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 6px; 
+            cursor: pointer; touch-action: manipulation;
         }
         .exit-btn:active { background: rgba(255, 49, 49, 0.2); }
 
@@ -89,26 +82,31 @@
             pointer-events: none; z-index: 10;
         }
 
+        /* --- COMPONENTES --- */
         .spice-node {
             position: absolute; z-index: 100; border-radius: 8px;
             background: rgba(13, 18, 34, 0.95); border: 2px solid #2e3d59; padding: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 4px;
             touch-action: none;
-            cursor: move;
         }
-        .spice-node.selected { border-color: var(--cyan) !important; box-shadow: 0 0 12px rgba(0,242,254,0.4); }
+        .spice-node.selected { border-color: #475569 !important; }
         .spice-node.destroyed { filter: grayscale(1) brightness(0.3); border-color: #000 !important; }
 
+        /* --- PINES GRANDES FÁCILES DE TOCAR CON EL PULGAR --- */
         .net-pin {
-            position: absolute; width: 28px; height: 28px; background: transparent;
+            position: absolute; width: 36px; height: 36px; background: transparent;
             z-index: 500; display: flex; align-items: center; justify-content: center;
-            touch-action: none;
+            touch-action: manipulation;
         }
         .net-pin::after {
             content: ''; width: 14px; height: 14px; background: #02040a;
-            border: 2px solid #64748b; border-radius: 50%;
+            border: 2px solid #64748b; border-radius: 50%; transition: all 0.2s;
         }
-        .net-pin.linked::after { background: var(--cyan); border-color: #fff; box-shadow: 0 0 8px var(--cyan); }
+        /* Estado cuando lo seleccionas para cablear */
+        .net-pin.wiring-source::after {
+            background: var(--cyan); border-color: #fff; box-shadow: 0 0 15px var(--cyan); transform: scale(1.3);
+        }
+        .net-pin.linked::after { background: var(--green); border-color: #fff; }
         .pin-lbl { position: absolute; font-size: 10px; color: var(--text-muted); font-weight: bold; pointer-events: none; }
 
         .node-telemetry { 
@@ -117,24 +115,18 @@
             font-family: monospace;
         }
 
-        .wire-shadow { fill: none; stroke: #1e293b; stroke-width: 4; stroke-linecap: round; }
-        .wire-active { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--green)); }
+        .wire-shadow { fill: none; stroke: #334155; stroke-width: 4; stroke-linecap: round; }
+        .wire-active { fill: none; stroke: var(--cyan); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--cyan)); }
         .wire-dots { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 18; animation: moveDots 0.4s linear infinite; }
         @keyframes moveDots { to { stroke-dashoffset: -24; } }
 
         #mobile-toolbox {
-            background: var(--bg-sidebar);
-            padding: 15px;
-            border-bottom: 2px solid var(--border);
+            background: var(--bg-sidebar); padding: 15px; border-bottom: 2px solid var(--border);
         }
         .section-title { font-size: 11px; color: var(--cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px; }
         
         .scroll-row {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px;
             -webkit-overflow-scrolling: touch;
         }
         .scroll-row::-webkit-scrollbar { height: 4px; }
@@ -143,26 +135,19 @@
         .mobile-btn {
             background: #040712; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px;
             font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 8px;
-            white-space: nowrap; flex-shrink: 0;
-            touch-action: manipulation;
+            white-space: nowrap; flex-shrink: 0; touch-action: manipulation;
         }
 
         #mobile-console {
-            background: #02050c;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            background: #02050c; padding: 12px; display: flex; flex-direction: column; gap: 12px;
         }
         .console-box {
-            background: rgba(6, 9, 19, 0.7);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px;
+            background: rgba(6, 9, 19, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
         }
         .box-title { font-size: 10px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
         .matrix-output { font-family: monospace; font-size: 11px; color: #a7f3d0; white-space: pre; overflow-x: auto; }
 
+        /* --- MENÚ DE INSPECCIÓN E INSTRUCCIONES --- */
         #spice-inspector {
             position: fixed; z-index: 2000; background: var(--bg-sidebar); border: 2px solid var(--cyan);
             padding: 15px; border-radius: 12px; width: 85%; max-width: 300px; display: none; 
@@ -177,12 +162,14 @@
         .rotor-container { border: 2px dashed var(--magenta); border-radius: 50%; margin: 2px auto; display: flex; align-items: center; justify-content: center; }
         .bulb-glass { border-radius: 50% 50% 30% 30%; border: 2px solid #475569; margin: 2px auto; position: relative; }
         .filame { position: absolute; border: 1px solid #475569; border-bottom: none; border-radius: 50% 50% 0 0; }
+        
+        .tip-banner { background: rgba(0, 242, 254, 0.05); border: 1px dashed rgba(0, 242, 254, 0.3); padding: 8px; border-radius: 6px; font-size: 11px; color: #a7f3d0; margin-bottom: 8px; text-align: center;}
     </style>
 </head>
 <body>
 
     <header>
-        <div class="brand">🔬 MNA MOBILE CORE v18.0</div>
+        <div class="brand">🔬 MNA MOBILE CORE v18.5</div>
         <div class="header-actions">
             <div class="engine-badge" id="engine-status">MNA: OK</div>
             <button class="exit-btn" onclick="exitStudio()">🚪 SALIR</button>
@@ -202,6 +189,8 @@
         </div>
 
         <div id="mobile-toolbox">
+            <div class="tip-banner">💡 Para conectar: Toca un pin (se iluminará) y luego toca otro pin.</div>
+            
             <div class="section-title">Instanciar Componentes (Desliza ➔)</div>
             <div class="scroll-row">
                 <button class="mobile-btn" onclick="addSpiceComponent('nice_power')"><span style="color:var(--cyan)">🔋</span> Fuente DC</button>
@@ -232,23 +221,21 @@
         let netNodes = [];
         let conexiones = [];
         let globalId = 0;
-        let activeWirePin = null;
-        let svgGuide = null;
         let activeSelectedNode = null;
+        
+        // Almacena el pin de origen seleccionado para la conexión por toques secuenciales
+        let selectedSourcePin = null;
 
         const sandbox = document.getElementById('sandbox');
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
 
-        // FUNCIÓN DE SALIDA SEGURA
         function exitStudio() {
-            if(confirm("¿Estás seguro de que quieres salir del laboratorio? Se borrará el circuito actual.")) {
+            if(confirm("¿Estás seguro de que quieres salir? Se perderá el circuito actual.")) {
                 purgueNetlist();
-                // Intenta cerrar la ventana; si el navegador lo bloquea, redirige a una pantalla limpia de salida
                 window.close();
                 document.body.innerHTML = `<div style="background:#060913; color:#f3f4f6; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
                     <h1 style="color:var(--cyan); margin-bottom:10px;">🔬 Laboratorio Cerrado</h1>
-                    <p style="color:var(--text-muted); font-size:14px;">Has salido de forma segura del simulador SPICE MNA.</p>
                     <button onclick="location.reload()" style="margin-top:20px; background:var(--cyan); border:none; padding:10px 20px; font-weight:bold; border-radius:6px; cursor:pointer;">Reiniciar Simulador</button>
                 </div>`;
             }
@@ -258,55 +245,55 @@
             nice_power: { w: 120, h: 70, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--cyan);">FUENTE V</div>
                 <div style="background:#000; color:var(--green); font-size:11px; text-align:center; padding:2px; margin-top:2px; border-radius:4px;">${n.ajustes.v.toFixed(1)} V</div>
-                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-14px; top:20px;"></div>
-                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-14px; top:20px;"></div>
+                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-18px; top:17px;"></div>
+                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-18px; top:17px;"></div>
                 <span class="pin-lbl" style="left:14px; top:24px; color:var(--red)">+</span><span class="pin-lbl" style="right:14px; top:24px;">-</span>
             `},
             gnd_node: { w: 90, h: 50, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--green); text-align:center;">⏚ TIERRA</div>
-                <div class="net-pin" id="pin_${n.id}_g" data-pin="g" style="left:31px; top:-14px;"></div>
+                <div class="net-pin" id="pin_${n.id}_g" data-pin="g" style="left:27px; top:-18px;"></div>
             `},
             resistencia: { w: 110, h: 65, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:#fef08a;">RESISTOR</div>
                 <div style="background:#000; text-align:center; font-size:11px; padding:2px; margin-top:3px; border-radius:4px;">${n.ajustes.r} 𝛀</div>
-                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-14px; top:18px;"></div>
-                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_a" data-pin="a" style="left:-18px; top:14px;"></div>
+                <div class="net-pin" id="pin_${n.id}_b" data-pin="b" style="right:-18px; top:14px;"></div>
             `},
             switch_cuchilla: { w: 110, h: 65, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--text-muted);">SW_CONTROL</div>
                 <div style="text-align:center; font-weight:bold; font-size:11px; margin-top:4px; color:${n.ajustes.open?'var(--red)':'var(--green)'}">${n.ajustes.open?'ABIERTO':'CERRADO'}</div>
-                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-14px; top:18px;"></div>
-                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-14px; top:18px;"></div>
+                <div class="net-pin" id="pin_${n.id}_1" data-pin="1" style="left:-18px; top:14px;"></div>
+                <div class="net-pin" id="pin_${n.id}_2" data-pin="2" style="right:-18px; top:14px;"></div>
             `},
             led_verde: { w: 110, h: 75, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--green); text-align:center;">DIODO LED</div>
                 <div id="lit_${n.id}" style="width:18px; height:18px; border-radius:50%; background:rgba(57,255,20,0.02); border:2px solid #334155; margin:3px auto;"></div>
-                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-14px; top:28px;"></div>
-                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-14px; top:28px;"></div>
+                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-18px; top:24px;"></div>
+                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-18px; top:24px;"></div>
             `},
             motor_dc: { w: 110, h: 80, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--magenta); text-align:center;">MOTOR_DC</div>
                 <div class="rotor-container" id="rot_${n.id}" style="width:24px; height:24px; transform: rotate(${n.angulo || 0}deg);">
                     <div style="width:2px; height:18px; background:var(--magenta);"></div>
                 </div>
-                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-14px; top:26px;"></div>
-                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-14px; top:26px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-18px; top:22px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-18px; top:22px;"></div>
             `},
             foco_edison: { w: 110, h: 80, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--yellow); text-align:center;">LÁMPARA</div>
                 <div class="bulb-glass" id="bg_${n.id}" style="width:24px; height:24px;">
                     <div class="filame" id="fil_${n.id}" style="width:8px; height:10px; top:8px; left:6px;"></div>
                 </div>
-                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-14px; top:26px;"></div>
-                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-14px; top:26px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-18px; top:22px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-18px; top:22px;"></div>
             `}
         };
 
         function addSpiceComponent(tipo) {
             globalId++;
             let viewWidth = sandbox.clientWidth || 300;
-            let targetX = Math.max(20, (viewWidth / 2) - 55);
-            let targetY = 120 + (globalId % 3) * 15; 
+            let targetX = Math.max(25, (viewWidth / 2) - 55);
+            let targetY = 100 + (globalId % 4) * 20; 
 
             let n = {
                 id: `${tipo}_${globalId}`, tipo, x: targetX, y: targetY, angulo: 0,
@@ -329,15 +316,17 @@
             div.style.width = conf.w + 'px'; div.style.height = conf.h + 'px';
             div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.0V/0mA</div>`;
 
+            // --- NUEVO SISTEMA SELECCIÓN TÁCTIL INTELIGENTE ---
             div.querySelectorAll('.net-pin').forEach(pin => {
-                pin.addEventListener('pointerdown', (e) => {
-                    e.stopPropagation(); e.preventDefault();
-                    startNetWiring(n.id, pin.dataset.pin);
+                pin.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Evita que se abra el inspector del componente entero
+                    handlePinSelection(n.id, pin.dataset.pin, pin);
                 });
             });
 
+            // Arrastrar el módulo completo con un dedo por el lienzo de forma fluida
             div.addEventListener('pointerdown', (e) => {
-                if(e.target.classList.contains('net-pin')) return;
+                if(e.target.classList.contains('net-pin')) return; // No mover si tocas el pin
                 activeSelectedNode = n;
                 document.querySelectorAll('.spice-node').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
@@ -363,6 +352,7 @@
             let touchTime = 0;
             div.addEventListener('pointerdown', () => touchTime = Date.now());
             div.addEventListener('click', (e) => {
+                if(e.target.classList.contains('net-pin')) return;
                 e.stopPropagation();
                 if (Date.now() - touchTime > 250) return;
                 if(n.tipo === 'switch_cuchilla') {
@@ -379,71 +369,70 @@
             solveCircuitMNA();
         }
 
+        // CONTROLADOR DE CONEXIONES MEDIANTE TOQUES SECUENCIALES (NADA DE ARRASTRAR)
+        function handlePinSelection(compId, pinName, pinElement) {
+            // Si no hay ningún pin de origen seleccionado previamente, seleccionamos este como el primero
+            if (!selectedSourcePin) {
+                // Si este pin ya tiene un cable conectado, preguntar si quiere desconectarlo
+                let cableExistente = conexiones.findIndex(w => 
+                    (w.m1 === compId && w.p1 === pinName) || (w.m2 === compId && w.p2 === pinName)
+                );
+                if (cableExistente !== -1) {
+                    if (confirm("¿Quieres eliminar el cable conectado a este pin?")) {
+                        conexiones.splice(cableExistente, 1);
+                        drawNetlistWires();
+                        solveCircuitMNA();
+                        return;
+                    }
+                }
+
+                selectedSourcePin = { compId, pinName, element: pinElement };
+                pinElement.classList.add('wiring-source');
+            } else {
+                // Si el segundo toque ocurre en el mismo componente, cancelamos la operación para evitar cortocircuitos internos
+                if (selectedSourcePin.compId === compId) {
+                    selectedSourcePin.element.classList.remove('wiring-source');
+                    selectedSourcePin = null;
+                    return;
+                }
+
+                // Verificar si ya existe una conexión idéntica en el listado
+                let existe = conexiones.some(w => 
+                    (w.m1 === selectedSourcePin.compId && w.p1 === selectedSourcePin.pinName && w.m2 === compId && w.p2 === pinName) ||
+                    (w.m2 === selectedSourcePin.compId && w.p2 === selectedSourcePin.pinName && w.m1 === compId && w.p1 === pinName)
+                );
+
+                if (!existe) {
+                    conexiones.push({
+                        id: `w_${Date.now()}`,
+                        m1: selectedSourcePin.compId, p1: selectedSourcePin.pinName,
+                        m2: compId, p2: pinName,
+                        hasCurrent: false
+                    });
+                }
+
+                // Limpiar la selección y quitar los brillos de guía visual
+                selectedSourcePin.element.classList.remove('wiring-source');
+                selectedSourcePin = null;
+
+                // Redibujar y recalcular la matriz MNA en tiempo real
+                drawNetlistWires();
+                solveCircuitMNA();
+            }
+        }
+
         function updateNodeGraphics(n) {
             let div = document.getElementById(n.id); if(!div) return;
             let savedTel = div.querySelector('.node-telemetry')?.outerHTML || '';
             div.innerHTML = SPICE_ARQUETYPES[n.tipo].render(n) + savedTel;
+            
             div.querySelectorAll('.net-pin').forEach(pin => {
-                pin.addEventListener('pointerdown', (e) => {
-                    e.stopPropagation(); e.preventDefault();
-                    startNetWiring(n.id, pin.dataset.pin);
+                pin.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handlePinSelection(n.id, pin.dataset.pin, pin);
                 });
             });
             refreshPinStates();
-        }
-
-        function startNetWiring(compId, pinName) {
-            activeWirePin = { compId, pinName };
-            let coord = getPinCoords(compId, pinName);
-            if(!coord) return;
-
-            svgGuide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            svgGuide.setAttribute('x1', coord.x); svgGuide.setAttribute('y1', coord.y);
-            svgGuide.setAttribute('x2', coord.x); svgGuide.setAttribute('y2', coord.y);
-            svgGuide.setAttribute('stroke', 'var(--cyan)'); svgGuide.setAttribute('stroke-width', '4');
-            wireLayer.appendChild(svgGuide);
-
-            function dragWire(e) {
-                let r = sandbox.getBoundingClientRect();
-                svgGuide.setAttribute('x2', e.clientX - r.left);
-                svgGuide.setAttribute('y2', e.clientY - r.top);
-            }
-            
-            function dropWire(e) {
-                document.removeEventListener('pointermove', dragWire);
-                document.removeEventListener('pointerup', dropWire);
-                
-                let targetPin = document.elementFromPoint(e.clientX, e.clientY);
-                if (targetPin && !targetPin.classList.contains('net-pin')) {
-                    targetPin = targetPin.closest('.net-pin');
-                }
-                
-                if(targetPin && targetPin.classList.contains('net-pin')) {
-                    let targetCompId = targetPin.parentElement.id;
-                    let targetPinName = targetPin.dataset.pin;
-                    
-                    if(targetCompId !== activeWirePin.compId) {
-                        let existe = conexiones.some(w => 
-                            (w.m1 === activeWirePin.compId && w.p1 === activeWirePin.pinName && w.m2 === targetCompId && w.p2 === targetPinName) ||
-                            (w.m2 === activeWirePin.compId && w.p2 === activeWirePin.pinName && w.m1 === targetCompId && w.p1 === targetPinName)
-                        );
-                        if(!existe) {
-                            conexiones.push({
-                                id: `w_${Date.now()}`,
-                                m1: activeWirePin.compId, p1: activeWirePin.pinName,
-                                m2: targetCompId, p2: targetPinName,
-                                hasCurrent: false
-                            });
-                        }
-                    }
-                }
-                if(svgGuide) { svgGuide.remove(); svgGuide = null; }
-                activeWirePin = null;
-                drawNetlistWires();
-                solveCircuitMNA();
-            }
-            document.addEventListener('pointermove', dragWire);
-            document.addEventListener('pointerup', dropWire);
         }
 
         function drawNetlistWires() {
@@ -494,11 +483,13 @@
 
         function purgueNetlist() {
             conexiones = []; netNodes = [];
+            if(selectedSourcePin) selectedSourcePin = null;
             wireLayer.innerHTML = '';
             document.querySelectorAll('.spice-node').forEach(el => el.remove());
             solveCircuitMNA();
         }
 
+        // --- NÚCLEO MATRICIAL MNA SPICE ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) {
@@ -661,13 +652,14 @@
 
                 conexiones.forEach(w => {
                     let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
-                    if(pNode !== undefined && pNode > 0 && X) w.hasCurrent = Math.abs(X[pNode]) > 0.01;
+                    // Si el nodo tiene voltaje activo, iluminamos el cable con flujo
+                    if(pNode !== undefined && X) w.hasCurrent = Math.abs(X[pNode]) > 0.01;
                 });
 
                 printDebugInfo(A, Z, numNodosElectricos, pinToNodeMap);
                 updatePhysicalIndicators();
             } catch(err) {
-                console.error("Bucle MNA retenido:", err);
+                console.error("MNA Loop Error:", err);
             }
         }
 
@@ -795,7 +787,13 @@
         }
 
         window.addEventListener('load', () => {
-            sandbox.addEventListener('click', () => inspector.style.display = 'none');
+            sandbox.addEventListener('click', () => {
+                inspector.style.display = 'none';
+                if(selectedSourcePin) {
+                    selectedSourcePin.element.classList.remove('wiring-source');
+                    selectedSourcePin = null;
+                }
+            });
             setInterval(() => {
                 netNodes.forEach(n => { if(n.temp > 20) n.temp -= 0.4; });
                 solveCircuitMNA();
