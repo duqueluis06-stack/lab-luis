@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luiyi-Energy v7.0 - Laboratorio de Simulación Eléctrica Realista</title>
+    <title>Luiyi-Energy v8.0 - Simulador de Mallas con Destrucción Térmica</title>
     <style>
         :root {
-            --bg-main: #060a13;
-            --bg-panel: #0b1122;
-            --bg-workspace: #04070f;
+            --bg-main: #030712;
+            --bg-panel: #0b1329;
+            --bg-workspace: #02040a;
             --cyan: #00f2fe;
             --green: #39ff14;
             --red: #ff3131;
@@ -21,7 +21,7 @@
         body {
             background-color: var(--bg-main);
             color: var(--text);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -40,13 +40,14 @@
         }
 
         .logo-box { display: flex; flex-direction: column; }
-        .logo { font-size: 18px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 8px rgba(0,242,254,0.3); }
-        .version { font-size: 10px; color: var(--yellow); letter-spacing: 1px; }
+        .logo { font-size: 18px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 8px rgba(0,242,254,0.4); }
+        .version { font-size: 10px; color: var(--yellow); letter-spacing: 1px; font-family: monospace; }
 
-        .nav-buttons { display: flex; gap: 10px; align-items: center; }
+        .nav-buttons { display: flex; gap: 12px; align-items: center; }
         #radar-status {
-            background: #000; border: 1px solid var(--border); padding: 6px 12px;
-            border-radius: 4px; font-size: 11px; font-weight: bold; color: var(--green);
+            background: #000; border: 1px solid var(--border); padding: 6px 14px;
+            border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--green);
+            font-family: monospace;
         }
 
         .btn {
@@ -57,9 +58,8 @@
         .btn-danger:hover { border-color: var(--red); background: rgba(255, 49, 49, 0.1); }
 
         #main-layout { display: flex; flex: 1; height: calc(100vh - 60px); }
-
         #sidebar {
-            width: 250px; background: var(--bg-panel); border-right: 2px solid var(--border);
+            width: 260px; background: var(--bg-panel); border-right: 2px solid var(--border);
             padding: 15px; display: flex; flex-direction: column; gap: 12px; z-index: 10;
         }
 
@@ -67,51 +67,42 @@
         .menu-list { display: flex; flex-direction: column; gap: 6px; }
         
         .menu-item {
-            background: #111827; border: 1px solid #1e293b; padding: 10px;
+            background: #0f172a; border: 1px solid #1e293b; padding: 10px;
             border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; gap: 8px;
         }
-        .menu-item:hover { border-color: var(--cyan); background: #1f2937; }
+        .menu-item:hover { border-color: var(--cyan); background: #1e293b; }
 
         #workspace-area { flex: 1; display: flex; flex-direction: column; position: relative; }
-
         #workspace {
             flex: 1; background: var(--bg-workspace); position: relative;
-            background-image: radial-gradient(rgba(0, 242, 254, 0.03) 1.5px, transparent 0);
+            background-image: radial-gradient(rgba(0, 242, 254, 0.04) 1.5px, transparent 0);
             background-size: 20px 20px; overflow: hidden;
         }
 
         #net-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
-        /* Contenedores de Componentes */
         .component {
             position: absolute; z-index: 5; cursor: move; padding: 4px;
-            background: rgba(10, 15, 30, 0.85); border: 1px solid #334155; border-radius: 6px;
+            background: rgba(9, 15, 29, 0.9); border: 1px solid #334155; border-radius: 6px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .component.selected { border: 1px solid var(--cyan) !important; box-shadow: 0 0 10px rgba(0, 242, 254, 0.3); }
-        .component.burned { filter: grayscale(0.9) brightness(0.2) !important; border-color: var(--red) !important; }
+        .component.selected { border: 1px solid var(--cyan) !important; box-shadow: 0 0 12px rgba(0, 242, 254, 0.4); }
+        .component.burned { filter: grayscale(0.8) brightness(0.3) !important; border-color: var(--red) !important; }
 
-        /* Bornes de Conexión de Alta Visibilidad */
         .node-terminal {
-            position: absolute; width: 12px; height: 12px;
+            position: absolute; width: 13px; height: 13px;
             background: #475569; border: 2px solid #94a3b8; border-radius: 50%;
             cursor: crosshair; z-index: 20; pointer-events: auto;
         }
         .node-terminal:hover { transform: scale(1.3); border-color: var(--cyan); }
         .node-terminal.connected { background: var(--cyan) !important; border-color: #fff !important; box-shadow: 0 0 6px var(--cyan); }
 
-        .polarity-indicator {
-            position: absolute; font-size: 12px; font-weight: bold; pointer-events: none; text-shadow: 0 0 2px #000;
-        }
+        .polarity-indicator { position: absolute; font-size: 11px; font-weight: bold; pointer-events: none; }
         .polarity-pos { color: var(--red); }
         .polarity-neg { color: #38bdf8; }
 
-        /* Cables Conductores con Flujo */
         .wire-path { stroke: #475569; stroke-width: 3; fill: none; pointer-events: stroke; cursor: pointer; }
-        .wire-path:hover { stroke: var(--yellow); stroke-width: 4; }
         .wire-path.active-cc { stroke: var(--green); filter: drop-shadow(0 0 3px var(--green)); }
-        .wire-path.active-ca { stroke: var(--cyan); stroke-dasharray: 6; animation: ac-flow 0.3s linear infinite; }
-        @keyframes ac-flow { to { stroke-dashoffset: -12; } }
 
         .badge-val {
             position: absolute; bottom: -22px; font-size: 10px; background: rgba(0,0,0,0.85);
@@ -119,29 +110,29 @@
             white-space: nowrap; z-index: 10; font-family: monospace; font-weight: bold;
         }
 
-        /* Menú Contextual Rápido (No bloqueante) */
+        /* Ventana de Configuración Avanzada */
         #quick-context-menu {
             position: absolute; z-index: 1000; background: #0f172a; border: 2px solid var(--cyan);
-            padding: 12px; border-radius: 6px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            min-width: 190px;
+            padding: 12px; border-radius: 6px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            min-width: 220px;
         }
-        #quick-context-menu label { display: block; font-size: 11px; color: #94a3b8; margin-top: 6px; }
-        #quick-context-menu input {
-            width: 100%; background: #020617; border: 1px solid #334155; color: white;
-            padding: 5px; margin-top: 2px; font-size: 12px; font-family: monospace; border-radius: 4px;
+        #quick-context-menu label { display: block; font-size: 11px; color: #94a3b8; margin-top: 8px; font-weight: bold; }
+        
+        .input-row { display: flex; gap: 4px; margin-top: 3px; }
+        .input-row input {
+            flex: 1; background: #020617; border: 1px solid #334155; color: white;
+            padding: 5px; font-size: 12px; font-family: monospace; text-align: center; border-radius: 4px;
         }
+        .btn-step { background: #334155; border: none; color: white; width: 28px; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        .btn-step:hover { background: var(--cyan); color: #000; }
 
-        /* Instrumental Inferior */
         #dashboard-bottom {
-            height: 190px; background: var(--bg-panel); border-top: 2px solid var(--border);
+            height: 180px; background: var(--bg-panel); border-top: 2px solid var(--border);
             display: flex; padding: 10px; gap: 10px; z-index: 10;
         }
-        .panel-osc {
-            flex: 1; background: #020408; border: 1px solid #1e293b; border-radius: 4px;
-            display: flex; flex-direction: column; padding: 6px;
-        }
-        .panel-title { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
-        .canvas-container { flex: 1; background: #000; position: relative; border-radius: 3px; border: 1px solid #0f172a; }
+        .panel-osc { flex: 1; background: #010307; border: 1px solid #1e293b; border-radius: 4px; display: flex; flex-direction: column; padding: 6px; }
+        .panel-title { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; font-family: monospace; }
+        .canvas-container { flex: 1; background: #000; position: relative; border-radius: 3px; }
         .canvas-instrument { width: 100%; height: 100%; display: block; }
     </style>
 </head>
@@ -150,38 +141,37 @@
     <header>
         <div class="logo-box">
             <div class="logo">⚡ Luiyi-Energy LAB</div>
-            <div class="version">ENTORNO DE MAQUETACIÓN EN TIEMPO REAL v7.0</div>
+            <div class="version">ENTORNO DE SIMULACIÓN ULTRA-REALISTA v8.0</div>
         </div>
         <div class="nav-buttons">
-            <div id="radar-status">SISTEMA: <span id="facial-avatar">LISTO</span></div>
-            <button class="btn" onclick="deshacerAccion()">↩️ Deshacer</button>
-            <button class="btn btn-danger" onclick="limpiarTodo()">🗑️ Reset Lab</button>
+            <div id="radar-status">DIAGNÓSTICO: <span id="facial-avatar">😃 OK</span></div>
+            <button class="btn btn-danger" onclick="limpiarTablero()">🗑️ Reestablecer Laboratorio</button>
         </div>
     </header>
 
     <div id="main-layout">
         <div id="sidebar">
-            <div class="sect-lbl">Suministro Regulable</div>
+            <div class="sect-lbl">Suministro de Energía</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearComponente('nice_power')">📟 Fuente Nice-Power CC</div>
+                <div class="menu-item" onclick="crearElemento('nice_power')">📟 Fuente Nice-Power Variable</div>
             </div>
-            <div class="sect-lbl">Componentes Pasivos</div>
+            <div class="sect-lbl">Control y Elementos Pasivos</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearComponente('resistencia')">🟫 Resistencia Variable</div>
-                <div class="menu-item" onclick="crearComponente('interruptor')">🎛️ Interruptor Cuchilla</div>
+                <div class="menu-item" onclick="crearElemento('resistencia')">🟫 Resistencia Ajustable</div>
+                <div class="menu-item" onclick="crearElemento('interruptor')">🎛️ Interruptor de Cuchilla</div>
             </div>
-            <div class="sect-lbl">Iluminación y Carga</div>
+            <div class="sect-lbl">Cargas Visuales</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearComponente('led_estilizado')">🟢 Diodo LED Cúpula 5mm</div>
-                <div class="menu-item" onclick="crearComponente('foco_edison')">💡 Foco Filamento Edison</div>
-                <div class="menu-item" onclick="crearComponente('motor_turbina')">⚙️ Motor con Aspas</div>
+                <div class="menu-item" onclick="crearElemento('led_esferico')">🟢 LED Pro Cúpula 5mm</div>
+                <div class="menu-item" onclick="crearElemento('foco_edison')">💡 Foco de Vidrio Edison</div>
+                <div class="menu-item" onclick="crearElemento('motor_industrial')">⚙️ Motor Turbina con Aspas</div>
             </div>
         </div>
 
         <div id="workspace-area">
             <div id="quick-context-menu">
                 <div id="context-content"></div>
-                <button class="btn" style="width:100%; margin-top:8px; background:#1e293b;" onclick="cerrarMenu()">Fijar Valor</button>
+                <button class="btn" style="width:100%; margin-top:10px; background:var(--cyan); color:#000;" onclick="guardarYFijarValores()">Fijar y Aplicar</button>
             </div>
 
             <div id="workspace">
@@ -190,11 +180,11 @@
 
             <div id="dashboard-bottom">
                 <div class="panel-osc">
-                    <div class="panel-title">📟 Osciloscopio Lineal (Voltaje de Carga)</div>
+                    <div class="panel-title">📟 Osciloscopio de Voltaje Activo (Green Phosphor)</div>
                     <div class="canvas-container"><canvas id="canvas-time" class="canvas-instrument"></canvas></div>
                 </div>
                 <div class="panel-osc">
-                    <div class="panel-title">📡 Analizador Espectral (Frecuencia/Radar)</div>
+                    <div class="panel-title">📡 Radar Espectrómetro FFT</div>
                     <div class="canvas-container"><canvas id="canvas-fft" class="canvas-instrument"></canvas></div>
                 </div>
             </div>
@@ -202,39 +192,36 @@
     </div>
 
     <script>
-        // --- DATA BINDING GENERAL ---
         let componentes = [];
         let cables = [];
-        let historial = [];
-        let idSecuenciaComp = 0;
-        let idSecuenciaCable = 0;
+        let secComp = 0;
+        let secCable = 0;
 
-        let borneOrigen = null;
-        let cableGuia = null;
-        let compEnFoco = null;
-        let cableEnFoco = null;
+        let bOrigen = null;
+        let cGuia = null;
+        let focoObj = null;
         
-        let anguloVentilador = 0;
-        let muestrasVoltaje = new Array(200).fill(0);
+        let rotacionHélice = 0;
+        let histVoltaje = new Array(200).fill(0);
 
         const workspace = document.getElementById('workspace');
         const netSvg = document.getElementById('net-svg');
         const menuFlotante = document.getElementById('quick-context-menu');
 
-        // --- MODELADO VECTORIAL GRÁFICO (SVG) REALISTA ---
+        // --- MODELADO VECTORIAL PREMIUM (CON DETECTORES DE DESTRUCCIÓN) ---
         const DISENOS = {
             nice_power: {
-                w: 110, h: 70,
-                bornes: [{id:'p', x:20, y:55, pol:'+', cx:-12, cy:-2}, {id:'n', x:90, y:55, pol:'-', cx:8, cy:-2}],
-                props: {v: 12},
+                w: 120, h: 75,
+                bornes: [{id:'p', x:20, y:58, pol:'+', cx:-12, cy:-2}, {id:'n', x:100, y:58, pol:'-', cx:8, cy:-2}],
+                props: {v: 12, i_max: 5},
                 html: (c) => `
-                    <svg viewBox="0 0 110 70" width="100%" height="100%">
-                        <rect x="5" y="5" width="100" height="60" fill="#1e293b" stroke="#00f2fe" stroke-width="2" rx="4"/>
-                        <rect x="15" y="12" width="80" height="20" fill="#020617" stroke="#334155" rx="2"/>
-                        <text x="22" y="26" fill="#39ff14" font-family:monospace font-size="11" font-weight="bold" id="disp_v_${c.id}">${parseFloat(c.props.v).toFixed(1)}V</text>
-                        <text x="62" y="26" fill="#ff3131" font-family:monospace font-size="11" font-weight="bold" id="disp_i_${c.id}">${parseFloat(c.i_in).toFixed(2)}A</text>
-                        <circle cx="20" cy="55" r="6" fill="#ff3131"/>
-                        <circle cx="90" cy="55" r="6" fill="#38bdf8"/>
+                    <svg viewBox="0 0 120 75" width="100%" height="100%">
+                        <rect x="5" y="5" width="110" height="65" fill="#1e293b" stroke="#00f2fe" stroke-width="2" rx="5"/>
+                        <rect x="15" y="12" width="90" height="22" fill="#020617" stroke="#334155" rx="3"/>
+                        <text x="20" y="28" fill="#39ff14" font-family="monospace" font-size="11" font-weight="bold" id="d_v_${c.id}">${parseFloat(c.props.v).toFixed(1)}V</text>
+                        <text x="70" y="28" fill="#ff3131" font-family="monospace" font-size="11" font-weight="bold" id="d_i_${c.id}">${parseFloat(c.i_in).toFixed(2)}A</text>
+                        <circle cx="20" cy="58" r="6" fill="#ff3131"/>
+                        <circle cx="100" cy="58" r="6" fill="#38bdf8"/>
                     </svg>`
             },
             resistencia: {
@@ -243,12 +230,12 @@
                 props: {r: 1000},
                 html: (c) => `
                     <svg viewBox="0 0 100 50">
-                        <line x1="5" y1="25" x2="25" y2="25" stroke="#94a3b8" stroke-width="2"/>
-                        <rect x="25" y="15" width="50" height="20" fill="#fef08a" stroke="#ca8a04" rx="3"/>
-                        <rect x="35" y="15" width="4" height="20" fill="#78350f"/>
-                        <rect x="45" y="15" width="4" height="20" fill="#000"/>
-                        <rect x="55" y="15" width="4" height="20" fill="#ff3131"/>
-                        <line x1="75" y1="25" x2="95" y2="25" stroke="#94a3b8" stroke-width="2"/>
+                        <line x1="5" y1="25" x2="25" y2="25" stroke="#94a3b8" stroke-width="2.5"/>
+                        <rect x="25" y="15" width="50" height="20" fill="#fef08a" stroke="#b45309" rx="4"/>
+                        <rect x="38" y="15" width="5" height="20" fill="#a16207"/>
+                        <rect x="48" y="15" width="5" height="20" fill="#000"/>
+                        <rect x="58" y="15" width="5" height="20" fill="#e11d48"/>
+                        <line x1="75" y1="25" x2="95" y2="25" stroke="#94a3b8" stroke-width="2.5"/>
                     </svg>`
             },
             interruptor: {
@@ -256,270 +243,183 @@
                 bornes: [{id:'1', x:5, y:35, pol:'', cx:0, cy:0}, {id:'2', x:85, y:35, pol:'', cx:0, cy:0}],
                 props: {cerrado: false},
                 html: (c) => {
-                    // El ángulo cambia visualmente según el estado lógico del componente
                     let dBlade = c.props.cerrado ? "M 25 35 L 67 35" : "M 25 35 L 55 12";
                     let colorBlade = c.props.cerrado ? "var(--green)" : "var(--red)";
                     return `
                     <svg viewBox="0 0 90 50">
-                        <rect x="15" y="25" width="60" height="20" fill="#111827" stroke="#4b5563" rx="2"/>
-                        <circle cx="25" cy="35" r="4" fill="#94a3b8"/>
-                        <circle cx="65" cy="35" r="4" fill="#94a3b8"/>
-                        <path d="${dBlade}" stroke="${colorBlade}" stroke-width="4" stroke-linecap="round" id="blade_${c.id}"/>
+                        <rect x="15" y="25" width="60" height="20" fill="#0f172a" stroke="#475569" rx="3"/>
+                        <circle cx="25" cy="35" r="4" fill="#cbd5e1"/>
+                        <circle cx="65" cy="35" r="4" fill="#cbd5e1"/>
+                        <path d="${dBlade}" stroke="${colorBlade}" stroke-width="4" stroke-linecap="round" id="b_${c.id}"/>
                     </svg>`;
                 }
             },
-            led_estilizado: {
+            led_esferico: {
                 w: 70, h: 70,
                 bornes: [{id:'a', x:15, y:55, pol:'A', cx:-10, cy:-2}, {id:'c', x:55, y:55, pol:'K', cx:8, cy:-2}],
-                props: {vdrop: 2.0},
+                props: {v_max: 4}, // Límite de destrucción
                 html: (c) => `
                     <svg viewBox="0 0 70 70">
                         <line x1="15" y1="35" x2="15" y2="55" stroke="#94a3b8" stroke-width="2"/>
                         <line x1="55" y1="35" x2="55" y2="55" stroke="#94a3b8" stroke-width="2"/>
-                        <path d="M 10 35 A 25 25 0 0 1 60 35 L 60 38 L 10 38 Z" fill="#047857" stroke="#fff" stroke-width="1.5"/>
-                        <circle cx="35" cy="28" r="10" fill="none" id="glow_led_${c.id}"/>
+                        <path d="M 15 35 A 20 20 0 0 1 55 35 L 55 38 L 15 38 Z" fill="#10b981" stroke="#fff" stroke-width="1" opacity="0.9"/>
+                        <circle cx="35" cy="26" r="14" fill="none" id="g_led_${c.id}"/>
                     </svg>`
             },
             foco_edison: {
-                w: 80, h: 80,
-                bornes: [{id:'1', x:15, y:65, pol:'', cx:0, cy:0}, {id:'2', x:65, y:65, pol:'', cx:0, cy:0}],
-                props: {r_int: 40},
+                w: 80, h: 85,
+                bornes: [{id:'1', x:15, y:70, pol:'', cx:0, cy:0}, {id:'2', x:65, y:70, pol:'', cx:0, cy:0}],
+                props: {r_int: 35, v_max: 24}, // Si meten 1000V se rompe
                 html: (c) => `
-                    <svg viewBox="0 0 80 80">
-                        <rect x="30" y="50" width="20" height="15" fill="#71717a" rx="1"/>
-                        <circle cx="40" cy="30" r="22" fill="none" stroke="#fff" stroke-width="1.5"/>
-                        <path d="M 34 50 L 36 32 L 40 24 L 44 32 L 46 50" fill="none" stroke="#f59e0b" stroke-width="1.5" id="filament_${c.id}"/>
+                    <svg viewBox="0 0 80 85">
+                        <rect x="28" y="52" width="24" height="15" fill="#52525b" rx="2"/>
+                        <circle cx="40" cy="30" r="24" fill="none" stroke="#fff" stroke-width="1.5" id="bulb_${c.id}"/>
+                        <path d="M 32 52 L 35 28 L 40 20 L 45 28 L 48 52" fill="none" stroke="#b45309" stroke-width="2" id="fil_${c.id}"/>
                     </svg>`
             },
-            motor_turbina: {
-                w: 90, h: 80,
-                bornes: [{id:'1', x:5, y:40, pol:'+', cx:-10, cy:0}, {id:'2', x:85, y:40, pol:'-', cx:8, cy:0}],
-                props: {r_int: 25},
+            motor_industrial: {
+                w: 95, h: 85,
+                bornes: [{id:'1', x:5, y:45, pol:'+', cx:-10, cy:0}, {id:'2', x:85, y:45, pol:'-', cx:8, cy:0}],
+                props: {r_int: 20, v_max: 50, rpm_carga: 1500}, // RPM configurable indirectamente mediante carga
                 html: (c) => `
-                    <svg viewBox="0 0 90 80">
-                        <rect x="20" y="15" width="50" height="50" fill="#4b5563" stroke="#e4e4e7" stroke-width="2" rx="6"/>
-                        <rect x="25" y="20" width="40" height="6" fill="#1f2937"/>
-                        <rect x="25" y="54" width="40" height="6" fill="#1f2937"/>
-                        <g id="fan_${c.id}" style="transform-origin: 45px 40px;">
-                            <circle cx="45" cy="40" r="6" fill="#ff3131"/>
-                            <path d="M 45 40 Q 30 10 20 20 Q 35 35 45 40" fill="#94a3b8" stroke="#fff"/>
-                            <path d="M 45 40 Q 60 70 70 60 Q 55 45 45 40" fill="#94a3b8" stroke="#fff"/>
-                            <path d="M 45 40 Q 75 30 65 20 Q 50 35 45 40" fill="#94a3b8" stroke="#fff"/>
-                            <path d="M 45 40 Q 15 50 25 60 Q 40 45 45 40" fill="#94a3b8" stroke="#fff"/>
+                    <svg viewBox="0 0 95 85">
+                        <rect x="18" y="15" width="58" height="55" fill="#334155" stroke="#94a3b8" stroke-width="2" rx="5"/>
+                        <rect x="25" y="22" width="44" height="5" fill="#1e293b"/>
+                        <rect x="25" y="58" width="44" height="5" fill="#1e293b"/>
+                        <g id="fan_${c.id}" style="transform-origin: 47px 42px;">
+                            <circle cx="47" cy="42" r="7" fill="#ef4444"/>
+                            <path d="M 47 42 Q 25 5 15 15 Q 32 32 47 42" fill="#cbd5e1" stroke="#fff"/>
+                            <path d="M 47 42 Q 69 79 79 69 Q 62 52 47 42" fill="#cbd5e1" stroke="#fff"/>
+                            <path d="M 47 42 Q 84 25 74 15 Q 57 32 47 42" fill="#cbd5e1" stroke="#fff"/>
+                            <path d="M 47 42 Q 10 59 20 69 Q 37 52 47 42" fill="#cbd5e1" stroke="#fff"/>
                         </g>
                     </svg>`
             }
         };
 
-        // --- SISTEMA DE MEMORIA INTEGRADO ---
-        function crearSnapshot() {
-            while (historial.length >= 15) historial.shift();
-            let snapshot = {
-                componentes: componentes.map(c => ({...c, props: {...c.props}})),
-                cables: cables.map(w => ({...w}))
-            };
-            historial.push(JSON.stringify(snapshot));
-        }
-
-        function deshacerAccion() {
-            if (historial.length <= 1) return;
-            historial.pop();
-            let previo = JSON.parse(historial[historial.length - 1]);
-
+        function limpiarTablero() {
+            componentes = []; cables = [];
             document.querySelectorAll('.component').forEach(e => e.remove());
-            componentes = structuredClone(previo.componentes);
-            cables = structuredClone(previo.cables);
-
-            componentes.forEach(c => renderizarDOM(c));
-            reconstruirLienzo();
+            sincronizarMallaVisual();
             cerrarMenu();
         }
 
-        function limpiarTodo() {
-            crearSnapshot();
-            componentes = [];
-            cables = [];
-            document.querySelectorAll('.component').forEach(e => e.remove());
-            reconstruirLienzo();
-            cerrarMenu();
-        }
-
-        // --- INYECCIÓN Y GESTIÓN DE EVENTOS DIRECTOS ---
-        function crearComponente(tipo) {
-            crearSnapshot();
-            idSecuenciaComp++;
+        function crearElemento(tipo) {
+            secComp++;
             let plantilla = DISENOS[tipo];
-
             let nuevo = {
-                id: `${tipo}_${idSecuenciaComp}`, tipo,
-                x: 150, y: 130, rotacion: 0,
-                props: structuredClone(plantilla.props),
-                v_in: 0, i_in: 0, quemado: false
+                id: `${tipo}_${secComp}`, tipo, x: 160, y: 140, rotacion: 0,
+                props: structuredClone(plantilla.props), v_in: 0, i_in: 0, quemado: false
             };
-
             componentes.push(nuevo);
-            renderizarDOM(nuevo);
+            inyectarDOM(nuevo);
         }
 
-        function renderizarDOM(comp) {
+        function inyectarDOM(comp) {
             let plantilla = DISENOS[comp.tipo];
             let div = document.createElement('div');
-            div.id = comp.id;
-            div.className = 'component';
-            div.style.left = comp.x + 'px';
-            div.style.top = comp.y + 'px';
-            div.style.width = plantilla.w + 'px';
-            div.style.height = plantilla.h + 'px';
+            div.id = comp.id; div.className = 'component';
+            div.style.left = comp.x + 'px'; div.style.top = comp.y + 'px';
+            div.style.width = plantilla.w + 'px'; div.style.height = plantilla.h + 'px';
             div.style.transform = `rotate(${comp.rotacion || 0}deg)`;
 
-            // Renderizar la función HTML del componente pasándole su propio estado dinámico
-            div.innerHTML = plantilla.html(comp) + `<div class="badge-val" id="val_${comp.id}">0.0 U</div>`;
+            div.innerHTML = plantilla.html(comp) + `<div class="badge-val" id="val_${comp.id}">0.0 V</div>`;
 
-            // Agregar terminales físicos y marcas de polaridades
             plantilla.bornes.forEach(bn => {
                 let t = document.createElement('div');
-                t.className = 'node-terminal';
-                t.id = `t_${comp.id}_${bn.id}`;
-                t.style.left = (bn.x - 6) + 'px';
-                t.style.top = (bn.y - 6) + 'px';
-                t.dataset.compId = comp.id;
-                t.dataset.borneId = bn.id;
+                t.className = 'node-terminal'; t.id = `t_${comp.id}_${bn.id}`;
+                t.style.left = (bn.x - 6) + 'px'; t.style.top = (bn.y - 6) + 'px';
+                t.dataset.compId = comp.id; t.dataset.borneId = bn.id;
 
-                t.addEventListener('mousedown', (e) => {
-                    e.stopPropagation(); e.preventDefault();
-                    iniciarCableado(comp.id, bn.id);
-                });
+                t.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); arrancarCableado(comp.id, bn.id); });
 
                 if (bn.pol !== '') {
                     let lbl = document.createElement('div');
-                    lbl.className = `polarity-indicator ${bn.pol==='+' || bn.pol==='A'?'polarity-pos':'polarity-neg'}`;
-                    lbl.style.left = (bn.x + bn.cx) + 'px';
-                    lbl.style.top = (bn.y + bn.cy) + 'px';
-                    div.appendChild(lbl);
-                    lbl.innerText = bn.pol;
+                    lbl.className = `polarity-indicator ${bn.pol==='+'||bn.pol==='A'?'polarity-pos':'polarity-neg'}`;
+                    lbl.style.left = (bn.x + bn.cx) + 'px'; lbl.style.top = (bn.y + bn.cy) + 'px';
+                    div.appendChild(lbl); lbl.innerText = bn.pol;
                 }
                 div.appendChild(t);
             });
 
             workspace.appendChild(div);
-            habilitarMoverGrilla(div, comp);
+            configurarMoverGrilla(div, comp);
 
-            // CLIC DIRECTO SOBRE EL COMPONENTE
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                
-                // Si haces clic directo en el Switch, este conmuta en pantalla de forma inmediata
                 if (comp.tipo === 'interruptor') {
-                    crearSnapshot();
+                    if (comp.quemado) return;
                     comp.props.cerrado = !comp.props.cerrado;
-                    // Actualizar el SVG interno de forma dinámica sin destruir el componente
-                    let blade = div.querySelector(`#blade_${comp.id}`);
+                    let blade = div.querySelector(`#b_${comp.id}`);
                     if (blade) {
                         blade.setAttribute('d', comp.props.cerrado ? "M 25 35 L 67 35" : "M 25 35 L 55 12");
                         blade.setAttribute('stroke', comp.props.cerrado ? "var(--green)" : "var(--red)");
                     }
-                    reconstruirLienzo();
+                    sincronizarMallaVisual();
                 } else {
-                    abrirMenuEdicion(comp, e);
+                    desplegarMenuModificación(comp, e);
                 }
             });
         }
 
-        // --- ARRASTRE DE COMPONENTES SIN DESFASE COHETE ---
-        function habilitarMoverGrilla(div, comp) {
-            let arrastrando = false;
-            let offsetX = 0, offsetY = 0;
-
+        function configurarMoverGrilla(div, comp) {
+            let moviendo = false; let dx = 0; let dy = 0;
             div.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('node-terminal')) return;
-                arrastrando = true;
-                offsetX = e.clientX - comp.x;
-                offsetY = e.clientY - comp.y;
-                crearSnapshot();
+                moviendo = true; dx = e.clientX - comp.x; dy = e.clientY - comp.y;
                 document.querySelectorAll('.component').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
             });
-
             document.addEventListener('mousemove', (e) => {
-                if (!arrastrando) return;
-                let rawX = e.clientX - offsetX;
-                let rawY = e.clientY - offsetY;
-
-                comp.x = Math.round(rawX / 20) * 20;
-                comp.y = Math.round(rawY / 20) * 20;
-
-                div.style.left = comp.x + 'px';
-                div.style.top = comp.y + 'px';
-
-                reconstruirLienzo();
+                if (!moviendo) return;
+                comp.x = Math.round((e.clientX - dx) / 20) * 20;
+                comp.y = Math.round((e.clientY - dy) / 20) * 20;
+                div.style.left = comp.x + 'px'; div.style.top = comp.y + 'px';
+                sincronizarMallaVisual();
             });
-
-            document.addEventListener('mouseup', () => { arrastrando = false; });
+            document.addEventListener('mouseup', () => { moviendo = false; });
         }
 
-        // --- TRAZO VOLUNTARIO DE CABLES ---
-        function iniciarCableado(compId, borneId) {
-            borneOrigen = { compId, borneId };
-            let pos = localizarCoordenadaBorne(compId, borneId);
-
-            cableGuia = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            cableGuia.setAttribute('x1', pos.x);
-            cableGuia.setAttribute('y1', pos.y);
-            cableGuia.setAttribute('x2', pos.x);
-            cableGuia.setAttribute('y2', pos.y);
-            cableGuia.setAttribute('stroke', 'var(--yellow)');
-            cableGuia.setAttribute('stroke-width', '2.5');
-            cableGuia.setAttribute('stroke-dasharray', '4');
-            netSvg.appendChild(cableGuia);
-
-            document.addEventListener('mousemove', arrastrarGuia);
-            document.addEventListener('mouseup', finalizarCableado);
+        function arrancarCableado(compId, borneId) {
+            bOrigen = { compId, borneId }; let pos = encontrarCoordenadaBorne(compId, borneId);
+            cGuia = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            cGuia.setAttribute('x1', pos.x); cGuia.setAttribute('y1', pos.y);
+            cGuia.setAttribute('x2', pos.x); cGuia.setAttribute('y2', pos.y);
+            cGuia.setAttribute('stroke', 'var(--yellow)'); cGuia.setAttribute('stroke-width', '2.5');
+            netSvg.appendChild(cGuia);
+            document.addEventListener('mousemove', moverGuia);
+            document.addEventListener('mouseup', consolidarCableado);
         }
 
-        function arrastrarGuia(e) {
-            if (!cableGuia) return;
-            let rect = workspace.getBoundingClientRect();
-            cableGuia.setAttribute('x2', e.clientX - rect.left);
-            cableGuia.setAttribute('y2', e.clientY - rect.top);
+        function moverGuia(e) {
+            if (!cGuia) return; let rect = workspace.getBoundingClientRect();
+            cGuia.setAttribute('x2', e.clientX - rect.left); cGuia.setAttribute('y2', e.clientY - rect.top);
         }
 
-        function finalizarCableado(e) {
-            document.removeEventListener('mousemove', arrastrarGuia);
-            document.removeEventListener('mouseup', finalizarCableado);
-
-            if (!cableGuia) return;
-
+        function consolidarCableado(e) {
+            document.removeEventListener('mousemove', moverGuia);
+            document.removeEventListener('mouseup', consolidarCableado);
+            if (!cGuia) return;
             let target = e.target;
             if (target && target.classList.contains('node-terminal')) {
-                let c2 = target.dataset.compId;
-                let b2 = target.dataset.borneId;
-
-                if (c2 !== borneOrigen.compId || b2 !== borneOrigen.borneId) {
-                    crearSnapshot();
-                    idSecuenciaCable++;
-                    cables.push({
-                        id: idSecuenciaCable,
-                        c1: borneOrigen.compId, b1: borneOrigen.borneId,
-                        c2: c2, b2: b2,
-                        color: 'var(--cyan)'
-                    });
+                let c2 = target.dataset.compId; let b2 = target.dataset.borneId;
+                if (c2 !== bOrigen.compId || b2 !== bOrigen.borneId) {
+                    secCable++;
+                    cables.push({ id: secCable, c1: bOrigen.compId, b1: bOrigen.borneId, c2: c2, b2: b2 });
                 }
             }
-
-            cableGuia.remove();
-            cableGuia = null;
-            borneOrigen = null;
-            reconstruirLienzo();
+            cGuia.remove(); cGuia = null; bOrigen = null;
+            sincronizarMallaVisual();
         }
 
-        function reconstruirLienzo() {
+        function sincronizarMallaVisual() {
             cables = cables.filter(w => componentes.some(co => co.id === w.c1) && componentes.some(co => co.id === w.c2));
             document.querySelectorAll('.node-terminal').forEach(t => t.classList.remove('connected'));
             document.querySelectorAll('.wire-path').forEach(w => w.remove());
 
             cables.forEach(w => {
-                let p1 = localizarCoordenadaBorne(w.c1, w.b1);
-                let p2 = localizarCoordenadaBorne(w.c2, w.b2);
+                let p1 = encontrarCoordenadaBorne(w.c1, w.b1);
+                let p2 = encontrarCoordenadaBorne(w.c2, w.b2);
                 if (!p1 || !p2) return;
 
                 let t1 = document.getElementById(`t_${w.c1}_${w.b1}`);
@@ -529,311 +429,323 @@
 
                 let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 let mx = (p1.x + p2.x) / 2;
-                let d = `M ${p1.x} ${p1.y} L ${mx} ${p1.y} L ${mx} ${p2.y} L ${p2.x} ${p2.y}`;
-
-                path.setAttribute('d', d);
+                path.setAttribute('d', `M ${p1.x} ${p1.y} L ${mx} ${p1.y} L ${mx} ${p2.y} L ${p2.x} ${p2.y}`);
                 path.setAttribute('class', 'wire-path');
-                path.setAttribute('stroke', w.color || 'var(--cyan)');
+                path.setAttribute('stroke', '#475569');
 
-                let src = componentes.find(co => co.id === w.c1 || co.id === w.c2);
-                if (src && src.i_in > 0.005) {
+                let asoc = componentes.find(co => co.id === w.c1 || co.id === w.c2);
+                if (asoc && asoc.i_in > 0.002 && !asoc.quemado) {
                     path.classList.add('active-cc');
                 }
-
-                path.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    abrirMenuCable(w, e);
-                });
-
                 netSvg.appendChild(path);
             });
         }
 
-        function localizarCoordenadaBorne(compId, borneId) {
-            let comp = componentes.find(c => c.id === compId);
-            if (!comp) return null;
-            let plantilla = DISENOS[comp.tipo];
-            let bn = plantilla.bornes.find(b => b.id === borneId);
-
-            let cx = plantilla.w / 2;
-            let cy = plantilla.h / 2;
+        function encontrarCoordenadaBorne(compId, borneId) {
+            let comp = componentes.find(c => c.id === compId); if (!comp) return null;
+            let plantilla = DISENOS[comp.tipo]; let bn = plantilla.bornes.find(b => b.id === borneId);
+            let cx = plantilla.w / 2; let cy = plantilla.h / 2;
             let rad = ((comp.rotacion || 0) * Math.PI) / 180;
-
-            let nx = bn.x - cx;
-            let ny = bn.y - cy;
-
+            let nx = bn.x - cx; let ny = bn.y - cy;
             let rx = nx * Math.cos(rad) - ny * Math.sin(rad);
             let ry = nx * Math.sin(rad) + ny * Math.cos(rad);
-
             return { x: comp.x + cx + rx, y: comp.y + cy + ry };
         }
 
-        // --- ENTRADA DE DATOS 100% CORREGIDA (NO BLOQUEANTE) ---
-        function abrirMenuEdicion(comp, e) {
-            compEnFoco = comp; cableEnFoco = null;
+        // --- SISTEMA INTERACTIVO DE ENTRADA UNIVERSAL (CORREGIDO) ---
+        function desplegarMenuModificación(comp, e) {
+            focoObj = comp;
             let rect = workspace.getBoundingClientRect();
             menuFlotante.style.left = (e.clientX - rect.left + 15) + 'px';
             menuFlotante.style.top = (e.clientY - rect.top + 15) + 'px';
             menuFlotante.style.display = 'block';
 
             let box = document.getElementById('context-content');
-            let html = `<div style="font-weight:bold; color:var(--cyan); font-size:12px;">Editar: ${comp.tipo.toUpperCase()}</div>`;
+            let html = `<div style="font-weight:bold; color:var(--cyan); font-size:12px; margin-bottom:5px;">Ajustar: ${comp.tipo.toUpperCase()}</div>`;
             
-            html += `<button class="btn" style="width:100%; margin-top:6px; font-size:10px;" onclick="rotarComponenteEnFoco()">🔄 Rotar 90°</button>`;
+            html += `<button class="btn" style="width:100%; font-size:10px; margin-bottom:5px;" onclick="rotarSeleccionado()">🔄 Rotar Componente</button>`;
 
-            // Se vinculan directamente al objeto sin interferencia del bucle de simulación
             if (comp.tipo === 'resistencia') {
                 html += `<label>Resistencia (Ω):</label>
-                         <input type="number" id="input_r" value="${comp.props.r}" onkeyup="actualizarPropiedadComponente('r', this.value)">`;
+                         <div class="input-row">
+                            <button class="btn-step" onclick="alterarInputPaso('val_target', -50)">-</button>
+                            <input type="number" id="val_target" value="${comp.props.r}">
+                            <button class="btn-step" onclick="alterarInputPaso('val_target', 50)">+</button>
+                         </div>`;
             } else if (comp.tipo === 'nice_power') {
-                html += `<label>Tensión Fuente (V):</label>
-                         <input type="number" id="input_v" value="${comp.props.v}" onkeyup="actualizarPropiedadComponente('v', this.value)">`;
+                html += `<label>Voltaje Nominal (V):</label>
+                         <div class="input-row">
+                            <button class="btn-step" onclick="alterarInputPaso('val_v', -1)">-</button>
+                            <input type="number" id="val_v" value="${comp.props.v}">
+                            <button class="btn-step" onclick="alterarInputPaso('val_v', 1)">+</button>
+                         </div>
+                         <label>Límite Amperaje (A):</label>
+                         <div class="input-row">
+                            <button class="btn-step" onclick="alterarInputPaso('val_i', -0.5)">-</button>
+                            <input type="number" id="val_i" step="0.1" value="${comp.props.i_max}">
+                            <button class="btn-step" onclick="alterarInputPaso('val_i', 0.5)">+</button>
+                         </div>`;
+            } else if (comp.tipo === 'motor_industrial') {
+                html += `<label>RPM Máximos Relativos:</label>
+                         <div class="input-row">
+                            <button class="btn-step" onclick="alterarInputPaso('val_rpm', -100)">-</button>
+                            <input type="number" id="val_rpm" value="${comp.props.rpm_carga}">
+                            <button class="btn-step" onclick="alterarInputPaso('val_rpm', 100)">+</button>
+                         </div>`;
             }
 
-            html += `<button class="btn btn-danger" style="width:100%; margin-top:8px; font-size:10px;" onclick="eliminarComponenteEnFoco()">🗑️ Eliminar</button>`;
+            html += `<button class="btn btn-danger" style="width:100%; margin-top:8px; font-size:10px;" onclick="eliminarSeleccionado()">🗑️ Eliminar</button>`;
             box.innerHTML = html;
         }
 
-        function actualizarPropiedadComponente(prop, valor) {
-            if (compEnFoco) {
-                let num = parseFloat(valor);
-                if (!isNaN(num)) {
-                    compEnFoco.props[prop] = num;
-                }
+        function alterarInputPaso(id, paso) {
+            let inp = document.getElementById(id);
+            if (inp) {
+                let curr = parseFloat(inp.value) || 0;
+                inp.value = (curr + paso);
             }
         }
 
-        function abrirMenuCable(cable, e) {
-            cableEnFoco = cable; compEnFoco = null;
-            let rect = workspace.getBoundingClientRect();
-            menuFlotante.style.left = (e.clientX - rect.left + 15) + 'px';
-            menuFlotante.style.top = (e.clientY - rect.top + 15) + 'px';
-            menuFlotante.style.display = 'block';
-
-            let box = document.getElementById('context-content');
-            box.innerHTML = `
-                <div style="font-weight:bold; color:var(--yellow); font-size:11px;">Línea Conductora</div>
-                <button class="btn btn-danger" style="width:100%; margin-top:8px; font-size:10px;" onclick="eliminarCableEnFoco()">🗑️ Cortar Cable</button>
-            `;
+        // FIJACIÓN ABSOLUTA AL HACER CLIC EN EL BOTÓN PRINCIPAL
+        function guardarYFijarValores() {
+            if (!focoObj) return;
+            
+            if (focoObj.tipo === 'resistencia') {
+                let rVal = parseFloat(document.getElementById('val_target').value);
+                if (!isNaN(rVal) && rVal >= 1) focoObj.props.r = rVal;
+            } else if (focoObj.tipo === 'nice_power') {
+                let vVal = parseFloat(document.getElementById('val_v').value);
+                let iVal = parseFloat(document.getElementById('val_i').value);
+                if (!isNaN(vVal)) focoObj.props.v = vVal;
+                if (!isNaN(iVal) && iVal > 0) focoObj.props.i_max = iVal;
+            } else if (focoObj.tipo === 'motor_industrial') {
+                let rpmVal = parseFloat(document.getElementById('val_rpm').value);
+                if (!isNaN(rpmVal) && rpmVal > 10) focoObj.props.rpm_carga = rpmVal;
+            }
+            
+            sincronizarMallaVisual();
+            cerrarMenu();
         }
 
-        function rotarComponenteEnFoco() {
-            if (compEnFoco) {
-                compEnFoco.rotacion = ((compEnFoco.rotacion || 0) + 90) % 360;
-                let div = document.getElementById(compEnFoco.id);
-                if (div) div.style.transform = `rotate(${compEnFoco.rotacion}deg)`;
-                reconstruirLienzo();
+        function rotarSeleccionado() {
+            if (focoObj) {
+                focoObj.rotacion = ((focoObj.rotacion || 0) + 90) % 360;
+                let div = document.getElementById(focoObj.id);
+                if (div) div.style.transform = `rotate(${focoObj.rotacion}deg)`;
+                sincronizarMallaVisual();
             }
         }
 
-        function eliminarComponenteEnFoco() {
-            if (compEnFoco) {
-                crearSnapshot();
-                componentes = componentes.filter(c => c.id !== compEnFoco.id);
-                document.getElementById(compEnFoco.id).remove();
-                reconstruirLienzo();
-                cerrarMenu();
-            }
-        }
-
-        function eliminarCableEnFoco() {
-            if (cableEnFoco) {
-                crearSnapshot();
-                cables = cables.filter(w => w.id !== cableEnFoco.id);
-                reconstruirLienzo();
-                cerrarMenu();
+        function eliminarSeleccionado() {
+            if (focoObj) {
+                componentes = componentes.filter(c => c.id !== focoObj.id);
+                document.getElementById(focoObj.id).remove();
+                sincronizarMallaVisual(); cerrarMenu();
             }
         }
 
         function cerrarMenu() { menuFlotante.style.display = 'none'; }
 
-        // --- RESOLUCIÓN MATRICIAL DE VOLTAJE E INTENSIDADES ---
-        function simularMallas() {
-            // Inicializar cargas de consumo seguro
+        // --- SOLVER ANALÍTICO KIRCHHOFF + DETECTOR DE DESTRUCCIÓN TÉRMICA ---
+        function evaluarMallasElectricas() {
             componentes.forEach(c => { if(!c.quemado) { c.v_in = 0; c.i_in = 0; } });
 
             let fuentes = componentes.filter(c => c.tipo === 'nice_power');
 
             fuentes.forEach(f => {
-                let malla = rastrearLazo(f.id, 'p', f.id, 'n', new Set());
+                if (f.quemado) return;
+                let m = rastrearMalla(f.id, 'p', f.id, 'n', new Set());
 
-                if (malla) {
-                    let rt = 0;
-                    let swAbierto = false;
+                if (m) {
+                    let rt = 0; let swAbierto = false;
 
-                    malla.forEach(cid => {
+                    m.forEach(cid => {
                         let co = componentes.find(x => x.id === cid);
+                        if (co.quemado) rt += Infinity; // Componente quemado actúa como circuito abierto
                         if (co.tipo === 'resistencia') rt += parseFloat(co.props.r);
-                        if (co.tipo === 'motor_turbina') rt += parseFloat(co.props.r_int);
+                        if (co.tipo === 'motor_industrial') rt += parseFloat(co.props.r_int);
                         if (co.tipo === 'foco_edison') rt += parseFloat(co.props.r_int);
-                        if (co.tipo === 'led_estilizado') rt += 30; 
+                        if (co.tipo === 'led_esferico') rt += 20; 
                         if (co.tipo === 'interruptor' && !co.props.cerrado) swAbierto = true;
                     });
 
-                    if (swAbierto) return;
+                    if (swAbierto || rt === Infinity) return;
 
-                    // Salvaguarda contra corto puro
-                    if (rt < 1) rt = 1; 
+                    if (rt < 0.5) rt = 0.5; // Impedancia protectora de cables mínimos
+                    let iCalculada = f.props.v / rt;
 
-                    let corrienteMalla = f.props.v / rt;
+                    // Aplicar el límite de corriente configurado en la fuente Nice-Power
+                    if (iCalculada > f.props.i_max) {
+                        iCalculada = f.props.i_max;
+                    }
 
-                    malla.forEach(cid => {
+                    m.forEach(cid => {
                         let co = componentes.find(x => x.id === cid);
-                        co.i_in = corrienteMalla;
-                        co.v_in = corrienteMalla * (co.props.r || co.props.r_int || 30);
+                        if(!co.quemado) {
+                            co.i_in = iCalculada;
+                            co.v_in = iCalculada * (co.props.r || co.props.r_int || 20);
+
+                            // VERIFICADOR DE QUEMADO FÍSICO POR SOBREVOLTAJE CRÍTICO
+                            let vMaxTermico = DISENOS[co.tipo]?.props?.v_max;
+                            if (vMaxTermico && co.v_in > vMaxTermico) {
+                                co.quemado = true;
+                            }
+                        }
                     });
                 }
             });
 
-            actualizarAnimacionesFisicas();
+            animarFisicasEnPantalla();
         }
 
-        function rastrearLazo(cAct, bAct, cObj, bObj, vis) {
-            let key = `${cAct}_${bAct}`;
-            if (vis.has(key)) return null;
-            vis.add(key);
-
+        function rastrearMalla(cAct, bAct, cObj, bObj, vis) {
+            let k = `${cAct}_${bAct}`; if (vis.has(k)) return null; vis.add(k);
             let enlaces = cables.filter(c => (c.c1 === cAct && c.b1 === bAct) || (c.c2 === cAct && c.b2 === bAct));
-
             for (let i = 0; i < enlaces.length; i++) {
-                let w = enlaces[i];
-                let nextC = w.c1 === cAct ? w.c2 : w.c1;
-                let nextB = w.c1 === cAct ? w.b2 : w.b1;
-
-                if (nextC === cObj && nextB === bObj) return [cAct];
-
-                let spec = DISENOS[componentes.find(x => x.id === nextC)?.tipo];
-                if (!spec) continue;
-                let oppB = spec.bornes.find(b => b.id !== nextB);
-                if (!oppB) continue;
-
-                let camino = rastrearLazo(nextC, oppB.id, cObj, bObj, new Set(vis));
-                if (camino) return [cAct, ...camino];
+                let w = enlaces[i]; let nC = w.c1 === cAct ? w.c2 : w.c1; let nB = w.c1 === cAct ? w.b2 : w.b1;
+                if (nC === cObj && nB === bObj) return [cAct];
+                let spec = DISENOS[componentes.find(x => x.id === nC)?.tipo]; if (!spec) continue;
+                let oB = spec.bornes.find(b => b.id !== nB); if (!oB) continue;
+                let cam = rastrearMalla(nC, oB.id, cObj, bObj, new Set(vis)); if (cam) return [cAct, ...cam];
             }
             return null;
         }
 
-        // --- ANIMACIÓN REAL SEGÚN LEY DE OHM (BRILLO E INTENSIDAD DE ASPAS) ---
-        function actualizarAnimacionesFisicas() {
+        // --- SISTEMA LUMÍNICO ULTRA-FIEL Y ROTACIÓN AJUSTADA POR CARGA ---
+        function animarFisicasEnPantalla() {
+            let hayCortocircuitoUrgente = false;
+
             componentes.forEach(c => {
                 let div = document.getElementById(c.id);
                 let badge = document.getElementById(`val_${c.id}`);
                 if (!div || !badge) return;
 
-                // 1. Mostrar lecturas reales en el display digital de la mini fuente "Nice-Power"
-                if (c.tipo === 'nice_power') {
-                    let dV = div.querySelector(`#disp_v_${c.id}`);
-                    let dI = div.querySelector(`#disp_i_${c.id}`);
-                    if(dV) dV.textContent = `${parseFloat(c.props.v).toFixed(1)}V`;
-                    if(dI) dI.textContent = `${parseFloat(c.i_in).toFixed(2)}A`;
-                    badge.innerHTML = `Nice-Power CC`;
+                // Si el componente está quemado por meterle 100V o 1000V
+                if (c.quemado) {
+                    div.classList.add('burned');
+                    badge.innerHTML = `<span style="color:var(--red); font-weight:bold;">💥 DESTRUIDO</span>`;
+                    
+                    // Rotura visual interna de los SVG
+                    if (c.tipo === 'foco_edison') {
+                        let fil = div.querySelector(`#fil_${c.id}`);
+                        if (fil) fil.setAttribute('d', "M 32 52 L 35 38 M 45 28 L 48 52"); // Filamento partido a la mitad
+                    }
                     return;
                 }
 
-                // 2. BRILLO INTENSO DEL DIODO LED SEGÚN RESISTENCIAS Y VOLTAJE
-                if (c.tipo === 'led_estilizado') {
-                    let core = div.querySelector(`#glow_led_${c.id}`);
-                    if (c.v_in > 0.2) {
-                        let opacidad = Math.min(1, c.v_in / 3);
+                if (c.tipo === 'nice_power') {
+                    div.querySelector(`#d_v_${c.id}`).textContent = `${parseFloat(c.props.v).toFixed(1)}V`;
+                    div.querySelector(`#d_i_${c.id}`).textContent = `${parseFloat(c.i_in).toFixed(2)}A`;
+                    badge.innerHTML = `Nice-Power CC`;
+                    if (c.i_in >= c.props.i_max - 0.05 && c.i_in > 0) hayCortocircuitoUrgente = true;
+                    return;
+                }
+
+                // BRILLO INTENSO DINÁMICO DEL LED SEGÚN VOLTAJE EN TIEMPO REAL
+                if (c.tipo === 'led_esferico') {
+                    let core = div.querySelector(`#g_led_${c.id}`);
+                    if (c.v_in > 1.5) {
+                        let opacidadBrillo = Math.min(1, c.v_in / 3.8);
                         core.setAttribute('fill', 'var(--green)');
-                        core.style.filter = `drop-shadow(0 0 12px rgba(57,255,20,${opacidad}))`;
-                        core.style.opacity = opacidad;
+                        // Glow fluorescente realista basado en cútula de silicio
+                        core.style.filter = `drop-shadow(0 0 ${12 * opacidadBrillo}px rgba(57,255,20,0.9))`;
+                        core.style.opacity = opacidadBrillo;
                     } else {
                         core.setAttribute('fill', 'none'); core.style.filter = 'none'; core.style.opacity = 1;
                     }
                 }
 
-                // 3. FOCO EDISON: Encendido incandescente variable del filamento
+                // EFECTO INCANDESCENTE DEL FILAMENTO EDISON SEGÚN LEY DE JOULE
                 if (c.tipo === 'foco_edison') {
-                    let filament = div.querySelector(`#filament_${c.id}`);
-                    if (c.v_in > 0.5) {
-                        let factorBrillo = Math.min(1, c.v_in / 12);
-                        filament.setAttribute('stroke', '#ffde59');
-                        filament.style.filter = `drop-shadow(0 0 15px rgba(255,222,89,${factorBrillo}))`;
+                    let fil = div.querySelector(`#fil_${c.id}`);
+                    let bulb = div.querySelector(`#bulb_${c.id}`);
+                    if (c.v_in > 1) {
+                        let factorBrillo = Math.min(1, c.v_in / 22);
+                        fil.setAttribute('stroke', '#fff7ed');
+                        // El cristal se ilumina gradualmente
+                        bulb.style.fill = `rgba(251, 146, 60, ${factorBrillo * 0.35})`;
+                        fil.style.filter = `drop-shadow(0 0 ${14 * factorBrillo}px #ff971d)`;
                     } else {
-                        filament.setAttribute('stroke', '#f59e0b'); filament.style.filter = 'none';
+                        fil.setAttribute('stroke', '#b45309'); bulb.style.fill = 'none'; fil.style.filter = 'none';
                     }
                 }
 
-                // 4. VELOCIDAD DE ROTACIÓN DINÁMICA DEL MOTOR
-                if (c.tipo === 'motor_turbina' && c.i_in > 0.001) {
+                // VELOCIDAD DE ROTACIÓN AJUSTABLE SEGÚN CONFIGURACIÓN Y CORRIENTE
+                if (c.tipo === 'motor_industrial' && c.i_in > 0.001) {
                     let fan = div.querySelector(`#fan_${c.id}`);
                     if (fan) {
-                        // El incremento de ángulo depende directamente de los amperios de la malla
-                        anguloVentilador += (c.i_in * 90); 
-                        fan.style.transform = `rotate(${anguloVentilador % 360}deg)`;
+                        // Las RPM finales dependen de los amperios y la carga configurada por el usuario
+                        let rpmCalculadas = (c.i_in * c.props.rpm_carga);
+                        rotacionHélice += (rpmCalculadas / 120); 
+                        fan.style.transform = `rotate(${rotacionHélice % 360}deg)`;
+                        badge.innerHTML = `⚙️ ${rpmCalculadas.toFixed(0)} RPM`;
+                        return;
                     }
                 }
 
-                // Despliegue técnico en las etiquetas inferiores
                 if (c.tipo === 'resistencia') badge.innerHTML = `${c.props.r} Ω<br>${(c.i_in*1000).toFixed(0)} mA`;
-                else if (c.tipo === 'motor_turbina') badge.innerHTML = c.i_in > 0 ? `⚙️ ${(c.i_in*1500).toFixed(0)} RPM` : "0 RPM";
-                else if (c.tipo === 'foco_edison') badge.innerHTML = `${c.v_in.toFixed(1)} V`;
                 else badge.innerHTML = `${c.v_in.toFixed(1)} V`;
             });
+
+            // ACTUALIZAR EXPRESIÓN DE LA CARITA INTERACTIVA EN TIEMPO REAL
+            let fac = document.getElementById('facial-avatar');
+            if (componentes.some(c => c.quemado)) {
+                fac.innerText = "💀 COMPONENTE QUEMADO"; fac.style.color = "var(--red)";
+            } else if (hayCortocircuitoUrgente) {
+                fac.innerText = "🤯 LIMITADOR DE CORRIENTE ACTIVO"; fac.style.color = "var(--yellow)";
+            } else if (componentes.some(c => c.i_in > 0.01)) {
+                fac.innerText = "⚡ CIRCUITO ESTABLE (😃 OK)"; fac.style.color = "var(--green)";
+            } else {
+                fac.innerText = "💤 EN ESPERA / SWITCH ABIERTO"; fac.style.color = "#64748b";
+            }
         }
 
-        // --- PANTALLAS DE MONITOREO TOTALMENTE ACTIVAS ---
-        function renderizarPantallasLaboratorio() {
-            // Buscar si hay cargas activas para graficar su comportamiento óhmico
-            let componenteAnalisis = componentes.find(c => c.tipo === 'led_estilizado' || c.tipo === 'motor_turbina' || c.tipo === 'foco_edison') || componentes[0];
-            let vActual = componenteAnalisis ? componenteAnalisis.v_in : 0;
+        // --- PANTALLAS ANALÓGICAS ACTIVADAS AL 100% ---
+        function actualizarInstrumentosLaboratorio() {
+            let analizado = componentes.find(c => c.tipo === 'led_esferico' || c.tipo === 'motor_industrial' || c.tipo === 'foco_edison') || componentes[0];
+            let vMuestra = (analizado && !analizado.quemado) ? analizado.v_in : 0;
 
-            muestrasVoltaje.push(vActual);
-            if (muestrasVoltaje.length > 200) muestrasVoltaje.shift();
+            histVoltaje.push(vMuestra);
+            if (histVoltaje.length > 200) histVoltaje.shift();
 
-            // 1. OSCILOSCOPIO DINÁMICO
-            let cvO = document.getElementById('canvas-time');
-            let ctxO = cvO.getContext('2d');
+            // RENDERIZADO DEL OSCILOSCOPIO
+            let cvO = document.getElementById('canvas-time'); let ctxO = cvO.getContext('2d');
             ctxO.clearRect(0,0,cvO.width, cvO.height);
-
-            // Retícula analógica de fondo
-            ctxO.strokeStyle = '#0a101f'; ctxO.lineWidth = 1;
+            ctxO.strokeStyle = '#070f1e'; ctxO.lineWidth = 1;
             for(let x=0; x<cvO.width; x+=25) { ctxO.beginPath(); ctxO.moveTo(x,0); ctxO.lineTo(x,cvO.height); ctxO.stroke(); }
             for(let y=0; y<cvO.height; y+=25) { ctxO.beginPath(); ctxO.moveTo(0,y); ctxO.lineTo(cvO.width,y); ctxO.stroke(); }
 
-            // Línea de señal activa
-            ctxO.strokeStyle = 'var(--green)'; ctxO.lineWidth = 2;
+            ctxO.strokeStyle = 'var(--green)'; ctxO.lineWidth = 2.5; ctxO.shadowBlur = 4; ctxO.shadowColor = 'var(--green)';
             ctxO.beginPath();
-            for(let i=0; i<muestrasVoltaje.length; i++) {
-                let px = (i / muestrasVoltaje.length) * cvO.width;
-                // Ajustar escala vertical según el voltaje calculado
-                let py = cvO.height - 20 - (muestrasVoltaje[i] * 8); 
+            for(let i=0; i<histVoltaje.length; i++) {
+                let px = (i / histVoltaje.length) * cvO.width;
+                let py = cvO.height - 15 - (histVoltaje[i] * 4.5);
                 if(i===0) ctxO.moveTo(px,py); else ctxO.lineTo(px,py);
             }
-            ctxO.stroke();
+            ctxO.stroke(); ctxO.shadowBlur = 0;
 
-            // 2. SPECTROMETER RADAR FFT
-            let cvF = document.getElementById('canvas-fft');
-            let ctxF = cvF.getContext('2d');
+            // RENDERIZADO DEL ESPECTRÓMETRO DE RADAR
+            let cvF = document.getElementById('canvas-fft'); let ctxF = cvF.getContext('2d');
             ctxF.clearRect(0,0,cvF.width, cvF.height);
-
-            // Rejilla Circular estilo Espectrómetro de Barrido Radar
-            ctxF.strokeStyle = '#051805'; ctxF.lineWidth = 1;
+            ctxF.strokeStyle = '#041c0c'; ctxF.lineWidth = 1;
             let cx = cvF.width/2; let cy = cvF.height/2;
-            ctxF.beginPath(); ctxF.arc(cx,cy,35,0,2*Math.PI); ctxF.stroke();
-            ctxF.beginPath(); ctxF.arc(cx,cy,70,0,2*Math.PI); ctxF.stroke();
+            ctxF.beginPath(); ctxF.arc(cx,cy,40,0,2*Math.PI); ctxF.stroke();
+            ctxF.beginPath(); ctxF.arc(cx,cy,75,0,2*Math.PI); ctxF.stroke();
 
-            // Barra armónica reactiva al voltaje y consumo real
-            if (vActual > 0) {
-                ctxF.fillStyle = 'rgba(57, 255, 20, 0.8)';
-                ctxF.shadowBlur = 10; ctxF.shadowColor = 'var(--green)';
-                
-                // Muestra un pico de intensidad proporcional al voltaje/consumo
-                let alturaBarra = Math.min(cvF.height * 0.8, vActual * 9);
-                ctxF.fillRect(cx - 15, cvF.height - alturaBarra, 30, alturaBarra);
+            if (vMuestra > 0) {
+                ctxF.fillStyle = 'rgba(57, 255, 20, 0.85)'; ctxF.shadowBlur = 12; ctxF.shadowColor = 'var(--green)';
+                let hBarra = Math.min(cvF.height * 0.85, vMuestra * 5.5);
+                ctxF.fillRect(cx - 20, cvF.height - hBarra, 40, hBarra);
                 ctxF.shadowBlur = 0;
             }
         }
 
-        // --- HARDWARE BOOT ---
         window.addEventListener('load', () => {
             document.querySelectorAll('.canvas-instrument').forEach(cv => {
                 cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight;
             });
-            crearSnapshot();
-            setInterval(simularMallas, 40);
-            setInterval(renderizarPantallasLaboratorio, 50);
+            setInterval(evaluarMallasElectricas, 40);
+            setInterval(actualizarInstrumentosLaboratorio, 50);
             workspace.addEventListener('click', cerrarMenu);
         });
     </script>
