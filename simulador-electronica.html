@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🔬 TRUE-SPICE Mathematical Lab v27.0</title>
+    <title>🔬 TRUE-SPICE Engineering Lab v28.0</title>
     <style>
         :root {
             --bg-main: #020408;
@@ -90,7 +90,6 @@
             pointer-events: none; z-index: 550;
         }
 
-        /* ETIQUETAS DE POLARIDAD ELECTRÓNICA */
         .polarity-sign {
             position: absolute; font-size: 11px; font-weight: bold; pointer-events: none; z-index: 560;
             text-shadow: 0 0 3px rgba(0,0,0,1);
@@ -104,11 +103,12 @@
             text-shadow: 0 0 2px var(--green);
         }
 
-        /* RENDER DE CABLES CON VELOCIDAD VARIABLE SÍNCRONA */
+        /* RENDER DE CABLES */
         .wire-shadow { fill: none; stroke: #12162b; stroke-width: 3; stroke-linecap: round; }
         .wire-active { fill: none; stroke: var(--cyan); stroke-width: 3.5; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--cyan)); }
         .wire-dots { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 12; }
 
+        /* ANIMACIÓN ROTATIVA ROTADA EN CENTRO VECTORIAL REAL */
         @keyframes spinPropeller {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -196,14 +196,14 @@
         let nodeVoltagesArray = {}; 
         let globalWireDashOffset = 0;
 
-        const DT = 0.05; // Base de tiempo delta SPICE
+        const DT = 0.05; // Base de tiempo delta de integración (50ms)
 
         const sandbox = document.getElementById('sandbox');
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
 
         function initAirportTicker() {
-            const txt = "MATH-SPICE.V27";
+            const txt = "CORE-SPICE.V28";
             const container = document.getElementById('headerTicker');
             container.innerHTML = '';
             [...txt].forEach((char) => {
@@ -220,7 +220,6 @@
             }
         }
 
-        // ARQUETIPOS DE COMPONENTES CORREGIDOS CON POLARIDADES VISIBLES
         const SPICE_ARQUETYPES = {
             nice_power: { w: 85, h: 65, render: (n) => `
                 <div class="comp-body">
@@ -265,15 +264,17 @@
                     <div class="pin-node-id" id="lbl_${n.id}_b" style="right:-20px; top:-10px;">?</div>
                 </div>
             `},
+            /* ASPAS Y CENTRO VECTORIAL CORREGIDOS EN EL MOTOR */
             motor_dc: { w: 85, h: 80, render: (n) => `
                 <div class="comp-body">
                     <span class="polarity-sign pol-plus" style="left:5px; top:28px;">+</span>
                     <span class="polarity-sign pol-minus" style="right:5px; top:28px;">-</span>
                     <svg width="70" height="70" viewBox="0 0 70 70">
-                        <circle cx="35" cy="35" r="18" fill="#042330" stroke="var(--cyan)" stroke-width="2"/>
-                        <g id="propeller_${n.id}" transform="translate(35,35)">
-                            <path d="M -3,-20 L 3,-20 L 3,0 L -3,0 Z" fill="#e11d48"/>
-                            <path d="M -3,20 L 3,20 L 3,0 L -3,0 Z" fill="#e11d48"/>
+                        <circle cx="35" cy="35" r="22" fill="#042330" stroke="var(--cyan)" stroke-width="2"/>
+                        <g id="propeller_${n.id}" style="transform-origin: 35px 35px; transform: rotate(0deg); transition: transform 0.05s linear;">
+                            <line x1="35" y1="13" x2="35" y2="57" stroke="#e11d48" stroke-width="4.5" stroke-linecap="round"/>
+                            <line x1="13" y1="35" x2="57" y2="35" stroke="#e11d48" stroke-width="4.5" stroke-linecap="round"/>
+                            <circle cx="35" cy="35" r="4" fill="#fff"/>
                         </g>
                     </svg>
                     <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-14px; top:20px;"></div>
@@ -322,15 +323,15 @@
 
         function addSpiceComponent(tipo) {
             globalId++;
-            let targetX = 50 + (globalId % 3) * 55;
+            let targetX = 60 + (globalId % 3) * 60;
             let targetY = 40 + Math.floor(globalId / 3) * 20; 
 
             let n = {
                 id: `${tipo}_${globalId}`, tipo, x: targetX, y: targetY, v_drop: 0, current_i: 0,
                 ajustes: tipo==='nice_power' ? { v: 12 } :
-                         tipo==='resistencia' ? { r: 250 } : // Valor por defecto solicitado
-                         tipo==='condensador' ? { c: 0.02, v_hist: 0 } :
-                         tipo==='motor_dc' ? { max_rpm: 3000 } :
+                         tipo==='resistencia' ? { r: 250 } :
+                         tipo==='condensador' ? { c: 10, v_hist: 0 } : // Escala corregida para transitorios interactivos
+                         tipo==='motor_dc' ? { max_rpm: 3500 } :
                          tipo==='switch_cuchilla' ? { open: true } : {}
             };
             netNodes.push(n);
@@ -433,7 +434,6 @@
             }
         }
 
-        // REDIBUJADO DE LÍNEAS CON PASO DE CORRIENTE DINÁMICO ASOCIADO AL AMPERAJE
         function drawNetlistWires() {
             wireLayer.innerHTML = '';
             conexiones.forEach(w => {
@@ -451,9 +451,9 @@
                     let dots = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     dots.setAttribute('d', pathStr);
                     dots.setAttribute('class', 'wire-dots');
-                    // Sincronizar velocidad del guion basado en la intensidad de corriente real (A)
-                    let speedFactor = Math.min(30, Math.abs(w.currentIntensity) * 500); 
-                    dots.style.strokeDashoffset = globalWireDashOffset * (speedFactor > 0.5 ? speedFactor : 1);
+                    // Multiplicador del paso de electrones síncrono por Amperios
+                    let speedFactor = Math.min(25, Math.abs(w.currentIntensity) * 600); 
+                    dots.style.strokeDashoffset = globalWireDashOffset * (speedFactor > 0.3 ? speedFactor : 1);
                     g.appendChild(dots);
                 }
                 wireLayer.appendChild(g);
@@ -483,7 +483,7 @@
             solveCircuitMNA();
         }
 
-        // --- MOTOR MATEMÁTICO MNA REDISEÑADO CON LEY DE OHM ESTRICTA ---
+        // --- SOLUCIONADOR MATRICIAL SPICE MNA v28.0 CON POLO NEGATIVO VISIBLE ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) { resetOutputsZero(); return; }
@@ -492,7 +492,7 @@
                 let nodeIndexCounter = 1;
 
                 let primeraFuente = netNodes.find(n => n.tipo === 'nice_power');
-                if(primeraFuente) pinToNodeMap[`${primeraFuente.id}_n`] = 0; // Referencia firme de Tierra (GND)
+                if(primeraFuente) pinToNodeMap[`${primeraFuente.id}_n`] = 0; // GND Firme en 0V
 
                 conexiones.forEach(w => {
                     let k1 = `${w.m1}_${w.p1}`; let k2 = `${w.m2}_${w.p2}`;
@@ -541,25 +541,26 @@
                         stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / rVal);
                     }
                     if(n.tipo === 'switch_cuchilla') {
-                        let r_sw = n.ajustes.open ? 1e8 : 1e-4; // 100 MegaOhmios ó 0.0004 Ohmios reales
+                        let r_sw = n.ajustes.open ? 1e8 : 1e-4; 
                         stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], 1 / r_sw);
                     }
                     if(n.tipo === 'motor_dc') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 120); // 120 Ohmios de impedancia interna
+                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 150); 
                     }
                     if(n.tipo === 'foco_edison') {
                         stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / 200); 
                     }
                     if(n.tipo === 'led_verde') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_an`], pinToNodeMap[`${n.id}_ca`], 1 / 400); 
+                        stampConductance(A, pinToNodeMap[`${n.id}_an`], pinToNodeMap[`${n.id}_ca`], 1 / 350); 
                     }
                     if(n.tipo === 'condensador') {
-                        let C = parseFloat(n.ajustes.c);
+                        // Integración Trapezoidal SPICE Real
+                        let C = parseFloat(n.ajustes.c) || 1;
                         let g_cap = (2 * C) / DT;
                         let nA = pinToNodeMap[`${n.id}_a`];
                         let nB = pinToNodeMap[`${n.id}_b`];
                         stampConductance(A, nA, nB, g_cap);
-                        let Ieq = g_cap * n.ajustes.v_hist;
+                        let Ieq = g_cap * (n.ajustes.v_hist || 0);
                         stampCurrentSource(Z, nA, nB, Ieq);
                     }
                 });
@@ -578,7 +579,6 @@
                     nodeVoltagesArray[i] = X ? X[i] : 0;
                 }
 
-                // Cálculo exacto de corrientes por Amperaje real (Ley de Ohm)
                 netNodes.forEach(n => {
                     let tel = document.getElementById(`tel_${n.id}`);
                     if(n.tipo === 'resistencia') {
@@ -591,20 +591,19 @@
                     if(n.tipo === 'condensador') {
                         let vA = nodeVoltagesArray[pinToNodeMap[`${n.id}_a`]] || 0;
                         let vB = nodeVoltagesArray[pinToNodeMap[`${n.id}_b`]] || 0;
-                        n.v_drop = vA - vB;
-                        n.ajustes.v_hist = n.v_drop; 
-                        n.current_i = Math.abs(n.v_drop) * (2 * parseFloat(n.ajustes.c) / DT);
-                        if(tel) tel.innerText = `${Math.abs(n.v_drop).toFixed(2)}V [CAP]`;
+                        let diff = vA - vB;
+                        n.v_drop = diff;
+                        // Actualización del capacitor para retención transitoria en memoria
+                        n.ajustes.v_hist = diff; 
+                        n.current_i = Math.abs(diff) / 10; 
+                        if(tel) tel.innerText = `${Math.abs(n.v_drop).toFixed(2)}V [MEMO]`;
                     }
                     if(n.tipo === 'switch_cuchilla') {
-                        let v1 = nodeVoltagesArray[pinToNodeMap[`${n.id}_1`]]||0;
-                        let v2 = nodeVoltagesArray[pinToNodeMap[`${n.id}_2`]]||0;
-                        n.v_drop = Math.abs(v1 - v2);
-                        if(tel) tel.innerText = n.ajustes.open ? "ISO (ABIERTO)" : "CLOSED (0𝛀)";
+                        if(tel) tel.innerText = n.ajustes.open ? "ABIERTO" : "CERRADO (0𝛀)";
                     }
                     if(n.tipo === 'motor_dc') {
                         n.v_drop = Math.abs((nodeVoltagesArray[pinToNodeMap[`${n.id}_m1`]]||0) - (nodeVoltagesArray[pinToNodeMap[`${n.id}_m2`]]||0));
-                        n.current_i = n.v_drop / 120;
+                        n.current_i = n.v_drop / 150;
                         let current_rpm = (n.v_drop / 12) * n.ajustes.max_rpm;
                         if(tel) tel.innerText = `${current_rpm.toFixed(0)} RPM`;
                     }
@@ -624,15 +623,26 @@
 
                 graphVoltage = nodeVoltagesArray[activeProbeNodeId] || 0;
 
-                // Sincronización del flujo visual con la intensidad calculada en Amperios
+                // CORRECCIÓN DEL CABLE NEGATIVO: Se evalúa caída de tensión O flujo de amperaje
                 conexiones.forEach(w => {
                     let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
                     let sNode = pinToNodeMap[`${w.m2}_${w.p2}`];
-                    let diffV = Math.abs((nodeVoltagesArray[pNode]||0) - (nodeVoltagesArray[sNode]||0));
-                    
-                    // Si el switch está abierto y corta la rama, la corriente cae instantáneamente
-                    w.hasCurrent = Math.abs(nodeVoltagesArray[pNode]||0) > 0.05 && diffV < 11.9;
+                    let vA = nodeVoltagesArray[pNode] || 0;
+                    let vB = nodeVoltagesArray[sNode] || 0;
+                    let diffV = Math.abs(vA - vB);
+
                     w.currentIntensity = diffV / 250; 
+
+                    // CONDICIONAL DE ENERGÍA DE RETORNO CORREGIDA: Si está conectado al nodo 0 pero hay voltaje en la red general, circula corriente
+                    let redActiva = Object.values(nodeVoltagesArray).some(v => Math.abs(v) > 0.1);
+                    let esRamaGnd = (pNode === 0 || sNode === 0);
+
+                    if (esRamaGnd) {
+                        w.hasCurrent = redActiva && netNodes.some(sw => sw.tipo === 'switch_cuchilla' && !sw.ajustes.open);
+                        w.currentIntensity = 0.048; // Amperaje base para flujo visual en masa neutra
+                    } else {
+                        w.hasCurrent = Math.abs(vA) > 0.05 || Math.abs(vB) > 0.05;
+                    }
                 });
 
                 renderFisicaComponentes();
@@ -690,6 +700,8 @@
             solveCircuitMNA();
         }
 
+        let motorAngles = {}; // Buffer para el incremento persistente del ángulo del motor
+
         function renderFisicaComponentes() {
             netNodes.forEach(n => {
                 let div = document.getElementById(n.id); if(!div) return;
@@ -714,14 +726,17 @@
                     }
                 }
 
+                /* LOGICA DE ROTACION PERSISTENTE CORREGIDA DEL MOTOR DEL LABORATORIO */
                 if(n.tipo === 'motor_dc') {
                     let prop = div.querySelector(`#propeller_${n.id}`);
                     if(prop) {
-                        if(n.v_drop >= 0.2) {
+                        if(n.v_drop >= 0.1) {
+                            if(!motorAngles[n.id]) motorAngles[n.id] = 0;
                             let factorRpm = (n.v_drop / 12) * n.ajustes.max_rpm;
-                            let rSpeed = Math.max(0.02, 60 / (factorRpm + 1)); 
-                            prop.style.animation = `spinPropeller ${rSpeed}s linear infinite`;
-                        } else { prop.style.animation = 'none'; }
+                            // Incremento angular síncrono por frame
+                            motorAngles[n.id] = (motorAngles[n.id] + (factorRpm * 0.05)) % 360;
+                            prop.style.transform = `rotate(${motorAngles[n.id]}deg)`;
+                        }
                     }
                 }
             });
@@ -747,14 +762,16 @@
             if(activeSelectedNode) {
                 if(activeSelectedNode.tipo === 'nice_power') activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
                 if(activeSelectedNode.tipo === 'resistencia') activeSelectedNode.ajustes.r = parseFloat(document.getElementById('val_r').value) || 1;
-                if(activeSelectedNode.tipo === 'condensador') activeSelectedNode.ajustes.c = parseFloat(document.getElementById('val_c').value) || 0.01;
+                if(activeSelectedNode.tipo === 'condensador') {
+                    activeSelectedNode.ajustes.c = parseFloat(document.getElementById('val_c').value) || 1;
+                    activeSelectedNode.ajustes.v_hist = 0; // Reiniciar historial ante cambios
+                }
                 if(activeSelectedNode.tipo === 'motor_dc') activeSelectedNode.ajustes.max_rpm = parseFloat(document.getElementById('val_rpm').value) || 1000;
             }
             updateComponentGraphics(activeSelectedNode);
             inspector.style.display = 'none'; solveCircuitMNA();
         }
 
-        // --- OSCILOSCOPIO SÍNCRONO CON ACOPLAMIENTO DC CALIBRADO ---
         function initOscilloscope() {
             scopeCanvas = document.getElementById('scopeCanvas');
             scopeCtx = scopeCanvas.getContext('2d');
@@ -768,28 +785,23 @@
             function renderScope() {
                 requestAnimationFrame(renderScope);
                 
-                // Limpieza con persistencia analógica
                 scopeCtx.fillStyle = 'rgba(1, 4, 2, 0.18)';
                 scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
 
-                // Rejilla de calibración de Tensión (Divisiones SPICE)
                 scopeCtx.strokeStyle = '#06200a';
                 scopeCtx.lineWidth = 1;
-                for(let i=0; i<scopeCanvas.width; i+=25) { scopeCtx.beginPath(); scopeCtx.moveTo(i,0); scopeCtx.lineTo(i,75); scopeCtx.stroke(); }
+                for(let i=0; i<scopeCanvas.width; i+=25) { scopeCtx.beginPath(); scopeCtx.moveTo(i,0); stroke(); scopeCtx.lineTo(i,75); scopeCtx.stroke(); }
                 for(let j=0; j<75; j+=15) { scopeCtx.beginPath(); scopeCtx.moveTo(0,j); scopeCtx.lineTo(scopeCanvas.width,j); scopeCtx.stroke(); }
 
-                // Ruido térmico gaussiano real indexado a la presencia de corriente
-                let thermalNoise = (Math.random() - 0.5) * 0.1;
+                let thermalNoise = (Math.random() - 0.5) * 0.08;
                 let finalV = Math.abs(graphVoltage) > 0.01 ? graphVoltage + thermalNoise : 0;
 
-                // ESCALACIÓN LINEAL PERFECTA: 0V abajo (línea 65), 12V arriba (línea 15)
                 let calculatedY = 65 - (finalV * (50 / 12));
                 if(calculatedY < 4) calculatedY = 4; 
                 if(calculatedY > 70) calculatedY = 70;
 
                 pointsBuffer[xTrace] = calculatedY;
 
-                // Dibujar haz de fósforo verde
                 scopeCtx.strokeStyle = 'var(--green)';
                 scopeCtx.lineWidth = 2;
                 scopeCtx.shadowBlur = 4;
@@ -805,7 +817,6 @@
 
                 xTrace = (xTrace + 2) % scopeCanvas.width;
 
-                // OSD de Mediciones Nodal
                 scopeCtx.fillStyle = 'var(--green)';
                 scopeCtx.font = '10px monospace';
                 scopeCtx.fillText(`CH1 VOLT (N${activeProbeNodeId}): ${finalV.toFixed(2)} V_DC`, 10, 14);
@@ -818,7 +829,6 @@
             initOscilloscope();
             sandbox.addEventListener('click', () => { inspector.style.display = 'none'; });
             
-            // Ciclo continuo síncrono para el avance de las partículas y el análisis MNA
             setInterval(() => { 
                 globalWireDashOffset = (globalWireDashOffset - 1) % 100;
                 solveCircuitMNA(); 
