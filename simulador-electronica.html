@@ -767,75 +767,107 @@
             inspector.style.display = 'none'; solveCircuitMNA();
         }
 
-        /* OSCILOSCOPIO REDISEÑADO SIN ERRORES DE SINTAXIS */
-        function initOscilloscope() {
-            scopeCanvas = document.getElementById('scopeCanvas');
-            scopeCtx = scopeCanvas.getContext('2d');
-            
-            scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
-            scopeCanvas.height = 80;
+  /* OSCILOSCOPIO REDISEÑADO SIN ERRORES DE SINTAXIS */
+function initOscilloscope() {
+    scopeCanvas = document.getElementById('scopeCanvas');
+    scopeCtx = scopeCanvas.getContext('2d');
 
-            let xTrace = 0;
-            let pointsBuffer = Array(scopeCanvas.width).fill(70);
+    scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
+    scopeCanvas.height = 80;
 
-            function renderScope() {
-                requestAnimationFrame(renderScope);
-                
-                scopeCtx.fillStyle = 'rgba(1, 4, 2, 0.2)';
-                scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+    let xTrace = 0;
+    let pointsBuffer = Array(scopeCanvas.width).fill(70);
 
-                // Rejilla Analógica de Fondo
-                scopeCtx.strokeStyle = '#051d08';
-                scopeCtx.lineWidth = 1;
-                for(let i=0; i<scopeCanvas.width; i+=30) { scopeCtx.beginPath(); scopeCtx.moveTo(i,0); scopeCtx.lineTo(i,80); scopeCtx.stroke(); }
-                for(let j=0; j<80; j+=16) { scopeCtx.beginPath(); scopeCtx.moveTo(0,j); scopeCtx.lineTo(scopeCanvas.width,j); scopeCtx.stroke(); }
+    function renderScope() {
+        requestAnimationFrame(renderScope);
 
-                let thermalNoise = (Math.random() - 0.5) * 0.05;
-                let finalV = Math.abs(graphVoltage) > 0.01 ? graphVoltage + thermalNoise : 0;
+        // 🟢 FONDO LIMPIO
+        scopeCtx.fillStyle = '#001100';
+        scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
 
-                // Calibración de escala vertical lineal perfecta
-                let calculatedY = 70 - (finalV * (55 / 12));
-                if(calculatedY < 4) calculatedY = 4; 
-                if(calculatedY > 74) calculatedY = 74;
+        // 🧩 REJILLA RADAR
+        scopeCtx.strokeStyle = '#013d01';
+        scopeCtx.lineWidth = 1;
 
-                pointsBuffer[xTrace] = calculatedY;
-
-                // Trazado del fósforo activo
-                scopeCtx.strokeStyle = 'var(--green)';
-                scopeCtx.lineWidth = 2;
-                scopeCtx.shadowBlur = 5;
-                scopeCtx.shadowColor = 'var(--green)';
-                
-                scopeCtx.beginPath();
-                scopeCtx.moveTo(0, pointsBuffer[0]);
-                for(let k=1; k<scopeCanvas.width; k++) {
-                    scopeCtx.lineTo(k, pointsBuffer[k]);
-                }
-                scopeCtx.stroke();
-                scopeCtx.shadowBlur = 0;
-
-                xTrace = (xTrace + 2) % scopeCanvas.width;
-
-                // On-Screen Display (OSD)
-                scopeCtx.fillStyle = 'var(--green)';
-                scopeCtx.font = '10px monospace';
-                scopeCtx.fillText(`PROBE NODE ${activeProbeNodeId} : ${finalV.toFixed(2)} V_DC`, 12, 15);
-            }
-            renderScope();
+        for (let i = 0; i < scopeCanvas.width; i += 30) {
+            scopeCtx.beginPath();
+            scopeCtx.moveTo(i, 0);
+            scopeCtx.lineTo(i, 80);
+            scopeCtx.stroke();
         }
 
-        window.addEventListener('load', () => {
-            initAirportTicker();
-            initOscilloscope();
-            loopAnimacionFisica();
-            
-            sandbox.addEventListener('click', () => { inspector.style.display = 'none'; });
-            
-            // Ciclo de muestreo matemático estable para la matriz SPICE (Cada 60ms)
-            setInterval(() => { 
-                solveCircuitMNA(); 
-            }, 60); 
-        });
+        for (let j = 0; j < 80; j += 16) {
+            scopeCtx.beginPath();
+            scopeCtx.moveTo(0, j);
+            scopeCtx.lineTo(scopeCanvas.width, j);
+            scopeCtx.stroke();
+        }
+
+        // 🌊 SEÑAL
+        let thermalNoise = (Math.random() - 0.5) * 0.015;
+
+        let finalV = Math.abs(graphVoltage) > 0.01
+            ? graphVoltage + thermalNoise
+            : 0;
+
+        let calculatedY = 70 - (finalV * (55 / 12));
+        if (calculatedY < 4) calculatedY = 4;
+        if (calculatedY > 74) calculatedY = 74;
+
+        pointsBuffer[xTrace] = calculatedY;
+
+        // ✨ TRAZO VERDE CRT
+        scopeCtx.strokeStyle = '#39ff14';
+        scopeCtx.lineWidth = 2.5;
+
+        scopeCtx.shadowBlur = 12;
+        scopeCtx.shadowColor = '#39ff14';
+
+        scopeCtx.beginPath();
+        scopeCtx.moveTo(0, pointsBuffer[0]);
+
+        for (let k = 1; k < scopeCanvas.width; k++) {
+            scopeCtx.lineTo(k, pointsBuffer[k]);
+        }
+
+        scopeCtx.stroke();
+        scopeCtx.shadowBlur = 0;
+
+        xTrace = (xTrace + 2) % scopeCanvas.width;
+
+        // 📟 OSD
+        scopeCtx.fillStyle = '#39ff14';
+        scopeCtx.font = '10px monospace';
+
+        scopeCtx.fillText(
+            `PROBE NODE ${activeProbeNodeId} : ${finalV.toFixed(2)} V_DC`,
+            12,
+            15
+        );
+    }
+
+    renderScope();
+}
+
+
+/* =========================
+   INICIO DEL SISTEMA
+   ========================= */
+
+window.addEventListener('load', () => {
+    initAirportTicker();
+    initOscilloscope();
+    loopAnimacionFisica();
+
+    sandbox.addEventListener('click', () => {
+        inspector.style.display = 'none';
+    });
+
+    // ⚡ MOTOR SPICE
+    setInterval(() => {
+        solveCircuitMNA();
+    }, 60);
+});
     </script>
 </body>
 </html>
