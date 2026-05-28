@@ -769,80 +769,113 @@
 
   /* OSCILOSCOPIO REDISEÑADO SIN ERRORES DE SINTAXIS */
 function initOscilloscope() {
+
     scopeCanvas = document.getElementById('scopeCanvas');
     scopeCtx = scopeCanvas.getContext('2d');
 
-    scopeCanvas.width = scopeCanvas.parentElement.clientWidth;
-    scopeCanvas.height = 80;
+    const dpr = window.devicePixelRatio || 1;
+
+    function resizeScope() {
+        const rect = scopeCanvas.parentElement.getBoundingClientRect();
+
+        // 📱 SAFE AREA FIX (iPhone + Android navbar)
+        const safeBottom = parseInt(
+            getComputedStyle(document.documentElement)
+                .getPropertyValue('env(safe-area-inset-bottom)') || 0
+        );
+
+        const height = 85 + safeBottom;
+
+        scopeCanvas.width = rect.width * dpr;
+        scopeCanvas.height = height * dpr;
+
+        scopeCanvas.style.width = rect.width + 'px';
+        scopeCanvas.style.height = height + 'px';
+
+        scopeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resizeScope();
+    window.addEventListener('resize', resizeScope);
+    window.addEventListener('orientationchange', resizeScope);
 
     let xTrace = 0;
-    let pointsBuffer = Array(scopeCanvas.width).fill(70);
+    let pointsBuffer = [];
 
     function renderScope() {
+
         requestAnimationFrame(renderScope);
 
-        // 🟢 FONDO LIMPIO
-        scopeCtx.fillStyle = '#001100';
-        scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+        const w = scopeCanvas.width / dpr;
+        const h = scopeCanvas.height / dpr;
 
-        // 🧩 REJILLA RADAR
-        scopeCtx.strokeStyle = '#013d01';
+        if (pointsBuffer.length !== Math.floor(w)) {
+            pointsBuffer = Array(Math.floor(w)).fill(70);
+        }
+
+        // 🟢 fondo estable
+        scopeCtx.fillStyle = '#001100';
+        scopeCtx.fillRect(0, 0, w, h);
+
+        // 🧩 rejilla suave
+        scopeCtx.strokeStyle = '#012a01';
         scopeCtx.lineWidth = 1;
 
-        for (let i = 0; i < scopeCanvas.width; i += 30) {
+        for (let i = 0; i < w; i += 40) {
             scopeCtx.beginPath();
             scopeCtx.moveTo(i, 0);
-            scopeCtx.lineTo(i, 80);
+            scopeCtx.lineTo(i, h);
             scopeCtx.stroke();
         }
 
-        for (let j = 0; j < 80; j += 16) {
+        for (let j = 0; j < h; j += 20) {
             scopeCtx.beginPath();
             scopeCtx.moveTo(0, j);
-            scopeCtx.lineTo(scopeCanvas.width, j);
+            scopeCtx.lineTo(w, j);
             scopeCtx.stroke();
         }
 
-        // 🌊 SEÑAL
-        let thermalNoise = (Math.random() - 0.5) * 0.015;
+        // 🌊 señal
+        let noise = (Math.random() - 0.5) * 0.01;
 
-        let finalV = Math.abs(graphVoltage) > 0.01
-            ? graphVoltage + thermalNoise
+        let v = Math.abs(graphVoltage) > 0.01
+            ? graphVoltage + noise
             : 0;
 
-        let calculatedY = 70 - (finalV * (55 / 12));
-        if (calculatedY < 4) calculatedY = 4;
-        if (calculatedY > 74) calculatedY = 74;
+        let y = (h - 10) - (v * (55 / 12));
 
-        pointsBuffer[xTrace] = calculatedY;
+        if (y < 4) y = 4;
+        if (y > h - 4) y = h - 4;
 
-        // ✨ TRAZO VERDE CRT
+        pointsBuffer[xTrace] = y;
+
+        // ✨ línea verde suave
         scopeCtx.strokeStyle = '#39ff14';
-        scopeCtx.lineWidth = 2.5;
+        scopeCtx.lineWidth = 2;
 
-        scopeCtx.shadowBlur = 12;
+        scopeCtx.shadowBlur = 6;
         scopeCtx.shadowColor = '#39ff14';
 
         scopeCtx.beginPath();
         scopeCtx.moveTo(0, pointsBuffer[0]);
 
-        for (let k = 1; k < scopeCanvas.width; k++) {
-            scopeCtx.lineTo(k, pointsBuffer[k]);
+        for (let i = 1; i < w; i++) {
+            scopeCtx.lineTo(i, pointsBuffer[i]);
         }
 
         scopeCtx.stroke();
         scopeCtx.shadowBlur = 0;
 
-        xTrace = (xTrace + 2) % scopeCanvas.width;
+        xTrace = (xTrace + 1) % w;
 
-        // 📟 OSD
+        // 📟 OSD ajustado arriba (evita corte inferior)
         scopeCtx.fillStyle = '#39ff14';
         scopeCtx.font = '10px monospace';
 
         scopeCtx.fillText(
-            `PROBE NODE ${activeProbeNodeId} : ${finalV.toFixed(2)} V_DC`,
-            12,
-            15
+            `PROBE ${activeProbeNodeId}: ${v.toFixed(2)} V`,
+            10,
+            14
         );
     }
 
