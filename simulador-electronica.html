@@ -3,26 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luiyi-Energy v5.0 - Entorno de Simulación Estable</title>
+    <title>Luiyi-Energy v6.0 - Laboratorio Avanzado de Mallas y Espectro</title>
     <style>
         :root {
-            --bg-main: #060913;
-            --bg-panel: #0d1326;
-            --bg-workspace: #070a14;
+            --bg-main: #04060a;
+            --bg-panel: #090d1a;
+            --bg-workspace: #050811;
             --cyan: #00f2fe;
             --green: #39ff14;
             --red: #ff3131;
             --yellow: #ffde59;
-            --orange: #ff914d;
             --text: #ffffff;
-            --border: #1e293b;
+            --border: #1a2438;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body {
             background-color: var(--bg-main);
             color: var(--text);
-            font-family: monospace;
+            font-family: 'Courier New', Courier, monospace;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -38,122 +37,140 @@
             justify-content: space-between;
             padding: 0 20px;
             z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
         }
 
         .logo-box { display: flex; flex-direction: column; }
-        .logo { font-size: 20px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 8px rgba(0,242,254,0.3); }
-        .version { font-size: 11px; color: var(--yellow); }
+        .logo { font-size: 18px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 10px rgba(0,242,254,0.4); }
+        .version { font-size: 10px; color: var(--yellow); letter-spacing: 1px; }
 
         .nav-buttons { display: flex; gap: 10px; align-items: center; }
-        
-        /* Carita Emocional del Sistema (Esquina de Control No Molesta) */
-        #sistema-status-facial {
-            background: #000; border: 1px solid var(--border);
-            padding: 6px 12px; border-radius: 6px; font-size: 14px;
-            font-weight: bold; color: var(--green); display: flex; gap: 6px;
+        #radar-status {
+            background: #000; border: 1px solid var(--border); padding: 6px 12px;
+            border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--green);
+            box-shadow: inset 0 0 8px rgba(57,255,20,0.2);
         }
 
         .btn {
-            padding: 6px 12px; background: #1e293b; border: 1px solid #475569;
-            color: #fff; cursor: pointer; border-radius: 4px; font-weight: bold; font-family: monospace;
+            padding: 6px 12px; background: #131c2e; border: 1px solid #334155;
+            color: #fff; cursor: pointer; border-radius: 4px; font-weight: bold;
+            font-family: inherit; font-size: 11px; transition: all 0.2s;
         }
-        .btn:hover { border-color: var(--cyan); background: rgba(0, 242, 254, 0.1); }
-        .btn-danger:hover { border-color: var(--red); background: rgba(255, 49, 49, 0.1); }
+        .btn:hover { border-color: var(--cyan); background: rgba(0, 242, 254, 0.15); }
+        .btn-danger:hover { border-color: var(--red); background: rgba(255, 49, 49, 0.15); }
+        .btn-active { background: var(--green) !important; color: #000 !important; border-color: #fff !important; }
 
-        #main-layout { display: flex; flex: 1; height: calc(100vh - 60px); position: relative; }
+        #main-layout { display: flex; flex: 1; height: calc(100vh - 60px); }
 
         #sidebar {
-            width: 240px; background: var(--bg-panel); border-right: 2px solid var(--border);
-            padding: 15px; display: flex; flex-direction: column; gap: 12px; z-index: 10;
+            width: 250px; background: var(--bg-panel); border-right: 2px solid var(--border);
+            padding: 15px; display: flex; flex-direction: column; gap: 12px; z-index: 10; overflow-y: auto;
         }
 
-        .sect-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .sect-lbl { font-size: 11px; color: #516585; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #1e293b; padding-bottom: 2px; }
         .menu-list { display: flex; flex-direction: column; gap: 6px; }
         
         .menu-item {
-            background: #111a36; border: 1px solid #1e293b; padding: 8px;
-            border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 8px;
+            background: #0d1527; border: 1px solid #1e293b; padding: 10px;
+            border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; gap: 8px;
         }
-        .menu-item:hover { border-color: var(--cyan); background: #162247; }
+        .menu-item:hover { border-color: var(--cyan); background: #14213d; transform: translateX(2px); }
 
         #workspace-area { flex: 1; display: flex; flex-direction: column; position: relative; }
 
         #workspace {
             flex: 1; background: var(--bg-workspace); position: relative;
-            background-image: radial-gradient(rgba(0, 242, 254, 0.04) 1.5px, transparent 0);
+            background-image: linear-gradient(rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 242, 254, 0.03) 1px, transparent 1px);
             background-size: 20px 20px; overflow: hidden;
         }
 
         #net-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
-        /* Estructura Estabilizada de Componentes */
+        /* Componentes en Escena */
         .component {
             position: absolute; z-index: 5; cursor: move; padding: 4px;
-            background: rgba(11, 15, 30, 0.9); border: 1px solid #334155; border-radius: 4px;
+            background: rgba(8, 12, 24, 0.95); border: 1px solid #2e3c54; border-radius: 6px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: transform 0.15s ease; /* Para transiciones de rotación suaves */
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
         }
-        .component.selected { border: 1px solid var(--cyan) !important; box-shadow: 0 0 10px rgba(0, 242, 254, 0.3); }
-        .component.burned { filter: grayscale(0.9) brightness(0.3) !important; border-color: var(--red) !important; }
+        .component.selected { border: 1px solid var(--cyan) !important; box-shadow: 0 0 12px rgba(0, 242, 254, 0.4); }
+        .component.burned { filter: grayscale(0.9) brightness(0.2) !important; border-color: var(--red) !important; }
 
-        /* Etiquetas de Polaridad Visibles (+ / -) */
+        /* Bornes de Conexión de Alta Visibilidad */
+        .node-terminal {
+            position: absolute; width: 12px; height: 12px;
+            background: #4b5563; border: 2px solid #9ca3af; border-radius: 50%;
+            cursor: crosshair; z-index: 20; pointer-events: auto;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .node-terminal:hover { transform: scale(1.4); border-color: var(--cyan); }
+        /* Estado cuando el borne tiene cables conectados físicamente */
+        .node-terminal.connected { background: var(--cyan) !important; border-color: #ffffff !important; box-shadow: 0 0 8px var(--cyan); }
+
         .polarity-indicator {
-            position: absolute; font-size: 11px; font-weight: bold; font-family: sans-serif;
-            pointer-events: none; text-shadow: 0 0 2px #000;
+            position: absolute; font-size: 11px; font-weight: bold; pointer-events: none; text-shadow: 0 0 3px #000;
         }
         .polarity-pos { color: var(--red); }
         .polarity-neg { color: #38bdf8; }
 
-        /* Terminales de Conexión del Nodo */
-        .node-terminal {
-            position: absolute; width: 10px; height: 10px;
-            background: #475569; border: 1px solid #94a3b8; border-radius: 50%;
-            cursor: crosshair; z-index: 20; pointer-events: auto;
-        }
-        .node-terminal:hover { background: var(--cyan); transform: scale(1.3); }
-
-        /* Cables y Líneas de Conexión */
-        .wire-path { stroke: #475569; stroke-width: 3; fill: none; pointer-events: stroke; cursor: pointer; }
+        /* Cables Conductores con Animación Líquida */
+        .wire-path { stroke: #4e5d78; stroke-width: 3; fill: none; pointer-events: stroke; cursor: pointer; }
         .wire-path:hover { stroke: var(--yellow); stroke-width: 4; }
-        .wire-path.active-cc { stroke: var(--green); filter: drop-shadow(0 0 3px var(--green)); }
-        .wire-path.active-ca { stroke: var(--cyan); stroke-dasharray: 6; animation: ac-flow 0.4s linear infinite; }
+        .wire-path.active-cc { stroke: var(--green); filter: drop-shadow(0 0 4px var(--green)); }
+        .wire-path.active-ca { stroke: var(--cyan); stroke-dasharray: 6; animation: ac-flow 0.3s linear infinite; }
         @keyframes ac-flow { to { stroke-dashoffset: -12; } }
 
         .badge-val {
-            position: absolute; bottom: -18px; font-size: 10px; background: rgba(0,0,0,0.85);
-            padding: 1px 4px; border-radius: 3px; border: 1px solid #1e293b; color: var(--cyan);
-            white-space: nowrap; z-index: 10;
+            position: absolute; bottom: -20px; font-size: 9px; background: rgba(0,0,0,0.9);
+            padding: 2px 5px; border-radius: 3px; border: 1px solid #1e293b; color: var(--cyan);
+            white-space: nowrap; z-index: 10; font-weight: bold;
         }
 
-        /* Ventana Flotante de Edición In-Situ (Encima del Componente/Cable) */
+        /* Botón de control directo incrustado en el Switch */
+        .embed-sw-btn {
+            position: absolute; top: -14px; background: #ff3131; border: 1px solid #fff;
+            color: white; font-size: 8px; padding: 2px 4px; border-radius: 3px; cursor: pointer; font-weight: bold;
+        }
+        .embed-sw-btn.closed { background: var(--green); color: #000; }
+
+        /* Vector de rotación del motor */
+        #motor-shaft { transition: transform 0.1s linear; transform-origin: 45px 35px; }
+
+        /* Menú Contextual Rápido Flotante */
         #quick-context-menu {
-            position: absolute; z-index: 1000; background: #0f172a; border: 2px solid var(--cyan);
-            padding: 8px; border-radius: 6px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            min-width: 160px;
+            position: absolute; z-index: 1000; background: #0b1122; border: 2px solid var(--cyan);
+            padding: 10px; border-radius: 6px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            min-width: 180px;
         }
-        #quick-context-menu label { display: block; font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
+        #quick-context-menu label { display: block; font-size: 10px; color: #64748b; margin-top: 4px; }
         #quick-context-menu input, #quick-context-menu select {
-            width: 100%; background: #020617; border: 1px solid #334155; color: white;
-            padding: 4px; margin-bottom: 6px; font-size: 11px; font-family: monospace;
+            width: 100%; background: #02050c; border: 1px solid #27354f; color: white;
+            padding: 4px; margin-top: 2px; font-size: 11px; font-family: inherit;
         }
 
-        /* Laboratorio Inferior */
+        /* Bloque de Instrumentación de Laboratorio */
         #dashboard-bottom {
-            height: 180px; background: var(--bg-panel); border-top: 2px solid var(--border);
-            display: flex; padding: 10px; gap: 10px; z-index: 10;
+            height: 220px; background: var(--bg-panel); border-top: 2px solid var(--border);
+            display: flex; padding: 10px; gap: 12px; z-index: 10;
         }
         .panel-osc {
-            flex: 1; background: #000; border: 1px solid #1e293b; border-radius: 4px;
-            display: flex; flex-direction: column; padding: 6px;
+            flex: 1; background: #010307; border: 1px solid #1f2d44; border-radius: 6px;
+            display: flex; flex-direction: column; padding: 8px; position: relative;
         }
-        .panel-title { font-size: 10px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
-        .canvas-container { flex: 1; background: #020408; position: relative; border-radius: 3px; }
+        .instrument-controls {
+            display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
+            background: #080d1a; padding: 4px; border-radius: 4px; border: 1px solid #16223d;
+        }
+        .instrument-title { font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; flex: 1; }
+        .canvas-container { flex: 1; background: #000205; position: relative; border-radius: 4px; border: 1px solid #0d1527; }
         .canvas-instrument { width: 100%; height: 100%; display: block; }
 
         .alert-box {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            background: var(--red); color: white; padding: 8px 16px; font-weight: bold;
-            border-radius: 4px; z-index: 500; display: none; box-shadow: 0 0 15px rgba(255,49,49,0.4);
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            background: var(--red); color: white; padding: 10px 20px; font-weight: bold;
+            border-radius: 4px; z-index: 500; display: none; box-shadow: 0 0 20px rgba(255,49,49,0.5);
+            border: 1px solid #ff6b6b; font-size: 12px;
         }
     </style>
 </head>
@@ -161,34 +178,33 @@
 
     <header>
         <div class="logo-box">
-            <div class="logo">⚡ Luiyi-Energy</div>
-            <div class="version">SIMULADOR ELÉCTRICO ESTABLE v5.0</div>
+            <div class="logo">⚡ Luiyi-Energy LAB</div>
+            <div class="version">ENTORNO INDUSTRIAL DE SIMULACIÓN MATRICIAL v6.0</div>
         </div>
         <div class="nav-buttons">
-            <div id="sistema-status-facial">Estado: <span id="facial-avatar"> ( •‿• ) EFICIENTE</span></div>
-            <button class="btn" onclick="deshacerUltimoMovimiento()">↩️ Deshacer</button>
-            <button class="btn btn-danger" onclick="limpiarTablero()">🗑️ Limpiar Todo</button>
-            <button class="btn" onclick="window.location.href='index.html'">🚪 Salir (Index)</button>
+            <div id="radar-status">ESPECTRÓMETRO: <span id="facial-avatar">ANALIZANDO RED</span></div>
+            <button class="btn" onclick="ejecutarUndo()">↩️ Deshacer Malla</button>
+            <button class="btn btn-danger" onclick="vaciarLienzo()">🗑️ Purgar Entorno</button>
         </div>
     </header>
 
     <div id="main-layout">
         <div id="sidebar">
-            <div class="sect-lbl">Fuentes de Energía</div>
+            <div class="sect-lbl">Fuentes Moduladoras</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearNuevoComponente('bateria_cc')">🔋 Fuente Continua CC</div>
-                <div class="menu-item" onclick="crearNuevoComponente('bateria_ca')">🌊 Fuente Alterna CA</div>
+                <div class="menu-item" onclick="generarComponente('bateria_cc')">🔋 Bloque Continuo CC</div>
+                <div class="menu-item" onclick="generarComponente('bateria_ca')">🌊 Alternador de Red CA</div>
             </div>
             <div class="sect-lbl">Componentes Pasivos</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearNuevoComponente('resistencia')">🟫 Resistencia Variable</div>
-                <div class="menu-item" onclick="crearNuevoComponente('interruptor')">🎛️ Switch Manual</div>
+                <div class="menu-item" onclick="generarComponente('resistencia')">🟫 Resistencia Óhmica</div>
+                <div class="menu-item" onclick="generarComponente('interruptor')">🎛️ Conmutador de Cuchilla</div>
             </div>
-            <div class="sect-lbl">Cargas / Actuadores</div>
+            <div class="sect-lbl">Actuadores Dinámicos</div>
             <div class="menu-list">
-                <div class="menu-item" onclick="crearNuevoComponente('led')">🟢 LED de Intensidad Dinámica</div>
-                <div class="menu-item" onclick="crearNuevoComponente('motor')">⚙️ Motor de Inducción</div>
-                <div class="menu-item" onclick="crearNuevoComponente('ultrasonido')">🦇 Sensor Ultrasonido</div>
+                <div class="menu-item" onclick="generarComponente('led')">🟢 Diodo LED de Alta Intensidad</div>
+                <div class="menu-item" onclick="generarComponente('motor')">⚙️ Motor Inductor Rotativo</div>
+                <div class="menu-item" onclick="generarComponente('ultrasonido')">🦇 Transductor Ultrasonido</div>
             </div>
         </div>
 
@@ -197,7 +213,7 @@
             
             <div id="quick-context-menu">
                 <div id="context-menu-content"></div>
-                <button class="btn" style="width:100%; padding:3px; font-size:11px; margin-top:4px;" onclick="cerrarMenuContextual()">Aplicar y Cerrar</button>
+                <button class="btn" style="width:100%; margin-top:6px; background:#1e293b;" onclick="cerrarMenu()">Guardar Configuración</button>
             </div>
 
             <div id="workspace">
@@ -205,289 +221,300 @@
             </div>
 
             <div id="dashboard-bottom">
+                
                 <div class="panel-osc">
-                    <div class="panel-title">Monitoreo de Onda (Voltaje en LED/Motor)</div>
+                    <div class="instrument-controls">
+                        <span class="instrument-title">Osciloscopio Temporal</span>
+                        <button class="btn" id="btn-hold-osc" onclick="conmutarHold('osc')">HOLD</button>
+                        <button class="btn" onclick="ajustarEscala('v', 1)">VOLTS +</button>
+                        <button class="btn" onclick="ajustarEscala('v', -1)">VOLTS -</button>
+                        <button class="btn" onclick="ajustarEscala('t', 1)">TIME +</button>
+                        <button class="btn" onclick="ajustarEscala('t', -1)">TIME -</button>
+                    </div>
                     <div class="canvas-container"><canvas id="canvas-time" class="canvas-instrument"></canvas></div>
                 </div>
+
                 <div class="panel-osc">
-                    <div class="panel-title">Analizador de Frecuencias (Transformada FFT)</div>
+                    <div class="instrument-controls">
+                        <span class="instrument-title">Espectrómetro Radar FFT (Frecuencias)</span>
+                        <button class="btn" id="btn-hold-fft" onclick="conmutarHold('fft')">HOLD</button>
+                        <button class="btn" onclick="cambiarFiltroRadar()">MODO RADAR</button>
+                    </div>
                     <div class="canvas-container"><canvas id="canvas-fft" class="canvas-instrument"></canvas></div>
                 </div>
+
             </div>
         </div>
     </div>
 
     <script>
-        // --- BASE DE DATOS GLOBAL Y CONTROL DE FLUJO ---
+        // --- ARQUITECTURA DE DATOS INDUSTRIALES ---
         let componentes = [];
         let cables = [];
-        let historialEstados = [];
-        let cuentaComp = 0;
-        let cuentaCable = 0;
+        let pilaHistorial = [];
+        let indexComp = 0;
+        let indexCable = 0;
 
-        let nodoOrigen = null;
-        let cableGuia = null;
-        let compSeleccionado = null;
-        let cableSeleccionadoElemento = null;
-        let registroVoltaje = new Array(200).fill(0);
+        // Estados operativos de instrumentación
+        let holdOsc = false;
+        let holdFft = false;
+        let filtroRadarVerde = true;
+        let escalaVolts = 4;
+        let escalaTime = 1;
+        let historialMuestras = new Array(250).fill(0);
+        let matrizFftFosforo = new Array(40).fill(0); // Para efecto estela de radar antiguo
+
+        // Control de ruteo guiado
+        let borneActivoOrigen = null;
+        let lineaGuiaTemporal = null;
+        let elementoFoco = null;
+        let cableFoco = null;
+        let anguloMotorEje = 0;
 
         const workspace = document.getElementById('workspace');
         const netSvg = document.getElementById('net-svg');
-        const menuContextual = document.getElementById('quick-context-menu');
+        const cajaMenuFlotante = document.getElementById('quick-context-menu');
 
-        // MAPA GEOMÉTRICO CON POLARIDADES VISIBLES (+ / - / Ánodo / Cátodo)
-        const ESPECIFICACIONES = {
-            bateria_cc: { 
-                w: 100, h: 60, 
-                bornes: [{id:'p', x:5, y:30, pol:'+', cx:-12, cy:4}, {id:'n', x:95, y:30, pol:'-', cx:6, cy:4}], 
-                props: {v: 9}, 
-                html: `<svg viewBox="0 0 100 60"><rect x="15" y="10" width="70" height="40" fill="#0f172a" stroke="#00f2fe" stroke-width="2" rx="4"/><text x="25" y="34" fill="#fff" font-weight="bold" font-size="11">9V CC</text></svg>` 
-            },
-            bateria_ca: { 
-                w: 100, h: 60, 
-                bornes: [{id:'p', x:5, y:30, pol:'~', cx:-12, cy:4}, {id:'n', x:95, y:30, pol:'~', cx:6, cy:4}], 
-                props: {v: 12, freq: 50}, 
-                html: `<svg viewBox="0 0 100 60"><rect x="15" y="10" width="70" height="40" fill="#0f172a" stroke="#eab308" stroke-width="2" rx="4"/><path d="M 35 30 Q 45 15 55 30 T 75 30" fill="none" stroke="#eab308" stroke-width="2"/></svg>` 
-            },
-            resistencia: { 
-                w: 100, h: 50, 
-                bornes: [{id:'1', x:5, y:25, pol:'', cx:0, cy:0}, {id:'2', x:95, y:25, pol:'', cx:0, cy:0}], 
-                props: {r: 220}, 
-                html: `<svg viewBox="0 0 100 50"><line x1="5" y1="25" x2="25" y2="25" stroke="#94a3b8" stroke-width="2"/><rect x="25" y="15" width="50" height="20" fill="#7c2d12" stroke="#fff"/><line x1="75" y1="25" x2="95" y2="25" stroke="#94a3b8" stroke-width="2"/></svg>` 
-            },
-            interruptor: { 
-                w: 90, h: 50, 
-                bornes: [{id:'1', x:5, y:25, pol:'', cx:0, cy:0}, {id:'2', x:85, y:25, pol:'', cx:0, cy:0}], 
-                props: {cerrado: false}, 
-                html: `<svg viewBox="0 0 90 50"><line x1="5" y1="25" x2="25" y2="25" stroke="#fff" stroke-width="2"/><circle cx="25" cy="25" r="3" fill="#fff"/><circle cx="65" cy="25" r="3" fill="#fff"/><line id="sw-blade" x1="25" y1="25" x2="62" y2="8" stroke="#ff3131" stroke-width="3"/><line x1="65" y1="25" x2="85" y2="25" stroke="#fff" stroke-width="2"/></svg>` 
-            },
-            led: { 
-                w: 90, h: 60, 
-                bornes: [{id:'a', x:5, y:30, pol:'A', cx:-12, cy:4}, {id:'c', x:85, y:30, pol:'K', cx:6, cy:4}], 
-                props: {vdrop: 2.0}, 
-                html: `<svg viewBox="0 0 90 60"><line x1="5" y1="30" x2="25" y2="30" stroke="#fff"/><polygon points="25,15 50,30 25,45" fill="#3b82f6"/><line x1="50" y1="15" x2="50" y2="45" stroke="#fff" stroke-width="2"/><line x1="50" y1="30" x2="85" y2="30" stroke="#fff"/><circle id="led-light" cx="37" cy="30" r="8" fill="none" stroke="#fff"/></svg>` 
-            },
-            motor: { 
-                w: 90, h: 70, 
-                bornes: [{id:'1', x:5, y:35, pol:'M1', cx:-16, cy:4}, {id:'2', x:85, y:35, pol:'M2', cx:6, cy:4}], 
-                props: {r_int: 15}, 
-                html: `<svg viewBox="0 0 90 70"><circle cx="45" cy="35" r="20" fill="#1e293b" stroke="#39ff14" stroke-width="2"/><text x="38" y="42" fill="#fff" font-weight="bold" font-size="16">M</text></svg>` 
-            },
-            ultrasonido: { 
-                w: 100, h: 60, 
-                bornes: [{id:'vcc', x:5, y:20, pol:'+', cx:-12, cy:4}, {id:'gnd', x:5, y:40, pol:'-', cx:-12, cy:4}], 
-                props: {distancia: 100}, 
-                html: `<svg viewBox="0 0 100 60"><rect x="15" y="5" width="70" height="50" fill="#0f172a" stroke="#ffde59"/><circle cx="35" cy="30" r="8" fill="#475569"/><circle cx="65" cy="30" r="8" fill="#475569"/></svg>` 
-            }
+        // MAPA MATRICIAL CIENTÍFICO DE COMPONENTES
+        const MODELOS = {
+            bateria_cc: { w: 100, h: 60, bornes: [{id:'p', x:5, y:30, pol:'+', cx:-12, cy:4}, {id:'n', x:95, y:30, pol:'-', cx:6, cy:4}], props: {v: 12}, html: `<svg viewBox="0 0 100 60"><rect x="15" y="10" width="70" height="40" fill="#0b1122" stroke="#00f2fe" stroke-width="2" rx="4"/><text x="22" y="34" fill="#fff" font-weight="bold" font-size="11">FTE CC</text></svg>` },
+            bateria_ca: { w: 100, h: 60, bornes: [{id:'p', x:5, y:30, pol:'~', cx:-12, cy:4}, {id:'n', x:95, y:30, pol:'~', cx:6, cy:4}], props: {v: 24, freq: 60}, html: `<svg viewBox="0 0 100 60"><rect x="15" y="10" width="70" height="40" fill="#0b1122" stroke="#eab308" stroke-width="2" rx="4"/><path d="M 30 30 Q 40 12 50 30 T 70 30" fill="none" stroke="#eab308" stroke-width="2"/></svg>` },
+            resistencia: { w: 100, h: 50, bornes: [{id:'1', x:5, y:25, pol:'', cx:0, cy:0}, {id:'2', x:95, y:25, pol:'', cx:0, cy:0}], props: {r: 100}, html: `<svg viewBox="0 0 100 50"><line x1="5" y1="25" x2="25" y2="25" stroke="#4e5d78" stroke-width="2"/><rect x="25" y="12" width="50" height="26" fill="#5c2d16" stroke="#fff" stroke-width="1"/><line x1="75" y1="25" x2="95" y2="25" stroke="#4e5d78" stroke-width="2"/></svg>` },
+            interruptor: { w: 100, h: 60, bornes: [{id:'1', x:5, y:35, pol:'', cx:0, cy:0}, {id:'2', x:95, y:35, pol:'', cx:0, cy:0}], props: {cerrado: false}, html: `<svg viewBox="0 0 100 60"><line x1="5" y1="35" x2="25" y2="35" stroke="#fff" stroke-width="2"/><circle cx="25" cy="35" r="3" fill="#fff"/><circle cx="75" cy="35" r="3" fill="#fff"/><line id="blade-sw" x1="25" y1="35" x2="72" y2="15" stroke="#ff3131" stroke-width="3"/><line x1="75" y1="35" x2="95" y2="35" stroke="#fff" stroke-width="2"/></svg>` },
+            led: { w: 90, h: 60, bornes: [{id:'a', x:5, y:30, pol:'A', cx:-12, cy:4}, {id:'c', x:85, y:30, pol:'K', cx:6, cy:4}], props: {vdrop: 1.8}, html: `<svg viewBox="0 0 90 60"><line x1="5" y1="30" x2="25" y2="30" stroke="#fff"/><polygon points="25,15 50,30 25,45" fill="#1e40af" stroke="#fff"/><line x1="50" y1="15" x2="50" y2="45" stroke="#fff" stroke-width="2"/><line x1="50" y1="30" x2="85" y2="30" stroke="#fff"/><circle id="led-glow-core" cx="37" cy="30" r="7" fill="none" stroke="#fff"/></svg>` },
+            motor: { w: 90, h: 70, bornes: [{id:'1', x:5, y:35, pol:'+', cx:-12, cy:4}, {id:'2', x:85, y:35, pol:'-', cx:6, cy:4}], props: {r_int: 20}, html: `<svg viewBox="0 0 90 70"><circle cx="45" cy="35" r="22" fill="#0f172a" stroke="#39ff14" stroke-width="2"/><g id="motor-shaft"><line x1="45" y1="15" x2="45" y2="55" stroke="#fff" stroke-width="2"/><line x1="25" y1="35" x2="65" y2="35" stroke="#fff" stroke-width="2"/><circle cx="45" cy="35" r="5" fill="#ff3131"/></g></svg>` },
+            ultrasonido: { w: 100, h: 60, bornes: [{id:'vcc', x:5, y:18, pol:'V', cx:-12, cy:4}, {id:'gnd', x:5, y:42, pol:'G', cx:-12, cy:4}], props: {dist: 80}, html: `<svg viewBox="0 0 100 60"><rect x="15" y="5" width="70" height="50" fill="#0f172a" stroke="#ffde59"/><circle cx="35" cy="30" r="9" fill="#334155"/><circle cx="65" cy="30" r="9" fill="#334155"/></svg>` }
         };
 
-        // --- MANEJO SEGURO DE MEMORIA E HISTORIAL DE REVERSIÓN ---
-        function guardarInstantanea() {
-            while (historialEstados.length >= 25) historialEstados.shift();
-            let instantanea = {
+        // --- MANEJO DE HISTORIAL DE RESPALDO (UNDO ATÓMICO) ---
+        function crearSnapshot() {
+            while (pilaHistorial.length >= 20) pilaHistorial.shift();
+            let copia = {
                 componentes: componentes.map(c => ({...c, props: {...c.props}})),
-                cables: cables.map(cb => ({...cb}))
+                cables: cables.map(w => ({...w}))
             };
-            historialEstados.push(JSON.stringify(instantanea));
+            pilaHistorial.push(JSON.stringify(copia));
         }
 
-        function deshacerUltimoMovimiento() {
-            if (historialEstados.length <= 1) return;
-            historialEstados.pop();
-            let backup = JSON.parse(historialEstados[historialEstados.length - 1]);
+        function ejecutarUndo() {
+            if (pilaHistorial.length <= 1) return;
+            pilaHistorial.pop();
+            let ant = JSON.parse(pilaHistorial[pilaHistorial.length - 1]);
 
             document.querySelectorAll('.component').forEach(e => e.remove());
-            componentes = structuredClone(backup.componentes);
-            cables = structuredClone(backup.cables);
+            componentes = structuredClone(ant.componentes);
+            cables = structuredClone(ant.cables);
 
-            componentes.forEach(c => renderizarComponenteFisico(c));
-            redibujarTodosLosCables();
-            cerrarMenuContextual();
+            componentes.forEach(c => instanciarDOMComponente(c));
+            sincronizarCablesYBornes();
+            cerrarMenu();
         }
 
-        function limpiarTablero() {
-            guardarInstantanea();
+        function vaciarLienzo() {
+            crearSnapshot();
             componentes = [];
             cables = [];
             document.querySelectorAll('.component').forEach(e => e.remove());
-            redibujarTodosLosCables();
-            cerrarMenuContextual();
+            sincronizarCablesYBornes();
+            cerrarMenu();
         }
 
-        // --- INSTANCIACIÓN Y ROTACIÓN FÍSICA DE COMPONENTES ---
-        function crearNuevoComponente(tipo) {
-            guardarInstantanea();
-            cuentaComp++;
-            let spec = ESPECIFICACIONES[tipo];
-            
-            // Inyectar en una posición central libre sin auto-conexiones forzadas
+        // --- INSTANCIACIÓN E INTERACCIÓN DIRECTA ---
+        function generarComponente(tipo) {
+            crearSnapshot();
+            indexComp++;
+            let plantilla = MODELOS[tipo];
+
             let nuevo = {
-                id: `${tipo}_${cuentaComp}`, tipo,
-                x: 140, y: 120, rotacion: 0,
-                props: structuredClone(spec.props),
+                id: `${tipo}_${indexComp}`, tipo,
+                x: 160, y: 140, rotacion: 0,
+                props: structuredClone(plantilla.props),
                 v_in: 0, i_in: 0, quemado: false
             };
 
             componentes.push(nuevo);
-            renderizarComponenteFisico(nuevo);
+            instanciarDOMComponente(nuevo);
         }
 
-        function renderizarComponenteFisico(comp) {
-            let spec = ESPECIFICACIONES[comp.tipo];
+        function instanciarDOMComponente(comp) {
+            let plantilla = MODELOS[comp.tipo];
             let div = document.createElement('div');
             div.id = comp.id;
             div.className = 'component';
             div.style.left = comp.x + 'px';
             div.style.top = comp.y + 'px';
-            div.style.width = spec.w + 'px';
-            div.style.height = spec.h + 'px';
+            div.style.width = plantilla.w + 'px';
+            div.style.height = plantilla.h + 'px';
             div.style.transform = `rotate(${comp.rotacion || 0}deg)`;
 
-            div.innerHTML = spec.html + `<div class="badge-val" id="val_${comp.id}">0.00 U</div>`;
+            // Inyectar esqueleto gráfico y etiqueta de lecturas
+            div.innerHTML = plantilla.html + `<div class="badge-val" id="val_${comp.id}">0.0 V</div>`;
 
-            // Agregar Bornes y Etiquetas de Polaridad Visibles (+ / - / A / K)
-            spec.bornes.forEach(bn => {
+            // SI ES UN SWITCH: Agregar botón físico de control directo sobre él en la pantalla
+            if (comp.tipo === 'interruptor') {
+                let btnSw = document.createElement('button');
+                btnSw.className = `embed-sw-btn ${comp.props.cerrado?'closed':''}`;
+                btnSw.innerText = comp.props.cerrado ? "CERRADO" : "CONMUTAR";
+                btnSw.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    crearSnapshot();
+                    comp.props.cerrado = !comp.props.cerrado;
+                    btnSw.innerText = comp.props.cerrado ? "CERRADO" : "CONMUTAR";
+                    btnSw.className = `embed-sw-btn ${comp.props.cerrado?'closed':''}`;
+                    sincronizarCablesYBornes();
+                });
+                div.appendChild(btnSw);
+            }
+
+            // Establecer terminales y sus etiquetas de polaridades fijas
+            plantilla.bornes.forEach(bn => {
                 let t = document.createElement('div');
                 t.className = 'node-terminal';
-                t.style.left = (bn.x - 5) + 'px';
-                t.style.top = (bn.y - 5) + 'px';
+                t.id = `term_${comp.id}_${bn.id}`;
+                t.style.left = (bn.x - 6) + 'px';
+                t.style.top = (bn.y - 6) + 'px';
                 t.dataset.compId = comp.id;
                 t.dataset.borneId = bn.id;
 
                 t.addEventListener('mousedown', (e) => {
                     e.stopPropagation(); e.preventDefault();
-                    iniciarTrazoCable(comp.id, bn.id);
+                    comenzarEnlaceCable(comp.id, bn.id);
                 });
 
-                // Rótulo visual de polaridad para guiar al estudiante/ingeniero
                 if (bn.pol !== '') {
                     let lbl = document.createElement('div');
-                    lbl.className = `polarity-indicator ${bn.pol==='+' || bn.pol==='A'?'polarity-pos':'polarity-neg'}`;
+                    lbl.className = `polarity-indicator ${bn.pol==='+'||bn.pol==='~'||bn.pol==='A'?'polarity-pos':'polarity-neg'}`;
                     lbl.style.left = (bn.x + bn.cx) + 'px';
                     lbl.style.top = (bn.y + bn.cy) + 'px';
                     div.appendChild(lbl);
                     lbl.innerText = bn.pol;
                 }
-
                 div.appendChild(t);
             });
 
             workspace.appendChild(div);
-            hacerComponenteMovibleSinErrores(div, comp);
+            configurarArrastreSeguro(div, comp);
 
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                abrirMenuContextualComponente(comp, e);
+                desplegarMenuComponente(comp, e);
             });
         }
 
-        // --- ARRASTRE ESTABILIZADO SIN SALTOS COHETE ---
-        function hacerComponenteMovibleSinErrores(div, comp) {
-            let moviendo = false;
-            let startX = 0, startY = 0;
+        // --- ARRASTRE DE COMPONENTES SIN DESFASE NI ERRORES ---
+        function configurarArrastreSeguro(div, comp) {
+            let enVuelo = false;
+            let difX = 0, difY = 0;
 
             div.addEventListener('mousedown', (e) => {
-                if (e.target.classList.contains('node-terminal')) return;
-                moviendo = true;
-                // Capturar coordenadas exactas para evitar que el componente salga volando
-                startX = e.clientX - comp.x;
-                startY = e.clientY - comp.y;
-                guardarInstantanea();
-                
+                if (e.target.classList.contains('node-terminal') || e.target.classList.contains('embed-sw-btn')) return;
+                enVuelo = true;
+                difX = e.clientX - comp.x;
+                difY = e.clientY - comp.y;
+                crearSnapshot();
                 document.querySelectorAll('.component').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
             });
 
             document.addEventListener('mousemove', (e) => {
-                if (!moviendo) return;
-                let rawX = e.clientX - startX;
-                let rawY = e.clientY - startY;
+                if (!enVuelo) return;
+                let rx = e.clientX - difX;
+                let ry = e.clientY - difY;
 
-                // Forzado estricto a la cuadrícula de 20px
-                comp.x = Math.round(rawX / 20) * 20;
-                comp.y = Math.round(rawY / 20) * 20;
+                // Forzado métrico a grilla de 20px
+                comp.x = Math.round(rx / 20) * 20;
+                comp.y = Math.round(ry / 20) * 20;
 
                 div.style.left = comp.x + 'px';
                 div.style.top = comp.y + 'px';
 
-                redibujarTodosLosCables();
+                sincronizarCablesYBornes();
             });
 
-            document.addEventListener('mouseup', () => {
-                moviendo = false;
-            });
+            document.addEventListener('mouseup', () => { enVuelo = false; });
         }
 
-        // --- TRAZO VOLUNTARIO DE CONEXIONES PUNTO A PUNTO ---
-        function iniciarTrazoCable(compId, borneId) {
-            nodoOrigen = { compId, borneId };
-            let pos = calcularPosicionRealBorne(compId, borneId);
+        // --- TRAZO VOLUNTARIO DE CONEXIONES ---
+        function comenzarEnlaceCable(compId, borneId) {
+            borneActivoOrigen = { compId, borneId };
+            let pos = capturarCoordenadaAbsolutaBorne(compId, borneId);
 
-            cableGuia = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            cableGuia.setAttribute('x1', pos.x);
-            cableGuia.setAttribute('y1', pos.y);
-            cableGuia.setAttribute('x2', pos.x);
-            cableGuia.setAttribute('y2', pos.y);
-            cableGuia.setAttribute('stroke', 'var(--yellow)');
-            cableGuia.setAttribute('stroke-width', '2');
-            cableGuia.setAttribute('stroke-dasharray', '4');
-            netSvg.appendChild(cableGuia);
+            lineaGuiaTemporal = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            lineaGuiaTemporal.setAttribute('x1', pos.x);
+            lineaGuiaTemporal.setAttribute('y1', pos.y);
+            lineaGuiaTemporal.setAttribute('x2', pos.x);
+            lineaGuiaTemporal.setAttribute('y2', pos.y);
+            lineaGuiaTemporal.setAttribute('stroke', 'var(--yellow)');
+            lineaGuiaTemporal.setAttribute('stroke-width', '2');
+            lineaGuiaTemporal.setAttribute('stroke-dasharray', '3');
+            netSvg.appendChild(lineaGuiaTemporal);
 
-            document.addEventListener('mousemove', arrastrarCableGuia);
-            document.addEventListener('mouseup', finTrazoCable);
+            document.addEventListener('mousemove', arrastrarLineaGuia);
+            document.addEventListener('mouseup', finalizarEnlaceCable);
         }
 
-        function arrastrarCableGuia(e) {
-            if (!cableGuia) return;
+        function arrastrarLineaGuia(e) {
+            if (!lineaGuiaTemporal) return;
             let rect = workspace.getBoundingClientRect();
-            cableGuia.setAttribute('x2', e.clientX - rect.left);
-            cableGuia.setAttribute('y2', e.clientY - rect.top);
+            lineaGuiaTemporal.setAttribute('x2', e.clientX - rect.left);
+            lineaGuiaTemporal.setAttribute('y2', e.clientY - rect.top);
         }
 
-        function finTrazoCable(e) {
-            document.removeEventListener('mousemove', arrastrarCableGuia);
-            document.removeEventListener('mouseup', finTrazoCable);
+        function finalizarEnlaceCable(e) {
+            document.removeEventListener('mousemove', arrastrarLineaGuia);
+            document.removeEventListener('mouseup', finalizarEnlaceCable);
 
-            if (!cableGuia) return;
+            if (!lineaGuiaTemporal) return;
 
             let target = e.target;
             if (target && target.classList.contains('node-terminal')) {
                 let c2 = target.dataset.compId;
                 let b2 = target.dataset.borneId;
 
-                if (c2 !== nodoOrigen.compId || b2 !== nodoOrigen.borneId) {
-                    guardarInstantanea();
+                if (c2 !== borneActivoOrigen.compId || b2 !== borneActivoOrigen.borneId) {
+                    crearSnapshot();
+                    indexCable++;
                     cables.push({
-                        id: ++cuentaCable,
-                        c1: nodoOrigen.compId, b1: nodoOrigen.borneId,
+                        id: indexCable,
+                        c1: borneActivoOrigen.compId, b1: borneActivoOrigen.borneId,
                         c2: c2, b2: b2,
-                        color: 'var(--cyan)', tipoLinea: 'ortogonal'
+                        color: 'var(--cyan)', geometria: 'ortogonal'
                     });
                 }
             }
 
-            cableGuia.remove();
-            cableGuia = null;
-            nodoOrigen = null;
-            redibujarTodosLosCables();
+            lineaGuiaTemporal.remove();
+            lineaGuiaTemporal = null;
+            borneActivoOrigen = null;
+            sincronizarCablesYBornes();
         }
 
-        function redibujarTodosLosCables() {
-            // Limpieza y validación anti-consistencia
-            cables = cables.filter(c => componentes.some(co => co.id === c.c1) && componentes.some(co => co.id === c.c2));
+        // --- REDIBUJADO DE CABLES Y ALTA VISIBILIDAD DE BORNES CONECTADOS ---
+        function sincronizarCablesYBornes() {
+            // Filtrar hilos rotos
+            cables = cables.filter(w => componentes.some(co => co.id === w.c1) && componentes.some(co => co.id === w.c2));
+            
+            // Apagar e inicializar el estado visual de todos los bornes antes de re-escanear
+            document.querySelectorAll('.node-terminal').forEach(t => t.classList.remove('connected'));
             document.querySelectorAll('.wire-path').forEach(w => w.remove());
 
-            cables.forEach(cb => {
-                let p1 = calcularPosicionRealBorne(cb.c1, cb.b1);
-                let p2 = calcularPosicionRealBorne(cb.c2, cb.b2);
+            cables.forEach(w => {
+                let p1 = capturarCoordenadaAbsolutaBorne(w.c1, w.b1);
+                let p2 = capturarCoordenadaAbsolutaBorne(w.c2, w.b2);
                 if (!p1 || !p2) return;
+
+                // ALTA VISIBILIDAD CRÍTICA: Iluminar bornes que poseen cables conectados físicamente
+                let t1 = document.getElementById(`term_${w.c1}_${w.b1}`);
+                let t2 = document.getElementById(`term_${w.c2}_${w.b2}`);
+                if (t1) t1.classList.add('connected');
+                if (t2) t2.classList.add('connected');
 
                 let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 let d = "";
 
-                if (cb.tipoLinea === 'directo') {
+                if (w.geometria === 'directo') {
                     d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
-                } else if (cb.tipoLinea === 'angulo-l') {
+                } else if (w.geometria === 'angulo-l') {
                     d = `M ${p1.x} ${p1.y} L ${p1.x} ${p2.y} L ${p2.x} ${p2.y}`;
                 } else {
                     let mx = (p1.x + p2.x) / 2;
@@ -496,34 +523,33 @@
 
                 path.setAttribute('d', d);
                 path.setAttribute('class', 'wire-path');
-                path.setAttribute('stroke', cb.color || 'var(--cyan)');
+                path.setAttribute('stroke', w.color || 'var(--cyan)');
 
-                // Flujo visual activo si circula corriente
-                let src = componentes.find(co => co.id === cb.c1 || co.id === cb.c2);
-                if (src && src.i_in > 0.002) {
-                    let caActiva = componentes.some(g => g.tipo === 'bateria_ca' && g.i_in > 0);
-                    path.classList.add(caActiva ? 'active-ca' : 'active-cc');
+                // Flujo dinámico si hay energía circulando por la mallas
+                let compAsoc = componentes.find(co => co.id === w.c1 || co.id === w.c2);
+                if (compAsoc && compAsoc.i_in > 0.005) {
+                    let esCa = componentes.some(g => g.tipo === 'bateria_ca' && g.i_in > 0);
+                    path.classList.add(esCa ? 'active-ca' : 'active-cc');
                 }
 
-                // Clic en el cable abre su propio menú de control en pantalla
+                // Clic en el propio cable abre modificaciones inmediatas
                 path.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    abrirMenuContextualCable(cb, e);
+                    desplegarMenuCable(w, e);
                 });
 
                 netSvg.appendChild(path);
             });
         }
 
-        function calcularPosicionRealBorne(compId, borneId) {
+        function capturarCoordenadaAbsolutaBorne(compId, borneId) {
             let comp = componentes.find(c => c.id === compId);
             if (!comp) return null;
-            let spec = ESPECIFICACIONES[comp.tipo];
-            let bn = spec.bornes.find(b => b.id === borneId);
+            let plantilla = MODELOS[comp.tipo];
+            let bn = plantilla.bornes.find(b => b.id === borneId);
 
-            // Calcular rotación matemática real de los bornes en el lienzo
-            let cx = spec.w / 2;
-            let cy = spec.h / 2;
+            let cx = plantilla.w / 2;
+            let cy = plantilla.h / 2;
             let rad = ((comp.rotacion || 0) * Math.PI) / 180;
 
             let nx = bn.x - cx;
@@ -535,188 +561,164 @@
             return { x: comp.x + cx + rx, y: comp.y + cy + ry };
         }
 
-        // --- MENÚ CONTEXTUAL INTERACTIVO EN LA MISMA PANTALLA ---
-        function abrirMenuContextualComponente(comp, e) {
-            compSeleccionado = comp;
-            cableSeleccionadoElemento = null;
-            
+        // --- SUBMENÚS CONTEXTUALES IN-SITU ---
+        function desplegarMenuComponente(comp, e) {
+            elementoFoco = comp; cableFoco = null;
             let rect = workspace.getBoundingClientRect();
-            menuContextual.style.left = (e.clientX - rect.left + 15) + 'px';
-            menuContextual.style.top = (e.clientY - rect.top + 15) + 'px';
-            menuContextual.style.display = 'block';
+            cajaMenuFlotante.style.left = (e.clientX - rect.left + 15) + 'px';
+            cajaMenuFlotante.style.top = (e.clientY - rect.top + 15) + 'px';
+            cajaMenuFlotante.style.display = 'block';
 
-            let cBox = document.getElementById('context-menu-content');
-            let baseHTML = `<div style="font-weight:bold; color:var(--cyan); margin-bottom:6px;">${comp.id}</div>`;
-
-            // Botón de rotación física integrada de 90° en 90°
-            baseHTML += `
-                <button class="btn" style="width:100%; margin-bottom:8px; font-size:11px;" onclick="rotarComponenteSeleccionado()">🔄 Rotar Componente (90°)</button>
-            `;
+            let box = document.getElementById('context-menu-content');
+            let html = `<div style="font-weight:bold; color:var(--cyan); font-size:11px;">Módulo: ${comp.id}</div>`;
+            
+            html += `<button class="btn" style="width:100%; margin-top:6px; font-size:10px;" onclick="rotarFoco()">🔄 Rotar Componente (90°)</button>`;
 
             if (comp.tipo === 'resistencia') {
-                baseHTML += `<label>Resistencia (Ω):</label><input type="number" value="${comp.props.r}" oninput="compSeleccionado.props.r = parseFloat(this.value)||1">`;
+                html += `<label>Carga Óhmica (Ω):</label><input type="number" value="${comp.props.r}" oninput="elementoFoco.props.r = parseFloat(this.value)||1">`;
             } else if (comp.tipo === 'bateria_cc' || comp.tipo === 'bateria_ca') {
-                baseHTML += `<label>Voltaje (V):</label><input type="number" value="${comp.props.v}" oninput="compSeleccionado.props.v = parseFloat(this.value)||0">`;
+                html += `<label>Tensión Nominal (V):</label><input type="number" value="${comp.props.v}" oninput="elementoFoco.props.v = parseFloat(this.value)||0">`;
                 if (comp.tipo === 'bateria_ca') {
-                    baseHTML += `<label>Frecuencia (Hz):</label><input type="number" value="${comp.props.freq}" oninput="compSeleccionado.props.freq = parseFloat(this.value)||1">`;
+                    html += `<label>Frecuencia de Malla (Hz):</label><input type="number" value="${comp.props.freq}" oninput="elementoFoco.props.freq = parseFloat(this.value)||1">`;
                 }
             } else if (comp.tipo === 'ultrasonido') {
-                baseHTML += `<label>Distancia Eco (cm):</label><input type="range" min="10" max="300" value="${comp.props.distancia}" oninput="compSeleccionado.props.distancia = parseFloat(this.value)">`;
-            } else if (comp.tipo === 'interruptor') {
-                baseHTML += `<button class="btn" style="width:100%; background:#16a34a;" onclick="compSeleccionado.props.cerrado = !compSeleccionado.props.cerrado; redibujarTodosLosCables();">Alternar Switch</button>`;
+                html += `<label>Distancia Obstáculo (cm):</label><input type="range" min="10" max="300" value="${comp.props.dist}" oninput="elementoFoco.props.dist = parseFloat(this.value)">`;
             }
 
-            baseHTML += `<button class="btn btn-danger" style="width:100%; margin-top:6px; font-size:11px;" onclick="eliminarComponenteSeleccionado()">🗑️ Eliminar Componente</button>`;
-            cBox.innerHTML = baseHTML;
+            html += `<button class="btn btn-danger" style="width:100%; margin-top:8px; font-size:10px;" onclick="eliminarFoco()">🗑️ Destruir Componente</button>`;
+            box.innerHTML = html;
         }
 
-        function abrirMenuContextualCable(cable, e) {
-            cableSeleccionadoElemento = cable;
-            compSeleccionado = null;
-
+        function desplegarMenuCable(cable, e) {
+            cableFoco = cable; elementoFoco = null;
             let rect = workspace.getBoundingClientRect();
-            menuContextual.style.left = (e.clientX - rect.left + 15) + 'px';
-            menuContextual.style.top = (e.clientY - rect.top + 15) + 'px';
-            menuContextual.style.display = 'block';
+            cajaMenuFlotante.style.left = (e.clientX - rect.left + 15) + 'px';
+            cajaMenuFlotante.style.top = (e.clientY - rect.top + 15) + 'px';
+            cajaMenuFlotante.style.display = 'block';
 
-            let cBox = document.getElementById('context-menu-content');
-            cBox.innerHTML = `
-                <div style="font-weight:bold; color:var(--yellow); margin-bottom:6px;">Modificar Cable</div>
-                <label>Línea de Conexión:</label>
-                <select onchange="cableSeleccionadoElemento.tipoLinea = this.value; redibujarTodosLosCables();">
-                    <option value="ortogonal" ${cable.tipoLinea==='ortogonal'?'selected':''}>Ortogonal (CAD)</option>
-                    <option value="directo" ${cable.tipoLinea==='directo'?'selected':''}>Línea Recta</option>
-                    <option value="angulo-l" ${cable.tipoLinea==='angulo-l'?'selected':''}>Ángulo en L</option>
+            let box = document.getElementById('context-menu-content');
+            box.innerHTML = `
+                <div style="font-weight:bold; color:var(--yellow); font-size:11px;">Ruteo Conductor</div>
+                <label>Geometría del Hilo:</label>
+                <select onchange="cableFoco.geometria = this.value; sincronizarCablesYBornes();">
+                    <option value="ortogonal" ${cable.geometria==='ortogonal'?'selected':''}>Ortogonal CAD</option>
+                    <option value="directo" ${cable.geometria==='directo'?'selected':''}>Línea Recta</option>
+                    <option value="angulo-l" ${cable.geometria==='angulo-l'?'selected':''}>Ángulo en L</option>
                 </select>
-                <label>Color del Conductor:</label>
-                <select onchange="cableSeleccionadoElemento.color = this.value; redibujarTodosLosCables();">
+                <label>Color Temático:</label>
+                <select onchange="cableFoco.color = this.value; sincronizarCablesYBornes();">
                     <option value="var(--cyan)" ${cable.color==='var(--cyan)'?'selected':''}>Cian Eléctrico</option>
-                    <option value="var(--red)" ${cable.color==='var(--red)'?'selected':''}>Rojo Positivo</option>
-                    <option value="var(--yellow)" ${cable.color==='var(--yellow)'?'selected':''}>Amarillo Test</option>
+                    <option value="var(--red)" ${cable.color==='var(--red)'?'selected':''}>Línea Roja (+)</option>
+                    <option value="var(--yellow)" ${cable.color==='var(--yellow)'?'selected':''}>Test Amarillo</option>
                 </select>
-                <button class="btn btn-danger" style="width:100%; margin-top:6px; font-size:11px;" onclick="eliminarCableSeleccionado()">🗑️ Borrar Cable</button>
+                <button class="btn btn-danger" style="width:100%; margin-top:8px; font-size:10px;" onclick="eliminarCableFoco()">🗑️ Retirar Conector</button>
             `;
         }
 
-        function rotarComponenteSeleccionado() {
-            if (compSeleccionado) {
-                compSeleccionado.rotacion = ((compSeleccionado.rotacion || 0) + 90) % 360;
-                let div = document.getElementById(compSeleccionado.id);
-                if (div) div.style.transform = `rotate(${compSeleccionado.rotacion}deg)`;
-                redibujarTodosLosCables();
+        function rotarFoco() {
+            if (elementoFoco) {
+                elementoFoco.rotacion = ((elementoFoco.rotacion || 0) + 90) % 360;
+                let div = document.getElementById(elementoFoco.id);
+                if (div) div.style.transform = `rotate(${elementoFoco.rotacion}deg)`;
+                sincronizarCablesYBornes();
             }
         }
 
-        function eliminarComponenteSeleccionado() {
-            if (compSeleccionado) {
-                guardarInstantanea();
-                componentes = componentes.filter(c => c.id !== compSeleccionado.id);
-                document.getElementById(compSeleccionado.id).remove();
-                redibujarTodosLosCables();
-                cerrarMenuContextual();
+        function eliminarFoco() {
+            if (elementoFoco) {
+                crearSnapshot();
+                componentes = componentes.filter(c => c.id !== elementoFoco.id);
+                document.getElementById(elementoFoco.id).remove();
+                sincronizarCablesYBornes();
+                cerrarMenu();
             }
         }
 
-        function eliminarCableSeleccionado() {
-            if (cableSeleccionadoElemento) {
-                guardarInstantanea();
-                cables = cables.filter(w => w.id !== cableSeleccionadoElemento.id);
-                redibujarTodosLosCables();
-                cerrarMenuContextual();
+        function eliminarCableFoco() {
+            if (cableFoco) {
+                crearSnapshot();
+                cables = cables.filter(w => w.id !== cableFoco.id);
+                sincronizarCablesYBornes();
+                cerrarMenu();
             }
         }
 
-        function cerrarMenuContextual() { menuContextual.style.display = 'none'; }
+        function cerrarMenu() { cajaMenuFlotante.style.display = 'none'; }
 
-        // --- SISTEMA AUTOMÁTICO SNAP-TO-WIRE EN CAÍDA (BOTÓN ADICIONAL OPCIONAL) ---
-        function verificarSnapToWireMitigado(comp) {
-            // Desactivado automáticamente para priorizar el trazo voluntario solicitado.
-        }
-
-        // --- RESOLUCIÓN MATRICIAL DE LAZOS (KIRCHHOFF Y VARIACIÓN DE INTENSIDAD LED) ---
-        function resolverCircuitoElectrico() {
+        // --- SOLVER DE MALLAS KIRCHHOFF Y CÁLCULO DE INTENSIDADES ---
+        function resolverMallasCientificas() {
             componentes.forEach(c => { if(!c.quemado) { c.v_in = 0; c.i_in = 0; } });
 
             let fuentes = componentes.filter(c => c.tipo === 'bateria_cc' || c.tipo === 'bateria_ca');
-            let fac = document.getElementById('facial-avatar');
 
             fuentes.forEach(f => {
                 if (f.quemado) return;
-                let malla = buscarLazoCerrado(f.id, 'p', f.id, 'n', new Set());
-                
-                if (malla) {
-                    let rTotal = 0;
-                    let swAbierto = false;
+                let lazo = rastrearMallaCerrada(f.id, 'p', f.id, 'n', new Set());
 
-                    malla.forEach(cid => {
+                if (lazo) {
+                    let rMalla = 0;
+                    let interruptorAbierto = false;
+
+                    lazo.forEach(cid => {
                         let co = componentes.find(x => x.id === cid);
-                        if (co.tipo === 'resistencia') rTotal += parseFloat(co.props.r);
-                        if (co.tipo === 'motor') rTotal += parseFloat(co.props.r_int);
-                        if (co.tipo === 'led') rTotal += 20; // Impedancia interna equivalente del diodo
-                        if (co.tipo === 'interruptor' && !co.props.cerrado) swAbierto = true;
+                        if (co.tipo === 'resistencia') rMalla += parseFloat(co.props.r);
+                        if (co.tipo === 'motor') rMalla += parseFloat(co.props.r_int);
+                        if (co.tipo === 'led') rMalla += 25; // Resistencia equivalente interna del diodo
+                        if (co.tipo === 'interruptor' && !co.props.cerrado) interruptorAbierto = true;
                     });
 
-                    if (swAbierto) return;
+                    if (interruptorAbierto) return;
 
-                    // Escudo contra cortocircuito puro
-                    if (rTotal < 2) {
+                    // Fusible protector contra cortocircuito destructivo
+                    if (rMalla < 4) {
                         f.quemado = true;
-                        malla.forEach(cid => { let co = componentes.find(x => x.id === cid); if(co) co.quemado=true; });
-                        fac.innerText = "💥 CORTOCIRCUITO"; fac.style.color = "var(--red)";
-                        mostrarAlerta("💥 ¡FUSIBLE QUEMADO! Malla sin resistencia protectora.");
+                        lazo.forEach(cid => { let co = componentes.find(x => x.id === cid); if(co) co.quemado = true; });
+                        lanzarAlerta("💥 FALLO CRÍTICO: Cortocircuito puro. Componentes destruidos.");
                         return;
                     }
 
                     let t = Date.now() / 1000;
-                    let vInst = f.tipo === 'bateria_ca' ? f.props.v * Math.sin(2 * Math.PI * f.props.freq * t) : f.props.v;
-                    let iMalla = vInst / rTotal;
+                    let vInstantaneo = f.tipo === 'bateria_ca' ? f.props.v * Math.sin(2 * Math.PI * f.props.freq * t) : f.props.v;
+                    let iCalculada = vInstantaneo / rMalla;
 
-                    malla.forEach(cid => {
+                    lazo.forEach(cid => {
                         let co = componentes.find(x => x.id === cid);
-                        co.i_in = Math.abs(iMalla);
-                        co.v_in = Math.abs(iMalla * (co.props.r || co.props.r_int || 20));
+                        co.i_in = Math.abs(iCalculada);
+                        co.v_in = Math.abs(iCalculada * (co.props.r || co.props.r_int || 25));
                     });
                 }
             });
 
-            // Actualizar la Carita de Control Única del Encabezado
-            let hayQuemados = componentes.some(c => c.quemado);
-            let hayAltaCarga = componentes.some(c => c.i_in > 0.5);
-
-            if (hayQuemados) { fac.innerText = "⚠️ (❌ _ ❌) RUPTURA"; fac.style.color = "var(--red)"; }
-            else if (hayAltaCarga) { fac.innerText = "🔥 ( º O º ) SOBRECARGA"; fac.style.color = "var(--orange)"; }
-            else { fac.innerText = "🟢 ( •‿• ) EFICIENTE"; fac.style.color = "var(--green)"; }
-
-            actualizarGraficosComponentes();
+            actualizarGraficosYValores();
         }
 
-        function buscarLazoCerrado(cAct, bAct, cObj, bObj, vis) {
-            let key = `${cAct}_${bAct}`;
-            if (vis.has(key)) return null;
-            vis.add(key);
+        function rastrearMallaCerrada(cAct, bAct, cObj, bObj, vis) {
+            let firma = `${cAct}_${bAct}`;
+            if (vis.has(firma)) return null;
+            vis.add(firma);
 
             let enlaces = cables.filter(c => (c.c1 === cAct && c.b1 === bAct) || (c.c2 === cAct && c.b2 === bAct));
 
             for (let i = 0; i < enlaces.length; i++) {
                 let w = enlaces[i];
-                let nComp = w.c1 === cAct ? w.c2 : w.c1;
-                let nBorne = w.c1 === cAct ? w.b2 : w.b1;
+                let proximoComp = w.c1 === cAct ? w.c2 : w.c1;
+                let proximoBorne = w.c1 === cAct ? w.b2 : w.b1;
 
-                if (nComp === cObj && nBorne === bObj) return [cAct];
+                if (proximoComp === cObj && proximoBorne === bObj) return [cAct];
 
-                let spec = ESPECIFICACIONES[componentes.find(x => x.id === nComp)?.tipo];
+                let spec = MODELOS[componentes.find(x => x.id === proximoComp)?.tipo];
                 if (!spec) continue;
-                let oBorne = spec.bornes.find(b => b.id !== nBorne);
-                if (!oBorne) continue;
+                let borneOpuesto = spec.bornes.find(b => b.id !== proximoBorne);
+                if (!borneOpuesto) continue;
 
-                let camino = buscarLazoCerrado(nComp, oBorne.id, cObj, bObj, new Set(vis));
+                let camino = rastrearMallaCerrada(proximoComp, borneOpuesto.id, cObj, bObj, new Set(vis));
                 if (camino) return [cAct, ...camino];
             }
             return null;
         }
 
-        // --- INTENSIDAD VARIABLE DEL LED SEGÚN VOLTAJE ---
-        function actualizarGraficosComponentes() {
+        // --- SISTEMA LUMÍNICO DINÁMICO Y ROTACIÓN MECÁNICA RPM ---
+        function actualizarGraficosYValores() {
             componentes.forEach(c => {
                 let div = document.getElementById(c.id);
                 let badge = document.getElementById(`val_${c.id}`);
@@ -724,84 +726,187 @@
 
                 if (c.quemado) {
                     div.classList.add('burned');
-                    badge.innerText = "💥 DESTRUIDO";
+                    badge.innerText = "💥 QUEMADO";
                     return;
                 }
 
-                // INTENSIDAD DINÁMICA: Modificar la opacidad del brillo según el voltaje calculado
+                // INTENSIDAD LED DINÁMICA SEGÚN VOLTAJE EN TIEMPO REAL
                 if (c.tipo === 'led') {
-                    let luz = div.querySelector('#led-light');
-                    if (c.v_in > 0.5) {
-                        luz.setAttribute('fill', '#39ff14');
-                        // Ajustar opacidad según la ley de caídas de voltaje
-                        let brillo = Math.min(1, c.v_in / 3);
-                        luz.style.filter = `drop-shadow(0 0 10px rgba(57,255,20,${brillo}))`;
-                        luz.style.opacity = brillo;
+                    let nucleo = div.querySelector('#led-glow-core');
+                    if (c.v_in > 0.4) {
+                        nucleo.setAttribute('fill', 'var(--green)');
+                        let opacidadBrillo = Math.min(1, c.v_in / 4);
+                        nucleo.style.filter = `drop-shadow(0 0 12px rgba(57,255,20,${opacidadBrillo}))`;
+                        nucleo.style.opacity = opacidadBrillo;
                     } else {
-                        luz.setAttribute('fill', 'none'); luz.style.filter = 'none'; luz.style.opacity = 1;
+                        nucleo.setAttribute('fill', 'none'); nucleo.style.filter = 'none'; nucleo.style.opacity = 1;
                     }
                 }
 
-                let blade = div.querySelector('#sw-blade');
-                if (blade) {
-                    if (c.props.cerrado) { blade.setAttribute('x2', '65'); blade.setAttribute('y2', '25'); blade.setAttribute('stroke', 'var(--green)'); }
-                    else { blade.setAttribute('x2', '62'); blade.setAttribute('y2', '8'); blade.setAttribute('stroke', 'var(--red)'); }
+                // ROTACIÓN DEL MOTOR SEGÚN INTENSIDAD
+                if (c.tipo === 'motor' && c.i_in > 0.002) {
+                    let eje = div.querySelector('#motor-shaft');
+                    if (eje) {
+                        let fCaActiva = componentes.some(g => g.tipo === 'bateria_ca' && g.i_in > 0);
+                        if (fCaActiva) {
+                            // En alterna el motor vibra pero se bloquea magnéticamente
+                            anguloMotorEje += (Math.random() - 0.5) * 20;
+                        } else {
+                            anguloMotorEje += (c.i_in * 80); // Velocidad angular proporcional
+                        }
+                        eje.style.transform = `rotate(${anguloMotorEje % 360}deg)`;
+                    }
                 }
 
-                if (c.tipo === 'resistencia') badge.innerHTML = `${c.props.r} Ω<br>${(c.i_in*1000).toFixed(0)}mA`;
+                // Despliegue científico de lecturas
+                if (c.tipo === 'resistencia') badge.innerHTML = `${c.props.r}Ω<br>${(c.i_in*1000).toFixed(0)} mA`;
                 else if (c.tipo === 'bateria_cc') badge.innerHTML = `${c.props.v}V CC`;
-                else if (c.tipo === 'bateria_ca') badge.innerHTML = `${c.props.v}V ${c.props.freq}Hz`;
-                else if (c.tipo === 'motor') badge.innerHTML = c.i_in > 0 ? `🔄 ${(c.i_in*900).toFixed(0)} RPM` : "0 RPM";
-                else badge.innerHTML = `${(c.v_in).toFixed(1)}V`;
+                else if (c.tipo === 'bateria_ca') badge.innerHTML = `${c.props.v}V @ ${c.props.freq}Hz`;
+                else if (c.tipo === 'motor') badge.innerHTML = c.i_in > 0 ? `⚙️ ${(c.i_in * 1200).toFixed(0)} RPM` : "0 RPM";
+                else if (c.tipo === 'ultrasonido') badge.innerHTML = `🦇 ${c.props.dist} cm`;
+                else badge.innerHTML = `${c.v_in.toFixed(1)}V<br>${c.i_in.toFixed(2)}A`;
             });
         }
 
-        // --- INSTRUMENTAL DE LABORATORIO ---
-        function actualizarPantallasLaboratorio() {
-            let act = componentes.find(c => c.tipo === 'led' || c.tipo === 'motor') || componentes[0];
-            let v = act ? act.v_in : 0;
-
-            registroVoltaje.push(v);
-            if (registroVoltaje.length > 200) registroVoltaje.shift();
-
-            // Renderizado de ondas temporales
-            let cTime = document.getElementById('canvas-time');
-            let ctxT = cTime.getContext('2d');
-            ctxT.clearRect(0,0,cTime.width, cTime.height);
-            ctxT.strokeStyle = 'var(--green)'; ctxT.lineWidth = 2;
-            ctxT.beginPath();
-            for (let i = 0; i < registroVoltaje.length; i++) {
-                let x = (i / registroVoltaje.length) * cTime.width;
-                let y = cTime.height / 2 - (registroVoltaje[i] * 4);
-                if (i === 0) ctxT.moveTo(x,y); else ctxT.lineTo(x,y);
-            }
-            ctxT.stroke();
-
-            // Renderizado armónico FFT
-            let cFft = document.getElementById('canvas-fft');
-            let ctxF = cFft.getContext('2d');
-            ctxF.clearRect(0,0,cFft.width, cFft.height);
-            ctxF.fillStyle = 'var(--cyan)';
-            let fCa = componentes.find(c => c.tipo === 'bateria_ca');
-            if (fCa && act && act.i_in > 0) {
-                let idxHz = Math.min(cFft.width - 20, fCa.props.freq * 2);
-                ctxF.fillRect(idxHz, cFft.height - 80, 15, 80); // Armónico principal de la red
+        // --- CONTROLES DE LABORATORIO INTEGRADOS ---
+        function conmutarHold(tipo) {
+            if (tipo === 'osc') {
+                holdOsc = !holdOsc;
+                document.getElementById('btn-hold-osc').className = `btn ${holdOsc?'btn-active':''}`;
+            } else {
+                holdFft = !holdFft;
+                document.getElementById('btn-hold-fft').className = `btn ${holdFft?'btn-active':''}`;
             }
         }
 
-        function mostrarAlerta(m) {
+        function ajustarEscala(tipo, factor) {
+            if (tipo === 'v') {
+                escalaVolts = Math.max(1, escalaVolts + factor);
+            } else {
+                escalaTime = Math.max(1, escalaTime + factor);
+            }
+        }
+
+        function cambiarFiltroRadar() {
+            filtroRadarVerde = !filtroRadarVerde;
+        }
+
+        // --- ALGORITMOS DE SEÑAL: RADAR ESPECTRÓMETRO Y OSCILOSCOPIO ---
+        function procesarGraficasDeInstrumental() {
+            // Buscar componente de análisis focalizado (Prioridad LED o Motor)
+            let focoSignal = componentes.find(c => c.tipo === 'led' || c.tipo === 'motor') || componentes[0];
+            let vMuestraActual = focoSignal ? focoSignal.v_in : 0;
+
+            // Integración acústica sónica del sensor de ultrasonido
+            let sensorUltra = componentes.find(c => c.tipo === 'ultrasonido');
+            if (sensorUltra && focoSignal && focoSignal.id === sensorUltra.id) {
+                vMuestraActual = (sensorUltra.props.dist / 12) * Math.sin(Date.now() / 100);
+            }
+
+            if (!holdOsc) {
+                historialMuestras.push(vMuestraActual);
+                if (historialMuestras.length > 250) historialMuestras.shift();
+            }
+
+            // 1. RENDERIZADO DEL OSCILOSCOPIO TEMPORAL
+            let cvO = document.getElementById('canvas-time');
+            let ctxO = cvO.getContext('2d');
+            ctxO.clearRect(0, 0, cvO.width, cvO.height);
+
+            // Rejilla cuadriculada estilo CAD analógico
+            ctxO.strokeStyle = '#071124'; ctxO.lineWidth = 1;
+            for(let x=0; x<cvO.width; x+=30) { ctxO.beginPath(); ctxO.moveTo(x,0); ctxO.lineTo(x,cvO.height); ctxO.stroke(); }
+            for(let y=0; y<cvO.height; y+=25) { ctxO.beginPath(); ctxO.moveTo(0,y); ctxO.lineTo(cvO.width,y); ctxO.stroke(); }
+
+            // Trazado de señal fósforo verde radar
+            ctxO.strokeStyle = 'var(--green)'; ctxO.lineWidth = 2.5;
+            ctxO.shadowBlur = 6; ctxO.shadowColor = 'var(--green)';
+            ctxO.beginPath();
+            for (let i = 0; i < historialMuestras.length; i += escalaTime) {
+                let px = (i / historialMuestras.length) * cvO.width;
+                let py = cvO.height / 2 - (historialMuestras[i] * escalaVolts);
+                if (i === 0) ctxO.moveTo(px, py); else ctxO.lineTo(px, py);
+            }
+            ctxO.stroke();
+            ctxO.shadowBlur = 0; // Desactivar glow para no ralentizar otros renders
+
+            // 2. ALGORITMO CIENTÍFICO: ESPECTRÓMETRO RADAR FFT DE ALTA INTENSIDAD
+            let cvF = document.getElementById('canvas-fft');
+            let ctxF = cvF.getContext('2d');
+            ctxF.clearRect(0, 0, cvF.width, cvF.height);
+
+            // Dibujar círculos concéntricos de barrido estilo Radar Militar
+            ctxF.strokeStyle = '#051605'; ctxF.lineWidth = 1;
+            let cx = cvF.width / 2; let cy = cvF.height / 2;
+            ctxF.beginPath(); ctxF.arc(cx, cy, 40, 0, 2*Math.PI); ctxF.stroke();
+            ctxF.beginPath(); ctxF.arc(cx, cy, 80, 0, 2*Math.PI); ctxF.stroke();
+            ctxF.lineWidth = 0.5;
+            ctxF.beginPath(); ctxF.moveTo(0, cy); ctxF.lineTo(cvF.width, cy); ctxF.stroke();
+            ctxF.beginPath(); ctxF.moveTo(cx, 0); ctxF.lineTo(cx, cvF.height); ctxF.stroke();
+
+            // Análisis de armónicos Fourier simulado
+            let fCaActiva = componentes.find(c => c.tipo === 'bateria_ca');
+            let hzRed = fCaActiva ? parseFloat(fCaActiva.props.freq) : 0;
+
+            if (!holdFft) {
+                // Decay de fósforo para las barras del radar
+                for(let k=0; k<40; k++) matrizFftFosforo[k] *= 0.85; 
+
+                if (focoSignal && focoSignal.i_in > 0.005) {
+                    if (hzRed > 0) {
+                        let binFundamental = Math.min(39, Math.floor(hzRed / 3));
+                        matrizFftFosforo[binFundamental] = cvF.height * 0.8;
+                        // Armónico secundario de distorsión de carga
+                        if (binFundamental * 2 < 40) matrizFftFosforo[binFundamental * 2] = cvF.height * 0.25;
+                    } else {
+                        // Señal continua pura CC (Armónico cero / Línea de componente de continua)
+                        matrizFftFosforo[1] = Math.min(cvF.height * 0.75, focoSignal.v_in * 6);
+                    }
+                } else if (focoSignal && focoSignal.tipo === 'ultrasonido') {
+                    // Modulación por sensor ultrasónico
+                    let binUltra = Math.floor(focoSignal.props.dist / 8) % 40;
+                    matrizFftFosforo[binUltra] = cvF.height * 0.6;
+                }
+            }
+
+            // Renderizar espectrograma de radar con degradado de barrido sónico
+            ctxF.shadowBlur = filtroRadarVerde ? 8 : 0;
+            ctxF.shadowColor = filtroRadarVerde ? 'var(--green)' : 'var(--cyan)';
+            ctxF.fillStyle = filtroRadarVerde ? 'rgba(57, 255, 20, 0.85)' : 'rgba(0, 242, 254, 0.85)';
+
+            let anchoBarra = cvF.width / 40;
+            for (let b = 0; b < 40; b++) {
+                let hBarra = matrizFftFosforo[b];
+                if (hBarra > 1) {
+                    // Espectrómetro simétrico estilo ecualizador de barrido
+                    ctxF.fillRect(b * anchoBarra, cvF.height - hBarra, anchoBarra - 2, hBarra);
+                }
+            }
+            ctxF.shadowBlur = 0;
+
+            // Actualizar cuadro de texto emocional de cabecera
+            let fac = document.getElementById('facial-avatar');
+            if (componentes.some(c => c.quemado)) { fac.innerText = "💥 RUPTURA DE LÍNEA"; fac.style.color = "var(--red)"; }
+            else if (focoSignal && focoSignal.i_in > 0.8) { fac.innerText = "⚡ ALTA INTENSIDAD JOULE"; fac.style.color = "var(--yellow)"; }
+            else { fac.innerText = "📡 MONITOR ACTIVO (OK)"; fac.style.color = "var(--green)"; }
+        }
+
+        function lanzarAlerta(m) {
             let b = document.getElementById('alert-display'); b.innerText = m; b.style.display = 'block';
-            setTimeout(() => b.style.display='none', 4000);
+            setTimeout(() => b.style.display = 'none', 4000);
         }
 
+        // --- ARRANQUE DE HARDWARE ---
         window.addEventListener('load', () => {
-            document.querySelectorAll('.canvas-instrument').forEach(c => {
-                c.width = c.parentElement.clientWidth; c.height = c.parentElement.clientHeight;
+            document.querySelectorAll('.canvas-instrument').forEach(cv => {
+                cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight;
             });
-            guardarInstantanea();
-            setInterval(resolverCircuitoElectrico, 40);
-            setInterval(actualizarPantallasLaboratorio, 50);
-            workspace.addEventListener('click', cerrarMenuContextual);
+            crearSnapshot();
+            
+            // Ciclos asíncronos paralelos para evitar bloqueos del hilo principal UI
+            setInterval(resolverMallasCientificas, 40);
+            setInterval(procesarGraficasDeInstrumental, 50);
+            workspace.addEventListener('click', cerrarMenu);
         });
     </script>
 </body>
