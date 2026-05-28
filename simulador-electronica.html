@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ SPICE MNA Engine Studio v16.0 - Professional Circuit Simulator</title>
+    <title>⚡ SPICE MNA Engine Studio v17.0 - Professional Circuit Simulator</title>
     <style>
         :root {
             --bg-main: #060913;
@@ -13,6 +13,7 @@
             --green: #39ff14;
             --red: #ff3131;
             --yellow: #f59e0b;
+            --magenta: #f43f5e;
             --border: #1e293b;
             --text: #f3f4f6;
             --text-muted: #64748b;
@@ -27,17 +28,20 @@
             box-shadow: 0 4px 25px rgba(0,0,0,0.7); z-index: 1000;
         }
         .brand { font-size: 15px; font-weight: 900; color: var(--cyan); letter-spacing: 1px; }
+        .nav-right { display: flex; align-items: center; gap: 15px; }
         .engine-badge { font-size: 10px; background: rgba(0,242,254,0.07); padding: 4px 10px; border: 1px solid rgba(0,242,254,0.3); border-radius: 4px; color: var(--cyan); }
+        .exit-btn { background: #1e293b; border: 1px solid var(--red); color: var(--red); font-size: 11px; font-weight: bold; padding: 5px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .exit-btn:hover { background: var(--red); color: #000; box-shadow: 0 0 10px rgba(255,49,49,0.4); }
 
         #container { display: flex; flex: 1; height: calc(100vh - 50px); overflow: hidden; }
         
         #sidebar {
-            width: 300px; background: var(--bg-sidebar); border-right: 2px solid var(--border);
-            padding: 15px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+            width: 310px; background: var(--bg-sidebar); border-right: 2px solid var(--border);
+            padding: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;
         }
-        .group-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        .group-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-top: 5px; }
         .comp-btn {
-            background: #040712; border: 1px solid var(--border); padding: 10px; border-radius: 6px;
+            background: #040712; border: 1px solid var(--border); padding: 9px; border-radius: 6px;
             cursor: pointer; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: space-between;
             transition: all 0.2s ease;
         }
@@ -63,7 +67,7 @@
         
         @keyframes jitter { from { transform: translate(0.5px, 0.5px); } to { transform: translate(-0.5px, -0.5px); } }
 
-        /* BORNES NETLIST (PINS DE CONEXIÓN) */
+        /* BORNES NETLIST */
         .net-pin {
             position: absolute; width: 12px; height: 12px; background: #02040a;
             border: 2px solid #64748b; border-radius: 50%; cursor: crosshair; z-index: 150;
@@ -72,16 +76,16 @@
         .net-pin.linked { background: var(--cyan); border-color: #fff; box-shadow: 0 0 8px var(--cyan); }
         .pin-lbl { position: absolute; font-size: 8px; color: var(--text-muted); font-weight: bold; pointer-events: none; }
 
-        /* METER TAGS */
+        /* TELEMETRÍA FLOTANTE */
         .node-telemetry { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 9px; background: #000; border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; color: #fff; white-space: nowrap; }
 
-        /* CAPAS DE RENDER DE LÍNEAS DE CONDUCCIÓN */
+        /* RENDER DE CABLES */
         .wire-shadow { fill: none; stroke: #161f30; stroke-width: 4; stroke-linecap: round; }
         .wire-active { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--green)); }
         .wire-dots { fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 4 16; animation: moveDots 0.5s linear infinite; }
         @keyframes moveDots { to { stroke-dashoffset: -20; } }
 
-        /* PANEL DE CONVOLUCIÓN / TELEMETRÍA MNA */
+        /* CONSOLA INFERIOR */
         #console-bottom {
             height: 160px; background: var(--bg-sidebar); border-top: 2px solid var(--border);
             display: flex; padding: 10px; gap: 15px; z-index: 200;
@@ -102,32 +106,44 @@
 
         .purgue-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); color: #fff; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; margin-top: auto; }
         .purgue-btn:hover { background: var(--red); color: #000; }
+
+        /* ANIMACIONES DE MOTOR DE ROTACIÓN VECTORIAL */
+        @keyframes spinRotor { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="brand">🔬 NUMERICAL SPICE SOLVER Engine // MNA-CORE v16.0</div>
-        <div class="engine-badge" id="engine-status">CONVERGENCIA LU: OK</div>
+        <div class="brand">🔬 NUMERICAL SPICE SOLVER Engine // MNA-CORE v17.0</div>
+        <div class="nav-right">
+            <div class="engine-badge" id="engine-status">CONVERGENCIA LU: OK</div>
+            <button class="exit-btn" onclick="window.close(); alert('Sesión de laboratorio finalizada de forma segura.');">🚪 SALIR</button>
+        </div>
     </header>
 
     <div id="container">
         <div id="sidebar">
             <div class="group-title">Nodos de Potencial Activo</div>
-            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:6px;">
+            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:5px;">
                 <div class="comp-btn" onclick="addSpiceComponent('nice_power')"><span>📟 Fuente DC Ideal (V)</span><b style="color:var(--cyan)">MNA_E</b></div>
                 <div class="comp-btn" onclick="addSpiceComponent('gnd_node')"><span>⏚ Nodo de Referencia Gnd</span><b style="color:var(--green)">NODE_0</b></div>
             </div>
 
             <div class="group-title">Conductancias Pasivas y Control</div>
-            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:6px;">
+            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:5px;">
                 <div class="comp-btn" onclick="addSpiceComponent('switch_cuchilla')"><span>🎛️ Interruptor de Matriz</span><b style="color:var(--yellow)">R_LIN</b></div>
                 <div class="comp-btn" onclick="addSpiceComponent('resistencia')"><span>🟫 Resistor de Carbono</span><b style="color:#fef08a">G_STAMP</b></div>
             </div>
 
             <div class="group-title">Semiconductores No Lineales</div>
-            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:6px;">
+            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:5px;">
                 <div class="comp-btn" onclick="addSpiceComponent('led_verde')"><span>🟢 Diodo LED (Shockley)</span><b style="color:var(--green)">NEWTON_R</b></div>
+            </div>
+
+            <div class="group-title">Cargas Dinámicas Especiales</div>
+            <div class="toolbox-grid" style="display:flex; flex-direction:column; gap:5px;">
+                <div class="comp-btn" onclick="addSpiceComponent('motor_dc')"><span>🌀 Motor DC Inductivo</span><b style="color:var(--magenta)">RPM_ACT</b></div>
+                <div class="comp-btn" onclick="addSpiceComponent('foco_edison')"><span>💡 Lámpara Thomas Edison</span><b style="color:var(--yellow)">FILAM</b></div>
             </div>
 
             <button class="purgue-btn" onclick="purgueNetlist()">Purger Netlist (Borrar Red)</button>
@@ -157,27 +173,25 @@
     </div>
 
     <script>
-        // --- VARIABLES DE CONTROL MATRICIAL ---
         let netNodes = [];
-        let netWires = [];
+        let conexiones = [];
         let globalId = 0;
 
         let activeWirePin = null;
         let svgGuide = null;
         let activeSelectedNode = null;
-        let globalNodeMapping = {}; // Mapeo dinámico de ID físicos a índices de nodos SPICE
 
         const sandbox = document.getElementById('sandbox');
         const wireLayer = document.getElementById('wire-layer');
         const inspector = document.getElementById('spice-inspector');
 
-        // --- ARQUETIPOS PARAMÉTRICOS CON ECUACIONES REALES SPICE ---
+        // --- MODELADO PARAMÉTRICO COMPLETO ---
         const SPICE_ARQUETYPES = {
             nice_power: { w: 150, h: 75, render: (n) => `
                 <div style="font-size:9px; font-weight:bold; color:var(--cyan);">VOLTAGE_SRC (E)</div>
                 <div style="background:#000; color:var(--green); font-size:13px; text-align:center; padding:3px; font-family:monospace; margin-top:2px;">${n.ajustes.v.toFixed(2)} V</div>
-                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-6px; top:30px;" title="Polo (+)"></div>
-                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-6px; top:30px;" title="Polo (-)"></div>
+                <div class="net-pin" id="pin_${n.id}_p" data-pin="p" style="left:-6px; top:30px;"></div>
+                <div class="net-pin" id="pin_${n.id}_n" data-pin="n" style="right:-6px; top:30px;"></div>
                 <span class="pin-lbl" style="left:10px; top:30px;">+</span><span class="pin-lbl" style="right:10px; top:30px;">-</span>
             `},
             gnd_node: { w: 90, h: 55, render: (n) => `
@@ -200,21 +214,38 @@
             led_verde: { w: 130, h: 80, render: (n) => `
                 <div style="font-size:8px; font-weight:bold; color:var(--green); text-align:center;">DIODE_LED</div>
                 <div id="lit_${n.id}" style="width:24px; height:24px; border-radius:50%; background:rgba(57,255,20,0.05); border:2px solid #334155; margin:4px auto;"></div>
-                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-6px; top:34px;" title="Anodo"></div>
-                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-6px; top:34px;" title="Catodo"></div>
+                <div class="net-pin" id="pin_${n.id}_an" data-pin="an" style="left:-6px; top:34px;"></div>
+                <div class="net-pin" id="pin_${n.id}_ca" data-pin="ca" style="right:-6px; top:34px;"></div>
                 <span class="pin-lbl" style="left:10px; top:34px;">A</span><span class="pin-lbl" style="right:10px; top:34px;">K</span>
+            `},
+            motor_dc: { w: 140, h: 85, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--magenta); text-align:center;">DC_MOTOR (R_int: 10𝛀)</div>
+                <div style="width:30px; height:30px; border:2px dashed var(--magenta); border-radius:50%; margin:4px auto; display:flex; align-items:center; justify-content:center; id="rotor_${n.id}">
+                    <div style="width:2px; height:24px; background:var(--magenta); transform:rotate(${n.angulo||0}deg); id="shaft_${n.id}"></div>
+                </div>
+                <div class="net-pin" id="pin_${n.id}_m1" data-pin="m1" style="left:-6px; top:36px;"></div>
+                <div class="net-pin" id="pin_${n.id}_m2" data-pin="m2" style="right:-6px; top:36px;"></div>
+            `},
+            foco_edison: { w: 130, h: 85, render: (n) => `
+                <div style="font-size:8px; font-weight:bold; color:var(--yellow); text-align:center;">THOMAS_EDISON_BULB</div>
+                <div id="bulb_glass_${n.id}" style="width:28px; height:28px; border-radius:50% 50% 30% 30%; border:2px solid #475569; margin:5px auto; position:relative;">
+                    <div id="filam_${n.id}" style="position:absolute; width:10px; height:12px; border:1px solid #475569; border-bottom:none; top:12px; left:7px; border-radius:50% 50% 0 0;"></div>
+                </div>
+                <div class="net-pin" id="pin_${n.id}_t1" data-pin="t1" style="left:-6px; top:36px;"></div>
+                <div class="net-pin" id="pin_${n.id}_t2" data-pin="t2" style="right:-6px; top:36px;"></div>
             `}
         };
 
-        // --- SISTEMA DE INSERCIÓN Y MANEJO DE NODOS ---
         function addSpiceComponent(tipo) {
             globalId++;
             let n = {
-                id: `${tipo}_${globalId}`, tipo, x: 140, y: 100,
+                id: `${tipo}_${globalId}`, tipo, x: 150, y: 120, angulo: 0,
                 fused: false, overheating: false, v_drop: 0, current: 0, temp: 20,
                 ajustes: tipo==='nice_power' ? { v: 12 } :
                          tipo==='resistencia' ? { r: 1000, max_p: 2 } :
-                         tipo==='switch_cuchilla' ? { open: true } : {}
+                         tipo==='switch_cuchilla' ? { open: true } :
+                         tipo==='motor_dc' ? { max_current: 1.5 } :
+                         tipo==='foco_edison' ? { r_nominal: 24, w_max: 60 } : {}
             };
             netNodes.push(n);
             injectNodeToDOM(n);
@@ -228,7 +259,6 @@
             div.style.width = conf.w + 'px'; div.style.height = conf.h + 'px';
             div.innerHTML = conf.render(n) + `<div class="node-telemetry" id="tel_${n.id}">0.0V / 0mA</div>`;
 
-            // Enlazar capturas para el trazado de cables Netlist
             div.querySelectorAll('.net-pin').forEach(pin => {
                 pin.addEventListener('mousedown', (e) => {
                     e.stopPropagation(); e.preventDefault();
@@ -236,7 +266,6 @@
                 });
             });
 
-            // Arrastre 2D Estricto
             div.addEventListener('mousedown', (e) => {
                 if(e.target.classList.contains('net-pin')) return;
                 activeSelectedNode = n;
@@ -258,7 +287,6 @@
                 document.addEventListener('mouseup', drop);
             });
 
-            // Conmutación o inspección de parámetros
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if(n.tipo === 'switch_cuchilla') {
@@ -288,7 +316,6 @@
             refreshPinStates();
         }
 
-        // --- CABLES FÍSICOS NETLIST DE INTERCONEXIÓN ---
         function startNetWiring(compId, pinName) {
             activeWirePin = { compId, pinName };
             let coord = getPinCoords(compId, pinName);
@@ -327,8 +354,6 @@
             document.addEventListener('mousemove', dragWire);
             document.addEventListener('mouseup', dropWire);
         }
-
-        let conexiones = []; // Alias local para netWires
 
         function drawNetlistWires() {
             let elements = wireLayer.querySelectorAll('g');
@@ -376,15 +401,13 @@
         }
 
         function purgueNetlist() {
-            conexiones = [];
-            netNodes = [];
+            conexiones = []; netNodes = [];
             sandbox.innerHTML = `<svg id="wire-layer"></svg>`;
             solveCircuitMNA();
         }
 
-        // --- MOTOR MATEMÁTICO: ANÁLISIS MODIFICADO DE NODOS (MNA SPICE SOLVER) ---
+        // --- CORE DEL MOTOR SPICE MODIFICADO DE NODOS ---
         function solveCircuitMNA() {
-            // 1. Resetear estados e instrumentación
             netNodes.forEach(n => {
                 n.v_drop = 0; n.current = 0;
                 if(!n.fused) n.overheating = false;
@@ -392,204 +415,153 @@
             });
             conexiones.forEach(w => w.hasCurrent = false);
 
-            // 2. Mapeo Topológico de Nodos Eléctricos Virtuales
-            // Agrupar pines interconectados por cables en un único ID de Nodo Eléctrico común
             let pinToNodeMap = {};
-            let nodeIndexCounter = 1; // El nodo 0 queda estrictamente reservado para la Referencia (Gnd)
+            let nodeIndexCounter = 1;
 
-            // Buscar si existe un nodo de tierra explícito
             let gndNodes = netNodes.filter(n => n.tipo === 'gnd_node');
             gndNodes.forEach(g => { pinToNodeMap[`${g.id}_g`] = 0; });
 
-            // Agrupar el resto mediante propagación de grafos conectados
             conexiones.forEach(w => {
-                let k1 = `${w.m1}_${w.p1}`;
-                let k2 = `${w.m2}_${w.p2}`;
-                
-                let n1 = pinToNodeMap[k1];
-                let n2 = pinToNodeMap[k2];
+                let k1 = `${w.m1}_${w.p1}`; let k2 = `${w.m2}_${w.p2}`;
+                let n1 = pinToNodeMap[k1]; let n2 = pinToNodeMap[k2];
 
                 if(n1 !== undefined && n2 !== undefined) {
-                    if(n1 !== n2) {
-                        // Unificar conjuntos (simplificación rápida de nodos)
-                        for(let k in pinToNodeMap) { if(pinToNodeMap[k] === n2) pinToNodeMap[k] = n1; }
-                    }
+                    if(n1 !== n2) { for(let k in pinToNodeMap) { if(pinToNodeMap[k] === n2) pinToNodeMap[k] = n1; } }
                 } else if(n1 !== undefined) { pinToNodeMap[k2] = n1; } 
                   else if(n2 !== undefined) { pinToNodeMap[k1] = n2; } 
                   else {
-                    pinToNodeMap[k1] = nodeIndexCounter;
-                    pinToNodeMap[k2] = nodeIndexCounter;
+                    pinToNodeMap[k1] = nodeIndexCounter; pinToNodeMap[k2] = nodeIndexCounter;
                     nodeIndexCounter++;
                 }
             });
 
-            // Asignar índice de nodo independiente a pines huérfanos/sueltos
             netNodes.forEach(n => {
                 let div = document.getElementById(n.id); if(!div) return;
                 div.querySelectorAll('.net-pin').forEach(p => {
                     let k = `${n.id}_${p.dataset.pin}`;
-                    if(pinToNodeMap[k] === undefined) {
-                        pinToNodeMap[k] = nodeIndexCounter++;
-                    }
+                    if(pinToNodeMap[k] === undefined) pinToNodeMap[k] = nodeIndexCounter++;
                 });
             });
 
-            // Número total de nodos independientes (excluyendo el nodo 0)
             let numNodosElectricos = nodeIndexCounter;
-
-            // Contar fuentes de tensión ideales (E) para dimensionar la submatriz MNA
             let fuentesDeVoltaje = netNodes.filter(n => n.tipo === 'nice_power' && !n.fused);
             let numFuentes = fuentesDeVoltaje.length;
 
             let dim = numNodosElectricos + numFuentes;
-            if(dim <= 1) {
-                printDebugInfo([], [], numNodosElectricos);
-                return;
-            }
+            if(dim <= 1) { printDebugInfo([], [], numNodosElectricos); return; }
 
-            // 3. Inicialización de la Matriz del Sistema A y Vector Z
             let A = Array.from({length: dim}, () => Array(dim).fill(0));
             let Z = Array(dim).fill(0);
 
-            // 4. ESTAMPADO MATRICIAL (SPICE Stamping Core)
-            // Estampar componentes pasivos lineales en la submatriz de conductancia G
+            // Estampado Lineal Estático
             netNodes.forEach(n => {
                 if(n.fused) return;
-
                 if(n.tipo === 'resistencia') {
-                    let nA = pinToNodeMap[`${n.id}_a`];
-                    let nB = pinToNodeMap[`${n.id}_b`];
-                    let G = 1 / parseFloat(n.ajustes.r);
-                    stampConductance(A, nA, nB, G);
+                    stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / parseFloat(n.ajustes.r));
                 }
                 if(n.tipo === 'switch_cuchilla') {
-                    let nA = pinToNodeMap[`${n.id}_1`];
-                    let nB = pinToNodeMap[`${n.id}_2`];
-                    let G = n.ajustes.open ? 1e-12 : 1e6; // 1e6 Mho representa un corto casi ideal
-                    stampConductance(A, nA, nB, G);
+                    stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], n.ajustes.open ? 1e-12 : 1e6);
+                }
+                if(n.tipo === 'motor_dc') {
+                    // Un motor se modela de forma simplificada como una baja resistencia de armadura interna fija
+                    stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 10);
+                }
+                if(n.tipo === 'foco_edison') {
+                    // Ley de Stefan-Boltzmann: la resistencia sube con el calentamiento
+                    let rDinamica = n.ajustes.r_nominal * (1 + (n.temp - 20) * 0.0045);
+                    stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / rDinamica);
                 }
             });
 
-            // Bucle de Newton-Raphson para convergencia del LED No Lineal (Ecuación de Shockley)
+            // Newton-Raphson para Diodos LED
             let ledComponents = netNodes.filter(n => n.tipo === 'led_verde' && !n.fused);
-            let v_led_prev = ledComponents.map(() => 0.7); // Suposición inicial
-            let max_iterations = 20;
+            let v_led_prev = ledComponents.map(() => 0.7);
             let converged = false;
             let X = Array(dim).fill(0);
 
-            for(let iter = 0; iter < max_iterations; iter++) {
-                // Clonar matrices base limpia para estampar elementos dependientes de la iteración
-                let A_iter = A.map(row => [...row]);
-                let Z_iter = [...Z];
+            for(let iter = 0; iter < 15; iter++) {
+                let A_iter = A.map(row => [...row]); let Z_iter = [...Z];
 
-                // Estampar Diodo No Lineal (Newton-Raphson stamp)
                 ledComponents.forEach((n, idx) => {
-                    let nA = pinToNodeMap[`${n.id}_an`];
-                    let nK = pinToNodeMap[`${n.id}_ca`];
-                    
+                    let nA = pinToNodeMap[`${n.id}_an`]; let nK = pinToNodeMap[`${n.id}_ca`];
                     let Vd = v_led_prev[idx];
-                    let Is = 1e-14; // Corriente de saturación inversa típica
-                    let Vt = 0.026; // Voltaje térmico de juntura a temperatura ambiente
-                    
-                    // Derivada de la curva: Conductancia dinámica (g_d)
-                    let gd = (Is / Vt) * Math.exp(Vd / Vt);
-                    if(gd < 1e-9) gd = 1e-9; // Limitar conductancia mínima para evitar singularidad
-                    if(gd > 1e4) gd = 1e4;
-
-                    // Fuente de corriente paralela equivalente de compensación (I_eq)
-                    let Ieq = Is * (Math.exp(Vd / Vt) - 1) - gd * Vd;
-
-                    stampConductance(A_iter, nA, nK, gd);
-                    stampCurrentSource(Z_iter, nA, nK, Ieq);
+                    let gd = (1e-14 / 0.026) * Math.exp(Vd / 0.026);
+                    if(gd < 1e-9) gd = 1e-9; if(gd > 1e4) gd = 1e4;
+                    let Ieq = 1e-14 * (Math.exp(Vd / 0.026) - 1) - gd * Vd;
+                    stampConductance(A_iter, nA, nK, gd); stampCurrentSource(Z_iter, nA, nK, Ieq);
                 });
 
-                // Estampar Fuentes de Voltaje (Submatrices B y C de MNA)
                 fuentesDeVoltaje.forEach((f, idx) => {
-                    let nP = pinToNodeMap[`${f.id}_p`];
-                    let nN = pinToNodeMap[`${f.id}_n`];
-                    let kIdx = numNodosElectricos + idx; // Índice de fila/columna extendida
-
+                    let nP = pinToNodeMap[`${f.id}_p`]; let nN = pinToNodeMap[`${f.id}_n`];
+                    let kIdx = numNodosElectricos + idx;
                     if(nP > 0) { A_iter[nP][kIdx] += 1; A_iter[kIdx][nP] += 1; }
                     if(nN > 0) { A_iter[nN][kIdx] -= 1; A_iter[kIdx][nN] -= 1; }
                     Z_iter[kIdx] = f.ajustes.v;
                 });
 
-                // Resolver el sistema lineal mediante Eliminación de Gauss-Jordan
                 X = solveLinearSystem(A_iter, Z_iter);
-
                 if(!X) {
                     document.getElementById('engine-status').innerText = "ERROR LU: SINGULARIDAD MATRICIAL";
                     document.getElementById('engine-status').style.color = "var(--red)";
                     return;
                 }
 
-                // Evaluar tolerancia de convergencia
-                let errorMax = 0;
+                let err = 0;
                 ledComponents.forEach((n, idx) => {
-                    let nA = pinToNodeMap[`${n.id}_an`];
-                    let nK = pinToNodeMap[`${n.id}_ca`];
-                    let Vd_new = (nA > 0 ? X[nP] : 0) - (nK > 0 ? X[nK] : 0);
+                    let Vd_new = (pinToNodeMap[`${n.id}_an`] > 0 ? X[pinToNodeMap[`${n.id}_an`]] : 0) - (pinToNodeMap[`${n.id}_ca`] > 0 ? X[pinToNodeMap[`${n.id}_ca`]] : 0);
                     let diff = Math.abs(Vd_new - v_led_prev[idx]);
-                    if(diff > errorMax) errorMax = diff;
-                    v_led_prev[idx] = Vd_new;
+                    if(diff > err) err = diff; v_led_prev[idx] = Vd_new;
                 });
-
-                if(errorMax < 1e-5 || ledComponents.length === 0) {
-                    converged = true;
-                    break;
-                }
+                if(err < 1e-5 || ledComponents.length === 0) { converged = true; break; }
             }
 
             if(converged) {
-                document.getElementById('engine-status').innerText = "CONVERGENCIA NEWTON-RAPHSON: OK";
+                document.getElementById('engine-status').innerText = "CONVERGENCIA MNA-LU: OK";
                 document.getElementById('engine-status').style.color = "var(--green)";
             }
 
-            // 5. EXTRACCIÓN DE PARÁMETROS NUMÉRICOS CALCULADOS
+            // Extracción de datos del vector de estados
             netNodes.forEach(n => {
                 if(n.fused) return;
 
                 if(n.tipo === 'resistencia') {
-                    let vA = pinToNodeMap[`${n.id}_a`] > 0 ? X[pinToNodeMap[`${n.id}_a`]] : 0;
-                    let vB = pinToNodeMap[`${n.id}_b`] > 0 ? X[pinToNodeMap[`${n.id}_b`]] : 0;
-                    n.v_drop = Math.abs(vA - vB);
-                    n.current = n.v_drop / parseFloat(n.ajustes.r);
-
+                    n.v_drop = Math.abs((pinToNodeMap[`${n.id}_a`]>0?X[pinToNodeMap[`${n.id}_a`]]:0) - (pinToNodeMap[`${n.id}_b`]>0?X[pinToNodeMap[`${n.id}_b`]]:0));
+                    n.current = n.v_drop / n.ajustes.r;
                     let pot = n.current * n.v_drop;
-                    if(pot > n.ajustes.max_p) {
-                        n.overheating = true;
-                        n.temp += pot * 0.4;
-                        if(n.temp > 140) n.fused = true; // Fundido irreversible por sobrecalentamiento
-                    }
+                    if(pot > n.ajustes.max_p) { n.overheating = true; n.temp += pot * 0.3; if(n.temp > 140) n.fused = true; }
                     displayTelemetry(n, n.v_drop, n.current);
                 }
-
+                if(n.tipo === 'motor_dc') {
+                    n.v_drop = Math.abs((pinToNodeMap[`${n.id}_m1`]>0?X[pinToNodeMap[`${n.id}_m1`]]:0) - (pinToNodeMap[`${n.id}_m2`]>0?X[pinToNodeMap[`${n.id}_m2`]]:0));
+                    n.current = n.v_drop / 10;
+                    if(n.current > n.ajustes.max_current) n.fused = true;
+                    displayTelemetry(n, n.v_drop, n.current);
+                }
+                if(n.tipo === 'foco_edison') {
+                    n.v_drop = Math.abs((pinToNodeMap[`${n.id}_t1`]>0?X[pinToNodeMap[`${n.id}_t1`]]:0) - (pinToNodeMap[`${n.id}_t2`]>0?X[pinToNodeMap[`${n.id}_t2`]]:0));
+                    let rDinamica = n.ajustes.r_nominal * (1 + (n.temp - 20) * 0.0045);
+                    n.current = n.v_drop / rDinamica;
+                    let p = n.v_drop * n.current;
+                    n.temp += p * 0.2;
+                    if(p > n.ajustes.w_max * 1.5) n.fused = true;
+                    displayTelemetry(n, n.v_drop, n.current);
+                }
                 if(n.tipo === 'led_verde') {
-                    let vA = pinToNodeMap[`${n.id}_an`] > 0 ? X[pinToNodeMap[`${n.id}_an`]] : 0;
-                    let vK = pinToNodeMap[`${n.id}_ca`] > 0 ? X[pinToNodeMap[`${n.id}_ca`]] : 0;
-                    n.v_drop = vA - vK;
-                    // Ecuación exponencial de Shockley directa para instrumentación
+                    n.v_drop = (pinToNodeMap[`${n.id}_an`]>0?X[pinToNodeMap[`${n.id}_an`]]:0) - (pinToNodeMap[`${n.id}_ca`]>0?X[pinToNodeMap[`${n.id}_ca`]]:0);
                     n.current = 1e-14 * (Math.exp(n.v_drop / 0.026) - 1);
-                    
-                    if(n.current > 0.08) n.fused = true; // El LED explota si la corriente supera los 80mA
+                    if(n.current > 0.09) n.fused = true;
                     displayTelemetry(n, n.v_drop, n.current);
                 }
-
                 if(n.tipo === 'nice_power') {
-                    // La corriente se extrae directamente de las variables extendidas del vector X
                     let idx = fuentesDeVoltaje.findIndex(f => f.id === n.id);
-                    let iSrc = Math.abs(X[numNodosElectricos + idx] || 0);
-                    n.current = iSrc;
-                    displayTelemetry(n, n.ajustes.v, iSrc);
+                    n.current = Math.abs(X[numNodosElectricos + idx] || 0);
+                    displayTelemetry(n, n.ajustes.v, n.current);
                 }
             });
 
-            // Activar visualmente el flujo de electrones en los cables si transportan corriente real
             conexiones.forEach(w => {
                 let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
-                if(pNode !== undefined && pNode > 0) {
-                    w.hasCurrent = Math.abs(X[pNode]) > 0.001;
-                }
+                if(pNode !== undefined && pNode > 0) w.hasCurrent = Math.abs(X[pNode]) > 0.005;
             });
 
             printDebugInfo(A, Z, numNodosElectricos, pinToNodeMap);
@@ -597,51 +569,30 @@
             drawNetlistWires();
         }
 
-        // --- SUB-FUNCIONES AUXILIARES DE SOPORTE MATRICIAL SPICE ---
-        function stampConductance(Matrix, nA, nB, G) {
-            if(nA > 0) Matrix[nA][nA] += G;
-            if(nB > 0) Matrix[nB][nB] += G;
-            if(nA > 0 && nB > 0) { Matrix[nA][nB] -= G; Matrix[nB][nA] -= G; }
+        function stampConductance(M, nA, nB, G) {
+            if(nA > 0) M[nA][nA] += G; if(nB > 0) M[nB][nB] += G;
+            if(nA > 0 && nB > 0) { M[nA][nB] -= G; M[nB][nA] -= G; }
         }
 
-        function stampCurrentSource(Vector, nA, nK, Ieq) {
-            if(nA > 0) Vector[nA] -= Ieq;
-            if(nK > 0) Vector[nK] += Ieq;
+        function stampCurrentSource(V, nA, nK, Ieq) {
+            if(nA > 0) V[nA] -= Ieq; if(nK > 0) V[nK] += Ieq;
         }
 
         function solveLinearSystem(A, Z) {
             let n = Z.length;
-            // Construcción de la matriz aumentada
             for (let i = 0; i < n; i++) A[i].push(Z[i]);
-
             for (let i = 0; i < n; i++) {
-                // Selección de pivote máximo (Estabilización numérica)
-                let maxEl = Math.abs(A[i][i]);
-                let maxRow = i;
-                for (let k = i + 1; k < n; k++) {
-                    if (Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; }
-                }
-
-                // Intercambiar filas si es necesario
-                for (let k = i; k < n + 1; k++) {
-                    let tmp = A[maxRow][k]; A[maxRow][k] = A[i][k]; A[i][k] = tmp;
-                }
-
-                // Validar que el pivote no sea cero (Evitar sistemas singulares o flotantes)
+                let maxEl = Math.abs(A[i][i]); let maxRow = i;
+                for (let k = i + 1; k < n; k++) { if (Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; } }
+                for (let k = i; k < n + 1; k++) { let tmp = A[maxRow][k]; A[maxRow][k] = A[i][k]; A[i][k] = tmp; }
                 if (Math.abs(A[i][i]) < 1e-12) return null;
-
-                // Eliminar coeficientes inferiores y superiores
                 for (let k = 0; k < n; k++) {
                     if (k !== i) {
                         let c = -A[k][i] / A[i][i];
-                        for (let j = i; j < n + 1; j++) {
-                            if (i === j) A[k][j] = 0; else A[k][j] += c * A[i][j];
-                        }
+                        for (let j = i; j < n + 1; j++) { if (i === j) A[k][j] = 0; else A[k][j] += c * A[i][j]; }
                     }
                 }
             }
-
-            // Extraer el vector resultante de incógnitas X
             let res = Array(n).fill(0);
             for (let i = 0; i < n; i++) res[i] = A[i][n] / A[i][i];
             return res;
@@ -649,106 +600,100 @@
 
         function displayTelemetry(n, v, i) {
             let tel = document.getElementById(`tel_${n.id}`); if(!tel) return;
-            let iStr = i >= 1 ? `${i.toFixed(2)} A` : `${(i*1000).toFixed(1)} mA`;
-            tel.innerText = `${v.toFixed(2)}V / ${iStr}`;
+            tel.innerText = `${v.toFixed(2)}V / ${i >= 1 ? i.toFixed(2)+'A' : (i*1000).toFixed(1)+'mA'}`;
         }
 
-        // --- ACTUALIZACIONES GRÁFICAS SEGÚN ECUACIONES DE CONVERGENCIA ---
         function updatePhysicalIndicators() {
             netNodes.forEach(n => {
                 let div = document.getElementById(n.id); if(!div) return;
-
-                if(n.fused) {
-                    div.classList.add('destroyed'); div.classList.remove('hot');
-                    let tel = document.getElementById(`tel_${n.id}`); if(tel) tel.innerText = "💥 SPICE_ERR: COLD_FUSION";
-                    return;
-                }
-
+                if(n.fused) { div.className = 'spice-node destroyed'; return; }
                 if(n.overheating) div.classList.add('hot'); else div.classList.remove('hot');
 
                 if(n.tipo === 'led_verde') {
                     let core = div.querySelector(`#lit_${n.id}`);
-                    // El diodo LED sigue estrictamente su curva exponencial real
-                    if(n.v_drop && n.v_drop >= 1.8) {
-                        let expIntensity = Math.min(1, (n.v_drop - 1.8) / 0.5);
-                        core.style.background = `rgba(57, 255, 20, ${expIntensity})`;
-                        core.style.boxShadow = `0 0 ${20 * expIntensity}px var(--green)`;
-                        core.style.borderColor = '#fff';
-                    } else {
-                        core.style.background = 'none'; core.style.boxShadow = 'none'; core.style.borderColor = '#334155';
+                    if(n.v_drop >= 1.8) {
+                        let f = Math.min(1, (n.v_drop - 1.8) / 0.5);
+                        core.style.background = `rgba(57, 255, 20, ${f})`; core.style.boxShadow = `0 0 ${20*f}px var(--green)`;
+                    } else { core.style.background = 'none'; core.style.boxShadow = 'none'; }
+                }
+
+                if(n.tipo === 'foco_edison') {
+                    let fil = div.querySelector(`#filam_${n.id}`);
+                    let glass = div.querySelector(`#bulb_glass_${n.id}`);
+                    if(n.v_drop > 1) {
+                        let factor = Math.min(1, n.v_drop / 24);
+                        fil.style.borderColor = `rgb(255, ${150 + (105*factor)}, 0)`;
+                        glass.style.boxShadow = `0 0 ${30 * factor}px var(--yellow)`;
+                        glass.style.background = `rgba(245, 158, 11, ${factor * 0.4})`;
+                    } else { fil.style.borderColor = '#475569'; glass.style.boxShadow = 'none'; glass.style.background = 'none'; }
+                }
+
+                if(n.tipo === 'motor_dc') {
+                    if(n.v_drop > 0.5 && n.current > 0.01) {
+                        n.angulo = (n.angulo + (n.v_drop * 2)) % 360;
+                        let line = div.querySelector('div[style*="transform:rotate"]');
+                        if(line) line.style.transform = `rotate(${n.angulo}deg)`;
                     }
                 }
             });
         }
 
-        // --- EXPOSITOR DE CONSOLA DE AUDITORÍA INGENIERIL ---
-        function printDebugInfo(Matrix, Vector, nodesCount, mapping) {
+        function printDebugInfo(M, V, count, mapping) {
             let netView = document.getElementById('netlist-view');
             let matView = document.getElementById('matrix-view');
+            if(netNodes.length === 0) { netView.innerText = "Netlist vacío."; matView.innerText = "Matriz nula."; return; }
 
-            if(netNodes.length === 0) {
-                netView.innerText = "Netlist vacío. Inserte componentes para iniciar el análisis.";
-                matView.innerText = "Matriz nula.";
-                return;
-            }
+            let netStr = ""; for(let k in mapping) { netStr += `NetPin [${k}] ──► Nodo MNA: ${mapping[k]}\n`; }
+            netView.innerText = netStr;
 
-            // Renderizar mapeo de Netlist indexado
-            let netStr = "";
-            for(let key in mapping) { netStr += `Elemento [${key}] ──► Asignado a Nodo Eléctrico SPICE: ${mapping[key]}\n`; }
-            netView.innerText = netStr || "Nodos flotantes sin enlaces cerrados detectados.";
-
-            // Renderizar representación de la matriz aumentada A|Z en tiempo real
-            if(!Matrix || Matrix.length === 0) return;
+            if(!M || M.length === 0) return;
             let matStr = "";
-            for(let i=0; i<Matrix.length; i++) {
-                let row = Matrix[i].map(v => v.toExponential(2).padStart(10)).join(" ");
-                matStr += `[Row ${i}] │ ${row} │  📊  [Z_${i}] = ${Vector[i].toExponential(2)}\n`;
+            for(let i=0; i<M.length; i++) {
+                matStr += `[R_${i}] │ ${M[i].map(v => v.toExponential(1).padStart(8)).join(" ")} │  [Z] = ${V[i].toExponential(1)}\n`;
             }
             matView.innerText = matStr;
         }
 
-        // --- INSPECTOR PARAMÉTRICO DE ENTRADAS DEL NETLIST ---
         function openInspector(n, e) {
             activeSelectedNode = n;
             let r = sandbox.getBoundingClientRect();
-            inspector.style.left = (e.clientX - r.left + 15) + 'px';
-            inspector.style.top = (e.clientY - r.top + 15) + 'px';
+            inspector.style.left = (e.clientX - r.left + 15) + 'px'; inspector.style.top = (e.clientY - r.top + 15) + 'px';
             inspector.style.display = 'block';
 
             let fields = document.getElementById('inspector-fields');
             if(n.tipo === 'nice_power') {
-                fields.innerHTML = `<div class="row-ins"><label>Fuerza Electromotriz DC (V):</label><input type="number" id="val_v" value="${n.ajustes.v}" step="0.5"></div>`;
+                fields.innerHTML = `<div class="row-ins"><label>Voltaje DC (V):</label><input type="number" id="val_v" value="${n.ajustes.v}"></div>`;
             } else if(n.tipo === 'resistencia') {
                 fields.innerHTML = `
-                    <div class="row-ins"><label>Resistencia de Carbono (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>
-                    <div class="row-ins"><label>Potencia Máxima Nominal (Watts):</label><input type="number" id="val_p" value="${n.ajustes.max_p}"></div>`;
+                    <div class="row-ins"><label>Resistencia (𝛀):</label><input type="number" id="val_r" value="${n.ajustes.r}"></div>
+                    <div class="row-ins"><label>Potencia Máx (W):</label><input type="number" id="val_p" value="${n.ajustes.max_p}"></div>`;
+            } else if(n.tipo === 'foco_edison') {
+                fields.innerHTML = `<div class="row-ins"><label>Resistencia Filamento (𝛀):</label><input type="number" id="val_rn" value="${n.ajustes.r_nominal}"></div>`;
             } else {
-                fields.innerHTML = `<p style="font-size:10px; color:var(--text-muted); text-align:center; padding:12px 0;">Componente con parámetros intrínsecos de silicio fijos.</p>`;
+                fields.innerHTML = `<p style="font-size:10px; color:var(--text-muted); text-align:center; padding:10px 0;">Componente con parámetros fijos en la Netlist.</p>`;
             }
         }
 
         function applyNodeSettings() {
             if(activeSelectedNode) {
-                if(activeSelectedNode.tipo === 'nice_power') {
-                    activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
-                }
+                if(activeSelectedNode.tipo === 'nice_power') activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
                 if(activeSelectedNode.tipo === 'resistencia') {
                     activeSelectedNode.ajustes.r = parseFloat(document.getElementById('val_r').value) || 1;
                     activeSelectedNode.ajustes.max_p = parseFloat(document.getElementById('val_p').value) || 0.1;
                 }
+                if(activeSelectedNode.tipo === 'foco_edison') activeSelectedNode.ajustes.r_nominal = parseFloat(document.getElementById('val_rn').value) || 1;
                 updateNodeGraphics(activeSelectedNode);
             }
-            inspector.style.display = 'none';
-            solveCircuitMNA();
+            inspector.style.display = 'none'; solveCircuitMNA();
         }
 
         window.addEventListener('load', () => {
             sandbox.addEventListener('click', () => inspector.style.display = 'none');
-            // Bucle térmico reactivo amortiguado continuo para derivaciones óhmicas
+            // Bucle dinámico para animación de motores y enfriamiento
             setInterval(() => {
-                netNodes.forEach(n => { if(n.temp > 20) n.temp -= 0.5; });
+                netNodes.forEach(n => { if(n.temp > 20) n.temp -= 1; });
                 solveCircuitMNA();
-            }, 500);
+            }, 60);
         });
     </script>
 </body>
