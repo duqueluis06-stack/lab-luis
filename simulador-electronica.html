@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luiyi-Energy v10.0 - Professional Electrical Simulation Studio</title>
+    <title>Luiyi-Energy v11.0 - Professional Electrical Studio con Simulación AC/DC</title>
     <style>
         :root {
             --bg-ultra: #02040a;
@@ -14,6 +14,7 @@
             --green: #39ff14;
             --green-glow: rgba(57, 255, 20, 0.4);
             --red: #ff3131;
+            --orange: #f97316;
             --blue: #1d4ed8;
             --yellow: #f59e0b;
             --text-main: #f8fafc;
@@ -31,7 +32,6 @@
             overflow: hidden;
         }
 
-        /* BARRA DE CONTROL SUPERIOR PROFESIONAL */
         header {
             height: 65px;
             background: linear-gradient(135deg, var(--bg-panel), #1c2541);
@@ -46,35 +46,34 @@
 
         .brand-container { display: flex; flex-direction: column; }
         .brand-title { font-size: 19px; font-weight: 800; color: var(--cyan); letter-spacing: 0.5px; text-shadow: 0 0 10px var(--cyan-glow); }
-        .brand-sub { font-size: 10px; color: var(--yellow); font-family: 'Courier New', Courier, monospace; letter-spacing: 1px; }
+        .brand-sub { font-size: 10px; color: var(--yellow); font-family: monospace; letter-spacing: 1px; }
 
         .system-monitors { display: flex; gap: 15px; align-items: center; }
         .console-status {
             background: #000; border: 1px solid var(--border-heavy); padding: 8px 16px;
             border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--green);
             font-family: monospace; display: flex; align-items: center; gap: 8px;
-            box-shadow: inset 0 0 8px rgba(57,255,20,0.1);
         }
 
         .btn-action {
             padding: 8px 16px; background: #1e293b; border: 1px solid #475569;
             color: #fff; cursor: pointer; border-radius: 5px; font-weight: bold; font-size: 12px;
             display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;
+            text-decoration: none;
         }
-        .btn-action:hover { border-color: var(--cyan); background: rgba(0,242,254,0.15); transform: translateY(-1px); }
+        .btn-action:hover { border-color: var(--cyan); background: rgba(0,242,254,0.15); }
         .btn-exit { border-color: var(--red); background: rgba(255,49,49,0.05); }
         .btn-exit:hover { background: var(--red); color: #fff; box-shadow: 0 0 15px rgba(255,49,49,0.4); }
 
-        /* ARQUITECTURA DE TRABAJO EN TRES SECCIONES */
         #studio-layout { display: flex; flex: 1; height: calc(100vh - 65px); }
         
         #toolbox-sidebar {
             width: 280px; background: var(--bg-panel); border-right: 2px solid var(--border-heavy);
             padding: 20px; display: flex; flex-direction: column; gap: 16px; z-index: 100;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.3); overflow-y: auto;
+            overflow-y: auto;
         }
 
-        .category-header { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; border-bottom: 1px solid #1e293b; padding-bottom: 4px; margin-top: 5px; }
+        .category-header { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
         .toolbox-list { display: flex; flex-direction: column; gap: 8px; }
         
         .toolbox-card {
@@ -88,46 +87,58 @@
         
         #sandbox {
             flex: 1; position: relative; overflow: hidden;
-            background-image: radial-gradient(rgba(0, 242, 254, 0.05) 1.5px, transparent 0);
+            background-image: radial-gradient(rgba(0, 242, 254, 0.04) 1.5px, transparent 0);
             background-size: 25px 25px;
         }
 
         #wire-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
-        /* OBJETOS DEL LABORATORIO (COMPONENETES DINÁMICOS) */
+        /* COMPONENTES */
         .lab-element {
             position: absolute; z-index: 10; cursor: move; padding: 5px;
             background: rgba(11, 19, 43, 0.95); border: 1px solid #334155; border-radius: 8px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
         }
         .lab-element.selected { border: 1px solid var(--cyan) !important; box-shadow: 0 0 15px var(--cyan-glow); }
-        .lab-element.blown-out { filter: grayscale(0.9) brightness(0.25) !important; border-color: var(--red) !important; }
+        .lab-element.blown-out { filter: grayscale(0.9) brightness(0.2) !important; border-color: var(--red) !important; }
 
-        /* BORNES DE INTERCONEXIÓN VECTORIAL */
+        /* Animación de oscilación por calentamiento de resistencia */
+        @keyframes thermalGlow {
+            0% { box-shadow: 0 0 4px var(--red); border-color: var(--red); }
+            50% { box-shadow: 0 0 20px #ff7c7c; border-color: #ff4e4e; filter: drop-shadow(0 0 8px var(--red)); }
+            100% { box-shadow: 0 0 4px var(--red); border-color: var(--red); }
+        }
+        .lab-element.overheating {
+            animation: thermalGlow 0.25s infinite ease-in-out;
+        }
+
+        /* BORNES DE CONEXIÓN */
         .terminal-pin {
             position: absolute; width: 15px; height: 15px;
             background: #1e293b; border: 2.5px solid #94a3b8; border-radius: 50%;
             cursor: crosshair; z-index: 50; pointer-events: auto;
         }
-        .terminal-pin:hover { transform: scale(1.3); border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
-        .terminal-pin.plugged { background: var(--cyan) !important; border-color: #fff !important; box-shadow: 0 0 8px var(--cyan); }
+        .terminal-pin:hover { transform: scale(1.3); border-color: var(--cyan); }
+        .terminal-pin.plugged { background: var(--cyan) !important; border-color: #fff !important; }
 
         .pin-label { position: absolute; font-size: 12px; font-weight: 900; pointer-events: none; font-family: monospace; }
         .lbl-pos { color: var(--red); }
         .lbl-neg { color: #38bdf8; }
 
-        /* CABLES DE CONTROL DE FLUJO CON NITIDEZ INTELIGENTE */
-        .wire-segment { stroke: #334155; stroke-width: 4; fill: none; pointer-events: stroke; cursor: pointer; opacity: 0.35; transition: all 0.2s ease; }
-        .wire-segment:hover { stroke: var(--yellow); opacity: 1 !important; stroke-width: 5; }
+        /* CABLES CON FISICAS DE CALENTAMIENTO */
+        .wire-segment { fill: none; pointer-events: stroke; cursor: pointer; opacity: 0.4; transition: all 0.2s ease; }
+        .wire-segment:hover { stroke: var(--yellow) !important; opacity: 1 !important; stroke-width: 6 !important; }
         
-        /* Regla de Oro: Solo se iluminan si hay conducción y retorno completado */
         .wire-segment.energized {
-            stroke: var(--green);
             opacity: 1 !important;
             stroke-dasharray: 8 4;
-            animation: flowElectron 0.4s linear infinite;
-            filter: drop-shadow(0 0 5px var(--green-glow));
+            animation: flowElectron 0.3s linear infinite;
+        }
+        /* Cuando el cable se sobrecalienta por baja sección/alto amperaje */
+        .wire-segment.wire-hot {
+            stroke: var(--orange) !important;
+            filter: drop-shadow(0 0 6px var(--orange));
+            animation: flowElectron 0.15s linear infinite;
         }
 
         @keyframes flowElectron { to { stroke-dashoffset: -12; } }
@@ -135,34 +146,32 @@
         .element-overlay-badge {
             position: absolute; bottom: -25px; font-size: 10px; background: rgba(2,6,23,0.95);
             padding: 3px 8px; border-radius: 4px; border: 1px solid #334155; color: var(--cyan);
-            white-space: nowrap; z-index: 20; font-family: 'Courier New', Courier, monospace; font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            white-space: nowrap; z-index: 20; font-family: monospace; font-weight: bold;
         }
 
-        /* CONSOLA DE CONFIGURACIÓN AVANZADA */
+        /* INSPECTOR FLOTANTE */
         #inspector-overlay {
             position: absolute; z-index: 2000; background: #0f172a; border: 2px solid var(--cyan);
             padding: 16px; border-radius: 8px; display: none; box-shadow: 0 15px 40px rgba(0,0,0,0.8);
-            width: 260px;
+            width: 270px;
         }
         #inspector-overlay label { display: block; font-size: 11px; color: #94a3b8; margin-top: 10px; font-weight: 700; text-transform: uppercase; }
         
         .numeric-stepper { display: flex; gap: 6px; margin-top: 5px; }
-        .numeric-stepper input {
+        .numeric-stepper input, .numeric-stepper select {
             flex: 1; background: #020617; border: 1px solid #475569; color: #fff;
             padding: 6px; font-size: 13px; font-family: monospace; text-align: center; border-radius: 4px;
         }
-        .step-ctrl { background: #334155; border: none; color: white; width: 32px; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 14px; }
+        .step-ctrl { background: #334155; border: none; color: white; width: 32px; cursor: pointer; font-weight: bold; border-radius: 4px; }
         .step-ctrl:hover { background: var(--cyan); color: #000; }
 
-        /* PANEL INFERIOR MÁSTER - TELEMETRÍA Y OSCILOSCOPIOS */
+        /* TELEMETRÍA E INSTRUMENTOS */
         #telemetry-dock {
-            height: 200px; background: var(--bg-panel); border-top: 2px solid var(--border_heavy);
+            height: 200px; background: var(--bg-panel); border-top: 2px solid var(--border-heavy);
             display: flex; padding: 12px; gap: 12px; z-index: 100;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
         }
         .instrument-slot { flex: 1; background: #02040a; border: 1px solid #1e293b; border-radius: 6px; display: flex; flex-direction: column; padding: 8px; }
-        .instrument-header { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; font-family: monospace; display: flex; justify-content: space-between; }
+        .instrument-header { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; font-family: monospace; display: flex; justify-content: space-between; }
         .viewport-container { flex: 1; background: #000; position: relative; border-radius: 4px; border: 1px solid #111827; }
         .instrument-canvas { width: 100%; height: 100%; display: block; }
     </style>
@@ -171,38 +180,39 @@
 
     <header>
         <div class="brand-container">
-            <div class="brand-title">⚡ Luiyi-Energy MASTER LAB</div>
-            <div class="brand-sub">ESTUDIO DE INGENIERÍA DE MALLAS COMPUTACIONALES v10.0</div>
+            <div class="brand-title">⚡ Luiyi-Energy PROFESSIONAL LAB</div>
+            <div class="brand-sub">SISTEMA INTEGRADO DE ANÁLISIS TÉRMICO Y AC/DC v11.0</div>
         </div>
         <div class="system-monitors">
-            <div class="console-status">ANÁLISIS: <span id="facial-expression">💤 EN ESPERA</span></div>
-            <button class="btn-action btn-exit" onclick="salirDelLaboratorio()">🚪 Salir del Lab</button>
+            <div class="console-status">ESTADO MÁQUINA: <span id="facial-expression">💤 CIRCUITO ABIERTO</span></div>
+            <a href="index.html" class="btn-action btn-exit">Módulo 🚪 Salir al Index</a>
         </div>
     </header>
 
     <div id="studio-layout">
         <div id="toolbox-sidebar">
-            <div class="category-header">Módulos de Alimentación</div>
+            <div class="category-header">Fuentes de Energía</div>
             <div class="toolbox-list">
-                <div class="toolbox-card" onclick="inyectarModulo('nice_power')">📟 Fuente Nice-Power Lab</div>
+                <div class="toolbox-card" onclick="inyectarComponente('nice_power')">📟 Fuente Nice-Power (DC)</div>
+                <div class="toolbox-card" onclick="inyectarComponente('fuente_ac')">🔌 Alternador de Red (AC)</div>
             </div>
-            <div class="category-header">Infraestructura y Control</div>
+            <div class="category-header">Componentes de Control</div>
             <div class="toolbox-list">
-                <div class="toolbox-card" onclick="inyectarModulo('resistencia')">🟫 Reóstato Lineal Pro</div>
-                <div class="toolbox-card" onclick="inyectarModulo('interruptor')">🎛️ Interruptor de Cuchilla</div>
+                <div class="toolbox-card" onclick="inyectarComponente('resistencia')">🟫 Resistencia Coef. Térmico</div>
+                <div class="toolbox-card" onclick="inyectarComponente('switch_industrial')">🎛️ Switch Industrial</div>
             </div>
-            <div class="category-header">Cargas Lineales y Dinámicas</div>
+            <div class="category-header">Cargas y Actuadores</div>
             <div class="toolbox-list">
-                <div class="toolbox-card" onclick="inyectarModulo('led_esferico')">🟢 Diodo LED Luminiscente</div>
-                <div class="toolbox-card" onclick="inyectarModulo('foco_edison')">💡 Lámpara Incandescente</div>
-                <div class="toolbox-card" onclick="inyectarModulo('motor_industrial')">⚙️ Motor DC con Núcleo PWM</div>
+                <div class="toolbox-card" onclick="inyectarComponente('led_esferico')">🟢 Diodo LED Encapsulado</div>
+                <div class="toolbox-card" onclick="inyectarComponente('foco_edison')">💡 Lámpara Edison Pro</div>
+                <div class="toolbox-card" onclick="inyectarComponente('motor_industrial')">⚙️ Motor DC con Núcleo PWM</div>
             </div>
         </div>
 
         <div id="workspace-viewport">
             <div id="inspector-overlay">
                 <div id="inspector-arena"></div>
-                <button class="btn-action" style="width:100%; margin-top:14px; background:var(--cyan); color:#000; font-weight:800; justify-content: center;" onclick="fijarYCompilarMalla()">Fijar y Aplicar Parámetros</button>
+                <button class="btn-action" style="width:100%; margin-top:14px; background:var(--cyan); color:#000; font-weight:800; justify-content: center;" onclick="fijarYCompilarParametros()">Fijar Valores en Malla</button>
             </div>
 
             <div id="sandbox">
@@ -212,14 +222,14 @@
             <div id="telemetry-dock">
                 <div class="instrument-slot">
                     <div class="instrument-header">
-                        <span>📟 Osciloscopio de Señal Activa</span>
+                        <span>📟 Osciloscopio Gráfico en Tiempo Real</span>
                         <span style="color:var(--green);" id="telemetry-v">0.0 V Tensión</span>
                     </div>
                     <div class="viewport-container"><canvas id="scope-time-render" class="instrument-canvas"></canvas></div>
                 </div>
                 <div class="instrument-slot">
                     <div class="instrument-header">
-                        <span>📡 Analizador Espectral Lineal FFT (Consumo Armónico)</span>
+                        <span>📡 Consumo de Frecuencia y Mediciones de Potencia Armónica</span>
                         <span style="color:var(--cyan);" id="telemetry-w">0.00 W Potencia</span>
                     </div>
                     <div class="viewport-container"><canvas id="scope-fft-render" class="instrument-canvas"></canvas></div>
@@ -239,6 +249,7 @@
         let nodoFoco = null;
         let cableFoco = null;
 
+        let cicloTiempoAC = 0;
         let inerciaRotacionMotor = 0;
         let historicoOsciloscopio = new Array(250).fill(0);
 
@@ -246,56 +257,70 @@
         const wireCanvas = document.getElementById('wire-canvas');
         const inspectorOverlay = document.getElementById('inspector-overlay');
 
-        // --- ARQUITECTURA DE PLANOS VECTORIALES DE ALTA FIDELIDAD ---
         const ARQUETIPOS = {
             nice_power: {
-                w: 130, h: 85,
+                w: 130, h: 85, tipoCorriente: 'DC',
                 pines: [{id:'p', x:25, y:65, pol:'+', cx:-14, cy:-2}, {id:'n', x:105, y:65, pol:'-', cx:10, cy:-2}],
-                ajustes: {v: 12, i_limit: 5},
+                ajustes: {v: 12, i_limit: 10},
                 render: (m) => `
                     <svg viewBox="0 0 130 85" width="100%" height="100%">
                         <rect x="5" y="5" width="120" height="75" fill="#1e293b" stroke="var(--cyan)" stroke-width="2.5" rx="6"/>
-                        <rect x="15" y="15" width="100" height="26" fill="#020617" stroke="#475569" rx="4"/>
-                        <text x="20" y="32" fill="var(--green)" font-family="monospace" font-size="13" font-weight="bold" id="v_screen_${m.id}">${parseFloat(m.ajustes.v).toFixed(1)}V</text>
-                        <text x="75" y="32" fill="var(--red)" font-family="monospace" font-size="13" font-weight="bold" id="i_screen_${m.id}">0.00A</text>
-                        <circle cx="25" cy="65" r="8" fill="var(--red)"/>
-                        <circle cx="105" cy="65" r="8" fill="#38bdf8"/>
+                        <text x="25" y="24" fill="#fff" font-size="9" font-family="sans-serif" font-weight="bold">NICE-POWER DC</text>
+                        <rect x="15" y="30" width="100" height="22" fill="#020617" stroke="#475569" rx="4"/>
+                        <text x="20" y="45" fill="var(--green)" font-family="monospace" font-size="12" font-weight="bold" id="v_screen_${m.id}">${parseFloat(m.ajustes.v).toFixed(1)}V</text>
+                        <text x="75" y="45" fill="var(--red)" font-family="monospace" font-size="12" font-weight="bold" id="i_screen_${m.id}">0.00A</text>
+                        <circle cx="25" cy="65" r="7" fill="var(--red)"/>
+                        <circle cx="105" cy="65" r="7" fill="#38bdf8"/>
+                    </svg>`
+            },
+            fuente_ac: {
+                w: 130, h: 85, tipoCorriente: 'AC',
+                pines: [{id:'p', x:25, y:65, pol:'L', cx:-14, cy:-2}, {id:'n', x:105, y:65, pol:'N', cx:10, cy:-2}],
+                ajustes: {v: 110, f: 60},
+                render: (m) => `
+                    <svg viewBox="0 0 130 85" width="100%" height="100%">
+                        <rect x="5" y="5" width="120" height="75" fill="#1e293b" stroke="var(--yellow)" stroke-width="2.5" rx="6"/>
+                        <text x="25" y="22" fill="#fff" font-size="9" font-family="sans-serif" font-weight="bold">GENERADOR AC</text>
+                        <path d="M 40 40 Q 50 25 60 40 Q 70 55 80 40" fill="none" stroke="var(--cyan)" stroke-width="3"/>
+                        <text x="45" y="55" fill="var(--yellow)" font-family="monospace" font-size="10" font-weight="bold">${m.ajustes.f} Hz</text>
+                        <circle cx="25" cy="65" r="7" fill="#64748b"/>
+                        <circle cx="105" cy="65" r="7" fill="#64748b"/>
                     </svg>`
             },
             resistencia: {
                 w: 110, h: 55,
                 pines: [{id:'p', x:5, y:28, pol:'+', cx:4, cy:-12}, {id:'n', x:105, y:28, pol:'-', cx:-12, cy:-12}],
-                ajustes: {r: 100},
+                ajustes: {r: 10, w_max: 15}, // w_max = Vatios máximos tolerados antes de oscilar y quemarse
                 render: (m) => `
                     <svg viewBox="0 0 110 55">
                         <line x1="5" y1="28" x2="25" y2="28" stroke="#64748b" stroke-width="3"/>
-                        <rect x="25" y="15" width="60" height="26" fill="#fef08a" stroke="#b45309" rx="4"/>
-                        <rect x="38" y="15" width="7" height="26" fill="#b45309"/>
-                        <rect x="52" y="15" width="7" height="26" fill="#000"/>
-                        <rect x="66" y="15" width="7" height="26" fill="#ef4444"/>
+                        <rect x="25" y="15" width="60" height="26" fill="#fef08a" stroke="#b45309" rx="4" id="res_body_${m.id}"/>
+                        <text x="32" y="32" fill="#000" font-weight="bold" font-size="10">RESISTENCIA</text>
                         <line x1="85" y1="28" x2="105" y2="28" stroke="#64748b" stroke-width="3"/>
                     </svg>`
             },
-            interruptor: {
+            switch_industrial: {
                 w: 100, h: 60,
-                pines: [{id:'p', x:5, y:38, pol:'+', cx:4, cy:-14}, {id:'n', x:95, y:38, pol:'-', cx:-12, cy:-14}],
+                // SWITCH INDUSTRIAL SIN POLARIDADES EXPLICITAS (+ / -) SEPARADAS
+                pines: [{id:'p', x:5, y:30, pol:'', cx:0, cy:0}, {id:'n', x:95, y:30, pol:'', cx:0, cy:0}],
                 ajustes: {cerrado: false},
                 render: (m) => {
-                    let dCuchilla = m.ajustes.cerrado ? "M 25 38 L 75 38" : "M 25 38 L 65 12";
+                    let dCuchilla = m.ajustes.cerrado ? "M 20 30 L 80 30" : "M 20 30 L 65 10";
                     let colorCuchilla = m.ajustes.cerrado ? "var(--green)" : "var(--red)";
                     return `
                     <svg viewBox="0 0 100 60">
-                        <rect x="15" y="24" width="70" height="28" fill="#0f172a" stroke="#475569" rx="4"/>
-                        <circle cx="25" cy="38" r="6" fill="#94a3b8"/>
-                        <circle cx="75" cy="38" r="6" fill="#94a3b8"/>
-                        <path d="${dCuchilla}" stroke="${colorCuchilla}" stroke-width="5" stroke-linecap="round" id="blade_line_${m.id}"/>
+                        <rect x="15" y="15" width="70" height="35" fill="#0f172a" stroke="#475569" rx="4"/>
+                        <text x="25" y="45" fill="#94a3b8" font-size="8" font-weight="bold">SWITCH IND.</text>
+                        <circle cx="20" cy="30" r="5" fill="#94a3b8"/>
+                        <circle cx="80" cy="30" r="5" fill="#94a3b8"/>
+                        <path d="${dCuchilla}" stroke="${colorCuchilla}" stroke-width="4.5" stroke-linecap="round" id="blade_line_${m.id}"/>
                     </svg>`;
                 }
             },
             led_esferico: {
                 w: 80, h: 80,
                 pines: [{id:'p', x:15, y:65, pol:'+', cx:-10, cy:-16}, {id:'n', x:65, y:65, pol:'-', cx:8, cy:-16}],
-                ajustes: {v_critico: 3.8},
+                ajustes: {v_critico: 5},
                 render: (m) => `
                     <svg viewBox="0 0 80 80">
                         <line x1="15" y1="42" x2="15" y2="65" stroke="#64748b" stroke-width="3"/>
@@ -307,7 +332,7 @@
             foco_edison: {
                 w: 85, h: 95,
                 pines: [{id:'p', x:15, y:80, pol:'+', cx:-12, cy:-14}, {id:'n', x:70, y:80, pol:'-', cx:10, cy:-14}],
-                ajustes: {r_int: 25, v_critico: 28},
+                ajustes: {r_int: 35, v_critico: 150},
                 render: (m) => `
                     <svg viewBox="0 0 85 95">
                         <rect x="28" y="58" width="30" height="20" fill="#4b5563" rx="2"/>
@@ -318,46 +343,33 @@
             motor_industrial: {
                 w: 110, h: 95,
                 pines: [{id:'p', x:5, y:52, pol:'+', cx:4, cy:-14}, {id:'n', x:105, y:52, pol:'-', cx:-12, cy:-14}],
-                ajustes: {r_int: 12, pwm: 100, torque_load: 0.1}, 
+                ajustes: {r_int: 20, pwm: 100}, 
                 render: (m) => `
                     <svg viewBox="0 0 110 95">
                         <rect x="20" y="15" width="70" height="65" fill="#334155" stroke="#cbd5e1" stroke-width="2" rx="6"/>
-                        <rect x="30" y="22" width="50" height="6" fill="#1e293b"/>
-                        <rect x="30" y="66" width="50" height="6" fill="#1e293b"/>
                         <g id="rotor_fan_${m.id}" style="transform-origin: 55px 47px;">
                             <circle cx="55" cy="47" r="9" fill="var(--red)"/>
                             <path d="M 55 47 Q 25 5 10 20 Q 30 38 55 47" fill="#94a3b8" stroke="#fff"/>
                             <path d="M 55 47 Q 85 89 100 74 Q 80 56 55 47" fill="#94a3b8" stroke="#fff"/>
                             <path d="M 55 47 Q 95 20 80 10 Q 60 30 55 47" fill="#94a3b8" stroke="#fff"/>
-                            <path d="M 55 47 Q 15 75 10 74 Q 30 65 55 47" fill="#94a3b8" stroke="#fff"/>
                         </g>
                     </svg>`
             }
         };
 
-        function salirDelLaboratorio() {
-            if(confirm("¿Está seguro de que desea cerrar la sesión de simulación actual? Se perderá el avance de la malla.")) {
-                document.body.innerHTML = `
-                    <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#02040a; color:#fff; font-family:sans-serif;">
-                        <h1 style="color:var(--cyan); margin-bottom:10px;">⚡ Luiyi-Energy LAB</h1>
-                        <p style="color:#64748b;">Entorno de Laboratorio Terminado con Éxito de forma Segura.</p>
-                        <button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:5px; cursor:pointer; font-weight:bold;">Volver a Entrar al Laboratorio</button>
-                    </div>`;
-            }
-        }
-
-        function inyectarModulo(tipo) {
+        function inyectarComponente(tipo) {
             correlativoModId++;
             let d = ARQUETIPOS[tipo];
             let nuevo = {
-                id: `${tipo}_${correlativoModId}`, tipo, x: 220, y: 160, rotacion: 0,
-                ajustes: structuredClone(d.ajustes), v_in: 0, i_in: 0, quemado: false
+                id: `${tipo}_${correlativoModId}`, tipo, x: 230, y: 150, rotacion: 0,
+                ajustes: structuredClone(d.ajustes), v_in: 0, i_in: 0, quemado: false,
+                tiempoSobrecalentado: 0, enSobrecalentamiento: false
             };
             moduloMatriz.push(nuevo);
-            construirModuloEnViewport(nuevo);
+            construirModuloDOM(nuevo);
         }
 
-        function construirModuloEnViewport(m) {
+        function construirModuloDOM(m) {
             let d = ARQUETIPOS[m.tipo];
             let div = document.createElement('div');
             div.id = m.id; div.className = 'lab-element';
@@ -378,35 +390,37 @@
                     trazarCableMalla(m.id, p.id);
                 });
 
-                let lbl = document.createElement('div');
-                lbl.className = `pin-label ${p.pol==='+'?'lbl-pos':'lbl-neg'}`;
-                lbl.style.left = (p.x + p.cx) + 'px'; lbl.style.top = (p.y + p.cy) + 'px';
-                div.appendChild(lbl); lbl.innerText = p.pol;
+                if(p.pol !== '') {
+                    let lbl = document.createElement('div');
+                    lbl.className = `pin-label ${p.pol==='+'||p.pol==='L'?'lbl-pos':'lbl-neg'}`;
+                    lbl.style.left = (p.x + p.cx) + 'px'; lbl.style.top = (p.y + p.cy) + 'px';
+                    div.appendChild(lbl); lbl.innerText = p.pol;
+                }
 
                 div.appendChild(pin);
             });
 
             sandbox.appendChild(div);
-            configurarFisicasArrastre(div, m);
+            configurarArrastre(div, m);
 
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (m.tipo === 'interruptor') {
+                if (m.tipo === 'switch_industrial') {
                     if (m.quemado) return;
                     m.ajustes.cerrado = !m.ajustes.cerrado;
                     let cuchilla = div.querySelector(`#blade_line_${m.id}`);
                     if (cuchilla) {
-                        cuchilla.setAttribute('d', m.ajustes.cerrado ? "M 25 38 L 75 38" : "M 25 38 L 65 12");
+                        cuchilla.setAttribute('d', m.ajustes.cerrado ? "M 20 30 L 80 30" : "M 20 30 L 65 10");
                         cuchilla.setAttribute('stroke', m.ajustes.cerrado ? "var(--green)" : "var(--red)");
                     }
-                    compilarMallaElectrica();
+                    resolverMallaElectrica();
                 } else {
                     abrirInspectorFlotante(m, e);
                 }
             });
         }
 
-        function configurarFisicasArrastre(div, m) {
+        function configurarArrastre(div, m) {
             let arrastrando = false; let startX, startY;
             div.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('terminal-pin')) return;
@@ -419,14 +433,14 @@
                 m.x = Math.round((e.clientX - startX) / 20) * 20;
                 m.y = Math.round((e.clientY - startY) / 20) * 20;
                 div.style.left = m.x + 'px'; div.style.top = m.y + 'px';
-                compilarMallaElectrica();
+                resolverMallaElectrica();
             });
             document.addEventListener('mouseup', () => { arrastrando = false; });
         }
 
         function trazarCableMalla(modId, pinId) {
             pinOrigen = { modId, pinId };
-            let coord = resolverCoordenadaCentroPin(modId, pinId);
+            let coord = resolverCoordenadaPin(modId, pinId);
             
             cableGuiaGrafica = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             cableGuiaGrafica.setAttribute('x1', coord.x); cableGuiaGrafica.setAttribute('y1', coord.y);
@@ -455,24 +469,25 @@
                 let m2 = t.dataset.modId; let p2 = t.dataset.pinId;
                 if (m2 !== pinOrigen.modId || p2 !== pinOrigen.pinId) {
                     correlativoCableId++;
-                    conexionesCables.push({ id: correlativoCableId, m1: pinOrigen.modId, p1: pinOrigen.pinId, m2: m2, p2: p2, enRutaActiva: false });
+                    // PROPIEDAD ADICIONAL: calibre (AWG) asignable por cable para pruebas de consumo térmico
+                    conexionesCables.push({ id: correlativoCableId, m1: pinOrigen.modId, p1: pinOrigen.pinId, m2: m2, p2: p2, enRutaActiva: false, calibre: 18, caliente: false });
                 }
             }
             cableGuiaGrafica.remove(); cableGuiaGrafica = null; pinOrigen = null;
-            compilarMallaElectrica();
+            resolverMallaElectrica();
         }
 
-        function compilarMallaElectrica() {
+        function resolverMallaElectrica() {
             conexionesCables = conexionesCables.filter(w => moduloMatriz.some(co => co.id === w.m1) && moduloMatriz.some(co => co.id === w.m2));
             document.querySelectorAll('.terminal-pin').forEach(p => p.classList.remove('plugged'));
             document.querySelectorAll('.wire-segment').forEach(w => w.remove());
 
-            // EJECUCIÓN DEL SOLVER MATRICIAL
-            calcularFlujosDeLazoKirchhoff();
+            // COMPUTAR SOLVER INTEGRADO AC / DC
+            ejecutarAlgoritmoMallasKirchhoff();
 
             conexionesCables.forEach(w => {
-                let c1 = resolverCoordenadaCentroPin(w.m1, w.p1);
-                let c2 = resolverCoordenadaCentroPin(w.m2, w.p2);
+                let c1 = resolverCoordenadaPin(w.m1, w.p1);
+                let c2 = resolverCoordenadaPin(w.m2, w.p2);
                 if (!c1 || !c2) return;
 
                 let tp1 = document.getElementById(`pin_${w.m1}_${w.p1}`);
@@ -483,23 +498,28 @@
                 let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 let medX = (c1.x + c2.x) / 2;
                 path.setAttribute('d', `M ${c1.x} ${c1.y} L ${medX} ${c1.y} L ${medX} ${c2.y} L ${c2.x} ${c2.y}`);
-                path.setAttribute('class', 'wire-segment');
+                
+                // Grosor dinámico adaptado al calibre AWG seleccionado por el usuario
+                let grosorCable = 6 - (w.calibre - 10) * 0.3;
+                path.setAttribute('stroke-width', grosorCable);
 
-                // NITIDEZ DINÁMICA: Solo brilla si es parte de la ruta que cierra el circuito con retorno
-                if (w.enRutaActiva) {
-                    path.classList.add('energized');
-                }
+                let claseCable = 'wire-segment';
+                if (w.enRutaActiva) claseCable += ' energized';
+                if (w.caliente) claseCable += ' wire-hot';
+                path.setAttribute('class', claseCable);
+                path.setAttribute('stroke', w.enRutaActiva ? 'var(--green)' : '#334155');
 
+                // MODIFICADOR DIRECTO: Permite alterar el cable sin romper la maqueta
                 path.addEventListener('click', (ev) => {
                     ev.stopPropagation();
-                    desplegarMenuCableInspector(w, ev);
+                    abrirInspectorCable(w, ev);
                 });
 
                 wireCanvas.appendChild(path);
             });
         }
 
-        function resolverCoordenadaCentroPin(modId, pinId) {
+        function resolverCoordenadaPin(modId, pinId) {
             let comp = moduloMatriz.find(c => c.id === modId); if (!comp) return null;
             let d = ARQUETIPOS[comp.tipo]; let p = d.pines.find(x => x.id === pinId);
             let cx = d.w / 2; let cy = d.h / 2;
@@ -510,7 +530,7 @@
             return { x: comp.x + cx + rx, y: comp.y + cy + ry };
         }
 
-        // --- MÓDULO INSPECTOR UNIVERSAL MÁSTER (CON ROTACIÓN INTEGRAL) ---
+        // --- MENÚ CONTRALOR FLOTANTE UNIFICADO ---
         function abrirInspectorFlotante(comp, e) {
             nodoFoco = comp; cableFoco = null;
             let rect = sandbox.getBoundingClientRect();
@@ -519,173 +539,215 @@
             inspectorOverlay.style.display = 'block';
 
             let arena = document.getElementById('inspector-arena');
-            let html = `<div style="font-weight:800; color:var(--cyan); font-size:13px; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:4px;">⚙️ INSPECTOR DE MÓDULO</div>`;
+            let html = `<div style="font-weight:800; color:var(--cyan); font-size:12px; margin-bottom:6px; border-bottom:1px solid #334155; padding-bottom:4px;">PROPIEDADES DE COMPONENTE</div>`;
             
-            // Sistema de rotación integrado para TODOS los módulos (Incluido Switch)
-            html += `<button class="btn-action" style="width:100%; font-size:11px; margin-bottom:8px; justify-content:center; background:#1e293b;" onclick="rotarModuloSeleccionado()">🔄 Girar Módulo 90°</button>`;
+            html += `<button class="btn-action" style="width:100%; font-size:11px; margin-bottom:8px; justify-content:center; background:#1e293b;" onclick="rotarComponente()">🔄 Rotar Bloque 90°</button>`;
 
             if (comp.tipo === 'resistencia') {
-                html += `<label>Resistencia Carga (Ω):</label>
+                html += `<label>Valor Óhmico (Ω):</label>
                          <div class="numeric-stepper">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_res', -25)">-</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_res', -5)">-</button>
                             <input type="number" id="inp_res" value="${comp.ajustes.r}">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_res', 25)">+</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_res', 5)">+</button>
+                         </div>
+                         <label>Potencia Disipación Max (W):</label>
+                         <div class="numeric-stepper">
+                            <input type="number" id="inp_wmax" value="${comp.ajustes.w_max}">
                          </div>`;
             } else if (comp.tipo === 'nice_power') {
-                html += `<label>Voltaje Regulado (V):</label>
+                html += `<label>Tensión Continua (V):</label>
                          <div class="numeric-stepper">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_volt', -1)">-</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_volt', -2)">-</button>
                             <input type="number" id="inp_volt" value="${comp.ajustes.v}">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_volt', 1)">+</button>
-                         </div>
-                         <label>Límite Amperaje (A):</label>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_volt', 2)">+</button>
+                         </div>`;
+            } else if (comp.tipo === 'fuente_ac') {
+                html += `<label>Voltaje Alterno RMS (V):</label>
                          <div class="numeric-stepper">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_amp', -0.5)">-</button>
-                            <input type="number" id="inp_amp" step="0.1" value="${comp.ajustes.i_limit}">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_amp', 0.5)">+</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_vac', -10)">-</button>
+                            <input type="number" id="inp_vac" value="${comp.ajustes.v}">
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_vac', 10)">+</button>
+                         </div>
+                         <label>Frecuencia de Red (Hz):</label>
+                         <div class="numeric-stepper">
+                            <input type="number" id="inp_fac" value="${comp.ajustes.f}">
                          </div>`;
             } else if (comp.tipo === 'motor_industrial') {
-                html += `<label>Ciclo Trabajo PWM (%):</label>
+                html += `<label>Modulación de Pulso PWM (%):</label>
                          <div class="numeric-stepper">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_pwm', -10)">-</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_pwm', -10)">-</button>
                             <input type="number" id="inp_pwm" min="0" max="100" value="${comp.ajustes.pwm}">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_pwm', 10)">+</button>
-                         </div>
-                         <label>Torque / Carga Mecánica (N·m):</label>
-                         <div class="numeric-stepper">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_tq', -0.05)">-</button>
-                            <input type="number" id="inp_tq" step="0.05" value="${comp.ajustes.torque_load}">
-                            <button class="step-ctrl" onclick="modificarValorPasos('inp_tq', 0.05)">+</button>
+                            <button class="step-ctrl" onclick="cambiarPasoTeclado('inp_pwm', 10)">+</button>
                          </div>`;
             }
 
-            html += `<button class="btn-action btn-exit" style="width:100%; margin-top:12px; font-size:11px; justify-content:center;" onclick="eliminarModuloSeleccionado()">🗑️ Eliminar Componente</button>`;
+            html += `<button class="btn-action btn-exit" style="width:100%; margin-top:12px; font-size:11px; justify-content:center;" onclick="eliminarComponente()">🗑️ Retirar Bloque</button>`;
             arena.innerHTML = html;
         }
 
-        function desplegarmenuCableInspector(cable, e) {
+        function abrirInspectorCable(cable, e) {
             cableFoco = cable; nodoFoco = null;
             let rect = sandbox.getBoundingClientRect();
             inspectorOverlay.style.left = (e.clientX - rect.left + 15) + 'px';
             inspectorOverlay.style.top = (e.clientY - rect.top + 15) + 'px';
             inspectorOverlay.style.display = 'block';
 
-            document.getElementById('inspector-arena').innerHTML = `
-                <div style="font-weight:bold; color:var(--yellow); font-size:12px; margin-bottom:6px;">LÍNEA CABLE DE MALLA</div>
-                <button class="btn-action btn-exit" style="width:100%; font-size:11px; justify-content:center;" onclick="desenchufarCableMalla()">✂️ Cortar y Retirar Cable</button>
+            let arena = document.getElementById('inspector-arena');
+            arena.innerHTML = `
+                <div style="font-weight:bold; color:var(--yellow); font-size:12px; margin-bottom:6px;">PROPIEDADES DEL CABLE</div>
+                <label>Calibre de Conducción (AWG):</label>
+                <div class="numeric-stepper">
+                    <select id="inp_calibre">
+                        <option value="10" ${cable.calibre == 10 ? 'selected':''}>AWG 10 (Grueso - Industrial)</option>
+                        <option value="14" ${cable.calibre == 14 ? 'selected':''}>AWG 14 (Estándar)</option>
+                        <option value="18" ${cable.calibre == 18 ? 'selected':''}>AWG 18 (Delgado)</option>
+                        <option value="22" ${cable.calibre == 22 ? 'selected':''}>AWG 22 (Ultra Fino / Calienta Fácil)</option>
+                    </select>
+                </div>
+                <button class="btn-action btn-exit" style="width:100%; margin-top:12px; font-size:11px; justify-content:center;" onclick="desenchufarCableMalla()">✂️ Desenchufar / Cortar Cable</button>
             `;
         }
 
-        function modificarValorPasos(id, paso) {
+        function cambiarPasoTeclado(id, paso) {
             let el = document.getElementById(id); if(el) el.value = (parseFloat(el.value) || 0) + paso;
         }
 
-        function fijarYCompilarMalla() {
-            if (!nodoFoco) return;
-            if (nodoFoco.tipo === 'resistencia') {
-                let r = parseFloat(document.getElementById('inp_res').value);
-                if (!isNaN(r) && r >= 1) nodoFoco.ajustes.r = r;
-            } else if (nodoFoco.tipo === 'nice_power') {
-                let v = parseFloat(document.getElementById('inp_volt').value);
-                let i = parseFloat(document.getElementById('inp_amp').value);
-                if (!isNaN(v)) nodoFoco.ajustes.v = v;
-                if (!isNaN(i) && i > 0) nodoFoco.ajustes.i_limit = i;
-            } else if (nodoFoco.tipo === 'motor_industrial') {
-                let p = parseFloat(document.getElementById('inp_pwm').value);
-                let t = parseFloat(document.getElementById('inp_tq').value);
-                if (!isNaN(p)) nodoFoco.ajustes.pwm = Math.max(0, Math.min(100, p));
-                if (!isNaN(t) && t >= 0) nodoFoco.ajustes.torque_load = t;
+        function fijarYCompilarParametros() {
+            if (nodoFoco) {
+                if (nodoFoco.tipo === 'resistencia') {
+                    let r = parseFloat(document.getElementById('inp_res').value);
+                    let w = parseFloat(document.getElementById('inp_wmax').value);
+                    if (!isNaN(r) && r >= 0.5) nodoFoco.ajustes.r = r;
+                    if (!isNaN(w)) nodoFoco.ajustes.w_max = w;
+                } else if (nodoFoco.tipo === 'nice_power') {
+                    let v = parseFloat(document.getElementById('inp_volt').value);
+                    if (!isNaN(v)) nodoFoco.ajustes.v = v;
+                } else if (nodoFoco.tipo === 'fuente_ac') {
+                    let v = parseFloat(document.getElementById('inp_vac').value);
+                    let f = parseFloat(document.getElementById('inp_fac').value);
+                    if (!isNaN(v)) nodoFoco.ajustes.v = v;
+                    if (!isNaN(f) && f > 0) nodoFoco.ajustes.f = f;
+                } else if (nodoFoco.tipo === 'motor_industrial') {
+                    let p = parseFloat(document.getElementById('inp_pwm').value);
+                    if (!isNaN(p)) nodoFoco.ajustes.pwm = Math.max(0, Math.min(100, p));
+                }
+            } else if (cableFoco) {
+                cableFoco.calibre = parseInt(document.getElementById('inp_calibre').value);
             }
-            compilarMallaElectrica(); cerrarInspector();
+            resolverMallaElectrica(); cerrarInspector();
         }
 
-        function rotarModuloSeleccionado() {
+        function rotarComponente() {
             if (nodoFoco) {
                 nodoFoco.rotacion = (nodoFoco.rotacion + 90) % 360;
                 let div = document.getElementById(nodoFoco.id);
                 if (div) div.style.transform = `rotate(${nodoFoco.rotacion}deg)`;
-                compilarMallaElectrica();
+                resolverMallaElectrica();
             }
         }
 
-        function eliminarModuloSeleccionado() {
+        function eliminarComponente() {
             if (nodoFoco) {
                 moduloMatriz = moduloMatriz.filter(c => c.id !== nodoFoco.id);
                 document.getElementById(nodoFoco.id).remove();
-                compilarMallaElectrica(); cerrarInspector();
+                resolverMallaElectrica(); cerrarInspector();
             }
         }
 
         function desenchufarCableMalla() {
             if (cableFoco) {
                 conexionesCables = conexionesCables.filter(w => w.id !== cableFoco.id);
-                compilarMallaElectrica(); cerrarInspector();
+                resolverMallaElectrica(); cerrarInspector();
             }
         }
 
         function cerrarInspector() { inspectorOverlay.style.display = 'none'; }
 
-        // --- CORE MATRICIAL: SOLVER KIRCHHOFF Y CABLES CON NITIDEZ INTELIGENTE ---
-        function calcularFlujosDeLazoKirchhoff() {
-            // Resetear estados físicos
+        // --- SOLVER DE MALLAS: CABLES INTELIGENTES CON EFECTO TÉRMICO JOULE ---
+        function ejecutarAlgoritmoMallasKirchhoff() {
             moduloMatriz.forEach(m => { if(!m.quemado) { m.v_in = 0; m.i_in = 0; } });
-            conexionesCables.forEach(w => w.enRutaActiva = false);
+            conexionesCables.forEach(w => { w.enRutaActiva = false; w.caliente = false; });
 
-            let fuentes = moduloMatriz.filter(c => c.tipo === 'nice_power' && !c.quemado);
+            let fuentes = moduloMatriz.filter(c => (c.tipo === 'nice_power' || c.tipo === 'fuente_ac') && !c.quemado);
 
             fuentes.forEach(f => {
-                let caminosExitosos = [];
-                // Analizar rutas que cierran el circuito
-                analizarGrafoMalla(f.id, 'p', f.id, 'n', new Set(), [], caminosExitosos);
+                let lazosEncontrados = [];
+                analizarRutasGrafo(f.id, 'p', f.id, 'n', new Set(), [], lazosEncontrados);
 
-                if (caminosExitosos.length > 0) {
-                    // Tomamos el camino principal de retorno
-                    let rutaOptima = caminosExitosos[0];
+                if (lazosEncontrados.length > 0) {
+                    let principal = lazosEncontrados[0];
                     let rTotalMalla = 0;
-                    let swCorteAbierto = false;
+                    let swAbierto = false;
 
-                    // Marcar cables de esta malla para que cambien su nitidez e iluminación
-                    rutaOptima.cablesRuta.forEach(wId => {
+                    principal.cablesRuta.forEach(wId => {
                         let w = conexionesCables.find(x => x.id === wId);
                         if (w) w.enRutaActiva = true;
                     });
 
-                    rutaOptima.nodosRuta.forEach(nId => {
+                    principal.nodosRuta.forEach(nId => {
                         let co = moduloMatriz.find(x => x.id === nId);
                         if (co.quemado) rTotalMalla += Infinity;
                         if (co.tipo === 'resistencia') rTotalMalla += parseFloat(co.ajustes.r);
-                        if (co.tipo === 'motor_industrial') rTotalMalla += parseFloat(co.ajustes.r_int);
                         if (co.tipo === 'foco_edison') rTotalMalla += parseFloat(co.ajustes.r_int);
-                        if (co.tipo === 'led_esferico') rTotalMalla += 20; 
-                        if (co.tipo === 'interruptor' && !co.ajustes.cerrado) swCorteAbierto = true;
+                        if (co.tipo === 'motor_industrial') rTotalMalla += parseFloat(co.ajustes.r_int);
+                        if (co.tipo === 'led_esferico') rTotalMalla += 15;
+                        if (co.tipo === 'switch_industrial' && !co.ajustes.cerrado) swAbierto = true;
                     });
 
-                    if (swCorteAbierto || rTotalMalla === Infinity) {
-                        // Si el switch está abierto, apagamos la iluminación de la ruta
-                        rutaOptima.cablesRuta.forEach(wId => {
+                    if (swAbierto || rTotalMalla === Infinity) {
+                        principal.cablesRuta.forEach(wId => {
                             let w = conexionesCables.find(x => x.id === wId);
                             if (w) w.enRutaActiva = false;
                         });
                         return;
                     }
 
-                    if (rTotalMalla < 0.1) rTotalMalla = 0.1; // Seguridad contra corto directo
-                    let corrienteAsignada = f.ajustes.v / rTotalMalla;
-
-                    // El amperaje se adapta inteligentemente a las cargas del usuario
-                    if (corrienteAsignada > f.ajustes.i_limit) {
-                        corrienteAsignada = f.ajustes.i_limit; // Recorte por seguridad de la fuente
+                    if (rTotalMalla < 0.2) rTotalMalla = 0.2;
+                    
+                    // Cálculo de tensión instantánea considerando si es Corriente Alterna
+                    let tVolt = f.ajustes.v;
+                    if (f.tipo === 'fuente_ac') {
+                        let radianes = (cicloTiempoAC * 2 * Math.PI * f.ajustes.f) / 1000;
+                        tVolt = f.ajustes.v * Math.sin(radianes); // Voltaje senoidal dinámico
                     }
 
-                    f.i_in = corrienteAsignada;
+                    let corrienteMalla = Math.abs(tVolt) / rTotalMalla;
+                    f.i_in = corrienteMalla;
 
-                    rutaOptima.nodosRuta.forEach(nId => {
+                    // Evaluar calentamiento por sección del cable (Efecto Joule según calibre AWG)
+                    principal.cablesRuta.forEach(wId => {
+                        let w = conexionesCables.find(x => x.id === wId);
+                        if (w) {
+                            // Si la corriente supera la ampacidad límite del calibre AWG, el cable calienta
+                            let ampacidadLimite = (24 - w.calibre) * 1.2; 
+                            if (corrienteMalla > ampacidadLimite) {
+                                w.caliente = true;
+                            }
+                        }
+                    });
+
+                    principal.nodosRuta.forEach(nId => {
                         let co = moduloMatriz.find(x => x.id === nId);
                         if (!co.quemado && co.id !== f.id) {
-                            co.i_in = corrienteAsignada;
-                            co.v_in = corrienteAsignada * (co.ajustes.r || co.ajustes.r_int || 20);
+                            co.i_in = corrienteMalla;
+                            co.v_in = corrienteMalla * (co.ajustes.r || co.ajustes.r_int || 15);
 
-                            // Protección térmica real por sobretensión
+                            // REGLA SOLICITADA: Análisis Térmico de la Resistencia
+                            if (co.tipo === 'resistencia') {
+                                let vatiosDisipados = co.v_in * co.i_in;
+                                if (vatiosDisipados > co.ajustes.w_max) {
+                                    co.enSobrecalentamiento = true;
+                                    co.tiempoSobrecalentated += 0.05; // Incremento de tiempo térmico
+                                    if (co.tiempoSobrecalentated > 5.0) { // Si persiste más de 5 segundos, explota
+                                        co.quemado = true;
+                                        co.enSobrecalentamiento = false;
+                                    }
+                                } else {
+                                    co.enSobrecalentamiento = false;
+                                    co.tiempoSobrecalentated = Math.max(0, co.tiempoSobrecalentated - 0.1);
+                                }
+                            }
+
                             let vCritico = ARQUETIPOS[co.tipo]?.ajustes?.v_critico;
                             if (vCritico && co.v_in > vCritico) co.quemado = true;
                         }
@@ -693,10 +755,10 @@
                 }
             });
 
-            renderizarFisicasYBrillos();
+            ejecutarAccionesFisicasUI();
         }
 
-        function analizarGrafoMalla(nodoAct, pinAct, nodoObj, pinObj, visitados, cablesRecorridos, coleccion) {
+        function analizarRutasGrafo(nodoAct, pinAct, nodoObj, pinObj, visitados, cablesRecorridos, coleccion) {
             let llave = `${nodoAct}_${pinAct}`; if (visitados.has(llave)) return; visitados.add(llave);
             let enlaces = conexionesCables.filter(c => (c.m1 === nodoAct && c.p1 === pinAct) || (c.m2 === nodoAct && c.p2 === pinAct));
 
@@ -713,13 +775,13 @@
                 let d = ARQUETIPOS[moduloMatriz.find(x => x.id === proxN)?.tipo]; if (!d) return;
                 let pinOpuesto = d.pines.find(p => p.id !== proxP); if (!pinOpuesto) return;
 
-                analizarGrafoMalla(proxN, pinOpuesto.id, nodoObj, pinObj, new Set(visitados), copiaCables, coleccion);
+                analizarRutasGrafo(proxN, pinOpuesto.id, nodoObj, pinObj, new Set(visitados), copiaCables, coleccion);
             });
         }
 
-        // --- SISTEMA LUMÍNICO INDEPENDIENTE Y CONTROL DE MOTORES PWM ---
-        function renderizarFisicasYBrillos() {
-            let limitadorActivo = false;
+        // --- MANEJO DE COMPORTAMIENTOS DINÁMICOS ---
+        function ejecutarAccionesFisicasUI() {
+            let sobrecargaTermicaActiva = false;
 
             moduloMatriz.forEach(m => {
                 let div = document.getElementById(m.id);
@@ -728,25 +790,38 @@
 
                 if (m.quemado) {
                     div.classList.add('blown-out');
-                    badge.innerHTML = `<span style="color:var(--red); font-weight:bold;">💥 HARDWARE DESTRUIDO</span>`;
+                    div.classList.remove('overheating');
+                    badge.innerHTML = `<span style="color:var(--red); font-weight:bold;">💥 ELEMENTO FUNDIDO</span>`;
                     return;
                 }
 
-                if (m.tipo === 'nice_power') {
-                    div.querySelector(`#v_screen_${m.id}`).textContent = `${parseFloat(m.ajustes.v).toFixed(1)}V`;
-                    div.querySelector(`#i_screen_${m.id}`).textContent = `${parseFloat(m.i_in).toFixed(2)}A`;
-                    badge.innerHTML = `Nice-Power Base`;
-                    if (m.i_in >= m.ajustes.i_limit - 0.05 && m.i_in > 0) limitadorActivo = true;
+                // Titileo y oscilación por sobrecalentamiento térmico
+                if (m.enSobrecalentamiento) {
+                    div.classList.add('overheating');
+                    sobrecargaTermicaActiva = true;
+                } else {
+                    div.classList.remove('overheating');
+                }
+
+                if (m.tipo === 'nice_power' || m.tipo === 'fuente_ac') {
+                    let srcV = m.ajustes.v;
+                    if (m.tipo === 'fuente_ac') {
+                        let rad = (cicloTiempoAC * 2 * Math.PI * m.ajustes.f) / 1000;
+                        srcV = m.ajustes.v * Math.sin(rad);
+                    }
+                    if(div.querySelector(`#v_screen_${m.id}`)) {
+                        div.querySelector(`#v_screen_${m.id}`).textContent = `${Math.abs(srcV).toFixed(1)}V`;
+                        div.querySelector(`#i_screen_${m.id}`).textContent = `${m.i_in.toFixed(2)}A`;
+                    }
+                    badge.innerHTML = `${m.tipo === 'fuente_ac' ? 'Alternador AC':'Nice-Power DC'}`;
                     return;
                 }
 
-                // SÍ ENCIENDEN EN SERIE O PARALELO CON INDEPENDENCIA
                 if (m.tipo === 'led_esferico') {
                     let core = div.querySelector(`#led_core_${m.id}`);
-                    if (m.v_in > 1.4) {
-                        let factor = Math.min(1, m.v_in / 3.4);
+                    if (m.v_in > 1.5) {
                         core.setAttribute('fill', 'var(--green)');
-                        core.style.filter = `drop-shadow(0 0 ${16 * factor}px var(--green))`;
+                        core.style.filter = `drop-shadow(0 0 15px var(--green))`;
                     } else {
                         core.setAttribute('fill', 'rgba(57,255,14,0.05)'); core.style.filter = 'none';
                     }
@@ -755,94 +830,111 @@
                 if (m.tipo === 'foco_edison') {
                     let fil = div.querySelector(`#filament_wire_${m.id}`);
                     let glass = div.querySelector(`#bulb_glass_${m.id}`);
-                    if (m.v_in > 1.0) {
-                        let factor = Math.min(1, m.v_in / 24);
+                    if (m.v_in > 1.5) {
+                        let factor = Math.min(1, m.v_in / 120);
                         fil.setAttribute('stroke', '#ffea75');
-                        glass.style.fill = `rgba(245, 158, 11, ${factor * 0.45})`;
-                        fil.style.filter = `drop-shadow(0 0 ${14 * factor}px #f59e0b)`;
+                        glass.style.fill = `rgba(245, 158, 11, ${factor * 0.5})`;
+                        fil.style.filter = `drop-shadow(0 0 ${12 * factor}px #f59e0b)`;
                     } else {
                         fil.setAttribute('stroke', '#b45309'); glass.style.fill = 'none'; fil.style.filter = 'none';
                     }
                 }
 
-                // MOTOR INDUSTRIAL CON GENERADOR PWM REAL Y VELOCIDAD DE INERCIA
                 if (m.tipo === 'motor_industrial') {
                     let fan = div.querySelector(`#rotor_fan_${m.id}`);
                     if (m.v_in > 0.1 && fan) {
-                        // Ecuación física de RPM modulada por el ciclo PWM configurado por el usuario
-                        let factorPWM = (m.ajustes.pwm / 100);
-                        let rpmNominales = ((m.v_in * 320) - (m.ajustes.torque_load * 450)) * factorPWM;
-                        let rpmFinales = Math.max(0, rpmNominales);
-
-                        inerciaRotacionMotor += (rpmFinales / 180);
+                        let rFinales = (m.v_in * 150) * (m.ajustes.pwm / 100);
+                        inerciaRotacionMotor += (rFinales / 200);
                         fan.style.transform = `rotate(${inerciaRotacionMotor % 360}deg)`;
-                        badge.innerHTML = `⚙️ PWM: ${m.ajustes.pwm}%<br>${rpmFinales.toFixed(0)} RPM`;
+                        badge.innerHTML = `⚙️ ${rFinales.toFixed(0)} RPM`;
                         return;
                     } else {
-                        badge.innerHTML = `0 RPM (Sin Pulso)`;
+                        badge.innerHTML = `0 RPM`;
                     }
                 }
 
-                if (m.tipo === 'resistencia') badge.innerHTML = `${m.ajustes.r} Ω<br>${(m.i_in*1000).toFixed(0)} mA`;
-                else badge.innerHTML = `${m.v_in.toFixed(1)} V`;
+                if (m.tipo === 'resistencia') {
+                    badge.innerHTML = `Resistencia: ${m.ajustes.r} Ω<br>Temp: ${(m.tiempoSobrecalentated * 25 + 20).toFixed(0)} °C`;
+                } else {
+                    badge.innerHTML = `${m.v_in.toFixed(1)} V`;
+                }
             });
 
-            // GESTIÓN ANALÍTICA DE LA EXPRESIÓN DE LA CARITA INTERACTIVA
+            // CONTROL EXPLICITO DE LA CARITA SEGUN ESTADO FISICO
             let fac = document.getElementById('facial-expression');
             if (moduloMatriz.some(m => m.quemado)) {
-                fac.innerText = "💀 CIRCUITO DAÑADO (REVISE SECCIONES)"; fac.style.color = "var(--red)";
-            } else if (limitadorActivo) {
-                fac.innerText = "🤯 CRÍTICO: FUENTE EN PROTECCIÓN CC"; fac.style.color = "var(--yellow)";
+                fac.innerText = "💀 HARDWARE FUNDIDO / CIRCUITO DAÑADO"; fac.style.color = "var(--red)";
+            } else if (sobrecargaTermicaActiva) {
+                fac.innerText = "😰 ASUSTADO / SOBRECARGA TÉRMICA ACTIVA"; fac.style.color = "var(--orange)";
             } else if (moduloMatriz.some(m => m.i_in > 0.002)) {
-                fac.innerText = "⚡ MALLA COMPILADA Y OPERANDO (😃 OK)"; fac.style.color = "var(--green)";
+                fac.innerText = "😃 SISTEMA ACTIVO Y OPERANDO CORRECTAMENTE"; fac.style.color = "var(--green)";
             } else {
-                fac.innerText = "💤 EN ESPERA / CIRCUITO ABIERTO"; fac.style.color = "#64748b";
+                fac.innerText = "💤 CIRCUITO ABIERTO / EN ESPERA"; fac.style.color = "#64748b";
             }
         }
 
-        // --- MONITORES DE TELEMETRÍA AVANZADOS (OSCILOSCOPIO Y ANALIZADOR SPECTRAL) ---
-        function procesarGraficasEInstrumentos() {
-            let target = moduloMatriz.find(m => m.tipo === 'led_esferico' || m.tipo === 'foco_edison' || m.tipo === 'motor_industrial') || moduloMatriz[0];
-            let vMuestra = (target && !target.quemado) ? target.v_in : 0;
-            let wMuestra = (target && !target.quemado) ? target.v_in * target.i_in : 0;
+        // --- INSTRUMENTACIÓN AVANZADA: OSCILOSCOPIO CON OSCILACIÓN REAL ---
+        function procesarMuestreosGraficos() {
+            cicloTiempoAC += 25; // Incrementador de línea de tiempo temporal para generador AC
+            
+            let target = moduloMatriz.find(m => m.tipo === 'led_esferico' || m.tipo === 'foco_edison' || m.tipo === 'motor_industrial' || m.tipo === 'resistencia') || moduloMatriz[0];
+            
+            let vMuestra = 0;
+            let iMuestra = 0;
 
-            document.getElementById('telemetry-v').innerText = `${vMuestra.toFixed(1)} V en Carga`;
-            document.getElementById('telemetry-w').innerText = `${wMuestra.toFixed(2)} W Activos`;
+            if (target && !target.quemado) {
+                // Si la fuente activa de la malla es AC, capturamos el comportamiento senoidal directo
+                let fuenteActiva = moduloMatriz.find(f => (f.tipo === 'nice_power' || f.tipo === 'fuente_ac') && f.i_in > 0);
+                if (fuenteActiva && fuenteActiva.tipo === 'fuente_ac') {
+                    let rad = (cicloTiempoAC * 2 * Math.PI * fuenteActiva.ajustes.f) / 1000;
+                    // Proyectar la muestra proporcional en el osciloscopio
+                    vMuestra = target.v_in * Math.sin(rad);
+                } else {
+                    vMuestra = target.v_in;
+                }
+                iMuestra = target.i_in;
+            }
+
+            document.getElementById('telemetry-v').innerText = `${vMuestra.toFixed(1)} V Real`;
+            document.getElementById('telemetry-w').innerText = `${(Math.abs(vMuestra)*iMuestra).toFixed(2)} W Activos`;
 
             historicoOsciloscopio.push(vMuestra);
             if (historicoOsciloscopio.length > 250) historicoOsciloscopio.shift();
 
-            // RENDERIZADO DEL OSCILOSCOPIO PROFESIONAL
+            // PINTAR PANTALLA OSCILOSCOPIO
             let cvO = document.getElementById('scope-time-render'); let ctxO = cvO.getContext('2d');
             ctxO.clearRect(0,0,cvO.width, cvO.height);
             ctxO.strokeStyle = '#1e293b'; ctxO.lineWidth = 0.5;
             for(let x=0; x<cvO.width; x+=25) { ctxO.beginPath(); ctxO.moveTo(x,0); ctxO.lineTo(x,cvO.height); ctxO.stroke(); }
             for(let y=0; y<cvO.height; y+=25) { ctxO.beginPath(); ctxO.moveTo(0,y); ctxO.lineTo(cvO.width,y); ctxO.stroke(); }
 
+            // Eje neutro central para ver la alternancia de la onda AC
+            ctxO.strokeStyle = '#334155'; ctxO.lineWidth = 1;
+            ctxO.beginPath(); ctxO.moveTo(0, cvO.height/2); ctxO.lineTo(cvO.width, cvO.height/2); ctxO.stroke();
+
             ctxO.strokeStyle = 'var(--green)'; ctxO.lineWidth = 2.5;
             ctxO.beginPath();
             for(let i=0; i<historicoOsciloscopio.length; i++) {
                 let x = (i / historicoOsciloscopio.length) * cvO.width;
-                let y = cvO.height - 20 - (historicoOsciloscopio[i] * 5.5);
+                // Mapeo centrado para soportar señales negativas de corriente alterna
+                let y = (cvO.height / 2) - (historicoOsciloscopio[i] * 0.8);
                 if(i===0) ctxO.moveTo(x,y); else ctxO.lineTo(x,y);
             }
             ctxO.stroke();
 
-            // RENDERIZADO ANALIZADOR LINEAL FRECUENCIAS (FFT ESPECTRAL)
+            // PINTAR ESPECTRÓMETRO FRECUENCIA FFT
             let cvF = document.getElementById('scope-fft-render'); let ctxF = cvF.getContext('2d');
             ctxF.clearRect(0,0,cvF.width, cvF.height);
             ctxF.strokeStyle = '#0f172a'; ctxF.lineWidth = 1;
-            for(let i=0; i<cvF.width; i+=40) { ctxF.beginPath(); ctxF.moveTo(i,0); ctxF.lineTo(i,cvF.height); ctxF.stroke(); }
+            for(let i=0; i<cvF.width; i+=35) { ctxF.beginPath(); ctxF.moveTo(i,0); ctxF.lineTo(i,cvF.height); ctxF.stroke(); }
 
-            if (vMuestra > 0) {
+            if (Math.abs(vMuestra) > 0.1) {
                 ctxF.fillStyle = 'rgba(0, 242, 254, 0.85)';
-                // Simulación matemática de picos de carga lineal con armónicos base
-                let barras = 18;
-                for(let b=0; b<barras; b++) {
-                    let baseH = Math.min(cvF.height * 0.8, (vMuestra * 6) / (b*0.4 + 1));
-                    let noise = Math.sin(Date.now()*0.01 + b)*4; // Ruido eléctrico real
-                    let finalH = Math.max(2, baseH + noise);
-                    ctxF.fillRect(30 + (b * 22), cvF.height - finalH, 14, finalH);
+                for(let b=0; b<20; b++) {
+                    let baseH = Math.min(cvF.height * 0.8, (Math.abs(vMuestra) * 1.5) / (b * 0.3 + 1));
+                    let ru = Math.sin(Date.now() * 0.02 + b) * 3;
+                    let hFinal = Math.max(3, baseH + ru);
+                    ctxF.fillRect(25 + (b * 20), cvF.height - hFinal, 13, hFinal);
                 }
             }
         }
@@ -851,8 +943,8 @@
             document.querySelectorAll('.instrument-canvas').forEach(cv => {
                 cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight;
             });
-            setInterval(compilarMallaElectrica, 50);
-            setInterval(procesarGraficasEInstrumentos, 60);
+            setInterval(resolverMallaElectrica, 50);
+            setInterval(procesarMuestreosGraficos, 50);
             sandbox.addEventListener('click', cerrarInspector);
         });
     </script>
