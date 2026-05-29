@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SIMULADOR AC PRO v3.0 - THERMAL & SPICE ENGINE</title>
+<title>SIMULADOR AC PRO v3.8 - MESH MATRIX ENGINE</title>
 
 <style>
 :root{
@@ -67,10 +67,10 @@ header{
 }
 
 .wire{
-    stroke:var(--cyan); stroke-width:4; fill:none; cursor: pointer;
+    stroke:var(--cyan); stroke-width:6; fill:none; cursor: pointer;
     filter:drop-shadow(0 0 4px var(--cyan)); pointer-events: stroke;
 }
-.wire:hover{ stroke: var(--red); filter:drop-shadow(0 0 6px var(--red)); }
+.wire:hover{ stroke: var(--red); stroke-width:8; filter:drop-shadow(0 0 6px var(--red)); }
 
 .toolbox{ background:#071018; border-top:2px solid var(--border); padding:8px; flex-shrink:0; }
 .row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling: touch; }
@@ -125,6 +125,7 @@ header{
 .telemetry{
     background:rgba(0,0,0,0.9); border:1px solid var(--border); margin-top:24px;
     padding:4px; border-radius:4px; text-align:center; color:#556b82; font-size:9px; font-weight: bold;
+    white-space: pre-line; line-height: 12px;
 }
 .telemetry.on{ color: var(--green); text-shadow: 0 0 4px var(--green); border-color: var(--green); }
 .telemetry.burn{ color: var(--red); text-shadow: 0 0 6px var(--red); border-color: var(--red); animation: blink 0.5s infinite alternate; }
@@ -151,7 +152,7 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 <body>
 
 <header>
-<div class="title">⚡ TRUE-SPICE AC ENGINE v3.0 [THERMAL OVERLOAD PROTECTION]</div>
+<div class="title">⚡ TRUE-SPICE AC ENGINE v3.8 [MALLA ELÉCTRICA REAL]</div>
 <button class="exit-btn" onclick="volverDC()">🚪 VOLVER DC</button>
 </header>
 
@@ -164,8 +165,8 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 <div class="toolbox">
 <div class="row">
 <button class="btn" onclick="addComponent('ac_power')">⚡ FUENTE AC</button>
-<button class="btn" onclick="addComponent('disyuntor')">🔌 DISYUNTOR</button>
-<button class="btn" onclick="addComponent('transformador')">🧲 TRANSFORMADOR</button>
+<button class="btn" onclick="addComponent('disyuntor')">🔌 SWITCH</button>
+<button class="btn" onclick="addComponent('transformador')">🧲 TRANSFOR</button>
 <button class="btn" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
 <button class="btn" onclick="addComponent('capacitor')">🔵 CAPACITOR</button>
 <button class="btn" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
@@ -208,7 +209,7 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 </div>
 
 <script>
-function volverDC(){ window.location.href = 'index.html'; }
+function volverDC(){ window.location.href = 'simulador-electronica.html'; }
 
 const sandbox = document.getElementById('sandbox');
 const wireLayer = document.getElementById('wire-layer');
@@ -279,6 +280,7 @@ render:(n)=>`
 </g>
 <circle cx="40" cy="40" r="5" fill="#fff"/>
 </svg>
+<text x="40" y="74" fill="#00f2fe" font-size="7" text-anchor="middle" id="val_${n.id}">${n.max_rpm} RPM Max</text>
 <div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:25px"></div>
 <div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:25px"></div>
 </div>`
@@ -316,25 +318,44 @@ render:(n)=>`
 <path d="M30 26 L33 18 L37 18 L40 26" fill="none" stroke="#fff" stroke-width="1"/>
 <rect x="29" y="38" width="12" height="8" fill="#555"/>
 </svg>
+<text x="35" y="54" fill="#fff" font-size="9" text-anchor="middle" id="val_${n.id}">${n.w_nom} W</text>
 <div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:18px"></div>
 <div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:18px"></div>
 </div>`
 }
 };
 
+function guardarCircuito(){
+    const data = { components, wires, globalId };
+    localStorage.setItem('TRUESPICE_AC_SAVE_V38', JSON.stringify(data));
+}
+
+function cargarCircuito(){
+    const saved = localStorage.getItem('TRUESPICE_AC_SAVE_V38');
+    if(!saved) return;
+    try {
+        const data = JSON.parse(saved);
+        globalId = data.globalId || 0;
+        components = data.components || [];
+        wires = data.wires || [];
+        components.forEach(c => renderComponent(c));
+        drawWires(); analizarCircuito();
+    } catch(err) { console.error(err); }
+}
+
 function addComponent(type){
     globalId++;
     const c = {
         id:type+'_'+globalId, type,
-        x: 100 + (globalId % 4) * 30, y: 100 + (globalId % 4) * 25,
-        v: 220, r: 100, uf: 47, ratio: 0.5, rotation: 0,
-        closed: false, isOn: false, powered: false, burned: false, heatTimer: 0
+        x: 120, y: 120,
+        v: 220, r: 100, uf: 47, ratio: 0.5, w_nom: 60, max_rpm: 3000, rotation: 0,
+        closed: false, isOn: false, powered: false, burned: false, heatTimer: 0, current_rpm: 0
     };
-    components.push(c);
-    renderComponent(c);
+    components.push(c); renderComponent(c); analizarCircuito(); guardarCircuito();
 }
 
 function renderComponent(c){
+    const viejo = document.getElementById(c.id); if(viejo) viejo.remove();
     const div = document.createElement('div');
     div.className = 'spice-node'; div.id = c.id;
     div.style.left = c.x + 'px'; div.style.top = c.y + 'px';
@@ -348,7 +369,6 @@ function renderComponent(c){
         ${ARCH[c.type].render(c)}
         <div class="telemetry" id="tel_${c.id}">OFF</div>
     `;
-
     sandbox.appendChild(div);
     makeDraggable(div, c);
     setupPins(div, c);
@@ -359,21 +379,22 @@ function rotarComponente(e, id){
     const c = components.find(item => item.id === id); if(!c) return;
     c.rotation = (c.rotation + 90) % 360;
     document.getElementById(`body_${id}`).style.transform = `rotate(${c.rotation}deg)`;
-    drawWires();
+    drawWires(); guardarCircuito();
 }
 
 function configComponente(e, id){
     e.stopPropagation();
     const c = components.find(item => item.id === id); if(!c) return;
     editingComponent = c;
-    
     const modal = document.getElementById('editModal');
     const title = document.getElementById('modalTitle');
     const input = document.getElementById('paramInput');
     modal.style.display = 'flex';
     
     if(c.type === 'ac_power'){ title.innerText = "VAC Fuente"; input.value = c.v; }
-    else if(c.type === 'resistor' || c.type === 'bombilla'){ title.innerText = "Ohms Ω"; input.value = c.r; }
+    else if(c.type === 'resistor'){ title.innerText = "Ohms Ω Resistencia"; input.value = c.r; }
+    else if(c.type === 'bombilla'){ title.innerText = "Watts W de Potencia"; input.value = c.w_nom; }
+    else if(c.type === 'motor_ac'){ title.innerText = "Parámetro RPM Máximas"; input.value = c.max_rpm; }
     else if(c.type === 'capacitor'){ title.innerText = "Microfaradios uF"; input.value = c.uf; }
     else if(c.type === 'transformador'){ title.innerText = "Ratio (Vout/Vin)"; input.value = c.ratio; }
 }
@@ -382,21 +403,14 @@ function saveParam(){
     if(!editingComponent) return;
     const val = parseFloat(document.getElementById('paramInput').value);
     if(!isNaN(val)){
-        if(editingComponent.type === 'ac_power'){
-            editingComponent.v = val;
-            document.getElementById(`val_${editingComponent.id}`).textContent = val + " VAC";
-        } else if(editingComponent.type === 'resistor' || editingComponent.type === 'bombilla'){
-            editingComponent.r = val;
-            const el = document.getElementById(`val_${editingComponent.id}`); if(el) el.textContent = val + " Ω";
-        } else if(editingComponent.type === 'capacitor'){
-            editingComponent.uf = val;
-            document.getElementById(`val_${editingComponent.id}`).textContent = val + " uF";
-        } else if(editingComponent.type === 'transformador'){
-            editingComponent.ratio = val;
-            document.getElementById(`val_${editingComponent.id}`).textContent = "Ratio: " + val;
-        }
+        if(editingComponent.type === 'ac_power'){ editingComponent.v = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " VAC"; }
+        else if(editingComponent.type === 'resistor'){ editingComponent.r = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " Ω"; }
+        else if(editingComponent.type === 'bombilla'){ editingComponent.w_nom = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " W"; }
+        else if(editingComponent.type === 'motor_ac'){ editingComponent.max_rpm = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " RPM Max"; }
+        else if(editingComponent.type === 'capacitor'){ editingComponent.uf = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " uF"; }
+        else if(editingComponent.type === 'transformador'){ editingComponent.ratio = val; document.getElementById(`val_${editingComponent.id}`).textContent = "Ratio: " + val; }
     }
-    closeModal(); analizarCircuito();
+    closeModal(); analizarCircuito(); guardarCircuito();
 }
 
 function closeModal(){ document.getElementById('editModal').style.display = 'none'; editingComponent = null; }
@@ -406,13 +420,12 @@ function eliminarComponente(e, id){
     wires = wires.filter(w => !w.a.includes(id) && !w.b.includes(id));
     document.getElementById(id).remove();
     components = components.filter(c => c.id !== id);
-    drawWires(); analizarCircuito();
+    drawWires(); analizarCircuito(); guardarCircuito();
 }
 
 function toggleFuente(e, id){
     e.stopPropagation();
-    const comp = components.find(c => c.id === id); if(!comp) return;
-    if(comp.burned) return;
+    const comp = components.find(c => c.id === id); if(!comp || comp.burned) return;
     comp.isOn = !comp.isOn;
     const btn = document.getElementById(`pwr_${id}`);
     if(comp.isOn){ btn.innerText = "POWER: ON"; btn.classList.add('on'); } 
@@ -422,8 +435,7 @@ function toggleFuente(e, id){
 
 function toggleDisyuntor(e, id){
     e.stopPropagation();
-    const comp = components.find(c => c.id === id); if(!comp) return;
-    if(comp.burned) return;
+    const comp = components.find(c => c.id === id); if(!comp || comp.burned) return;
     comp.closed = !comp.closed;
     const line = document.getElementById(`sw_${id}`);
     if(comp.closed){ line.setAttribute('y2', '27'); line.setAttribute('stroke', 'var(--green)'); } 
@@ -432,21 +444,16 @@ function toggleDisyuntor(e, id){
 }
 
 function setupPins(div, c){
-    const pins = div.querySelectorAll('.net-pin');
-    pins.forEach(pin => {
+    div.querySelectorAll('.net-pin').forEach(pin => {
         pin.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if(c.burned) return;
-            if(!selectedPin){
-                selectedPin = pin; selectedPin.style.transform = 'scale(1.3)';
-            } else {
+            e.stopPropagation(); if(c.burned) return;
+            if(!selectedPin){ selectedPin = pin; selectedPin.style.transform = 'scale(1.3)'; } 
+            else {
                 if(selectedPin.id !== pin.id){
                     wires.push({ id: 'w_' + Date.now(), a: selectedPin.id, b: pin.id });
                     selectedPin.style.transform = 'scale(1)'; selectedPin = null;
-                    drawWires(); analizarCircuito();
-                } else {
-                    selectedPin.style.transform = 'scale(1)'; selectedPin = null;
-                }
+                    drawWires(); analizarCircuito(); guardarCircuito();
+                } else { selectedPin.style.transform = 'scale(1)'; selectedPin = null; }
             }
         });
     });
@@ -455,107 +462,116 @@ function setupPins(div, c){
 function drawWires(){
     wireLayer.innerHTML = '';
     document.querySelectorAll('.net-pin').forEach(p => p.classList.remove('connected'));
-
     wires.forEach(w => {
         const pinA = document.getElementById(w.a); const pinB = document.getElementById(w.b);
         if(!pinA || !pinB) return;
-
         pinA.classList.add('connected'); pinB.classList.add('connected');
-
         const r1 = pinA.getBoundingClientRect(); const r2 = pinB.getBoundingClientRect();
         const s = sandbox.getBoundingClientRect();
-
         const x1 = r1.left - s.left + 14; const y1 = r1.top - s.top + 14;
         const x2 = r2.left - s.left + 14; const y2 = r2.top - s.top + 14;
 
         const path = document.createElementNS('http://www.w3.org/2000/svg','path');
         const dx = Math.abs(x2 - x1) * 0.3;
-        const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-        
-        path.setAttribute('d', d); path.setAttribute('class', 'wire');
+        path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
+        path.setAttribute('class', 'wire');
         path.addEventListener('click', (e) => {
-            e.stopPropagation();
-            wires = wires.filter(item => item.id !== w.id);
-            drawWires(); analizarCircuito();
+            e.stopPropagation(); wires = wires.filter(item => item.id !== w.id);
+            drawWires(); analizarCircuito(); guardarCircuito();
         });
         wireLayer.appendChild(path);
     });
 }
 
-// ARRASTRE UNIVERSAL REPARADO PARA PC Y TELEFONO
 function makeDraggable(div, obj){
     let dx = 0, dy = 0;
-    
-    // Soporte nativo universal para PC (mouse) y Pantallas táctiles
     div.addEventListener('pointerdown', (e) => {
-        if(e.target.classList.contains('net-pin') || 
-           e.target.classList.contains('pwr-btn') || 
-           e.target.classList.contains('mini-btn') ||
-           e.target.tagName === 'line' ||
-           e.target.tagName === 'circle' ||
-           e.target.tagName === 'rect') {
-            return; 
-        }
-        
+        if(e.target.classList.contains('net-pin') || e.target.classList.contains('pwr-btn') || e.target.classList.contains('mini-btn') || e.target.tagName === 'line' || e.target.tagName === 'circle' || e.target.tagName === 'rect') return;
         dx = e.clientX - obj.x; dy = e.clientY - obj.y;
         div.setPointerCapture(e.pointerId);
-        
-        div.addEventListener('pointermove', move);
-        div.addEventListener('pointerup', up);
+        div.addEventListener('pointermove', move); div.addEventListener('pointerup', up);
     });
-
-    function move(ev){
-        obj.x = ev.clientX - dx; obj.y = ev.clientY - dy;
-        div.style.left = obj.x + 'px'; div.style.top = obj.y + 'px';
-        drawWires();
-    }
-
-    function up(ev){
-        div.removeEventListener('pointermove', move);
-        div.removeEventListener('pointerup', up);
-    }
+    function move(ev){ obj.x = ev.clientX - dx; obj.y = ev.clientY - dy; div.style.left = obj.x + 'px'; div.style.top = obj.y + 'px'; drawWires(); }
+    function up(){ div.removeEventListener('pointermove', move); div.removeEventListener('pointerup', up); guardarCircuito(); }
 }
 
-// MOTOR SPICE AC CON VOLTAJE, CONSUMO Y QUEMADO TÉRMICO
+// NUEVO ANALIZADOR DE ADYACENCIA TOTALMENTE ESTRICTO
 function analizarCircuito(){
     components.forEach(c => { if(!c.burned) c.powered = false; });
-
     const fuentesActivas = components.filter(c => c.type === 'ac_power' && c.isOn && !c.burned);
-    let disyuntoresAbiertos = components.filter(c => c.type === 'disyuntor' && (!c.closed || c.burned)).map(c => c.id);
+
+    // Mapear qué pin se conecta con qué pin físicamente mediante cables externos
+    let mapaCables = {};
+    wires.forEach(w => {
+        if(!mapaCables[w.a]) mapaCables[w.a] = [];
+        if(!mapaCables[w.b]) mapaCables[w.b] = [];
+        mapaCables[w.a].push(w.b);
+        mapaCables[w.b].push(w.a);
+    });
 
     fuentesActivas.forEach(fuente => {
-        let visitados = new Set();
-        let queue = [`pin_${fuente.id}_a`, `pin_${fuente.id}_b`];
-
-        while(queue.length > 0) {
-            let currPin = queue.shift();
-            if(visitados.has(currPin)) continue;
-            visitados.add(currPin);
-
-            let tokens = currPin.split('_');
-            let compId = tokens[1] + '_' + tokens[2];
-
-            if(disyuntoresAbiertos.includes(compId)) continue;
-
-            wires.forEach(w => {
-                if(w.a === currPin) queue.push(w.b);
-                if(w.b === currPin) queue.push(w.a);
-            });
-
-            let todosLosPines = Array.from(document.querySelectorAll(`[id^="pin_${compId}_"]`)).map(p => p.id);
-            todosLosPines.forEach(p => { if(!visitados.has(p)) queue.push(p); });
-        }
+        let pinSrcA = `pin_${fuente.id}_a`;
+        let pinSrcB = `pin_${fuente.id}_b`;
 
         components.forEach(c => {
             if(c.type !== 'ac_power' && !c.burned){
-                let pinesComp = Array.from(document.querySelectorAll(`[id^="pin_${c.id}_"]`)).map(p => p.id);
-                if(pinesComp.some(p => visitados.has(p))) {
+                let pinCompA = `pin_${c.id}_a`;
+                let pinCompB = `pin_${c.id}_b`;
+
+                // Caso especial de Transformadores que usan pines p1, p2
+                if(c.type === 'transformador'){
+                    pinCompA = `pin_${c.id}_p1`; pinCompB = `pin_${c.id}_p2`;
+                }
+
+                // Verificar de forma estricta el bucle cerrado completo sin saltos mágicos de componente
+                let caminoIda = verificarCaminoFisico(pinSrcA, pinCompA, mapaCables);
+                let caminoRetorno = verificarCaminoFisico(pinCompB, pinSrcB, mapaCables);
+
+                // Alternativa cruzada por si se cableó al revés
+                if(!(caminoIda && caminoRetorno)){
+                    caminoIda = verificarCaminoFisico(pinSrcA, pinCompB, mapaCables);
+                    caminoRetorno = verificarCaminoFisico(pinCompA, pinSrcB, mapaCables);
+                }
+
+                if(caminoIda && caminoRetorno){
                     c.powered = true;
-                    c.v_input = fuente.v; // Mapear voltaje de la fuente
+                    c.v_input = fuente.v;
                 }
             }
         });
     });
+}
+
+// Rastreador físico de cables puros. Se frena en seco si topa un Switch abierto.
+function verificarCaminoFisico(inicio, fin, mapa){
+    let visitados = new Set();
+    let queue = [inicio];
+
+    while(queue.length > 0){
+        let act = queue.shift();
+        if(act === fin) return true;
+        if(visitados.has(act)) continue;
+        visitados.add(act);
+
+        let tok = act.split('_');
+        let compId = tok[1] + '_' + tok[2];
+        let compPadre = components.find(item => item.id === compId);
+
+        // Bloqueo total si la corriente intenta atravesar un switch que está abierto
+        if(compPadre && compPadre.type === 'disyuntor' && !compPadre.closed) continue;
+
+        // Propagar exclusivamente por hilos de cables conectados
+        if(mapa[act]){
+            mapa[act].forEach(vecino => { if(!visitados.has(vecino)) queue.push(vecino); });
+        }
+
+        // Si entramos a un pin del componente, la corriente puede salir por el otro pin DEL MISMO COMPONENTE para seguir el camino
+        if(compPadre && act !== fin){
+            let otrosPines = Array.from(document.querySelectorAll(`[id^="pin_${compId}_"]`)).map(p => p.id);
+            otrosPines.forEach(p => { if(p !== act && !visitados.has(p)) queue.push(p); });
+        }
+    }
+    return false;
 }
 
 function toggleScope(){
@@ -572,10 +588,8 @@ function updateScopeParams(){
 
 const canvas = document.getElementById('scope'); const ctx = canvas.getContext('2d');
 let wave = [];
-function resizeScope(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
-resizeScope(); window.addEventListener('resize', resizeScope);
+canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
 
-// LAZO PRINCIPAL DE RENDERIZADO Y CONTROL TÉRMICO
 function renderScope(){
     requestAnimationFrame(renderScope);
     const w = canvas.width; const h = canvas.height;
@@ -585,93 +599,86 @@ function renderScope(){
     for(let i=0; i<w; i+=30){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,h); ctx.stroke(); }
     for(let j=0; j<h; j+=20){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(w,j); ctx.stroke(); }
 
-    if(!scopeOn){
-        ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace';
-        ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4); return;
-    }
-
     let fuente = components.find(c => c.type === 'ac_power' && c.isOn && !c.burned);
     phase += scopeTimeScale;
-    
-    let amplitud = fuente ? (32 / scopeVoltScale) : 0; 
+    let amplitud = fuente ? (32 / scopeVoltScale) : 0;
     let y = h/2 + Math.sin(phase) * amplitud;
 
-    wave.push(y); if(wave.length > w) wave.shift();
-
-    ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 2.5;
-    ctx.shadowBlur = 8; ctx.shadowColor = '#39ff14';
-    ctx.beginPath();
-    wave.forEach((v, i) => { if(i === 0) ctx.moveTo(i, v); else ctx.lineTo(i, v); });
-    ctx.stroke(); ctx.shadowBlur = 0;
-
-    ctx.fillStyle = '#39ff14'; ctx.font = '10px monospace';
-    ctx.fillText(`RMS: ${fuente ? fuente.v : 0}V | Freq: 60Hz`, 10, 15);
+    if(scopeOn){
+        wave.push(y); if(wave.length > w) wave.shift();
+        ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); wave.forEach((v, i) => { if(i === 0) ctx.moveTo(i, v); else ctx.lineTo(i, v); }); ctx.stroke();
+        ctx.fillStyle = '#39ff14'; ctx.font = '10px monospace';
+        ctx.fillText(`RMS: ${fuente ? fuente.v : 0}V | Freq: 60Hz`, 10, 15);
+    } else {
+        ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4);
+    }
     
     monitorizarTermicoYComponentes();
 }
 
-// NUEVO MONITOR DE FLUJO ELÉCTRICO Y QUEMADO POR SOBREVOLTAJE
 function monitorizarTermicoYComponentes(){
     components.forEach(c => {
-        const tel = document.getElementById(`tel_${c.id}`);
-        if(!tel) return;
+        const tel = document.getElementById(`tel_${c.id}`); if(!tel) return;
 
-        if(c.burned){
-            tel.innerText = "💥 BURNED (💥)"; tel.className = "telemetry burn";
-            return;
-        }
+        if(c.burned){ tel.innerText = "💥 BURNED\n💥 STATE"; tel.className = "telemetry burn"; return; }
 
         if(c.type === 'ac_power' && c.isOn) {
-            tel.innerText = `${c.v}VAC | LIVE`; tel.className = "telemetry on";
+            tel.innerText = `${c.v}VAC\nLIVE SOURCE`; tel.className = "telemetry on";
         } else if(c.powered) {
-            // Calcular Watts consumidos P = V^2 / R
             let v = c.v_input || 220;
-            let r = c.r || 100;
-            if(c.type === 'motor_ac') r = 40; // Impedancia fija del motor para el cálculo
-            if(c.type === 'capacitor') r = 150;
-            if(c.type === 'transformador') r = 200;
+            let watts = 0;
 
-            let watts = Math.round((v * v) / r);
+            if(c.type === 'bombilla') {
+                let r_dinamica = (220 * 220) / c.w_nom;
+                watts = Math.round((v * v) / r_dinamica);
+            } else {
+                let r = c.r || 100;
+                if(c.type === 'motor_ac') r = 50;
+                if(c.type === 'capacitor') r = 120;
+                if(c.type === 'transformador') r = 180;
+                watts = Math.round((v * v) / r);
+            }
 
-            // CONTROL DE CALENTAMIENTO: Si pasa de 450W se empieza a quemar
-            if(watts > 450) {
-                c.heatTimer += 1;
-                tel.innerText = `⚠️ OVERLOAD: ${watts}W`;
-                tel.className = "telemetry burn";
-
-                if(c.heatTimer > 120) { // ~2 segundos sosteniendo alto voltaje
-                    c.burned = true; c.powered = false; c.isOn = false;
-                    analizarCircuito();
-                }
+            if(watts > 400) {
+                c.heatTimer++;
+                tel.innerText = `⚠️ OVERLOAD\n${watts}W - TOXIC`; tel.className = "telemetry burn";
+                if(c.heatTimer > 100) { c.burned = true; c.powered = false; analizarCircuito(); guardarCircuito(); }
             } else {
                 c.heatTimer = Math.max(0, c.heatTimer - 1);
-                tel.innerText = `${v}V | ${watts}W`;
+                if(c.type === 'motor_ac'){
+                    // Control de RPM dinámicas según la tensión de entrada
+                    c.current_rpm = Math.round((v / 220) * c.max_rpm);
+                    tel.innerText = `${v}V | ${watts}W\n🌀 ${c.current_rpm} RPM`;
+                } else {
+                    tel.innerText = `${v}V\n⚡ ${watts}W`;
+                }
                 tel.className = "telemetry on";
             }
         } else {
-            tel.innerText = "OFF"; tel.className = "telemetry";
+            if(c.type === 'motor_ac') c.current_rpm = 0;
+            tel.innerText = "OFF\n0V | 0W"; tel.className = "telemetry";
         }
 
-        // Ejecutar las animaciones físicas
+        // Ejecutar las animaciones físicas exactas
         if(c.type === 'motor_ac' && c.powered && !c.burned){
             const fan = document.getElementById('fan_'+c.id);
-            if(fan) fan.style.transform = `rotate(${performance.now() * 0.4}deg)`;
+            if(fan) fan.style.transform = `rotate(${performance.now() * (c.current_rpm / 5000)}deg)`;
         }
         if(c.type === 'bombilla' && !c.burned){
             const lamp = document.getElementById('lamp_'+c.id);
             if(lamp){
                 if(c.powered){
-                    const glow = 0.5 + Math.sin(phase * 2.5) * 0.5;
-                    lamp.style.filter = `drop-shadow(0 0 ${10 + glow * 12}px #ffee00)`;
-                    lamp.setAttribute('fill', `rgba(255,238,0,${0.4 + glow * 0.6})`);
-                } else {
-                    lamp.style.filter = 'none'; lamp.setAttribute('fill', 'rgba(255,255,0,0.05)');
-                }
+                    let g = 0.3 + Math.sin(phase * 2.5) * 0.3;
+                    lamp.setAttribute('fill', `rgba(255,238,0,${0.4 + g})`);
+                    lamp.style.filter = "drop-shadow(0 0 10px #ffee00)";
+                } else { lamp.setAttribute('fill', 'rgba(255,255,0,0.05)'); lamp.style.filter = "none"; }
             }
         }
     });
 }
 
+window.onload = () => { localStorage.removeItem('TRUESPICE_AC_SAVE_V38'); cargarCircuito(); };
 renderScope();
 </script>
 </body>
