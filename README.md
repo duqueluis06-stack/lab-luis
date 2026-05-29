@@ -49,7 +49,7 @@ El proyecto incluye un simulador electrónico avanzado en HTML/JS con:
 
 ⸻
 
-🎧 ## 🎧 Audio Lab (creación propia)
+🎧Audio Lab (creación propia)
 
 Colección de audio experimental generado y diseñado de forma original para exploración sonora, pruebas de percepción y experimentación técnica.
 
