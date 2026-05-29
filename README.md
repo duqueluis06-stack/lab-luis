@@ -1,77 +1,117 @@
-# ⚡ Lab Luis
+⚡ LAB LUIS — 
+Física Experimental & Electrónica Aplicada
+⸻
 
-Laboratorio experimental de física, electrónica y energía alternativa.
+🌐 Plataforma principal
 
-## 🌐 Sitio web
-https://duquemartini.com/
+👉 https://duquemartini.com/
 
----
+⸻
 
-## 🧪 Sobre el proyecto
+🧪 🧠 Sobre el proyecto
 
-Lab Luis es un proyecto experimental enfocado en:
+Lab Luis es un entorno experimental vivo donde se combinan:
 
-- Experimentos de ultrasonido
-- Sistemas de comunicación láser
-- Generación y análisis de señales electrónicas
-- Experimentación con audio (MP3)
-- Sistemas Arduino y ESP32
-- Investigación en energías alternativas
+* ⚡ Simulación de circuitos electrónicos en tiempo real (SPICE visual)
+* 🔬 Investigación en física aplicada y fenómenos eléctricos
+* 📡 Sistemas de transmisión láser y comunicación óptica
+* 🔊 Experimentos con audio, señales y frecuencias
+* 🧲 Ultrasonido aplicado y control de ondas estacionarias
+* 🔋 Electrónica con Arduino y ESP32
+* 🌡️ Energía alternativa y sistemas de conversión
 
-Este proyecto combina ciencia, ingeniería y exploración creativa.
+⸻
 
----
+🧩 🔬 Nuevo sistema: TRUE-SPICE Interactive Lab
 
-## 🎧 Audio Lab (MP3)
+El proyecto incluye un simulador electrónico avanzado en HTML/JS con:
 
-Este repositorio incluye colecciones de audio experimental públicas.
+⚡ Capacidades principales
 
-### Sets disponibles:
-- 🎵 Set 1 — Tonos y frecuencias experimentales
-- 🎵 Set 2 — Señales de análisis y pruebas
-- 🎵 Set 3 — Audio creativo y mezcla experimental
+* Malla de nodos eléctricos dinámica (MNA simplificado)
+* Componentes interactivos:
+    * resistencias 🟫
+    * capacitores ⚡
+    * LEDs 🟢
+    * motores DC 🌀
+    * interruptores 🎛️
+    * fuentes DC 🔋
+* Cables con visualización de corriente en tiempo real
+* Osciloscopio digital integrado 📟
+* Lectura de voltajes por nodo
 
----
+🧠 Características técnicas
 
-## 🔬 Áreas de investigación
+* Resolución de circuitos mediante análisis nodal (MNA simplificado)
+* Simulación de estado dinámico (capacitores y motores)
+* Representación visual de energía y flujo de corriente
+* Interfaz táctil optimizada para dispositivos móviles 📱
 
-- Propagación de ondas ultrasónicas
-- Transmisión por láser
-- Electromagnetismo aplicado
-- Sistemas de enfriamiento y fluidos
-- Sensores y medición experimental
+⸻
 
----
+🎧 ## 🎧 Audio Lab (creación propia)
 
-## ⚙️ Tecnologías
+Colección de audio experimental generado y diseñado de forma original para exploración sonora, pruebas de percepción y experimentación técnica.
 
-- HTML / CSS / JavaScript
-- Arduino / ESP32
-- Generadores de señal
-- Procesamiento de audio (MP3)
-- Sistemas físicos experimentales
+### Sets disponibles
 
----
+* 🎵 Composiciones sonoras experimentales propias
+* 📡 Señales y patrones de audio diseñados para pruebas
+* 🎚️ Exploración creativa de frecuencias y texturas sonoras
 
-## 👨‍🔬 Autor
+⸻
 
-Luis Duque
+🔬 Áreas de investigación
 
-Investigador experimental en electrónica, física y energía alternativa.
+* Propagación de ondas ultrasónicas
+* Interacción láser–material
+* Electromagnetismo aplicado
+* Dinámica de fluidos en sistemas de enfriamiento
+* Sensores físicos y medición electrónica
+* Análisis de señales en tiempo real
 
----
+⸻
 
-## ☕ Apoya el proyecto
+⚙️ Tecnologías utilizadas
 
-Si deseas apoyar este laboratorio experimental y contribuir al desarrollo de nuevos sistemas, puedes hacerlo aquí:
+* HTML / CSS / JavaScript (motor de simulación)
+* Arduino / ESP32 / Raspberry Pi Pico
+* Generadores de señal y osciloscopía
+* Procesamiento de audio digital
+* Modelado físico simplificado (MNA)
+* Sistemas experimentales híbridos hardware–software
+
+⸻
+
+👨‍🔬 Autor
+
+Luis F. Duque Martini
+
+Investigador en electrónica experimental, física aplicada y sistemas de energía alternativa.
+
+⸻
+
+🚀 Estado del proyecto
+
+Este laboratorio está en evolución continua, integrando:
+
+* nuevos modelos físicos
+* simulación electrónica avanzada
+* experimentos reales conectados a software
+
+⸻
+
+☕ Apoyo al proyecto
+
+Si quieres apoyar el desarrollo del laboratorio:
 
 👉 https://ko-fi.com/luisduque
 
-Tu apoyo ayuda a continuar con la investigación, creación de contenido y desarrollo tecnológico.
+Contribuye directamente a la investigación y desarrollo de nuevos sistemas experimentales.
 
----
+⸻
 
-## 📌 Nota
+📌 Nota
 
-Este proyecto es un laboratorio en evolución constante.  
-Se añaden nuevos experimentos y sistemas de forma progresiva.
+Este no es un proyecto estático.
+Es un entorno de investigación vivo, donde el software evoluciona junto con los experimentos.
