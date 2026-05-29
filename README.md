@@ -82,6 +82,13 @@ Colección de audio experimental generado y diseñado de forma original para exp
 * Sistemas experimentales híbridos hardware–software
 
 ⸻
+## 🧪 Nivel del proyecto
+
+Este sistema es un entorno experimental de simulación electrónica y física aplicada.
+
+Los modelos utilizados son aproximaciones computacionales diseñadas para visualización y experimentación, no sustituyen simuladores SPICE industriales.
+
+------------------
 
 👨‍🔬 Autor
 
