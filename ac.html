@@ -139,10 +139,10 @@ header{
 
 .comp-body{
     position:relative;
-    background: rgba(8, 16, 24, 0.8);
+    background: rgba(8, 16, 24, 0.9);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 4px;
+    padding: 6px;
 }
 
 .net-pin{
@@ -323,7 +323,7 @@ canvas{
 <body>
 
 <header>
-<div class="title">⚡ TRUE-SPICE AC ENGINE v2.5</div>
+<div class="title">⚡ TRUE-SPICE AC ENGINE v2.6</div>
 <button class="exit-btn" onclick="volverDC()">🚪 VOLVER DC</button>
 </header>
 
@@ -637,8 +637,10 @@ function drawWires(){
 function makeDraggable(div, obj){
     let dx = 0, dy = 0;
     div.addEventListener('pointerdown', (e) => {
-        // Permitir clicks limpios en pines, selectores o botones de encendido
-        if(e.target.classList.contains('net-pin') || e.target.classList.contains('pwr-btn') || e.target.closest('svg')) {
+        if(e.target.classList.contains('net-pin') || 
+           e.target.classList.contains('pwr-btn') || 
+           e.target.tagName === 'line' || 
+           e.target.tagName === 'rect' && obj.type === 'disyuntor') {
             return; 
         }
         
@@ -663,16 +665,11 @@ function makeDraggable(div, obj){
     });
 }
 
-// MOTOR SPICE REAL: Rastreo de mallas interconectadas por cables
 function analizarCircuito(){
-    // Resetear estados energizados
     components.forEach(c => c.powered = false);
-
-    // Buscar si hay alguna fuente activa
     const fuentesActivas = components.filter(c => c.type === 'ac_power' && c.isOn);
 
     fuentesActivas.forEach(fuente => {
-        // Encontrar todos los componentes accesibles desde esta fuente a través de los cables
         let visitados = new Set();
         let queue = [`pin_${fuente.id}_a`, `pin_${fuente.id}_b`];
 
@@ -681,20 +678,16 @@ function analizarCircuito(){
             if(visitados.has(currPin)) continue;
             visitados.add(currPin);
 
-            // Obtener el ID del componente dueño del pin
             let compId = currPin.split('_')[1] + '_' + currPin.split('_')[2];
             let comp = components.find(c => c.id === compId);
 
             if(comp) {
-                // Si el componente es un disyuntor abierto, bloquea el paso por dentro de él
                 if(comp.type === 'disyuntor' && !comp.closed) {
-                    // No propaga hacia su otro pin
+                    // Bloqueado
                 } else {
-                    // Propaga la energía a todos los pines del mismo componente
                     let todosLosPines = Array.from(document.querySelectorAll(`[id^="pin_${comp.id}_"]`)).map(p => p.id);
                     todosLosPines.forEach(p => {
                         if(!visitados.has(p)) {
-                            // Encontrar cables conectados a este pin externo
                             wires.forEach(w => {
                                 if(w.a === p) queue.push(w.b);
                                 if(w.b === p) queue.push(w.a);
@@ -705,18 +698,15 @@ function analizarCircuito(){
             }
         }
 
-        // Marcar componentes energizados si sus pines fueron alcanzados por la red de la fuente
         components.forEach(c => {
             let pinesComp = Array.from(document.querySelectorAll(`[id^="pin_${c.id}_"]`)).map(p => p.id);
             let alcanzado = pinesComp.some(p => visitados.has(p));
             if(alcanzado && (c.type !== 'ac_power')) {
-                // Para que un componente consuma corriente AC real, debe estar tocado por la malla
                 c.powered = true;
             }
         });
     });
 
-    // Actualizar visualización en telemetrías
     components.forEach(c => {
         const tel = document.getElementById(`tel_${c.id}`);
         if(!tel) return;
@@ -811,7 +801,6 @@ function renderScope(){
         return;
     }
 
-    // El osciloscopio solo dibuja la onda si detecta que hay una fuente encendida en el sandbox
     let algunaFuenteOn = components.some(c => c.type === 'ac_power' && c.isOn);
     phase += scopeTimeScale;
     
