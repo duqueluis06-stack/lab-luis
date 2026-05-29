@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SIMULADOR AC PRO v3.8 - MESH MATRIX ENGINE</title>
+<title>SIMULADOR AC PRO v4.0 - TRUE NODE ENGINE</title>
 
 <style>
 :root{
@@ -152,8 +152,8 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 <body>
 
 <header>
-<div class="title">⚡ TRUE-SPICE AC ENGINE v3.8 [MALLA ELÉCTRICA REAL]</div>
-<button class="exit-btn" onclick="volverDC()">🚪 VOLVER DC</button>
+<div class="title">⚡ TRUE-SPICE AC ENGINE v4.0 [MALLA ELÉCTRICA CONTROLADA]</div>
+<button class="exit-btn" onclick="volverMenu()">🚪 VOLVER</button>
 </header>
 
 <div id="viewport">
@@ -168,7 +168,7 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 <button class="btn" onclick="addComponent('disyuntor')">🔌 SWITCH</button>
 <button class="btn" onclick="addComponent('transformador')">🧲 TRANSFOR</button>
 <button class="btn" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
-<button class="btn" onclick="addComponent('capacitor')">🔵 CAPACITOR</button>
+<button class="btn" onclick="addComponent('capacitor')">🔵 CAP. ELECTROLÍTICO</button>
 <button class="btn" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
 <button class="btn" onclick="addComponent('bombilla')">💡 BOMBILLA</button>
 </div>
@@ -209,7 +209,8 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 </div>
 
 <script>
-function volverDC(){ window.location.href = 'simulador-electronica.html'; }
+// Redirección exacta solicitada
+function volverMenu(){ window.location.href = 'simulador-electronica.html'; }
 
 const sandbox = document.getElementById('sandbox');
 const wireLayer = document.getElementById('wire-layer');
@@ -289,9 +290,9 @@ capacitor:{
 render:(n)=>`
 <div class="comp-body" id="body_${n.id}" style="transform: rotate(${n.rotation}deg);">
 <svg width="80" height="45">
-<rect x="18" y="5" width="44" height="28" rx="4" fill="#0f2b5c" stroke="#00f2fe" stroke-width="2"/>
-<line x1="34" y1="9" x2="34" y2="29" stroke="#fff" stroke-width="2.5"/>
-<line x1="44" y1="9" x2="44" y2="29" stroke="#fff" stroke-width="2.5"/>
+<rect x="18" y="5" width="44" height="28" rx="4" fill="#021430" stroke="#00f2fe" stroke-width="2"/>
+<line x1="32" y1="9" x2="32" y2="29" stroke="#ff073a" stroke-width="3"/>
+<line x1="46" y1="9" x2="46" y2="29" stroke="#fff" stroke-width="3"/>
 <text x="40" y="42" fill="#fff" font-size="9" text-anchor="middle" id="val_${n.id}">${n.uf} uF</text>
 </svg>
 <div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:10px"></div>
@@ -327,11 +328,11 @@ render:(n)=>`
 
 function guardarCircuito(){
     const data = { components, wires, globalId };
-    localStorage.setItem('TRUESPICE_AC_SAVE_V38', JSON.stringify(data));
+    localStorage.setItem('TRUESPICE_AC_SAVE_V40', JSON.stringify(data));
 }
 
 function cargarCircuito(){
-    const saved = localStorage.getItem('TRUESPICE_AC_SAVE_V38');
+    const saved = localStorage.getItem('TRUESPICE_AC_SAVE_V40');
     if(!saved) return;
     try {
         const data = JSON.parse(saved);
@@ -346,8 +347,7 @@ function cargarCircuito(){
 function addComponent(type){
     globalId++;
     const c = {
-        id:type+'_'+globalId, type,
-        x: 120, y: 120,
+        id:type+'_'+globalId, type, x: 130, y: 130,
         v: 220, r: 100, uf: 47, ratio: 0.5, w_nom: 60, max_rpm: 3000, rotation: 0,
         closed: false, isOn: false, powered: false, burned: false, heatTimer: 0, current_rpm: 0
     };
@@ -394,8 +394,8 @@ function configComponente(e, id){
     if(c.type === 'ac_power'){ title.innerText = "VAC Fuente"; input.value = c.v; }
     else if(c.type === 'resistor'){ title.innerText = "Ohms Ω Resistencia"; input.value = c.r; }
     else if(c.type === 'bombilla'){ title.innerText = "Watts W de Potencia"; input.value = c.w_nom; }
-    else if(c.type === 'motor_ac'){ title.innerText = "Parámetro RPM Máximas"; input.value = c.max_rpm; }
-    else if(c.type === 'capacitor'){ title.innerText = "Microfaradios uF"; input.value = c.uf; }
+    else if(c.type === 'motor_ac'){ title.innerText = "RPM Máximas del Motor"; input.value = c.max_rpm; }
+    else if(c.type === 'capacitor'){ title.innerText = "Microfaradios uF (Cap. Electrolítico)"; input.value = c.uf; }
     else if(c.type === 'transformador'){ title.innerText = "Ratio (Vout/Vin)"; input.value = c.ratio; }
 }
 
@@ -445,17 +445,19 @@ function toggleDisyuntor(e, id){
 
 function setupPins(div, c){
     div.querySelectorAll('.net-pin').forEach(pin => {
-        pin.addEventListener('click', (e) => {
+        // CORREGIDO: Evitar propagaciones accidentales durante el ruteo de cables
+        pin.onclick = (e) => {
             e.stopPropagation(); if(c.burned) return;
-            if(!selectedPin){ selectedPin = pin; selectedPin.style.transform = 'scale(1.3)'; } 
-            else {
+            if(!selectedPin){ 
+                selectedPin = pin; selectedPin.style.transform = 'scale(1.4)'; 
+            } else {
                 if(selectedPin.id !== pin.id){
                     wires.push({ id: 'w_' + Date.now(), a: selectedPin.id, b: pin.id });
                     selectedPin.style.transform = 'scale(1)'; selectedPin = null;
                     drawWires(); analizarCircuito(); guardarCircuito();
                 } else { selectedPin.style.transform = 'scale(1)'; selectedPin = null; }
             }
-        });
+        };
     });
 }
 
@@ -475,110 +477,106 @@ function drawWires(){
         const dx = Math.abs(x2 - x1) * 0.3;
         path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
         path.setAttribute('class', 'wire');
-        path.addEventListener('click', (e) => {
+        path.onclick = (e) => {
             e.stopPropagation(); wires = wires.filter(item => item.id !== w.id);
             drawWires(); analizarCircuito(); guardarCircuito();
-        });
+        };
         wireLayer.appendChild(path);
     });
 }
 
 function makeDraggable(div, obj){
     let dx = 0, dy = 0;
-    div.addEventListener('pointerdown', (e) => {
+    div.onpointerdown = (e) => {
         if(e.target.classList.contains('net-pin') || e.target.classList.contains('pwr-btn') || e.target.classList.contains('mini-btn') || e.target.tagName === 'line' || e.target.tagName === 'circle' || e.target.tagName === 'rect') return;
         dx = e.clientX - obj.x; dy = e.clientY - obj.y;
         div.setPointerCapture(e.pointerId);
-        div.addEventListener('pointermove', move); div.addEventListener('pointerup', up);
-    });
-    function move(ev){ obj.x = ev.clientX - dx; obj.y = ev.clientY - dy; div.style.left = obj.x + 'px'; div.style.top = obj.y + 'px'; drawWires(); }
-    function up(){ div.removeEventListener('pointermove', move); div.removeEventListener('pointerup', up); guardarCircuito(); }
+        div.onpointermove = (ev) => { obj.x = ev.clientX - dx; obj.y = ev.clientY - dy; div.style.left = obj.x + 'px'; div.style.top = obj.y + 'px'; drawWires(); };
+        div.onpointerup = () => { div.onpointermove = null; div.onpointerup = null; guardarCircuito(); };
+    };
 }
 
-// NUEVO ANALIZADOR DE ADYACENCIA TOTALMENTE ESTRICTO
+// ALGORITMO DE MALLAS v4.0: SEPARA RIGUROSAMENTE LOS POLOS DE ENTRADA Y SALIDA
 function analizarCircuito(){
-    components.forEach(c => { if(!c.burned) c.powered = false; });
+    components.forEach(c => { if(!c.burned) { c.powered = false; c.v_input = 0; } });
+    
     const fuentesActivas = components.filter(c => c.type === 'ac_power' && c.isOn && !c.burned);
-
-    // Mapear qué pin se conecta con qué pin físicamente mediante cables externos
-    let mapaCables = {};
-    wires.forEach(w => {
-        if(!mapaCables[w.a]) mapaCables[w.a] = [];
-        if(!mapaCables[w.b]) mapaCables[w.b] = [];
-        mapaCables[w.a].push(w.b);
-        mapaCables[w.b].push(w.a);
-    });
+    if(fuentesActivas.length === 0) return;
 
     fuentesActivas.forEach(fuente => {
-        let pinSrcA = `pin_${fuente.id}_a`;
-        let pinSrcB = `pin_${fuente.id}_b`;
+        const pinSrcA = `pin_${fuente.id}_a`;
+        const pinSrcB = `pin_${fuente.id}_b`;
 
         components.forEach(c => {
-            if(c.type !== 'ac_power' && !c.burned){
-                let pinCompA = `pin_${c.id}_a`;
-                let pinCompB = `pin_${c.id}_b`;
+            if(c.type === 'ac_power' || c.burned) return;
 
-                // Caso especial de Transformadores que usan pines p1, p2
-                if(c.type === 'transformador'){
-                    pinCompA = `pin_${c.id}_p1`; pinCompB = `pin_${c.id}_p2`;
-                }
+            let pA = `pin_${c.id}_a`; let pB = `pin_${c.id}_b`;
+            if(c.type === 'transformador') { pA = `pin_${c.id}_p1`; pB = `pin_${c.id}_p2`; }
 
-                // Verificar de forma estricta el bucle cerrado completo sin saltos mágicos de componente
-                let caminoIda = verificarCaminoFisico(pinSrcA, pinCompA, mapaCables);
-                let caminoRetorno = verificarCaminoFisico(pinCompB, pinSrcB, mapaCables);
+            // Buscar caminos eléctricos REALES e independientes para cada polo
+            let conectadoAlPoloA = verificarRutaNodo(pinSrcA, pA);
+            let conectadoAlPoloB = verificarRutaNodo(pinSrcB, pB);
 
-                // Alternativa cruzada por si se cableó al revés
-                if(!(caminoIda && caminoRetorno)){
-                    caminoIda = verificarCaminoFisico(pinSrcA, pinCompB, mapaCables);
-                    caminoRetorno = verificarCaminoFisico(pinCompA, pinSrcB, mapaCables);
-                }
+            // Intentar cruce invertido
+            if(!(conectadoAlPoloA && conectadoAlPoloB)){
+                conectadoAlPoloA = verificarRutaNodo(pinSrcA, pB);
+                conectadoAlPoloB = verificarRutaNodo(pinSrcB, pA);
+            }
 
-                if(caminoIda && caminoRetorno){
-                    c.powered = true;
-                    c.v_input = fuente.v;
-                }
+            if(conectadoAlPoloA && conectadoAlPoloB){
+                c.powered = true;
+                c.v_input = fuente.v;
             }
         });
     });
 }
 
-// Rastreador físico de cables puros. Se frena en seco si topa un Switch abierto.
-function verificarCaminoFisico(inicio, fin, mapa){
+function verificarRutaNodo(nodoInicio, nodoDestino){
     let visitados = new Set();
-    let queue = [inicio];
+    let queue = [nodoInicio];
 
     while(queue.length > 0){
-        let act = queue.shift();
-        if(act === fin) return true;
-        if(visitados.has(act)) continue;
-        visitados.add(act);
+        let actual = queue.shift();
+        if(actual === nodoDestino) return true;
+        if(visitados.has(actual)) continue;
+        visitados.add(actual);
 
-        let tok = act.split('_');
-        let compId = tok[1] + '_' + tok[2];
-        let compPadre = components.find(item => item.id === compId);
+        // Analizar qué componente posee este pin
+        let tokens = actual.split('_');
+        let compId = tokens[1] + '_' + tokens[2];
+        let comp = components.find(i => i.id === compId);
 
-        // Bloqueo total si la corriente intenta atravesar un switch que está abierto
-        if(compPadre && compPadre.type === 'disyuntor' && !compPadre.closed) continue;
-
-        // Propagar exclusivamente por hilos de cables conectados
-        if(mapa[act]){
-            mapa[act].forEach(vecino => { if(!visitados.has(vecino)) queue.push(vecino); });
+        // REGLA DE ORO DEL DISYUNTOR: Si está abierto, no pasa energía entre sus pines
+        if(comp && comp.type === 'disyuntor' && !comp.closed) {
+            // El cable puede llegar al pin externo, pero NO saltar internamente al otro pin
+            inyectarCablesExternos(actual, queue, visitados);
+            continue;
         }
 
-        // Si entramos a un pin del componente, la corriente puede salir por el otro pin DEL MISMO COMPONENTE para seguir el camino
-        if(compPadre && act !== fin){
-            let otrosPines = Array.from(document.querySelectorAll(`[id^="pin_${compId}_"]`)).map(p => p.id);
-            otrosPines.forEach(p => { if(p !== act && !visitados.has(p)) queue.push(p); });
+        // Propagación interna por el cuerpo físico del componente hacia sus terminales contrarias
+        if(comp){
+            let todosLosPines = Array.from(document.querySelectorAll(`[id^="pin_${compId}_"]`)).map(p => p.id);
+            todosLosPines.forEach(p => { if(!visitados.has(p)) queue.push(p); });
         }
+
+        // Propagación externa a través de los hilos de cobre (cables)
+        inyectarCablesExternos(actual, queue, visitados);
     }
     return false;
+}
+
+function inyectarCablesExternos(pinActual, queue, visitados){
+    wires.forEach(w => {
+        if(w.a === pinActual && !visitados.has(w.b)) queue.push(w.b);
+        if(w.b === pinActual && !visitados.has(w.a)) queue.push(w.a);
+    });
 }
 
 function toggleScope(){
     scopeOn = !scopeOn;
     const btn = document.getElementById('scopeToggle');
-    if(scopeOn){ btn.innerText = "OSCILOSCOPIO: ON"; btn.className = "scope-btn active"; }
-    else { btn.innerText = "OSCILOSCOPIO: OFF"; btn.className = "scope-btn"; }
+    btn.innerText = scopeOn ? "OSCILOSCOPIO: ON" : "OSCILOSCOPIO: OFF";
+    btn.className = scopeOn ? "scope-btn active" : "scope-btn";
 }
 
 function updateScopeParams(){
@@ -614,14 +612,14 @@ function renderScope(){
         ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4);
     }
     
-    monitorizarTermicoYComponentes();
+    monitorizarComponentes();
 }
 
-function monitorizarTermicoYComponentes(){
+function monitorizarComponentes(){
     components.forEach(c => {
         const tel = document.getElementById(`tel_${c.id}`); if(!tel) return;
 
-        if(c.burned){ tel.innerText = "💥 BURNED\n💥 STATE"; tel.className = "telemetry burn"; return; }
+        if(c.burned){ tel.innerText = "💥 BURNED\n💥 OVERLOAD"; tel.className = "telemetry burn"; return; }
 
         if(c.type === 'ac_power' && c.isOn) {
             tel.innerText = `${c.v}VAC\nLIVE SOURCE`; tel.className = "telemetry on";
@@ -629,27 +627,36 @@ function monitorizarTermicoYComponentes(){
             let v = c.v_input || 220;
             let watts = 0;
 
+            // FÍSICA APLICADA: Comportamiento por componente
             if(c.type === 'bombilla') {
                 let r_dinamica = (220 * 220) / c.w_nom;
                 watts = Math.round((v * v) / r_dinamica);
-            } else {
-                let r = c.r || 100;
-                if(c.type === 'motor_ac') r = 50;
-                if(c.type === 'capacitor') r = 120;
-                if(c.type === 'transformador') r = 180;
-                watts = Math.round((v * v) / r);
+            } else if(c.type === 'resistor') {
+                watts = Math.round((v * v) / c.r);
+            } else if(c.type === 'capacitor') {
+                // Reactancia capacitiva real a 60Hz: Xc = 1 / (2 * pi * f * C)
+                let faradios = c.uf * 1e-6;
+                let xc = 1 / (2 * Math.PI * 60 * faradios);
+                if(xc < 1) xc = 1; 
+                watts = Math.round((v * v) / xc);
+            } else if(c.type === 'motor_ac') {
+                watts = Math.round((v * v) / 60); 
+            } else if(c.type === 'transformador') {
+                watts = Math.round((v * v) / 150);
             }
 
-            if(watts > 400) {
+            // Monitoreo térmico estricto
+            if(watts > 500) {
                 c.heatTimer++;
-                tel.innerText = `⚠️ OVERLOAD\n${watts}W - TOXIC`; tel.className = "telemetry burn";
-                if(c.heatTimer > 100) { c.burned = true; c.powered = false; analizarCircuito(); guardarCircuito(); }
+                tel.innerText = `⚠️ OVERLOAD\n${watts}W`; tel.className = "telemetry burn";
+                if(c.heatTimer > 80) { c.burned = true; c.powered = false; analizarCircuito(); guardarCircuito(); }
             } else {
                 c.heatTimer = Math.max(0, c.heatTimer - 1);
                 if(c.type === 'motor_ac'){
-                    // Control de RPM dinámicas según la tensión de entrada
                     c.current_rpm = Math.round((v / 220) * c.max_rpm);
                     tel.innerText = `${v}V | ${watts}W\n🌀 ${c.current_rpm} RPM`;
+                } else if(c.type === 'capacitor') {
+                    tel.innerText = `${v}V\n🔵 CAP. ELECTROLÍTICO\nConsumo: ${watts}W`;
                 } else {
                     tel.innerText = `${v}V\n⚡ ${watts}W`;
                 }
@@ -660,24 +667,27 @@ function monitorizarTermicoYComponentes(){
             tel.innerText = "OFF\n0V | 0W"; tel.className = "telemetry";
         }
 
-        // Ejecutar las animaciones físicas exactas
+        // ANIMACIONES BASADAS EN WATTS Y CORRIENTE REAL
         if(c.type === 'motor_ac' && c.powered && !c.burned){
             const fan = document.getElementById('fan_'+c.id);
-            if(fan) fan.style.transform = `rotate(${performance.now() * (c.current_rpm / 5000)}deg)`;
+            if(fan) fan.style.transform = `rotate(${performance.now() * (c.current_rpm / 4000)}deg)`;
         }
         if(c.type === 'bombilla' && !c.burned){
             const lamp = document.getElementById('lamp_'+c.id);
             if(lamp){
                 if(c.powered){
-                    let g = 0.3 + Math.sin(phase * 2.5) * 0.3;
-                    lamp.setAttribute('fill', `rgba(255,238,0,${0.4 + g})`);
-                    lamp.style.filter = "drop-shadow(0 0 10px #ffee00)";
+                    // El brillo ahora es proporcional a los Watts reales consumidos contra 220W base
+                    let factorBrillo = Math.min(1, (c.w_nom / 300));
+                    let oscilacion = 0.3 + Math.sin(phase * 3) * 0.15;
+                    lamp.setAttribute('fill', `rgba(255,238,0, ${oscilacion * factorBrillo + 0.3})`);
+                    lamp.style.filter = `drop-shadow(0 0 ${12 * factorBrillo}px #ffee00)`;
                 } else { lamp.setAttribute('fill', 'rgba(255,255,0,0.05)'); lamp.style.filter = "none"; }
             }
         }
     });
 }
 
+// Forzar limpieza de estados corruptos previos
 window.onload = () => { localStorage.removeItem('TRUESPICE_AC_SAVE_V38'); cargarCircuito(); };
 renderScope();
 </script>
