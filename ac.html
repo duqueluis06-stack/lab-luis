@@ -2,152 +2,659 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SIMULADOR DE CORRIENTE ALTERNA - TRUE-SPICE</title>
 
 <style>
-    body {
-        margin: 0;
-        background: #020408;
-        color: #fff;
-        font-family: monospace;
-        overflow: hidden;
-    }
+:root{
+    --bg:#03050a;
+    --panel:#081018;
+    --cyan:#00f2fe;
+    --green:#39ff14;
+    --yellow:#ffee00;
+    --orange:#ff7b00;
+    --red:#ff073a;
+    --purple:#b026ff;
+    --border:#18263f;
+    --text:#f1f5f9;
+}
 
-    header {
-        height: 40px;
-        background: #080c16;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 10px;
-        border-bottom: 2px solid #161f3d;
-    }
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    font-family:monospace;
+    user-select:none;
+}
 
-    .btn {
-        background: #050711;
-        border: 1px solid #00f2fe;
-        color: #00f2fe;
-        padding: 6px 10px;
-        font-size: 11px;
-        cursor: pointer;
-    }
+body{
+    background:var(--bg);
+    color:var(--text);
+    height:100vh;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+}
 
-    #workspace {
-        position: relative;
-        width: 100%;
-        height: calc(100vh - 40px);
-        background: radial-gradient(circle, #030a12, #000);
-    }
+header{
+    height:42px;
+    background:#050912;
+    border-bottom:2px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 10px;
+}
 
-    #waveCanvas {
-        width: 100%;
-        height: 200px;
-        background: #010204;
-        border-top: 1px solid #161f3d;
-        position: absolute;
-        bottom: 0;
-    }
+.title{
+    color:var(--cyan);
+    font-weight:bold;
+    text-shadow:0 0 8px var(--cyan);
+    font-size:12px;
+}
 
-    .panel {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        background: rgba(10,15,25,0.9);
-        border: 1px solid #00f2fe;
-        padding: 10px;
-        border-radius: 6px;
-    }
+.exit-btn{
+    background:#14040a;
+    color:var(--red);
+    border:1px solid var(--red);
+    padding:5px 10px;
+    border-radius:5px;
+    font-weight:bold;
+}
 
-    input {
-        width: 120px;
-        background: #000;
-        border: 1px solid #333;
-        color: #00f2fe;
-        margin-top: 5px;
-    }
+#viewport{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+    background:#010204;
+}
 
-    label {
-        font-size: 10px;
-        color: #aaa;
-    }
+#sandbox{
+    position:absolute;
+    width:2200px;
+    height:2200px;
+    background-image:
+    linear-gradient(to right, rgba(0,242,254,0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,242,254,0.03) 1px, transparent 1px);
+    background-size:20px 20px;
+}
+
+#wire-layer{
+    position:absolute;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+}
+
+.toolbox{
+    background:#071018;
+    border-top:2px solid var(--border);
+    padding:6px;
+}
+
+.row{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+}
+
+.btn{
+    background:#02050a;
+    border:1px solid var(--border);
+    color:white;
+    padding:7px 12px;
+    border-radius:5px;
+    font-size:10px;
+    font-weight:bold;
+    flex-shrink:0;
+}
+
+.spice-node{
+    position:absolute;
+    z-index:50;
+}
+
+.comp-body{
+    position:relative;
+}
+
+.net-pin{
+    position:absolute;
+    width:24px;
+    height:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.net-pin::after{
+    content:'';
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    border:2px solid #aaa;
+    background:#091018;
+}
+
+.telemetry{
+    background:rgba(0,0,0,0.8);
+    border:1px solid var(--border);
+    margin-top:3px;
+    padding:2px 4px;
+    border-radius:4px;
+    text-align:center;
+    color:var(--green);
+    font-size:9px;
+}
+
+.scope-panel{
+    background:#02060a;
+    border-top:2px solid var(--border);
+    padding:5px;
+}
+
+.scope-box{
+    border:1px solid #143d1a;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+canvas{
+    width:100%;
+    height:90px;
+    display:block;
+    background:#001100;
+}
+
+.wire{
+    stroke:var(--cyan);
+    stroke-width:4;
+    fill:none;
+    filter:drop-shadow(0 0 6px var(--cyan));
+}
+
 </style>
 </head>
-
 <body>
 
 <header>
-    <div>⚡ AC LAB - FREQUENCY DOMAIN</div>
-    <button class="btn" onclick="goBack()">⬅ BACK DC</button>
+<div class="title">⚡ SIMULADOR DE CORRIENTE ALTERNA - TRUE-SPICE</div>
+<button class="exit-btn" onclick="volverDC()">🚪 VOLVER DC</button>
 </header>
 
-<div id="workspace">
+<div id="viewport">
+<div id="sandbox">
+<svg id="wire-layer"></svg>
+</div>
+</div>
 
-    <div class="panel">
-        <label>Frecuencia (Hz)</label><br>
-        <input type="number" id="freq" value="50"><br><br>
+<div class="toolbox">
+<div class="row">
 
-        <label>Amplitud (V)</label><br>
-        <input type="number" id="amp" value="5"><br><br>
+<button class="btn" onclick="addComponent('ac_power')">⚡ FUENTE AC</button>
+<button class="btn" onclick="addComponent('transformador')">🧲 TRANSFORMADOR</button>
+<button class="btn" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
+<button class="btn" onclick="addComponent('capacitor')">🔵 CAPACITOR</button>
+<button class="btn" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
+<button class="btn" onclick="addComponent('bombilla')">💡 BOMBILLA</button>
+<button class="btn" onclick="addComponent('bobina')">🧲 BOBINA</button>
 
-        <button class="btn" onclick="startAC()">RUN</button>
-    </div>
+</div>
+</div>
 
-    <canvas id="waveCanvas"></canvas>
+<div class="scope-panel">
+<div class="scope-box">
+<canvas id="scope"></canvas>
+</div>
 </div>
 
 <script>
 
-let canvas = document.getElementById("waveCanvas");
-let ctx = canvas.getContext("2d");
-
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = 200;
-}
-resize();
-window.addEventListener("resize", resize);
-
-let t = 0;
-let running = false;
-let freq = 50;
-let amp = 5;
-
-function draw() {
-
-    if (!running) return;
-
-    ctx.fillStyle = "#010204";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    ctx.strokeStyle = "#00f2fe";
-    ctx.beginPath();
-
-    let mid = canvas.height / 2;
-
-    for (let x = 0; x < canvas.width; x++) {
-        let y = mid + Math.sin((x + t) * 0.02 * freq) * amp * 10;
-        ctx.lineTo(x, y);
-    }
-
-    ctx.stroke();
-
-    t += 2;
-    requestAnimationFrame(draw);
+function volverDC(){
+    window.location.href = 'index.html';
 }
 
-function startAC() {
-    freq = parseFloat(document.getElementById("freq").value);
-    amp = parseFloat(document.getElementById("amp").value);
-    running = true;
-    draw();
+const sandbox = document.getElementById('sandbox');
+const wireLayer = document.getElementById('wire-layer');
+
+let components = [];
+let wires = [];
+let selectedPin = null;
+let globalId = 0;
+let phase = 0;
+
+const ARCH = {
+
+ac_power:{
+w:120,
+h:90,
+render:(n)=>`
+<div class="comp-body">
+<svg width="100" height="70" viewBox="0 0 100 70">
+
+<rect x="10" y="10" width="80" height="50" rx="8"
+fill="#071018"
+stroke="var(--cyan)"
+stroke-width="2"/>
+
+<path d="M20 35 Q30 10 40 35 Q50 60 60 35 Q70 10 80 35"
+stroke="var(--cyan)"
+stroke-width="3"
+fill="none"
+style="filter:drop-shadow(0 0 6px var(--cyan));"/>
+
+<text x="50" y="55" fill="#fff" font-size="10" text-anchor="middle">
+${n.v} VAC
+</text>
+
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:20px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:20px"></div>
+</div>
+`
+},
+
+transformador:{
+w:160,
+h:110,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="140" height="90" viewBox="0 0 140 90">
+
+<rect x="60" y="10" width="18" height="70" fill="#333"/>
+
+${Array.from({length:6},(_,i)=>`
+<circle cx="38" cy="${18+i*10}" r="6"
+fill="none"
+stroke="orange"
+stroke-width="2"/>
+`).join('')}
+
+${Array.from({length:9},(_,i)=>`
+<circle cx="100" cy="${14+i*7}" r="5"
+fill="none"
+stroke="var(--yellow)"
+stroke-width="2"/>
+`).join('')}
+
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_p1" style="left:-14px; top:18px"></div>
+<div class="net-pin" id="pin_${n.id}_p2" style="left:-14px; top:52px"></div>
+<div class="net-pin" id="pin_${n.id}_s1" style="right:-14px; top:18px"></div>
+<div class="net-pin" id="pin_${n.id}_s2" style="right:-14px; top:52px"></div>
+
+</div>
+`
+},
+
+motor_ac:{
+w:100,
+h:100,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="80" height="80" viewBox="0 0 80 80">
+
+<circle cx="40" cy="40" r="28"
+fill="#08131f"
+stroke="var(--cyan)"
+stroke-width="2"/>
+
+<g id="fan_${n.id}" style="transform-origin:40px 40px;">
+
+<path d="M40 40 L40 10 Q52 18 46 32 Z" fill="var(--cyan)"/>
+<path d="M40 40 L70 40 Q62 52 48 46 Z" fill="var(--cyan)"/>
+<path d="M40 40 L40 70 Q28 62 34 48 Z" fill="var(--cyan)"/>
+<path d="M40 40 L10 40 Q18 28 32 34 Z" fill="var(--cyan)"/>
+
+</g>
+
+<circle cx="40" cy="40" r="5" fill="#fff"/>
+
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:25px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:25px"></div>
+
+</div>
+`
+},
+
+capacitor:{
+w:90,
+h:70,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="80" height="50">
+<rect x="18" y="10" width="44" height="28" rx="5"
+fill="${n.color}"
+stroke="#fff"/>
+
+<text x="40" y="28" fill="#fff" font-size="9" text-anchor="middle">
+${n.uf}uF
+</text>
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:12px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:12px"></div>
+
+</div>
+`
+},
+
+resistor:{
+w:90,
+h:60,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="80" height="30">
+<rect x="20" y="5" width="40" height="18" rx="4"
+fill="#4a3200"
+stroke="var(--yellow)"/>
+
+<text x="40" y="18" fill="#fff" font-size="8" text-anchor="middle">
+${n.r}Ω
+</text>
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:0px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:0px"></div>
+
+</div>
+`
+},
+
+bombilla:{
+w:90,
+h:80,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="70" height="60">
+<circle id="lamp_${n.id}" cx="35" cy="22" r="16"
+fill="rgba(255,255,0,0.05)"
+stroke="#777"
+stroke-width="2"/>
+
+<rect x="29" y="38" width="12" height="10" fill="#666"/>
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:18px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:18px"></div>
+
+</div>
+`
+},
+
+bobina:{
+w:120,
+h:80,
+render:(n)=>`
+<div class="comp-body">
+
+<svg width="100" height="60">
+
+${Array.from({length:8},(_,i)=>`
+<circle cx="${18+i*10}" cy="30" r="8"
+fill="none"
+stroke="orange"
+stroke-width="3"
+style="filter:drop-shadow(0 0 5px orange)"/>
+`).join('')}
+
+</svg>
+
+<div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:18px"></div>
+<div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:18px"></div>
+
+</div>
+`
 }
 
-function goBack() {
-    window.location.href = "index.html";
+};
+
+function addComponent(type){
+
+globalId++;
+
+const c = {
+id:type+'_'+globalId,
+type,
+x:100 + globalId*25,
+y:100 + globalId*18,
+v:220,
+r:220,
+uf:470,
+color:['#0044ff','#ff0000','#ffee00','#00aa00'][globalId%4]
+};
+
+components.push(c);
+renderComponent(c);
 }
+
+function renderComponent(c){
+
+const div = document.createElement('div');
+
+div.className = 'spice-node';
+div.id = c.id;
+
+div.style.left = c.x + 'px';
+div.style.top = c.y + 'px';
+
+div.innerHTML = ARCH[c.type].render(c) +
+`<div class="telemetry">ACTIVO AC</div>`;
+
+sandbox.appendChild(div);
+
+makeDraggable(div,c);
+setupPins(div,c);
+}
+
+function setupPins(div,c){
+
+const pins = div.querySelectorAll('.net-pin');
+
+pins.forEach(pin=>{
+
+pin.addEventListener('click',()=>{
+
+if(!selectedPin){
+selectedPin = pin;
+selectedPin.style.transform = 'scale(1.2)';
+}
+else{
+
+wires.push({
+a:selectedPin.id,
+b:pin.id
+});
+
+selectedPin.style.transform = 'scale(1)';
+selectedPin = null;
+
+drawWires();
+}
+
+});
+
+});
+}
+
+function drawWires(){
+
+wireLayer.innerHTML = '';
+
+wires.forEach(w=>{
+
+const a = document.getElementById(w.a);
+const b = document.getElementById(w.b);
+
+if(!a || !b) return;
+
+const r1 = a.getBoundingClientRect();
+const r2 = b.getBoundingClientRect();
+const s = sandbox.getBoundingClientRect();
+
+const x1 = r1.left - s.left + 12;
+const y1 = r1.top - s.top + 12;
+
+const x2 = r2.left - s.left + 12;
+const y2 = r2.top - s.top + 12;
+
+const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+
+line.setAttribute('x1',x1);
+line.setAttribute('y1',y1);
+line.setAttribute('x2',x2);
+line.setAttribute('y2',y2);
+line.setAttribute('class','wire');
+
+wireLayer.appendChild(line);
+
+});
+}
+
+function makeDraggable(div,obj){
+
+let dx = 0;
+let dy = 0;
+
+div.addEventListener('pointerdown',(e)=>{
+
+if(e.target.classList.contains('net-pin')) return;
+
+
+dx = e.clientX - obj.x;
+dy = e.clientY - obj.y;
+
+function move(ev){
+obj.x = ev.clientX - dx;
+obj.y = ev.clientY - dy;
+
+div.style.left = obj.x + 'px';
+div.style.top = obj.y + 'px';
+
+drawWires();
+}
+
+function up(){
+window.removeEventListener('pointermove',move);
+window.removeEventListener('pointerup',up);
+}
+
+window.addEventListener('pointermove',move);
+window.addEventListener('pointerup',up);
+
+});
+}
+
+const canvas = document.getElementById('scope');
+const ctx = canvas.getContext('2d');
+
+function resizeScope(){
+canvas.width = canvas.clientWidth;
+canvas.height = canvas.clientHeight;
+}
+
+resizeScope();
+window.addEventListener('resize',resizeScope);
+
+let wave = [];
+
+function renderScope(){
+
+requestAnimationFrame(renderScope);
+
+const w = canvas.width;
+const h = canvas.height;
+
+ctx.fillStyle = '#001100';
+ctx.fillRect(0,0,w,h);
+
+ctx.strokeStyle = '#013001';
+
+for(let i=0;i<w;i+=40){
+ctx.beginPath();
+ctx.moveTo(i,0);
+ctx.lineTo(i,h);
+ctx.stroke();
+}
+
+for(let j=0;j<h;j+=20){
+ctx.beginPath();
+ctx.moveTo(0,j);
+ctx.lineTo(w,j);
+ctx.stroke();
+}
+
+phase += 0.06;
+
+let y = h/2 + Math.sin(phase)*28;
+
+wave.push(y);
+
+if(wave.length > w) wave.shift();
+
+ctx.strokeStyle = '#39ff14';
+ctx.lineWidth = 2;
+ctx.shadowBlur = 8;
+ctx.shadowColor = '#39ff14';
+
+ctx.beginPath();
+
+wave.forEach((v,i)=>{
+if(i===0) ctx.moveTo(i,v);
+else ctx.lineTo(i,v);
+});
+
+ctx.stroke();
+ctx.shadowBlur = 0;
+
+ctx.fillStyle = '#39ff14';
+ctx.font = '10px monospace';
+ctx.fillText('60Hz AC SIGNAL',10,12);
+
+animateComponents();
+}
+
+function animateComponents(){
+
+components.forEach(c=>{
+
+if(c.type === 'motor_ac'){
+
+const fan = document.getElementById('fan_'+c.id);
+
+if(fan){
+const rot = performance.now()*0.25;
+fan.style.transform = `rotate(${rot}deg)`;
+}
+}
+
+if(c.type === 'bombilla'){
+
+const lamp = document.getElementById('lamp_'+c.id);
+
+if(lamp){
+
+const glow = 0.5 + Math.sin(phase*2)*0.5;
+
+lamp.style.filter = `drop-shadow(0 0 ${8+glow*10}px yellow)`;
+lamp.setAttribute('fill',`rgba(255,220,0,${0.4+glow*0.5})`);
+}
+}
+
+});
+}
+
+renderScope();
 
 </script>
-
 </body>
 </html>
