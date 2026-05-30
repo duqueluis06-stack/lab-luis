@@ -1,205 +1,265 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SIMULADOR AC PRO v4.0 - TRUE NODE ENGINE</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>⚡ Simulador de Electrónica Online | TRUE-SPICE AC ENGINE v4.0</title>
+    <meta name="description" content="Laboratorio avanzado de corriente alterna en tiempo real. Simulación reactiva MNA de transformadores, motores de inducción, capacitores y cargas inductivas.">
+    <meta name="keywords" content="simulador ac, corriente alterna, truespice, duquemartini, mna ac engine, transformador virtual, osciloscopio ac">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://duquemartini.com/ac.html">
 
-<style>
-:root{
-    --bg:#03050a;
-    --panel:#081018;
-    --cyan:#00f2fe;
-    --green:#39ff14;
-    --yellow:#ffee00;
-    --orange:#ff7b00;
-    --red:#ff073a;
-    --border:#18263f;
-    --text:#f1f5f9;
-}
+    <meta property="og:title" content="⚡ TRUE-SPICE AC ENGINE v4.0 - DuqueMartini">
+    <meta property="og:description" content="Análisis dinámico de malla eléctrica alterna, reactancia inductiva/capacitativa y osciloscopio CRT integrado.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://duquemartini.com/ac.html">
+    <meta property="og:image" content="https://duquemartini.com/assets/preview-laboratorio.jpg">
 
-*{
-    box-sizing:border-box; margin:0; padding:0;
-    font-family:monospace; user-select:none;
-    -webkit-user-select: none;
-}
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-MB642KNJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GT-MB642KNJ');
+    </script>
 
-body{
-    background:var(--bg); color:var(--text);
-    height:100vh; overflow:hidden;
-    display:flex; flex-direction:column;
-}
+    <style>
+        :root{
+            --bg:#020408;
+            --panel:#080c16;
+            --cyan:#00f2fe;
+            --green:#39ff14;
+            --yellow:#ffee00;
+            --orange:#ff7b00;
+            --red:#ff073a;
+            --border:#161f3d;
+            --text:#f1f5f9;
+        }
 
-header{
-    height:45px; background:#050912;
-    border-bottom:2px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    padding:0 10px; flex-shrink: 0;
-}
+        *{
+            box-sizing:border-box; margin:0; padding:0;
+            font-family:monospace; user-select:none;
+            -webkit-user-select: none;
+        }
 
-.title{
-    color:var(--cyan); font-weight:bold;
-    text-shadow:0 0 8px var(--cyan); font-size:11px;
-}
+        body{
+            background:var(--bg); color:var(--text);
+            height:100vh; height:100dvh; overflow:hidden;
+            display:flex; flex-direction:column;
+            padding-top: env(safe-area-inset-top, 0px);
+        }
 
-.exit-btn{
-    background:#14040a; color:var(--red); border:1px solid var(--red);
-    padding:6px 12px; border-radius:5px; font-weight:bold; font-size:11px;
-    cursor: pointer;
-}
+        /* HEADER REMODELADO CON ESTILO UNIFICADO */
+        header{
+            height:60px; background:#080c16;
+            border-bottom:2px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0 8px; flex-shrink: 0; z-index: 1000;
+            margin-bottom: 4px;
+        }
 
-#viewport{
-    flex:1; position:relative; overflow:hidden;
-    background:#010204; touch-action: none;
-}
+        .airport-ticker { display: flex; gap: 1px; }
+        .airport-char {
+            background: #111; color: var(--cyan); font-weight: bold; font-size: 11px;
+            padding: 3px 5px; border-radius: 2px; border: 1px solid #1f2d5a;
+            text-shadow: 0 0 3px var(--cyan);
+        }
 
-#sandbox{
-    position:absolute; width:2000px; height:2000px;
-    background-image:
-    linear-gradient(to right, rgba(0,242,254,0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,242,254,0.02) 1px, transparent 1px);
-    background-size:25px 25px;
-}
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-#wire-layer{
-    position:absolute; width:100%; height:100%;
-    pointer-events: auto;
-}
+        /* BOTÓN SALIR REDIRIGIDO A SIMULADOR-ELECTRONICA.HTML */
+        .exit-btn{
+            background:#110307; border: 1.5px solid var(--red); color:var(--red); 
+            cursor: pointer; text-shadow: 0 0 3px var(--red);
+            height: 44px; min-width: 58px; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; border-radius: 5px;
+        }
+        .exit-btn .exit-icon { font-size: 14px; }
+        .exit-btn span { font-size: 8px; color: #7284b0; font-weight: bold; margin-top: 2px; text-transform: uppercase; }
 
-.wire{
-    stroke:var(--cyan); stroke-width:6; fill:none; cursor: pointer;
-    filter:drop-shadow(0 0 4px var(--cyan)); pointer-events: stroke;
-}
-.wire:hover{ stroke: var(--red); stroke-width:8; filter:drop-shadow(0 0 6px var(--red)); }
+        #viewport{
+            flex:1; position:relative; overflow:hidden;
+            background:#010204; touch-action: none;
+            border-bottom: 2px solid var(--border);
+        }
 
-.toolbox{ background:#071018; border-top:2px solid var(--border); padding:8px; flex-shrink:0; }
-.row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling: touch; }
-.btn{
-    background:#02050a; border:1px solid var(--border); color:white;
-    padding:8px 14px; border-radius:5px; font-size:11px; font-weight:bold; flex-shrink:0;
-}
+        #sandbox{
+            position:absolute; width:2000px; height:2000px;
+            background-image:
+            linear-gradient(to right, rgba(0,242,254,0.02) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0,242,254,0.02) 1px, transparent 1px);
+            background-size:20px 20px;
+        }
 
-.spice-node{
-    position:absolute; z-index:50; touch-action: none;
-    padding:25px 10px 10px 10px; cursor: move;
-}
+        #wire-layer{
+            position:absolute; width:100%; height:100%;
+            pointer-events: auto; z-index: 10;
+        }
 
-.comp-body{
-    position:relative; background: rgba(8, 16, 24, 0.95);
-    border: 2px solid var(--border); border-radius: 8px; padding: 6px;
-}
+        .wire{
+            stroke:var(--cyan); stroke-width:6; fill:none; cursor: pointer;
+            filter:drop-shadow(0 0 4px var(--cyan)); pointer-events: stroke;
+        }
+        .wire:hover{ stroke: var(--red); stroke-width:8; filter:drop-shadow(0 0 6px var(--red)); }
 
-.action-bar {
-    position: absolute; top: 0px; left: 10px; right: 10px;
-    display: flex; justify-content: space-between; z-index: 100;
-}
+        .toolbox{ background:#080c16; border-bottom:2px solid var(--border); padding:6px 10px; flex-shrink:0; }
+        .platform-label { font-size: 11px; font-weight: bold; color: var(--yellow); margin-bottom: 4px; }
+        .row{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling: touch; }
+        .btn{
+            background:#050711; border:1px solid var(--border); color:white;
+            padding:6px 10px; border-radius:4px; font-size:10px; font-weight:bold; flex-shrink:0;
+            display: flex; align-items: center; gap: 4px;
+        }
 
-.mini-btn {
-    background: #02050a; border: 1px solid var(--border); color: #fff;
-    font-size: 9px; width: 22px; height: 18px; border-radius: 3px;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.mini-btn.del { color: var(--red); border-color: var(--red); }
-.mini-btn.rot { color: var(--cyan); border-color: var(--cyan); }
-.mini-btn.cfg { color: var(--yellow); border-color: var(--yellow); }
+        .spice-node{
+            position:absolute; z-index:50; touch-action: none;
+            padding:25px 10px 10px 10px; cursor: move;
+        }
 
-.net-pin{
-    position:absolute; width:28px; height:28px;
-    display:flex; align-items:center; justify-content:center; z-index: 90; cursor: pointer;
-}
-.net-pin::after{
-    content:''; width:12px; height:12px; border-radius:50%;
-    border:2px solid #556b82; background:#091018;
-}
-.net-pin.connected::after{
-    border-color: var(--cyan); background: var(--cyan); box-shadow: 0 0 6px var(--cyan);
-}
+        .comp-body{
+            position:relative; background: rgba(8, 12, 22, 0.95);
+            border: 2px solid var(--border); border-radius: 8px; padding: 6px;
+        }
 
-.pwr-btn {
-    position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
-    background: #200505; border: 1px solid var(--red); color: var(--red);
-    font-size: 8px; font-weight: bold; padding: 2px 6px; border-radius: 3px; cursor: pointer; z-index: 95;
-}
-.pwr-btn.on { background: #05200b; border: 1px solid var(--green); color: var(--green); box-shadow: 0 0 5px var(--green); }
+        .action-bar {
+            position: absolute; top: 2px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between; z-index: 100;
+        }
 
-.telemetry{
-    background:rgba(0,0,0,0.9); border:1px solid var(--border); margin-top:24px;
-    padding:4px; border-radius:4px; text-align:center; color:#556b82; font-size:9px; font-weight: bold;
-    white-space: pre-line; line-height: 12px;
-}
-.telemetry.on{ color: var(--green); text-shadow: 0 0 4px var(--green); border-color: var(--green); }
-.telemetry.burn{ color: var(--red); text-shadow: 0 0 6px var(--red); border-color: var(--red); animation: blink 0.5s infinite alternate; }
+        .mini-btn {
+            background: #02050a; border: 1px solid var(--border); color: #fff;
+            font-size: 9px; width: 22px; height: 18px; border-radius: 3px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .mini-btn.del { color: var(--red); border-color: var(--red); }
+        .mini-btn.rot { color: var(--cyan); border-color: var(--cyan); }
+        .mini-btn.cfg { color: var(--yellow); border-color: var(--yellow); }
 
-@keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
+        .net-pin{
+            position:absolute; width:28px; height:28px;
+            display:flex; align-items:center; justify-content:center; z-index: 90; cursor: pointer;
+        }
+        .net-pin::after{
+            content:''; width:12px; height:12px; border-radius:50%;
+            border:2px solid #556b82; background:#091018;
+        }
+        .net-pin.connected::after{
+            border-color: var(--cyan); background: var(--cyan); box-shadow: 0 0 6px var(--cyan);
+        }
 
-.scope-panel{ background:#040910; border-top:2px solid var(--border); padding:8px; display: flex; flex-direction: column; gap:6px; flex-shrink: 0; }
-.scope-controls{ display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.scope-btn{ padding: 4px 10px; font-size: 10px; background: #100404; border: 1px solid var(--red); color: var(--red); border-radius: 4px; font-weight: bold; }
-.scope-btn.active{ background: #041006; border: 1px solid var(--green); color: var(--green); }
-.knob-container{ display: flex; gap: 15px; align-items: center; }
-.knob-label{ font-size: 10px; color: #8fa0b3; }
-.knob-label select{ background: #02050a; color: var(--cyan); border: 1px solid var(--border); font-size: 10px; padding: 2px; border-radius: 3px; margin-left: 4px; }
-.scope-box{ border: 2px solid #102e15; border-radius: 5px; overflow: hidden; position: relative; }
-canvas{ width:100%; height:95px; display:block; background:#000d02; }
+        .pwr-btn {
+            position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+            background: #200505; border: 1px solid var(--red); color: var(--red);
+            font-size: 8px; font-weight: bold; padding: 2px 6px; border-radius: 3px; cursor: pointer; z-index: 95;
+        }
+        .pwr-btn.on { background: #05200b; border: 1px solid var(--green); color: var(--green); box-shadow: 0 0 5px var(--green); }
 
-.modal { display: none; position: fixed; z-index: 500; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); align-items: center; justify-content: center; }
-.modal-content { background: var(--panel); border: 2px solid var(--cyan); padding: 20px; border-radius: 8px; width: 280px; text-align: center; }
-.modal-content input { width: 100%; padding: 8px; background: #02050a; border: 1px solid var(--border); color: white; margin-bottom: 15px; text-align: center; }
-.modal-actions { display: flex; gap: 10px; }
-.modal-actions button { flex: 1; padding: 8px; font-weight: bold; border-radius: 4px; border: none; }
-</style>
+        .telemetry{
+            background:rgba(0,0,0,0.9); border:1px solid var(--border); margin-top:24px;
+            padding:4px; border-radius:4px; text-align:center; color:#556b82; font-size:9px; font-weight: bold;
+            white-space: pre-line; line-height: 12px;
+        }
+        .telemetry.on{ color: var(--green); text-shadow: 0 0 4px var(--green); border-color: var(--green); }
+        .telemetry.burn{ color: var(--red); text-shadow: 0 0 6px var(--red); border-color: var(--red); animation: blink 0.5s infinite alternate; }
+
+        @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
+
+        .scope-panel{ background:#010204; border-top:none; padding:4px; display: flex; flex-direction: column; gap:4px; flex-shrink: 0; height: 145px; }
+        .scope-controls{ display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(9, 12, 26, 0.9); border: 1.5px solid var(--border); padding: 4px; border-radius: 5px 5px 0 0;}
+        .scope-btn{ padding: 4px 10px; font-size: 10px; background: #22050b; border: 1px solid var(--red); color: #ff9999; border-radius: 4px; font-weight: bold; }
+        .scope-btn.active{ background: #05220b; border: 1px solid var(--green); color: #99ff99; }
+        .knob-container{ display: flex; gap: 15px; align-items: center; }
+        .knob-label{ font-size: 10px; color: #8fa0b3; }
+        .knob-label select{ background: #02050a; color: var(--cyan); border: 1px solid var(--border); font-size: 10px; padding: 2px; border-radius: 3px; margin-left: 4px; }
+        .scope-box{ border: 1.5px solid #143d1a; border-radius: 0 0 4px 4px; overflow: hidden; position: relative; background: #000502; flex:1;}
+        canvas{ width:100%; height:100%; display:block; }
+
+        /* BUFFER SEGURO INFERIOR DISPOSITIVOS DE APPLE */
+        .ios-safe-buffer-grid {
+            height: calc(20px + env(safe-area-inset-bottom, 0px));
+            background-color: #030611;
+            border-top: 1px dashed #1e2d5a;
+            width: 100%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .buffer-status-line { font-size: 8px; color: #2e437e; letter-spacing: 2px; font-weight: bold; }
+
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); align-items: center; justify-content: center; }
+        .modal-content { background: var(--panel); border: 2px solid var(--cyan); padding: 20px; border-radius: 8px; width: 280px; text-align: center; box-shadow: 0 0 15px var(--cyan); }
+        .modal-content input { width: 100%; padding: 8px; background: #02050a; border: 1px solid var(--border); color: white; margin-bottom: 15px; text-align: center; font-weight: bold; font-size: 14px;}
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-actions button { flex: 1; padding: 8px; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; }
+    </style>
 </head>
 <body>
 
 <header>
-<div class="title">⚡ TRUE-SPICE AC ENGINE v4.0 [MALLA ELÉCTRICA CONTROLADA]</div>
-<button class="exit-btn" onpointerdown="window.location.href = 'index.html';">🚪 SALIR</button>
+    <div class="airport-ticker" id="headerTicker"></div>
+    <div class="header-controls">
+        <button class="exit-btn" onpointerdown="window.location.href='simulador-electronica.html';">
+            <div class="exit-icon">🚪</div>
+            <span>SALIR</span>
+        </button>
+    </div>
 </header>
 
 <div id="viewport">
-<div id="sandbox">
-<svg id="wire-layer"></svg>
-</div>
+    <div id="sandbox">
+        <svg id="wire-layer"></svg>
+    </div>
 </div>
 
 <div class="toolbox">
-<div class="row">
-<button class="btn" onclick="addComponent('ac_power')">⚡ FUENTE AC</button>
-<button class="btn" onclick="addComponent('disyuntor')">🔌 SWITCH</button>
-<button class="btn" onclick="addComponent('transformador')">🧲 TRANSFOR</button>
-<button class="btn" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
-<button class="btn" onclick="addComponent('capacitor_cer')">🟠 CAP. CERÁMICO</button>
-<button class="btn" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
-<button class="btn" onclick="addComponent('bombilla')">💡 BOMBILLA</button>
-</div>
+    <div class="platform-label">⚡ Malla Eléctrica Alterna (Análisis Reactivo)</div>
+    <div class="row">
+        <button class="btn" style="border-color: var(--cyan);" onclick="addComponent('ac_power')">⚡ FUENTE AC</button>
+        <button class="btn" style="border-color: var(--red);" onclick="addComponent('disyuntor')">🔌 SWITCH</button>
+        <button class="btn" style="border-color: var(--orange);" onclick="addComponent('transformador')">🧲 TRANSFOR</button>
+        <button class="btn" style="border-color: var(--cyan);" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
+        <button class="btn" style="border-color: var(--purple);" onclick="addComponent('capacitor_cer')">🟠 CAP. CERÁMICO</button>
+        <button class="btn" style="border-color: var(--yellow);" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
+        <button class="btn" style="border-color: var(--yellow);" onclick="addComponent('bombilla')">💡 BOMBILLA</button>
+    </div>
 </div>
 
 <div class="scope-panel">
-<div class="scope-controls">
-    <button id="scopeToggle" class="scope-btn active" onclick="toggleScope()">OSCILOSCOPIO: ON</button>
-    <div class="knob-container">
-        <label class="knob-label">VOLT/DIV:
-            <select id="scopeVolt" onchange="updateScopeParams()">
-                <option value="0.5">0.5V</option>
-                <option value="1" selected>1.0V</option>
-                <option value="2">2.0V</option>
-            </select>
-        </label>
-        <label class="knob-label">TIMEBASE:
-            <select id="scopeTime" onchange="updateScopeParams()">
-                <option value="0.03">X2</option>
-                <option value="0.06" selected>X1</option>
-                <option value="0.12">X0.5</option>
-            </select>
-        </label>
+    <div class="scope-controls">
+        <button id="scopeToggle" class="scope-btn active" onclick="toggleScope()">OSCILOSCOPIO: ON</button>
+        <div class="knob-container">
+            <label class="knob-label">VOLT/DIV:
+                <select id="scopeVolt" onchange="updateScopeParams()">
+                    <option value="0.5">0.5V</option>
+                    <option value="1" selected>1.0V</option>
+                    <option value="2">2.0V</option>
+                </select>
+            </label>
+            <label class="knob-label">TIMEBASE:
+                <select id="scopeTime" onchange="updateScopeParams()">
+                    <option value="0.03">X2</option>
+                    <option value="0.06" selected>X1</option>
+                    <option value="0.12">X0.5</option>
+                </select>
+            </label>
+        </div>
     </div>
+    <div class="scope-box"><canvas id="scope"></canvas></div>
 </div>
-<div class="scope-box"><canvas id="scope"></canvas></div>
+
+<div class="ios-safe-buffer-grid">
+    <div class="buffer-status-line">✦ MALLA DE LAB AC CONTROL ✦</div>
 </div>
 
 <div id="editModal" class="modal">
     <div class="modal-content">
-        <h3 id="modalTitle">Editar Parámetro</h3>
+        <h3 id="modalTitle" style="color:var(--cyan); margin-bottom:10px; font-size:14px;">Editar Parámetro</h3>
         <input type="number" id="paramInput" step="any">
         <div class="modal-actions">
             <button style="background:var(--green); color:black;" onclick="saveParam()">GUARDAR</button>
@@ -222,6 +282,17 @@ let scopeOn = true;
 let scopeVoltScale = 1;
 let scopeTimeScale = 0.06;
 let editingComponent = null;
+
+function initAirportTicker() {
+    const txt = "SPICE.AC";
+    const container = document.getElementById('headerTicker');
+    container.innerHTML = '';
+    [...txt].forEach((char) => {
+        let div = document.createElement('div');
+        div.className = 'airport-char'; div.innerText = char;
+        container.appendChild(div);
+    });
+}
 
 const ARCH = {
 ac_power:{
@@ -570,7 +641,7 @@ function toggleScope(){
 function updateScopeParams(){
     scopeVoltScale = parseFloat(document.getElementById('scopeVolt').value);
     scopeTimeScale = parseFloat(document.getElementById('scopeTime').value);
-    wave = []; // Limpia el buffer para recalcular la gráfica al vuelo sin colgarse
+    wave = []; 
 }
 
 const canvas = document.getElementById('scope'); const ctx = canvas.getContext('2d');
@@ -604,7 +675,7 @@ function renderScope(){
         ctx.fillStyle = '#39ff14'; ctx.font = '10px monospace';
         ctx.fillText(`RMS: ${fuente ? fuente.v : 0}V | Freq: 60Hz`, 10, 15);
     } else {
-        wave = []; // Vacía la cola si está apagado para evitar saltos gráficos de golpe
+        wave = []; 
         ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4);
     }
     
@@ -629,7 +700,6 @@ function monitorizarComponentes(){
             } else if(c.type === 'resistor') {
                 watts = Math.round((v * v) / c.r);
             } else if(c.type === 'capacitor_cer') {
-                // Reactancia capacitiva real a 60Hz usando nanoFaradios (uf * 1e-9)
                 let faradios = c.uf * 1e-9;
                 let xc = 1 / (2 * Math.PI * 60 * faradios);
                 if(xc < 1) xc = 1; 
@@ -679,7 +749,11 @@ function monitorizarComponentes(){
     });
 }
 
-window.onload = () => { localStorage.removeItem('TRUESPICE_AC_SAVE_V38'); cargarCircuito(); };
+window.onload = () => { 
+    initAirportTicker();
+    localStorage.removeItem('TRUESPICE_AC_SAVE_V38'); 
+    cargarCircuito(); 
+};
 renderScope();
 </script>
 </body>
