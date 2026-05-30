@@ -48,7 +48,6 @@
             cursor: pointer; text-shadow: 0 0 4px var(--red);
         }
 
-        /* DISTRIBUCIÓN DINÁMICA: El viewport ocupa el espacio restante sin pisar la botonera */
         #viewport { 
             position: relative; 
             background: var(--bg-grid); 
@@ -125,7 +124,7 @@
             font-size: 10px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 4px; flex-shrink: 0;
         }
 
-        /* 🔄 NUEVA ZONA CENTRAL INTERMEDIA: ALINEA EL BOTÓN GIGANTE RGB SIN TAPAR NADA */
+        /* INTERFAZ SIN ENCRUCIJADAS */
         .action-connector-zone {
             background: #040810;
             border-bottom: 2px solid var(--border);
@@ -137,7 +136,6 @@
             gap: 10px;
         }
 
-        /* BOTÓN AC REDONDO, INTEGRADO EN EL FLUJO */
         .ac-module-btn {
             width: 52px;
             height: 52px;
@@ -172,18 +170,19 @@
             flex: 1; text-align: center; cursor: pointer; height: 38px;
         }
 
-        /* 📟 OSCILOSCOPIO MÓVIL TOTALMENTE VISIBLE ABAJO */
+        /* 📟 CONTENEDOR TOTALMENTE SEGURO PARA PANTALLAS MÓVILES */
         #mobile-console { 
             background: #010204; 
             padding: 6px; 
             flex-shrink: 0; 
-            height: 105px; 
+            height: 120px; 
             z-index: 800;
+            border-top: 1px solid var(--border);
         }
         .console-box { background: rgba(9, 12, 26, 0.9); border: 1.5px solid var(--border); border-radius: 6px; padding: 4px; height: 100%; }
         .box-title { font-size: 9px; color: #5c6c9c; font-weight: bold; display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
         
-        .canvas-container { background: #000502; border: 1.5px solid #143d1a; border-radius: 4px; height: calc(100% - 14px); overflow: hidden; }
+        .canvas-container { background: #000502; border: 1.5px solid #143d1a; border-radius: 4px; height: calc(100% - 14px); overflow: hidden; position: relative; }
         canvas { width: 100%; height: 100%; display: block; } 
 
         #spice-inspector {
@@ -290,9 +289,7 @@
             }
         }
 
-        // ARQUETIPOS RECALIBRADOS Y MEJORADOS VISUALMENTE
         const SPICE_ARQUETYPES = {
-            /* DISEÑO DE BATERÍA INDUSTRIAL MEJORADO (DISPLAY DIGITAL Y BORNES INDUSTRIALES) */
             nice_power: { w: 100, h: 75, render: (n) => `
                 <div class="comp-body">
                     <span class="polarity-sign pol-plus" style="left:12px; top:42px;">+</span>
@@ -339,7 +336,6 @@
                     <div class="pin-node-id" id="lbl_${n.id}_b" style="right:-20px; top:-10px;">?</div>
                 </div>
             `},
-            /* MOTOR CORREGIDO CON EJE PERFECTO Y ASPAS ROBUSTAS EN CRUZ */
             motor_dc: { w: 85, h: 80, render: (n) => `
                 <div class="comp-body">
                     <span class="polarity-sign pol-plus" style="left:5px; top:28px;">+</span>
@@ -557,7 +553,6 @@
             solveCircuitMNA();
         }
 
-        // --- SOLUCIONADOR MATRICIAL SPICE MNA MATEMÁTICO ---
         function solveCircuitMNA() {
             try {
                 if (netNodes.length === 0) { resetOutputsZero(); return; }
@@ -768,7 +763,6 @@
             solveCircuitMNA();
         }
 
-        /* HILO DE RENDERIZADO VISUAL SUAVE (60FPS DE ALTA FIDELIDAD) */
         function loopAnimacionFisica() {
             globalWireDashOffset = (globalWireDashOffset - 0.4) % 100;
             drawNetlistWires();
@@ -842,139 +836,113 @@
             inspector.style.display = 'none'; solveCircuitMNA();
         }
 
-  /* OSCILOSCOPIO REDISEÑADO SIN ERRORES DE SINTAXIS */
-function initOscilloscope() {
+        /* 📟 CORRECCIÓN ABSOLUTA DEL OSCILOSCOPIO MÓVIL (DPR RESPONSIVE NEUTRAL) */
+        function initOscilloscope() {
+            scopeCanvas = document.getElementById('scopeCanvas');
+            scopeCtx = scopeCanvas.getContext('2d');
 
-    scopeCanvas = document.getElementById('scopeCanvas');
-    scopeCtx = scopeCanvas.getContext('2d');
+            function resizeScope() {
+                const rect = scopeCanvas.parentElement.getBoundingClientRect();
+                
+                // Forzamos el ancho y alto del elemento lógico al tamaño real renderizado del div contenedor
+                scopeCanvas.width = Math.floor(rect.width);
+                scopeCanvas.height = Math.floor(rect.height);
+                
+                // Limpiamos transformaciones previas para evitar desajustes de escalado en iOS Chrome/Safari
+                scopeCtx.setTransform(1, 0, 0, 1, 0, 0);
+            }
 
-    const dpr = window.devicePixelRatio || 1;
+            resizeScope();
+            window.addEventListener('resize', resizeScope);
+            window.addEventListener('orientationchange', resizeScope);
 
-    function resizeScope() {
-        const rect = scopeCanvas.parentElement.getBoundingClientRect();
+            let xTrace = 0;
+            let pointsBuffer = [];
 
-        // 📱 SAFE AREA FIX (iPhone + Android navbar)
-        const safeBottom = parseInt(
-            getComputedStyle(document.documentElement)
-                .getPropertyValue('env(safe-area-inset-bottom)') || 0
-        );
+            function renderScope() {
+                requestAnimationFrame(renderScope);
 
-        const height = 85 + safeBottom;
+                const w = scopeCanvas.width;
+                const h = scopeCanvas.height;
 
-        scopeCanvas.width = rect.width * dpr;
-        scopeCanvas.height = height * dpr;
+                if (w === 0 || h === 0) return;
 
-        scopeCanvas.style.width = rect.width + 'px';
-        scopeCanvas.style.height = height + 'px';
+                if (pointsBuffer.length !== w) {
+                    pointsBuffer = Array(w).fill(h / 2);
+                }
 
-        scopeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
+                // Fondo del Osciloscopio
+                scopeCtx.fillStyle = '#001100';
+                scopeCtx.fillRect(0, 0, w, h);
 
-    resizeScope();
-    window.addEventListener('resize', resizeScope);
-    window.addEventListener('orientationchange', resizeScope);
+                // Cuadrícula Analógica Estabilizada
+                scopeCtx.strokeStyle = '#012a01';
+                scopeCtx.lineWidth = 1;
 
-    let xTrace = 0;
-    let pointsBuffer = [];
+                for (let i = 0; i < w; i += 30) {
+                    scopeCtx.beginPath(); scopeCtx.moveTo(i, 0); scopeCtx.lineTo(i, h); scopeCtx.stroke();
+                }
+                for (let j = 0; j < h; j += 20) {
+                    scopeCtx.beginPath(); scopeCtx.moveTo(0, j); scopeCtx.lineTo(w, j); scopeCtx.stroke();
+                }
 
-    function renderScope() {
+                // Adición de ruido de traza DC para realismo
+                let noise = (Math.random() - 0.5) * 0.05;
+                let v = Math.abs(graphVoltage) > 0.01 ? graphVoltage + noise : 0;
 
-        requestAnimationFrame(renderScope);
+                // Mapeo perfecto: El cero lógico se sitúa abajo y sube según el voltaje (escala móvil)
+                let y = (h - 15) - (v * ((h - 25) / 15));
 
-        const w = scopeCanvas.width / dpr;
-        const h = scopeCanvas.height / dpr;
+                // Protección contra desbordamiento de pantalla
+                if (y < 6) y = 6;
+                if (y > h - 6) y = h - 6;
 
-        if (pointsBuffer.length !== Math.floor(w)) {
-            pointsBuffer = Array(Math.floor(w)).fill(70);
+                pointsBuffer[xTrace] = y;
+
+                // Renderizado de la Señal Neón Atómica
+                scopeCtx.strokeStyle = '#39ff14';
+                scopeCtx.lineWidth = 2;
+                scopeCtx.shadowBlur = 4;
+                scopeCtx.shadowColor = '#39ff14';
+
+                scopeCtx.beginPath();
+                scopeCtx.moveTo(0, pointsBuffer[0]);
+                for (let i = 1; i < w; i++) {
+                    scopeCtx.lineTo(i, pointsBuffer[i]);
+                }
+                scopeCtx.stroke();
+                
+                // Apagamos sombras para optimizar batería del teléfono
+                scopeCtx.shadowBlur = 0; 
+
+                // Línea vertical borradora de traza
+                scopeCtx.fillStyle = 'rgba(0, 17, 0, 0.4)';
+                scopeCtx.fillRect(xTrace + 1, 0, 8, h);
+
+                xTrace = (xTrace + 1) % w;
+
+                // Telemetría en Pantalla (Alineada de forma segura arriba)
+                scopeCtx.fillStyle = '#39ff14';
+                scopeCtx.font = '10px monospace';
+                scopeCtx.fillText(`PROBE ${activeProbeNodeId}: ${v.toFixed(2)} V`, 8, 15);
+            }
+
+            renderScope();
         }
 
-        // 🟢 fondo estable
-        scopeCtx.fillStyle = '#001100';
-        scopeCtx.fillRect(0, 0, w, h);
+        window.addEventListener('load', () => {
+            initAirportTicker();
+            initOscilloscope();
+            loopAnimacionFisica();
 
-        // 🧩 rejilla suave
-        scopeCtx.strokeStyle = '#012a01';
-        scopeCtx.lineWidth = 1;
+            sandbox.addEventListener('click', () => {
+                inspector.style.display = 'none';
+            });
 
-        for (let i = 0; i < w; i += 40) {
-            scopeCtx.beginPath();
-            scopeCtx.moveTo(i, 0);
-            scopeCtx.lineTo(i, h);
-            scopeCtx.stroke();
-        }
-
-        for (let j = 0; j < h; j += 20) {
-            scopeCtx.beginPath();
-            scopeCtx.moveTo(0, j);
-            scopeCtx.lineTo(w, j);
-            scopeCtx.stroke();
-        }
-
-        // 🌊 señal
-        let noise = (Math.random() - 0.5) * 0.01;
-
-        let v = Math.abs(graphVoltage) > 0.01
-            ? graphVoltage + noise
-            : 0;
-
-        let y = (h - 10) - (v * (55 / 12));
-
-        if (y < 4) y = 4;
-        if (y > h - 4) y = h - 4;
-
-        pointsBuffer[xTrace] = y;
-
-        // ✨ línea verde suave
-        scopeCtx.strokeStyle = '#39ff14';
-        scopeCtx.lineWidth = 2;
-
-        scopeCtx.shadowBlur = 6;
-        scopeCtx.shadowColor = '#39ff14';
-
-        scopeCtx.beginPath();
-        scopeCtx.moveTo(0, pointsBuffer[0]);
-
-        for (let i = 1; i < w; i++) {
-            scopeCtx.lineTo(i, pointsBuffer[i]);
-        }
-
-        scopeCtx.stroke();
-        scopeCtx.shadowBlur = 0;
-
-        xTrace = (xTrace + 1) % w;
-
-        // 📟 OSD ajustado arriba (evita corte inferior)
-        scopeCtx.fillStyle = '#39ff14';
-        scopeCtx.font = '10px monospace';
-
-        scopeCtx.fillText(
-            `PROBE ${activeProbeNodeId}: ${v.toFixed(2)} V`,
-            10,
-            14
-        );
-    }
-
-    renderScope();
-}
-
-/* =========================
-   INICIO DEL SISTEMA
-   ========================= */
-
-window.addEventListener('load', () => {
-    initAirportTicker();
-    initOscilloscope();
-    loopAnimacionFisica();
-
-    sandbox.addEventListener('click', () => {
-        inspector.style.display = 'none';
-    });
-
-    // ⚡ MOTOR SPICE
-    setInterval(() => {
-        solveCircuitMNA();
-    }, 60);
-});
+            setInterval(() => {
+                solveCircuitMNA();
+            }, 60);
+        });
     </script>
 </body>
 </html>
