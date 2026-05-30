@@ -153,7 +153,7 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 
 <header>
 <div class="title">⚡ TRUE-SPICE AC ENGINE v4.0 [MALLA ELÉCTRICA CONTROLADA]</div>
-<button class="exit-btn" onclick="volverMenu()">🚪 VOLVER</button>
+<button class="exit-btn" onpointerdown="window.location.href = 'index.html';">🚪 SALIR</button>
 </header>
 
 <div id="viewport">
@@ -168,7 +168,7 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 <button class="btn" onclick="addComponent('disyuntor')">🔌 SWITCH</button>
 <button class="btn" onclick="addComponent('transformador')">🧲 TRANSFOR</button>
 <button class="btn" onclick="addComponent('motor_ac')">🌀 MOTOR AC</button>
-<button class="btn" onclick="addComponent('capacitor')">🔵 CAP. ELECTROLÍTICO</button>
+<button class="btn" onclick="addComponent('capacitor_cer')">🟠 CAP. CERÁMICO</button>
 <button class="btn" onclick="addComponent('resistor')">🟫 RESISTENCIA</button>
 <button class="btn" onclick="addComponent('bombilla')">💡 BOMBILLA</button>
 </div>
@@ -209,9 +209,6 @@ canvas{ width:100%; height:95px; display:block; background:#000d02; }
 </div>
 
 <script>
-// Redirección exacta solicitada
-function volverMenu(){ window.location.href = 'simulador-electronica.html'; }
-
 const sandbox = document.getElementById('sandbox');
 const wireLayer = document.getElementById('wire-layer');
 
@@ -286,14 +283,14 @@ render:(n)=>`
 <div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:25px"></div>
 </div>`
 },
-capacitor:{
+capacitor_cer:{
 render:(n)=>`
 <div class="comp-body" id="body_${n.id}" style="transform: rotate(${n.rotation}deg);">
 <svg width="80" height="45">
-<rect x="18" y="5" width="44" height="28" rx="4" fill="#021430" stroke="#00f2fe" stroke-width="2"/>
-<line x1="32" y1="9" x2="32" y2="29" stroke="#ff073a" stroke-width="3"/>
-<line x1="46" y1="9" x2="46" y2="29" stroke="#fff" stroke-width="3"/>
-<text x="40" y="42" fill="#fff" font-size="9" text-anchor="middle" id="val_${n.id}">${n.uf} uF</text>
+<circle cx="40" cy="18" r="14" fill="#b86214" stroke="#ff9f43" stroke-width="1.5"/>
+<line x1="36" y1="10" x2="36" y2="26" stroke="#fff" stroke-width="2.5"/>
+<line x1="44" y1="10" x2="44" y2="26" stroke="#fff" stroke-width="2.5"/>
+<text x="40" y="42" fill="#fff" font-size="9" text-anchor="middle" id="val_${n.id}">${n.uf} nF</text>
 </svg>
 <div class="net-pin" id="pin_${n.id}_a" style="left:-14px; top:10px"></div>
 <div class="net-pin" id="pin_${n.id}_b" style="right:-14px; top:10px"></div>
@@ -348,7 +345,7 @@ function addComponent(type){
     globalId++;
     const c = {
         id:type+'_'+globalId, type, x: 130, y: 130,
-        v: 220, r: 100, uf: 47, ratio: 0.5, w_nom: 60, max_rpm: 3000, rotation: 0,
+        v: 220, r: 100, uf: 100, ratio: 0.5, w_nom: 60, max_rpm: 3000, rotation: 0,
         closed: false, isOn: false, powered: false, burned: false, heatTimer: 0, current_rpm: 0
     };
     components.push(c); renderComponent(c); analizarCircuito(); guardarCircuito();
@@ -395,7 +392,7 @@ function configComponente(e, id){
     else if(c.type === 'resistor'){ title.innerText = "Ohms Ω Resistencia"; input.value = c.r; }
     else if(c.type === 'bombilla'){ title.innerText = "Watts W de Potencia"; input.value = c.w_nom; }
     else if(c.type === 'motor_ac'){ title.innerText = "RPM Máximas del Motor"; input.value = c.max_rpm; }
-    else if(c.type === 'capacitor'){ title.innerText = "Microfaradios uF (Cap. Electrolítico)"; input.value = c.uf; }
+    else if(c.type === 'capacitor_cer'){ title.innerText = "Nanofaradios nF (Capacitor Cerámico)"; input.value = c.uf; }
     else if(c.type === 'transformador'){ title.innerText = "Ratio (Vout/Vin)"; input.value = c.ratio; }
 }
 
@@ -407,7 +404,7 @@ function saveParam(){
         else if(editingComponent.type === 'resistor'){ editingComponent.r = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " Ω"; }
         else if(editingComponent.type === 'bombilla'){ editingComponent.w_nom = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " W"; }
         else if(editingComponent.type === 'motor_ac'){ editingComponent.max_rpm = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " RPM Max"; }
-        else if(editingComponent.type === 'capacitor'){ editingComponent.uf = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " uF"; }
+        else if(editingComponent.type === 'capacitor_cer'){ editingComponent.uf = val; document.getElementById(`val_${editingComponent.id}`).textContent = val + " nF"; }
         else if(editingComponent.type === 'transformador'){ editingComponent.ratio = val; document.getElementById(`val_${editingComponent.id}`).textContent = "Ratio: " + val; }
     }
     closeModal(); analizarCircuito(); guardarCircuito();
@@ -445,7 +442,6 @@ function toggleDisyuntor(e, id){
 
 function setupPins(div, c){
     div.querySelectorAll('.net-pin').forEach(pin => {
-        // CORREGIDO: Evitar propagaciones accidentales durante el ruteo de cables
         pin.onclick = (e) => {
             e.stopPropagation(); if(c.burned) return;
             if(!selectedPin){ 
@@ -496,7 +492,6 @@ function makeDraggable(div, obj){
     };
 }
 
-// ALGORITMO DE MALLAS v4.0: SEPARA RIGUROSAMENTE LOS POLOS DE ENTRADA Y SALIDA
 function analizarCircuito(){
     components.forEach(c => { if(!c.burned) { c.powered = false; c.v_input = 0; } });
     
@@ -513,11 +508,9 @@ function analizarCircuito(){
             let pA = `pin_${c.id}_a`; let pB = `pin_${c.id}_b`;
             if(c.type === 'transformador') { pA = `pin_${c.id}_p1`; pB = `pin_${c.id}_p2`; }
 
-            // Buscar caminos eléctricos REALES e independientes para cada polo
             let conectadoAlPoloA = verificarRutaNodo(pinSrcA, pA);
             let conectadoAlPoloB = verificarRutaNodo(pinSrcB, pB);
 
-            // Intentar cruce invertido
             if(!(conectadoAlPoloA && conectadoAlPoloB)){
                 conectadoAlPoloA = verificarRutaNodo(pinSrcA, pB);
                 conectadoAlPoloB = verificarRutaNodo(pinSrcB, pA);
@@ -541,25 +534,20 @@ function verificarRutaNodo(nodoInicio, nodoDestino){
         if(visitados.has(actual)) continue;
         visitados.add(actual);
 
-        // Analizar qué componente posee este pin
         let tokens = actual.split('_');
         let compId = tokens[1] + '_' + tokens[2];
         let comp = components.find(i => i.id === compId);
 
-        // REGLA DE ORO DEL DISYUNTOR: Si está abierto, no pasa energía entre sus pines
         if(comp && comp.type === 'disyuntor' && !comp.closed) {
-            // El cable puede llegar al pin externo, pero NO saltar internamente al otro pin
             inyectarCablesExternos(actual, queue, visitados);
             continue;
         }
 
-        // Propagación interna por el cuerpo físico del componente hacia sus terminales contrarias
         if(comp){
             let todosLosPines = Array.from(document.querySelectorAll(`[id^="pin_${compId}_"]`)).map(p => p.id);
             todosLosPines.forEach(p => { if(!visitados.has(p)) queue.push(p); });
         }
 
-        // Propagación externa a través de los hilos de cobre (cables)
         inyectarCablesExternos(actual, queue, visitados);
     }
     return false;
@@ -582,6 +570,7 @@ function toggleScope(){
 function updateScopeParams(){
     scopeVoltScale = parseFloat(document.getElementById('scopeVolt').value);
     scopeTimeScale = parseFloat(document.getElementById('scopeTime').value);
+    wave = []; // Limpia el buffer para recalcular la gráfica al vuelo sin colgarse
 }
 
 const canvas = document.getElementById('scope'); const ctx = canvas.getContext('2d');
@@ -598,17 +587,24 @@ function renderScope(){
     for(let j=0; j<h; j+=20){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(w,j); ctx.stroke(); }
 
     let fuente = components.find(c => c.type === 'ac_power' && c.isOn && !c.burned);
-    phase += scopeTimeScale;
-    let amplitud = fuente ? (32 / scopeVoltScale) : 0;
-    let y = h/2 + Math.sin(phase) * amplitud;
-
+    
     if(scopeOn){
-        wave.push(y); if(wave.length > w) wave.shift();
+        phase += scopeTimeScale;
+        let amplitud = fuente ? (32 / scopeVoltScale) : 0;
+        let y = h/2 + Math.sin(phase) * amplitud;
+
+        wave.push(y); 
+        if(wave.length > w) wave.shift();
+
         ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); wave.forEach((v, i) => { if(i === 0) ctx.moveTo(i, v); else ctx.lineTo(i, v); }); ctx.stroke();
+        ctx.beginPath(); 
+        wave.forEach((v, i) => { if(i === 0) ctx.moveTo(i, v); else ctx.lineTo(i, v); }); 
+        ctx.stroke();
+        
         ctx.fillStyle = '#39ff14'; ctx.font = '10px monospace';
         ctx.fillText(`RMS: ${fuente ? fuente.v : 0}V | Freq: 60Hz`, 10, 15);
     } else {
+        wave = []; // Vacía la cola si está apagado para evitar saltos gráficos de golpe
         ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4);
     }
     
@@ -627,15 +623,14 @@ function monitorizarComponentes(){
             let v = c.v_input || 220;
             let watts = 0;
 
-            // FÍSICA APLICADA: Comportamiento por componente
             if(c.type === 'bombilla') {
                 let r_dinamica = (220 * 220) / c.w_nom;
                 watts = Math.round((v * v) / r_dinamica);
             } else if(c.type === 'resistor') {
                 watts = Math.round((v * v) / c.r);
-            } else if(c.type === 'capacitor') {
-                // Reactancia capacitiva real a 60Hz: Xc = 1 / (2 * pi * f * C)
-                let faradios = c.uf * 1e-6;
+            } else if(c.type === 'capacitor_cer') {
+                // Reactancia capacitiva real a 60Hz usando nanoFaradios (uf * 1e-9)
+                let faradios = c.uf * 1e-9;
                 let xc = 1 / (2 * Math.PI * 60 * faradios);
                 if(xc < 1) xc = 1; 
                 watts = Math.round((v * v) / xc);
@@ -645,7 +640,6 @@ function monitorizarComponentes(){
                 watts = Math.round((v * v) / 150);
             }
 
-            // Monitoreo térmico estricto
             if(watts > 500) {
                 c.heatTimer++;
                 tel.innerText = `⚠️ OVERLOAD\n${watts}W`; tel.className = "telemetry burn";
@@ -655,8 +649,8 @@ function monitorizarComponentes(){
                 if(c.type === 'motor_ac'){
                     c.current_rpm = Math.round((v / 220) * c.max_rpm);
                     tel.innerText = `${v}V | ${watts}W\n🌀 ${c.current_rpm} RPM`;
-                } else if(c.type === 'capacitor') {
-                    tel.innerText = `${v}V\n🔵 CAP. ELECTROLÍTICO\nConsumo: ${watts}W`;
+                } else if(c.type === 'capacitor_cer') {
+                    tel.innerText = `${v}V\n🟠 CAP. CERÁMICO\nConsumo: ${watts}W`;
                 } else {
                     tel.innerText = `${v}V\n⚡ ${watts}W`;
                 }
@@ -667,7 +661,6 @@ function monitorizarComponentes(){
             tel.innerText = "OFF\n0V | 0W"; tel.className = "telemetry";
         }
 
-        // ANIMACIONES BASADAS EN WATTS Y CORRIENTE REAL
         if(c.type === 'motor_ac' && c.powered && !c.burned){
             const fan = document.getElementById('fan_'+c.id);
             if(fan) fan.style.transform = `rotate(${performance.now() * (c.current_rpm / 4000)}deg)`;
@@ -676,7 +669,6 @@ function monitorizarComponentes(){
             const lamp = document.getElementById('lamp_'+c.id);
             if(lamp){
                 if(c.powered){
-                    // El brillo ahora es proporcional a los Watts reales consumidos contra 220W base
                     let factorBrillo = Math.min(1, (c.w_nom / 300));
                     let oscilacion = 0.3 + Math.sin(phase * 3) * 0.15;
                     lamp.setAttribute('fill', `rgba(255,238,0, ${oscilacion * factorBrillo + 0.3})`);
@@ -687,7 +679,6 @@ function monitorizarComponentes(){
     });
 }
 
-// Forzar limpieza de estados corruptos previos
 window.onload = () => { localStorage.removeItem('TRUESPICE_AC_SAVE_V38'); cargarCircuito(); };
 renderScope();
 </script>
