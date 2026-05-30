@@ -107,7 +107,6 @@
             padding:8px 12px; border-radius:4px; font-size:10px; font-weight:bold; flex-shrink:0;
         }
 
-        /* DISEÑO DE NODOS OPTIMIZADO PARA AGARRE TÁCTIL */
         .spice-node{
             position:absolute; z-index:50; touch-action: none;
             padding:22px 14px 14px 14px; cursor: move;
@@ -133,7 +132,6 @@
         .mini-btn.rot { color: var(--cyan); border-color: var(--cyan); }
         .mini-btn.cfg { color: var(--yellow); border-color: var(--yellow); }
 
-        /* PINES MÁS GRANDES E INDEPENDIENTES DEL ÁREA DE ARRASTRE */
         .net-pin{
             position:absolute; width:32px; height:32px;
             display:flex; align-items:center; justify-content:center; z-index: 110; cursor: pointer;
@@ -164,13 +162,25 @@
         @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
 
         .scope-panel{ background:#010204; padding:4px; display: flex; flex-direction: column; gap:4px; flex-shrink: 0; height: 135px; }
+        .scope-container-layout { display: flex; flex: 1; gap: 4px; overflow: hidden; }
         .scope-controls{ display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(9, 12, 26, 0.9); border: 1.5px solid var(--border); padding: 4px; border-radius: 4px 4px 0 0;}
         .scope-btn{ padding: 4px 8px; font-size: 10px; background: #22050b; border: 1px solid var(--red); color: #ff9999; border-radius: 4px; font-weight: bold; }
         .scope-btn.active{ background: #05220b; border: 1px solid var(--green); color: #99ff99; }
         .knob-container{ display: flex; gap: 10px; align-items: center; }
         .knob-label{ font-size: 10px; color: #8fa0b3; }
         .knob-label select{ background: #02050a; color: var(--cyan); border: 1px solid var(--border); font-size: 10px; padding: 2px; border-radius: 3px; margin-left: 2px; }
-        .scope-box{ border: 1.5px solid #143d1a; border-radius: 0 0 4px 4px; overflow: hidden; position: relative; background: #000502; flex:1;}
+        .scope-box{ border: 1.5px solid #143d1a; border-radius: 0 0 4px 4px; overflow: hidden; position: relative; background: #000502; flex:2;}
+        
+        /* DISEÑO MONITOR SERIE COMPACTO */
+        .serial-box {
+            flex: 1; border: 1.5px solid #1e2d5a; background: #020612;
+            border-radius: 0 0 4px 4px; padding: 4px; font-size: 8.5px;
+            color: var(--cyan); overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+            box-shadow: inset 0 0 8px rgba(0,242,254,0.1);
+        }
+        .serial-line { border-bottom: 1px solid rgba(22,31,61,0.5); padding-bottom: 1px; color: #7284b0; }
+        .serial-line.active { color: var(--green); text-shadow: 0 0 2px var(--green); }
+
         canvas{ width:100%; height:100%; display:block; }
 
         .ios-safe-buffer-grid {
@@ -187,10 +197,9 @@
         .modal-actions { display: flex; gap: 10px; }
         .modal-actions button { flex: 1; padding: 8px; font-weight: bold; border-radius: 4px; border: none; }
 
-        /* MEDIOS TÁCTILES / DETECCIÓN DE PANTALLAS PEQUEÑAS (MÓVIL) */
         @media (max-width: 768px) {
             .spice-node {
-                transform: scale(0.82); /* Compacta componentes un ~18% en pantallas de móvil */
+                transform: scale(0.82);
             }
         }
     </style>
@@ -228,7 +237,7 @@
 
 <div class="scope-panel">
     <div class="scope-controls">
-        <button id="scopeToggle" class="scope-btn active" onclick="toggleScope()">OSCILOSCOPIO</button>
+        <button id="scopeToggle" class="scope-btn active" onclick="toggleScope()">OSCILOSCOPIO Y SERIAL</button>
         <div class="knob-container">
             <label class="knob-label">V/DIV:
                 <select id="scopeVolt" onchange="updateScopeParams()">
@@ -246,7 +255,12 @@
             </label>
         </div>
     </div>
-    <div class="scope-box"><canvas id="scope"></canvas></div>
+    <div class="scope-container-layout">
+        <div class="scope-box"><canvas id="scope"></canvas></div>
+        <div class="serial-box" id="serial-monitor">
+            <div class="serial-line">> TRUE-SPICE TELEMETRY READY...</div>
+        </div>
+    </div>
 </div>
 
 <div class="ios-safe-buffer-grid">
@@ -299,7 +313,7 @@ render:(n)=>`
 <path d="M25 32 Q37 12 50 32 Q62 52 75 32" stroke="var(--cyan)" stroke-width="3" fill="none"/>
 <text x="50" y="50" fill="#fff" font-size="9" text-anchor="middle" id="val_${n.id}">${n.v} VAC</text>
 </svg>
-<button class="pwr-btn ${n.isOn ? 'on' : ''}" id="pwr_${n.id}" onclick="toggleFuente(event, '${n.id}')">${n.isOn ? 'POWER: ON' : 'POWER: OFF'}</button>
+<button class="pwr-btn ${n.isOn ? 'on' : ''}" id="pwr_${n.id}" onpointerdown="toggleFuente(event, '${n.id}')">${n.isOn ? 'POWER: ON' : 'POWER: OFF'}</button>
 <div class="net-pin" id="pin_${n.id}_a" style="left:-16px; top:18px"></div>
 <div class="net-pin" id="pin_${n.id}_b" style="right:-16px; top:18px"></div>
 </div>`
@@ -307,7 +321,7 @@ render:(n)=>`
 disyuntor:{
 render:(n)=>`
 <div class="comp-body" id="body_${n.id}" style="transform: rotate(${n.rotation}deg); padding-bottom:10px;">
-<svg width="90" height="55" viewBox="0 0 90 55" style="cursor:pointer;" onclick="toggleDisyuntor(event, '${n.id}')">
+<svg width="90" height="55" viewBox="0 0 90 55" style="cursor:pointer;" onpointerdown="toggleDisyuntor(event, '${n.id}')">
 <rect x="10" y="5" width="70" height="45" rx="4" fill="#0b1521" stroke="#4b6b94" stroke-width="2"/>
 <line x1="10" y1="27" x2="30" y2="27" stroke="#fff" stroke-width="3"/>
 <line x1="60" y1="27" x2="80" y2="27" stroke="#fff" stroke-width="3"/>
@@ -426,9 +440,9 @@ function renderComponent(c){
 
     div.innerHTML = `
         <div class="action-bar">
-            <div class="mini-btn rot" onclick="rotarComponente(event, '${c.id}')">🔄</div>
-            <div class="mini-btn cfg" onclick="configComponente(event, '${c.id}')">⚙️</div>
-            <div class="mini-btn del" onclick="eliminarComponente(event, '${c.id}')">🗑️</div>
+            <div class="mini-btn rot" onpointerdown="rotarComponente(event, '${c.id}')">🔄</div>
+            <div class="mini-btn cfg" onpointerdown="configComponente(event, '${c.id}')">⚙️</div>
+            <div class="mini-btn del" onpointerdown="eliminarComponente(event, '${c.id}')">🗑️</div>
         </div>
         ${ARCH[c.type].render(c)}
         <div class="telemetry" id="tel_${c.id}">OFF</div>
@@ -439,7 +453,7 @@ function renderComponent(c){
 }
 
 function rotarComponente(e, id){
-    e.stopPropagation();
+    e.stopPropagation(); e.preventDefault();
     const c = components.find(item => item.id === id); if(!c) return;
     c.rotation = (c.rotation + 90) % 360;
     document.getElementById(`body_${id}`).style.transform = `rotate(${c.rotation}deg)`;
@@ -447,7 +461,7 @@ function rotarComponente(e, id){
 }
 
 function configComponente(e, id){
-    e.stopPropagation();
+    e.stopPropagation(); e.preventDefault();
     const c = components.find(item => item.id === id); if(!c) return;
     editingComponent = c;
     const modal = document.getElementById('editModal');
@@ -480,7 +494,7 @@ function saveParam(){
 function closeModal(){ document.getElementById('editModal').style.display = 'none'; editingComponent = null; }
 
 function eliminarComponente(e, id){
-    e.stopPropagation();
+    e.stopPropagation(); e.preventDefault();
     wires = wires.filter(w => !w.a.includes(id) && !w.b.includes(id));
     document.getElementById(id).remove();
     components = components.filter(c => c.id !== id);
@@ -488,7 +502,7 @@ function eliminarComponente(e, id){
 }
 
 function toggleFuente(e, id){
-    e.stopPropagation();
+    e.stopPropagation(); e.preventDefault();
     const comp = components.find(c => c.id === id); if(!comp || comp.burned) return;
     comp.isOn = !comp.isOn;
     const btn = document.getElementById(`pwr_${id}`);
@@ -498,7 +512,7 @@ function toggleFuente(e, id){
 }
 
 function toggleDisyuntor(e, id){
-    e.stopPropagation();
+    e.stopPropagation(); e.preventDefault();
     const comp = components.find(c => c.id === id); if(!comp || comp.burned) return;
     comp.closed = !comp.closed;
     const line = document.getElementById(`sw_${id}`);
@@ -509,8 +523,8 @@ function toggleDisyuntor(e, id){
 
 function setupPins(div, c){
     div.querySelectorAll('.net-pin').forEach(pin => {
-        pin.onclick = (e) => {
-            e.stopPropagation(); if(c.burned) return;
+        pin.onpointerdown = (e) => {
+            e.stopPropagation(); e.preventDefault(); if(c.burned) return;
             if(!selectedPin){ 
                 selectedPin = pin; selectedPin.style.transform = 'scale(1.3)'; 
             } else {
@@ -534,7 +548,6 @@ function drawWires(){
         const r1 = pinA.getBoundingClientRect(); const r2 = pinB.getBoundingClientRect();
         const s = sandbox.getBoundingClientRect();
         
-        // Ajuste dinámico de centro del pin considerando márgenes extra de touch (16px de radio)
         const x1 = r1.left - s.left + 16; const y1 = r1.top - s.top + 16;
         const x2 = r2.left - s.left + 16; const y2 = r2.top - s.top + 16;
 
@@ -542,8 +555,8 @@ function drawWires(){
         const dx = Math.abs(x2 - x1) * 0.3;
         path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
         path.setAttribute('class', 'wire');
-        path.onclick = (e) => {
-            e.stopPropagation(); wires = wires.filter(item => item.id !== w.id);
+        path.onpointerdown = (e) => {
+            e.stopPropagation(); e.preventDefault(); wires = wires.filter(item => item.id !== w.id);
             drawWires(); analizarCircuito(); guardarCircuito();
         };
         wireLayer.appendChild(path);
@@ -553,8 +566,10 @@ function drawWires(){
 function makeDraggable(div, obj){
     let dx = 0, dy = 0;
     div.onpointerdown = (e) => {
-        // Permitir arrastre desde las zonas muertas ampliadas (padding) del contenedor del componente
-        if(e.target.classList.contains('net-pin') || e.target.classList.contains('pwr-btn') || e.target.classList.contains('mini-btn')) return;
+        const targetClass = e.target.className;
+        if(e.target.classList.contains('net-pin') || e.target.classList.contains('pwr-btn') || e.target.classList.contains('mini-btn') || e.target.tagName === 'svg' || e.target.tagName === 'line' || e.target.tagName === 'rect') {
+            if(!e.target.classList.contains('spice-node') && !e.target.classList.contains('comp-body')) return;
+        }
         
         dx = e.clientX - obj.x; dy = e.clientY - obj.y;
         div.setPointerCapture(e.pointerId);
@@ -641,7 +656,7 @@ function inyectarCablesExternos(pinActual, queue, visitados){
 function toggleScope(){
     scopeOn = !scopeOn;
     const btn = document.getElementById('scopeToggle');
-    btn.innerText = scopeOn ? "OSCILOSCOPIO: ON" : "OSCILOSCOPIO: OFF";
+    btn.innerText = scopeOn ? "OSCILOSCOPIO Y SERIAL: ON" : "OSCILOSCOPIO Y SERIAL: OFF";
     btn.className = scopeOn ? "scope-btn active" : "scope-btn";
 }
 
@@ -655,6 +670,27 @@ const canvas = document.getElementById('scope'); const ctx = canvas.getContext('
 let wave = [];
 canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
 
+let serialTimer = 0;
+function updateSerialMonitor(v, watts, rpm, isMotorActive) {
+    serialTimer++;
+    if(serialTimer % 15 !== 0) return; 
+    const monitor = document.getElementById('serial-monitor');
+    if(!monitor) return;
+
+    let amperes = v > 0 ? (watts / v).toFixed(2) : "0.00";
+    let dutyCycle = isMotorActive ? Math.min(100, Math.round((v / 220) * 100)) : 0;
+
+    monitor.innerHTML = `
+        <div class="serial-line">> COM3 - BAUDRATE 115200</div>
+        <div class="serial-line ${isMotorActive?'active':''}">[VOLTAJE] : ${v} V_RMS</div>
+        <div class="serial-line ${isMotorActive?'active':''}">[POTENCIA]: ${watts} W</div>
+        <div class="serial-line ${isMotorActive?'active':''}">[CORRIENTE]: ${amperes} A</div>
+        <div class="serial-line ${isMotorActive?'active':''}">[PWM_DUTY]: ${dutyCycle}%</div>
+        <div class="serial-line ${isMotorActive?'active':''}">[SPEED]   : ${rpm} RPM</div>
+    `;
+    monitor.scrollTop = monitor.scrollHeight;
+}
+
 function renderScope(){
     requestAnimationFrame(renderScope);
     const w = canvas.width; const h = canvas.height;
@@ -665,31 +701,46 @@ function renderScope(){
     for(let j=0; j<h; j+=20){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(w,j); ctx.stroke(); }
 
     let fuente = components.find(c => c.type === 'ac_power' && c.isOn && !c.burned);
+    let motor = components.find(c => c.type === 'motor_ac' && c.powered && !c.burned);
     
     if(scopeOn){
         phase += scopeTimeScale;
         let amplitud = fuente ? (28 / scopeVoltScale) : 0;
-        let y = h/2 + Math.sin(phase) * amplitud;
+        
+        let y = h/2;
+        if (motor) {
+            let threshold = Math.sin(phase * 4);
+            let duty = (motor.v_input / 220); 
+            y = (Math.sin(phase * 25) > (1 - duty * 2)) ? (h/2 - amplitud) : (h/2 + amplitud);
+        } else {
+            y = h/2 + Math.sin(phase) * amplitud;
+        }
 
         wave.push(y); 
         if(wave.length > w) wave.shift();
 
-        ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 2.5;
+        ctx.strokeStyle = motor ? '#00f2fe' : '#39ff14'; 
+        ctx.lineWidth = 2.5;
         ctx.beginPath(); 
         wave.forEach((v, i) => { if(i === 0) ctx.moveTo(i, v); else ctx.lineTo(i, v); }); 
         ctx.stroke();
         
-        ctx.fillStyle = '#39ff14'; ctx.font = '10px monospace';
-        ctx.fillText(`RMS: ${fuente ? fuente.v : 0}V | Freq: 60Hz`, 10, 15);
+        ctx.fillStyle = motor ? '#00f2fe' : '#39ff14'; ctx.font = '10px monospace';
+        ctx.fillText(`MODE: ${motor ? 'PWM OUT':'AC SINE'} | Freq: 60Hz`, 10, 15);
     } else {
         wave = []; 
-        ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('POWER OFF', w/2 - 25, h/2 + 4);
+        ctx.fillStyle = '#ff073a'; ctx.font = '10px monospace'; ctx.fillText('MONITOR DISCONNECTED', w/2 - 55, h/2 + 4);
     }
     
     monitorizarComponentes();
 }
 
 function monitorizarComponentes(){
+    let activeVolt = 0;
+    let activeWatts = 0;
+    let activeRpm = 0;
+    let isMotorOn = false;
+
     components.forEach(c => {
         const tel = document.getElementById(`tel_${c.id}`); if(!tel) return;
 
@@ -726,6 +777,7 @@ function monitorizarComponentes(){
                 if(c.type === 'motor_ac'){
                     c.current_rpm = Math.round((v / 220) * c.max_rpm);
                     tel.innerText = `${v}V | ${watts}W\n🌀 ${c.current_rpm} RPM`;
+                    activeVolt = v; activeWatts = watts; activeRpm = c.current_rpm; isMotorOn = true;
                 } else if(c.type === 'capacitor_cer') {
                     tel.innerText = `${v}V\n🟠 CAP. CERÁMICO\nConsumo: ${watts}W`;
                 } else {
@@ -754,6 +806,10 @@ function monitorizarComponentes(){
             }
         }
     });
+
+    if(scopeOn) {
+        updateSerialMonitor(activeVolt, activeWatts, activeRpm, isMotorOn);
+    }
 }
 
 window.onload = () => { 
