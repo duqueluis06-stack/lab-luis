@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SISTEMA SOLAR 3D - TELEMETRÍA AVANZADA QUANTUM DSN</title>
     <style>
         :root {
@@ -27,6 +27,7 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body, html {
@@ -36,6 +37,7 @@
             color: var(--text-primary);
             font-family: var(--font-sans);
             overflow: hidden;
+            position: relative;
         }
 
         #canvas-container {
@@ -47,7 +49,7 @@
             z-index: 1;
         }
 
-        /* --- INTERFAZ COMPLETA HUD TÁCTICO COMENTADO --- */
+        /* --- INTERFAZ ADAPTABLE MULTIPANEL --- */
         .hud-layer {
             position: absolute;
             top: 0;
@@ -57,41 +59,42 @@
             z-index: 10;
             pointer-events: none;
             display: grid;
-            grid-template-columns: 360px 1fr 420px;
-            grid-template-rows: 75px 1fr 260px;
+            grid-template-columns: 340px 1fr 380px;
+            grid-template-rows: auto 1fr auto;
             grid-template-areas: 
                 "header header header"
                 "left-panel center-space right-panel"
                 "bottom-panel bottom-panel right-panel";
-            padding: 20px;
-            gap: 20px;
+            padding: 15px;
+            gap: 15px;
+            box-sizing: border-box;
         }
 
         .interactive {
             pointer-events: auto;
         }
 
-        /* --- BOTÓN NATIVO SALIR AL INDEX INTERACTIVO --- */
+        /* --- BOTÓN SALIR AL INDEX --- */
         .btn-navigation-escape {
             position: absolute;
-            top: 20px;
-            left: 25px;
-            z-index: 1000;
+            top: 15px;
+            left: 15px;
+            z-index: 1100;
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 14px 28px;
-            background: rgba(1, 3, 9, 0.85);
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(1, 3, 9, 0.9);
             color: var(--cyan-neon);
             text-decoration: none;
             font-family: var(--font-mono);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             border: 1px solid var(--cyan-neon);
             border-radius: 4px;
             box-shadow: 0 0 15px var(--panel-border-glow);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             text-transform: uppercase;
         }
 
@@ -99,50 +102,46 @@
             background: var(--cyan-neon);
             color: #010205;
             box-shadow: 0 0 25px var(--cyan-neon);
-            transform: translateY(-2px);
         }
 
-        .btn-navigation-escape svg {
-            fill: currentColor;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-navigation-escape:hover svg {
-            transform: translateX(-5px);
-        }
-
-        /* --- CONFIGURACIÓN ESTRUCTURAL PANEL SUPERIOR --- */
+        /* --- PANEL SUPERIOR COMPLETAMENTE ADAPTABLE --- */
         header {
             grid-area: header;
-            background: linear-gradient(90deg, rgba(4,8,20,0.95) 0%, rgba(1,2,4,0.3) 50%, rgba(4,8,20,0.95) 100%);
+            background: linear-gradient(90deg, rgba(4,8,20,0.95) 0%, rgba(1,2,4,0.5) 50%, rgba(4,8,20,0.95) 100%);
             border: 1px solid var(--panel-border);
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+            padding: 12px 20px;
             box-shadow: inset 0 0 20px rgba(0,212,255,0.08);
+            margin-top: 45px; /* Deja espacio para el botón salir en móviles */
         }
 
         .header-title-container {
             text-align: center;
+            width: 100%;
         }
 
         .header-title-container h1 {
             font-family: var(--font-mono);
-            font-size: 22px;
-            letter-spacing: 8px;
+            font-size: 16px;
+            letter-spacing: 3px;
             color: #ffffff;
             text-shadow: 0 0 10px var(--cyan-neon);
             text-transform: uppercase;
+            word-wrap: break-word;
         }
 
         .header-status-bar {
             font-family: var(--font-mono);
-            font-size: 11px;
+            font-size: 9px;
             color: var(--text-secondary);
             margin-top: 4px;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .header-status-bar span.online {
@@ -150,13 +149,14 @@
             font-weight: bold;
         }
 
-        /* --- ARQUITECTURA DE CONTENEDORES DE TELEMETRÍA --- */
+        /* --- CONTENEDORES DE TELEMETRÍA --- */
         .telemetry-panel-core {
             background: var(--panel-bg-alpha);
             border: 1px solid var(--panel-border);
             border-radius: 6px;
             box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.85), inset 0 0 25px var(--panel-border-glow);
             backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -164,24 +164,25 @@
 
         .panel-header-strip {
             background: rgba(0, 212, 255, 0.06);
-            padding: 12px 18px;
+            padding: 10px 14px;
             border-bottom: 1px solid var(--panel-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .panel-header-strip h2 {
             font-family: var(--font-mono);
-            font-size: 13px;
-            letter-spacing: 2px;
+            font-size: 11px;
+            letter-spacing: 1px;
             color: var(--cyan-neon);
             text-transform: uppercase;
         }
 
         .panel-header-decorations {
             display: flex;
-            gap: 5px;
+            gap: 4px;
         }
 
         .decor-dot {
@@ -201,83 +202,85 @@
         }
 
         .panel-body-content {
-            padding: 18px;
+            padding: 12px;
             flex: 1;
             overflow-y: auto;
+            pointer-events: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* --- SISTEMA SELECTOR DE CUERPOS CELESTES --- */
+        /* --- SELECTOR DE CUERPOS CELESTES --- */
         .left-panel-grid {
             grid-area: left-panel;
+            max-height: 100%;
         }
 
         .selector-menu-list {
             list-style: none;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 6px;
         }
 
         .selector-item-node button {
             width: 100%;
-            background: rgba(255,255,255,0.01);
-            border: 1px solid rgba(255,255,255,0.04);
-            padding: 14px 18px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 10px 12px;
             color: var(--text-primary);
             font-family: var(--font-mono);
-            font-size: 13px;
+            font-size: 11px;
             text-align: left;
             cursor: pointer;
             border-radius: 4px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .selector-item-node button:hover {
-            background: rgba(0, 212, 255, 0.08);
-            border-color: var(--cyan-neon);
-            padding-left: 24px;
+        .selector-item-node button:important, .selector-item-node button:active {
+            background: rgba(0, 212, 255, 0.2);
         }
 
         .selector-item-node.active-node button {
             background: rgba(0, 212, 255, 0.18);
             border-color: var(--cyan-neon);
-            box-shadow: inset 0 0 12px rgba(0, 212, 255, 0.3);
+            box-shadow: inset 0 0 8px rgba(0, 212, 255, 0.3);
             color: #ffffff;
             font-weight: bold;
         }
 
         .node-index {
-            font-size: 10px;
+            font-size: 9px;
             color: var(--text-secondary);
         }
 
-        /* --- CONSOLA CIENTÍFICA DERECHA DE ALTA DENSIDAD --- */
+        /* --- CONSOLA DE TELEMETRÍA DERECHA --- */
         .right-panel-grid {
             grid-area: right-panel;
+            max-height: 100%;
         }
 
         .data-section-wrapper {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .data-section-title {
             font-family: var(--font-mono);
-            font-size: 12px;
+            font-size: 11px;
             color: var(--amber-neon);
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
             border-left: 3px solid var(--amber-neon);
-            padding-left: 8px;
+            padding-left: 6px;
         }
 
         .matrix-data-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 11px;
         }
 
         .matrix-data-table tr {
@@ -285,7 +288,7 @@
         }
 
         .matrix-data-table td {
-            padding: 9px 5px;
+            padding: 6px 4px;
         }
 
         .matrix-data-table td.property-label {
@@ -302,51 +305,47 @@
         .laser-readout {
             color: var(--crimson-neon) !important;
             font-weight: bold;
-            text-shadow: 0 0 8px rgba(255, 17, 85, 0.4);
         }
 
-        /* --- CONSOLA INFERIOR DE RED QUANTUM DSN --- */
+        /* --- CONSOLA INFERIOR --- */
         .bottom-panel-grid {
             grid-area: bottom-panel;
             display: grid;
             grid-template-columns: 1.2fr 1fr;
-            gap: 20px;
+            gap: 15px;
         }
 
         .terminal-feed-box {
             background: rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(0, 212, 255, 0.12);
             border-radius: 4px;
-            padding: 12px;
+            padding: 8px;
             font-family: var(--font-mono);
-            font-size: 12px;
-            height: 150px;
+            font-size: 10px;
+            height: 100px;
             overflow-y: auto;
             color: var(--cyan-neon);
-            line-height: 1.7;
+            line-height: 1.5;
+            -webkit-overflow-scrolling: touch;
         }
 
         .terminal-line {
-            margin-bottom: 5px;
-            border-bottom: 1px dashed rgba(0,212,255,0.03);
-            padding-bottom: 3px;
-        }
-
-        .terminal-timestamp {
-            color: var(--text-secondary);
-            margin-right: 10px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .analysis-box-metrics {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 8px;
         }
 
         .metric-mini-card {
             background: rgba(255,255,255,0.01);
             border: 1px solid rgba(255,255,255,0.04);
-            padding: 12px;
+            padding: 8px;
             border-radius: 4px;
             display: flex;
             flex-direction: column;
@@ -354,64 +353,181 @@
         }
 
         .metric-mini-card label {
-            font-size: 11px;
+            font-size: 9px;
             color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .metric-mini-card span {
             font-family: var(--font-mono);
-            font-size: 15px;
+            font-size: 12px;
             color: #ffffff;
         }
 
-        /* --- BOTONERA DE COMANDOS DEL MOTOR DE SIMULACIÓN --- */
+        /* --- CONTROLES DE SIMULACIÓN --- */
         .simulation-controls {
             position: absolute;
-            bottom: 30px;
-            left: 400px;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 100;
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            width: auto;
+            justify-content: center;
         }
 
         .ctrl-btn {
-            background: rgba(4, 8, 20, 0.85);
+            background: rgba(4, 8, 20, 0.9);
             border: 1px solid var(--panel-border);
             color: var(--text-primary);
-            padding: 10px 20px;
+            padding: 10px 14px;
             font-family: var(--font-mono);
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             cursor: pointer;
             border-radius: 4px;
             text-transform: uppercase;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
 
-        .ctrl-btn:hover {
-            border-color: var(--cyan-neon);
-            color: var(--cyan-neon);
-            box-shadow: 0 0 15px rgba(0,212,255,0.25);
+        .ctrl-btn:active {
+            background: var(--cyan-neon);
+            color: #02040a;
         }
         
         .ctrl-btn.active-ctrl {
             background: var(--cyan-neon);
             color: #02040a;
             border-color: var(--cyan-neon);
-            box-shadow: 0 0 15px var(--cyan-neon);
         }
 
         .panel-body-content::-webkit-scrollbar,
         .terminal-feed-box::-webkit-scrollbar {
-            width: 5px;
+            width: 4px;
         }
         .panel-body-content::-webkit-scrollbar-thumb,
         .terminal-feed-box::-webkit-scrollbar-thumb {
             background: rgba(0, 212, 255, 0.25);
-            border-radius: 3px;
+        }
+
+        /* ==========================================================================
+           MEDIA QUERY: DISEÑO RESPONSIVO INTELIGENTE PARA SMARTPHONES (iPHONE/ANDROID)
+           ========================================================================== */
+        @media (max-width: 900px) {
+            .hud-layer {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-areas: 
+                    "header"
+                    "left-panel"
+                    "center-space"
+                    "bottom-panel";
+                padding: 10px;
+                gap: 10px;
+                overflow: hidden;
+            }
+
+            header {
+                margin-top: 0;
+                padding: 8px;
+                justify-content: flex-end; /* Mueve el título a la derecha para no tapar botón salir */
+                padding-right: 15px;
+            }
+
+            .header-title-container h1 {
+                font-size: 11px;
+                letter-spacing: 1px;
+                text-align: right;
+            }
+
+            .header-status-bar {
+                font-size: 7px;
+                text-align: right;
+            }
+
+            /* Panel Izquierdo: Menú Horizontal de planetas deslizable en Touch */
+            .left-panel-grid {
+                max-height: 50px;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                overflow: visible;
+            }
+
+            .left-panel-grid .panel-header-strip {
+                display: none; /* Oculta cabecera interna para ahorrar espacio */
+            }
+
+            .left-panel-grid .panel-body-content {
+                padding: 0;
+                overflow-x: auto;
+                overflow-y: hidden;
+                display: flex;
+                align-items: center;
+                width: 100%;
+            }
+
+            .selector-menu-list {
+                flex-direction: row; /* Conversión a fila fluida horizontal */
+                gap: 8px;
+                padding: 2px;
+            }
+
+            .selector-item-node button {
+                padding: 8px 14px;
+                white-space: nowrap;
+                font-size: 10px;
+                background: rgba(4, 8, 20, 0.85);
+                border: 1px solid var(--panel-border);
+            }
+
+            .node-index {
+                display: none; /* Remueve texto secundario redundante en celular */
+            }
+
+            /* Espacio central donde vive el Canvas 3D para interactuar sin obstrucciones */
+            .center-space {
+                pointer-events: none; /* Permite arrastrar el planeta directamente */
+            }
+
+            /* Ocultamos el Panel de Telemetría derecho en móvil para liberar pantalla */
+            .right-panel-grid {
+                display: none !important;
+            }
+
+            /* Consola Inferior Compacta */
+            .bottom-panel-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .terminal-feed-box {
+                height: 50px; /* Consola ultra compacta */
+                font-size: 9px;
+            }
+
+            .bottom-panel-grid .telemetry-panel-core:last-child {
+                display: none; /* Oculta tarjetas de instrumentación secundarias */
+            }
+
+            /* Botonera de comandos abajo de todo */
+            .simulation-controls {
+                bottom: 70px; /* Sube la botonera para no colisionar con la terminal */
+                width: 95%;
+                gap: 4px;
+            }
+
+            .ctrl-btn {
+                padding: 8px 10px;
+                font-size: 8.5px;
+                flex: 1;
+                text-align: center;
+            }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -419,10 +535,10 @@
 <body>
 
     <a href="index.html" class="btn-navigation-escape interactive">
-        <svg width="14" height="14" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+        <svg width="11" height="11" viewBox="0 0 16 16">
+            <path fill="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
         </svg>
-        Salir al Index
+        Salir
     </a>
 
     <div id="canvas-container"></div>
@@ -431,9 +547,9 @@
         
         <header>
             <div class="header-title-container">
-                <h1>Quantum DSN Control Hub v9.1</h1>
+                <h1>Quantum DSN v9.1</h1>
                 <div class="header-status-bar">
-                    ESTADO: <span class="online">ONLINE</span> // MÓDULO SÓNICO EMBEBIDO // PIPELINE WEBGL PROCEDURAL ASÍNCRONO
+                    ESTADO: <span class="online">ONLINE</span> // WEBGL PROCEDURAL
                 </div>
             </div>
         </header>
@@ -619,7 +735,7 @@
             
             <div class="telemetry-panel-core">
                 <div class="panel-header-strip">
-                    <h2>Terminal de Escaneo y Recepción Cuántica (Tiempo Real)</h2>
+                    <h2>Terminal de Escaneo Cuántica</h2>
                 </div>
                 <div class="panel-body-content">
                     <div class="terminal-feed-box" id="terminal-feed"></div>
@@ -628,23 +744,23 @@
 
             <div class="telemetry-panel-core">
                 <div class="panel-header-strip">
-                    <h2>Métricas de Instrumentación DSN</h2>
+                    <h2>Métricas Instrumentación DSN</h2>
                 </div>
                 <div class="panel-body-content analysis-box-metrics">
                     <div class="metric-mini-card">
-                        <label>Latencia de Cómputo</label>
+                        <label>Latencia</label>
                         <span id="metric-zoom-delay">0.00 ms</span>
                     </div>
                     <div class="metric-mini-card">
-                        <label>Frecuencia de Muestreo</label>
+                        <label>Frecuencia</label>
                         <span id="metric-hz">60.00 Hz</span>
                     </div>
                     <div class="metric-mini-card">
-                        <label>Ancho de Banda Cuántico</label>
+                        <label>Ancho Banda</label>
                         <span id="metric-bandwidth">1024.4 Gbps</span>
                     </div>
                     <div class="metric-mini-card">
-                        <label>Error de Paralaje</label>
+                        <label>Paralaje</label>
                         <span id="metric-parallax">±0.000021"</span>
                     </div>
                 </div>
@@ -661,10 +777,6 @@
     </div>
 
     <script>
-        /**
-         * GLOBAL ASTRONOMICAL SCIENCE DATABASE
-         * Almacena datos numéricos hiperprecisos y descripciones espectroscópicas de todo el sistema.
-         */
         const astronomicalDatabase = {
             sol: {
                 name: "El Sol",
@@ -880,11 +992,7 @@
                 isEccentric: true
             }
         };
-        /**
-         * PROCEDURAL TEXTURE GENERATOR ENGINE
-         * Crea mapas de bits en memoria usando algoritmos matemáticos avanzados de ruido espectral 
-         * para renderizar texturas fotorrealistas de alta definición sin recursos gráficos externos.
-         */
+
         const TextureGenerator = {
             createNoiseTexture: function(baseColorHex, type) {
                 const canvas = document.createElement('canvas');
@@ -899,7 +1007,6 @@
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
                 
-                // Algoritmo matemático predictivo por capas de fluidos/estructuras rocosas
                 for (let y = 0; y < canvas.height; y++) {
                     const normY = y / canvas.height;
                     for (let x = 0; x < canvas.width; x++) {
@@ -907,45 +1014,38 @@
                         let noise = Math.sin(x * 0.04) * Math.cos(y * 0.04) * 15;
                         
                         if (type === 'sol') {
-                            // Gránulos fotónicos estocásticos térmicos
                             noise += (Math.random() - 0.5) * 55;
                             data[idx]     = Math.min(255, data[idx] + noise + 70);
                             data[idx + 1] = Math.min(255, data[idx + 1] + noise * 0.6);
                             data[idx + 2] = 0;
                         } else if (type === 'jupiter' || type === 'saturno') {
-                            // Bandas de fluidos gaseosos paralelos con gradientes térmicos
                             let bandFactor = Math.sin(normY * 30) * 40 + Math.cos(normY * 90) * 18;
                             bandFactor += (Math.random() - 0.5) * 15;
                             data[idx]     = Math.max(0, Math.min(255, data[idx] + bandFactor));
                             data[idx + 1] = Math.max(0, Math.min(255, data[idx + 1] + bandFactor * 0.75));
                             data[idx + 2] = Math.max(0, Math.min(255, data[idx + 2] + bandFactor * 0.45));
                             
-                            // Inyección específica del gran óvalo de nubes de Júpiter
                             if(type === 'jupiter' && y > 140 && y < 180 && x > 280 && x < 350) {
                                 data[idx] = 180; data[idx+1] = 50; data[idx+2] = 20;
                             }
                         } else if (type === 'tierra') {
-                            // Generador de continentes y masas oceánicas por fractales
                             let terrain = Math.sin(x * 0.04) * Math.cos(y * 0.04) + Math.sin(x * 0.012) * Math.cos(normY * 6);
                             if (terrain > 0.08) {
                                 data[idx] = 30; data[idx + 1] = 125 + (Math.random() - 0.5) * 20; data[idx + 2] = 35;
                             } else {
                                 data[idx] = 12; data[idx + 1] = 45; data[idx + 2] = 140 + terrain * 40;
                             }
-                            // Frente de nubes atmosféricas discontinuas superpuestas
                             if (Math.random() > 0.76) {
                                 data[idx] = data[idx + 1] = data[idx + 2] = 245;
                             }
                         } else if (type === 'urano' || type === 'neptuno') {
-                            // Gigantes helados con nubes de metano suaves de baja firma térmica
                             let gasNoise = Math.cos(x * 0.02) * 8 + (Math.random() - 0.5) * 4;
                             data[idx]     = Math.max(0, Math.min(255, data[idx] + gasNoise * 0.5));
                             data[idx + 1] = Math.max(0, Math.min(255, data[idx + 1] + gasNoise * 0.8));
                             data[idx + 2] = Math.max(0, Math.min(255, data[idx + 2] + gasNoise));
                         } else {
-                            // Cuerpos rocosos o helados con cráteres stocásticos discretos (Marte, Mercurio, Luna, Plutón)
                             let crater = (Math.random() - 0.5) * 25;
-                            if (Math.random() > 0.993) crater -= 95; // Eyección profunda por colisión macro
+                            if (Math.random() > 0.993) crater -= 95;
                             data[idx]     = Math.max(0, Math.min(255, data[idx] + crater));
                             data[idx + 1] = Math.max(0, Math.min(255, data[idx + 1] + crater));
                             data[idx + 2] = Math.max(0, Math.min(255, data[idx + 2] + crater));
@@ -961,11 +1061,6 @@
             }
         };
 
-        /**
-         * NATIVE WEB AUDIO OSCILLATOR PIPELINE
-         * Sintetiza frecuencias de audio algorítmicas en tiempo real por código (Audio Cuántico de ciencia ficción)
-         * para evitar la carga e inyección de pesados e inestables archivos de pistas de sonido externos.
-         */
         class QuantumAudioSystem {
             constructor() {
                 this.audioCtx = null;
@@ -976,13 +1071,11 @@
 
             initializeContext() {
                 if (this.audioCtx) return;
-                
-                // Creación nativa del buffer de audio por hardware
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 this.audioCtx = new AudioContextClass();
                 
                 this.masterGain = this.audioCtx.createGain();
-                this.masterGain.gain.setValueAtTime(0.12, this.audioCtx.currentTime); // Control de volumen seguro
+                this.masterGain.gain.setValueAtTime(0.12, this.audioCtx.currentTime);
                 this.masterGain.connect(this.audioCtx.destination);
 
                 this.startDeepSpaceHum();
@@ -990,12 +1083,11 @@
             }
 
             startDeepSpaceHum() {
-                // Generador sónico del rumor cíclico de baja frecuencia del vacío del espacio profundo
                 this.ambientOsc = this.audioCtx.createOscillator();
                 const filter = this.audioCtx.createBiquadFilter();
                 
                 this.ambientOsc.type = 'sine';
-                this.ambientOsc.frequency.setValueAtTime(55, this.audioCtx.currentTime); // 55Hz - Sub-bajo cinemático
+                this.ambientOsc.frequency.setValueAtTime(55, this.audioCtx.currentTime);
                 
                 filter.type = 'lowpass';
                 filter.frequency.setValueAtTime(80, this.audioCtx.currentTime);
@@ -1008,7 +1100,6 @@
             triggerPingSound(freq, duration) {
                 if (!this.isEnabled || !this.audioCtx) return;
 
-                // Modulación acústica del pulso de antena DSN cuántico al interceptar datos
                 const osc = this.audioCtx.createOscillator();
                 const gainNode = this.audioCtx.createGain();
 
@@ -1031,25 +1122,8 @@
                     this.masterGain.gain.setValueAtTime(val, this.audioCtx.currentTime);
                 }
             }
-
-            terminate() {
-                if(this.ambientOsc) {
-                    this.ambientOsc.stop();
-                    this.ambientOsc.disconnect();
-                }
-                if (this.audioCtx) {
-                    this.audioCtx.close();
-                }
-                this.audioCtx = null;
-                this.isEnabled = false;
-            }
         }
 
-        /**
-         * CORE SPACE ENGINE ORCHESTRATOR
-         * Centraliza el renderizador WebGL, interpolación cinemática, sistema de partículas del cinturón de asteroides,
-         * control de cámaras acopladas y actualización matricial síncrona de telemetría.
-         */
         class SpaceEngineOrchestrator {
             constructor() {
                 this.container = document.getElementById('canvas-container');
@@ -1064,13 +1138,11 @@
                 this.clock = new THREE.Clock();
                 this.audioSystem = new QuantumAudioSystem();
                 
-                // Configuración de escalas de visualización relativas para simulación óptima
                 this.scaleSettings = {
                     distanceScale: 15,
                     timeMultiplier: 0.12
                 };
 
-                // Amortiguación cinemática de la cámara de telemetría (Lerp vectors)
                 this.targetCamPosition = new THREE.Vector3(0, 60, 110);
                 this.targetLookAt = new THREE.Vector3(0, 0, 0);
                 this.currentLookAt = new THREE.Vector3(0, 0, 0);
@@ -1100,7 +1172,6 @@
             }
 
             buildCosmosEngine() {
-                // 1. Renderizado de partículas de la bóveda estelar fija externa
                 const starsCount = 4000;
                 const starGeometry = new THREE.BufferGeometry();
                 const starPositions = new Float32Array(starsCount * 3);
@@ -1121,14 +1192,13 @@
                 });
                 this.scene.add(new THREE.Points(starGeometry, starMaterial));
 
-                // 2. Simulación matricial algorítmica del Cinturón de Asteroides (Entre Marte y Júpiter)
                 const asteroidsCount = 800;
                 const asteroidGeometry = new THREE.BufferGeometry();
                 const asteroidPositions = new Float32Array(asteroidsCount * 3);
                 this.asteroidData = [];
 
                 for (let i = 0; i < asteroidsCount; i++) {
-                    const radius = 70 + Math.random() * 22; // Cinturón de asteroides matemático intermedio
+                    const radius = 70 + Math.random() * 22;
                     const angle = Math.random() * Math.PI * 2;
                     const speed = 0.05 + Math.random() * 0.08;
                     const yOffset = (Math.random() - 0.5) * 3.5;
@@ -1144,7 +1214,6 @@
                 this.asteroidSystem = new THREE.Points(asteroidGeometry, asteroidMaterial);
                 this.scene.add(this.asteroidSystem);
 
-                // 3. Renderizado secuencial de mallas planetarias y satélites a partir del catálogo científico
                 const keys = Object.keys(astronomicalDatabase);
                 
                 keys.forEach((key, index) => {
@@ -1163,7 +1232,6 @@
                     mesh.castShadow = (key !== 'sol');
                     mesh.receiveShadow = true;
 
-                    // Cálculo del radio orbital con distorsión elíptica teórica para Plutón
                     let orbitRadius = index * this.scaleSettings.distanceScale;
                     if (key === 'sol' || key === 'luna') orbitRadius = 0;
                     if (key === 'urano') orbitRadius = 110;
@@ -1181,7 +1249,6 @@
 
                     this.scene.add(mesh);
 
-                    // Renderizado de Anillos Principales de Saturno
                     if (data.hasRings) {
                         const ringGeo = new THREE.RingGeometry(data.radius + 1.5, data.radius + 6, 64);
                         ringGeo.rotateX(Math.PI / 2);
@@ -1189,13 +1256,12 @@
                             color: 0xb5a48b, side: THREE.DoubleSide, transparent: true, opacity: 0.55 
                         });
                         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-                        mesh.add(ringMesh); // Acoplado al nodo local del planeta
+                        mesh.add(ringMesh);
                     }
 
-                    // Anillos delgados e inclinados de Urano y Neptuno
                     if (data.hasThinRings) {
                         const ringGeo = new THREE.RingGeometry(data.radius + 1.2, data.radius + 2.2, 48);
-                        ringGeo.rotateX(Math.PI / 2.3); // Inclinación axial característica
+                        ringGeo.rotateX(Math.PI / 2.3);
                         const ringMat = new THREE.MeshBasicMaterial({ 
                             color: 0x8bb8cc, side: THREE.DoubleSide, transparent: true, opacity: 0.25 
                         });
@@ -1203,7 +1269,6 @@
                         mesh.add(ringMesh);
                     }
 
-                    // Trazados de vectores geométricos orbitales estables en la escena
                     if (key !== 'sol' && key !== 'luna') {
                         const orbitGeom = new THREE.BufferGeometry();
                         const points = [];
@@ -1212,10 +1277,9 @@
                         for (let i = 0; i <= divisions; i++) {
                             const theta = (i / divisions) * Math.PI * 2;
                             if (key === 'pluton') {
-                                // Simulación analítica de excentricidad e inclinación orbital de Plutón
                                 let x = Math.cos(theta) * orbitRadius;
-                                let z = Math.sin(theta) * (orbitRadius * 0.85); // Órbita excéntrica achatada
-                                let y = x * 0.3; // Inclinación orbital de 17° respecto a la eclíptica
+                                let z = Math.sin(theta) * (orbitRadius * 0.85);
+                                let y = x * 0.3;
                                 points.push(new THREE.Vector3(x, y, z));
                             } else {
                                 points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, 0, Math.sin(theta) * orbitRadius));
@@ -1246,7 +1310,6 @@
                     const startZoomTime = performance.now();
                     this.activeTargetKey = key;
                     
-                    // Inicialización/Activación sónica diferida bajo demanda del usuario
                     this.audioSystem.initializeContext();
                     this.audioSystem.triggerPingSound(440 + (Math.random() * 200), 0.35);
 
@@ -1255,27 +1318,32 @@
                         if(node.getAttribute('data-planet') === key) node.classList.add('active-node');
                     });
 
-                    // Actualización de la terminal estática de telemetría del bloque HTML
                     const db = astronomicalDatabase[key];
-                    document.getElementById('tgt-display-name').innerText = `CUERPO: ${db.name.toUpperCase()}`;
-                    document.getElementById('tgt-class').innerText = db.class;
-                    document.getElementById('tgt-light-delay').innerText = db.lightDelay;
-                    document.getElementById('tgt-rot').innerText = db.rotation;
-                    document.getElementById('tgt-orbit').innerText = db.orbit;
-                    document.getElementById('tgt-obliquity').innerText = db.obliquity;
-                    document.getElementById('tgt-velocity').innerText = db.velocity;
-                    document.getElementById('tgt-struct').innerText = db.structure;
-                    document.getElementById('tgt-comp').innerText = db.composition;
-                    document.getElementById('tgt-grav').innerText = db.gravity;
-                    document.getElementById('tgt-pressure').innerText = db.pressure;
-                    document.getElementById('tgt-sats').innerText = db.satellites;
-                    document.getElementById('tgt-equinox').innerText = db.equinoxInfo;
+                    
+                    // Verificación defensiva del DOM para pantallas móviles
+                    const tgtDisplay = document.getElementById('tgt-display-name');
+                    if (tgtDisplay) {
+                        tgtDisplay.innerText = `CUERPO: ${db.name.toUpperCase()}`;
+                        document.getElementById('tgt-class').innerText = db.class;
+                        document.getElementById('tgt-light-delay').innerText = db.lightDelay;
+                        document.getElementById('tgt-rot').innerText = db.rotation;
+                        document.getElementById('tgt-orbit').innerText = db.orbit;
+                        document.getElementById('tgt-obliquity').innerText = db.obliquity;
+                        document.getElementById('tgt-velocity').innerText = db.velocity;
+                        document.getElementById('tgt-struct').innerText = db.structure;
+                        document.getElementById('tgt-comp').innerText = db.composition;
+                        document.getElementById('tgt-grav').innerText = db.gravity;
+                        document.getElementById('tgt-pressure').innerText = db.pressure;
+                        document.getElementById('tgt-sats').innerText = db.satellites;
+                        document.getElementById('tgt-equinox').innerText = db.equinoxInfo;
+                    }
 
-                    this.pushTerminalMessage(`[NODO ADQUIRIDO] Reorientando antenas cuánticas hacia vector ${db.name.toUpperCase()}.`);
+                    this.pushTerminalMessage(`[NODO ADQUIRIDO] Vector ${db.name.toUpperCase()}.`);
                     
                     setTimeout(() => {
                         const endZoomTime = performance.now();
-                        document.getElementById('metric-zoom-delay').innerText = `${(endZoomTime - startZoomTime).toFixed(2)} ms`;
+                        const metricNode = document.getElementById('metric-zoom-delay');
+                        if(metricNode) metricNode.innerText = `${(endZoomTime - startZoomTime).toFixed(2)} ms`;
                     }, 40);
                 }
             }
@@ -1285,7 +1353,7 @@
                 this.orbitLines.forEach(line => line.visible = this.orbitsVisible);
                 document.getElementById('ctrl-orbits').innerText = this.orbitsVisible ? "Órbitas ON" : "Órbitas OFF";
                 document.getElementById('ctrl-orbits').classList.toggle('active-ctrl', !this.orbitsVisible);
-                this.pushTerminalMessage(`[SISTEMA] Visibilidad del mapa de trazas orbitales alterada.`);
+                this.pushTerminalMessage(`[SISTEMA] Trazas orbitales modificadas.`);
             }
 
             toggleAudioSystem() {
@@ -1294,14 +1362,14 @@
                     this.audioSystem.isEnabled = false;
                     document.getElementById('ctrl-audio').innerText = "Audio OFF";
                     document.getElementById('ctrl-audio').classList.remove('active-ctrl');
-                    this.pushTerminalMessage(`[AUDIO] Canales acústicos silenciados por comando.`);
+                    this.pushTerminalMessage(`[AUDIO] Canales acusticos silenciados.`);
                 } else {
                     this.audioSystem.initializeContext();
                     this.audioSystem.setVolume(0.12);
                     this.audioSystem.isEnabled = true;
                     document.getElementById('ctrl-audio').innerText = "Audio ON";
                     document.getElementById('ctrl-audio').classList.add('active-ctrl');
-                    this.pushTerminalMessage(`[AUDIO] Subsistema de audio cuántico inicializado en línea.`);
+                    this.pushTerminalMessage(`[AUDIO] Subsistema de audio activo.`);
                 }
             }
 
@@ -1309,7 +1377,7 @@
                 this.activeTargetKey = 'sol';
                 this.targetCamPosition.set(0, 60, 110);
                 this.targetLookAt.set(0, 0, 0);
-                this.pushTerminalMessage(`[SISTEMA] Reajuste posicional del plano cartesiano de cámara.`);
+                this.pushTerminalMessage(`[SISTEMA] Reajuste cartesiano de camara.`);
             }
 
             registerResizeHandler() {
@@ -1330,7 +1398,7 @@
                 feed.appendChild(newLine);
                 feed.scrollTop = feed.scrollHeight;
                 
-                if (feed.childNodes.length > 25) feed.removeChild(feed.firstChild);
+                if (feed.childNodes.length > 15) feed.removeChild(feed.firstChild);
             }
 
             startTerminalLogsLoop() {
@@ -1339,9 +1407,12 @@
                     this.pushTerminalMessage(db.streamPhrase);
                     
                     const noise = (Math.random() * 0.000004 - 0.000002);
-                    document.getElementById('metric-parallax').innerText = `±${(0.000021 + noise).toFixed(6)}"`;
-                    document.getElementById('metric-bandwidth').innerText = `${(1024.4 + (Math.random() * 12 - 6)).toFixed(1)} Gbps`;
-                }, 4000);
+                    const parallaxNode = document.getElementById('metric-parallax');
+                    if (parallaxNode) {
+                        parallaxNode.innerText = `±${(0.000021 + noise).toFixed(6)}"`;
+                        document.getElementById('metric-bandwidth').innerText = `${(1024.4 + (Math.random() * 12 - 6)).toFixed(1)} Gbps`;
+                    }
+                }, 5000);
             }
 
             animateEngine() {
@@ -1350,14 +1421,12 @@
                 const delta = this.clock.getDelta();
                 const totalTime = this.clock.getElapsedTime() * this.scaleSettings.timeMultiplier;
 
-                // 1. Dinámica física orbital kepleriana
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
                     
                     if (key !== 'sol' && key !== 'luna') {
                         p.angle = totalTime * p.orbitSpeed;
                         if (key === 'pluton') {
-                            // Cálculo exacto de coordenadas elípticas tridimensionales e inclinadas de Plutón
                             p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
                             p.mesh.position.z = Math.sin(p.angle) * (p.orbitRadius * 0.85);
                             p.mesh.position.y = p.mesh.position.x * 0.3;
@@ -1370,7 +1439,6 @@
                     p.mesh.rotation.y += p.rotationSpeed * delta * 0.35;
                 });
 
-                // Movimiento relativo sincrónico del nodo secundario de la Luna
                 if (this.planets['luna'] && this.planets['tierra']) {
                     const tierraMesh = this.planets['tierra'].mesh;
                     const luna = this.planets['luna'];
@@ -1380,7 +1448,6 @@
                     luna.mesh.position.z = tierraMesh.position.z + Math.sin(luna.angle) * relRadius;
                 }
 
-                // 2. Ciclo de rotación orbital del Cinturón de Asteroides por hardware
                 if (this.asteroidSystem) {
                     const positions = this.asteroidSystem.geometry.attributes.position.array;
                     for (let i = 0; i < this.asteroidData.length; i++) {
@@ -1392,7 +1459,6 @@
                     this.asteroidSystem.geometry.attributes.position.needsUpdate = true;
                 }
 
-                // 3. Seguimiento matricial amortiguado (Smooth Camera LERP & Focus)
                 if (this.planets[this.activeTargetKey]) {
                     const targetMesh = this.planets[this.activeTargetKey].mesh;
                     targetMesh.getWorldPosition(this.targetLookAt);
@@ -1407,22 +1473,22 @@
                     this.currentLookAt.lerp(this.targetLookAt, 0.05);
                     this.camera.lookAt(this.currentLookAt);
 
-                    // Fluctuación milimétrica dinámica de la distancia láser en base a la velocidad de la luz
                     const baseDist = astronomicalDatabase[this.activeTargetKey].distanceBase;
                     const jitter = Math.sin(Date.now() * 0.003) * 19.42;
                     const calculatedDist = baseDist === 0 ? 0 : baseDist + jitter;
-                    document.getElementById('tgt-dist').innerText = `${calculatedDist.toLocaleString('de-DE', {minimumFractionDigits: 4, maximumFractionDigits: 4})} KM`;
+                    
+                    const distNode = document.getElementById('tgt-dist');
+                    if(distNode) distNode.innerText = `${calculatedDist.toLocaleString('de-DE', {minimumFractionDigits: 4, maximumFractionDigits: 4})} KM`;
                 }
 
                 this.renderer.render(this.scene, this.camera);
             }
         }
 
-        // Instanciación limpia del motor principal al verificar la carga del DOM
         let orchestrator;
         window.addEventListener('DOMContentLoaded', () => {
             orchestrator = new SpaceEngineOrchestrator();
-            orchestrator.pushTerminalMessage("[SISTEMA] Consola operacional Quantum DSN en línea. Pipeline WebGL inicializado.");
+            orchestrator.pushTerminalMessage("[SISTEMA] Consola Quantum DSN activa. WebGL OK.");
         });
     </script>
 </body>
