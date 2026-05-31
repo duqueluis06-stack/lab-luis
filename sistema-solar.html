@@ -1,125 +1,577 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Le Système Solaire</title>
+    <title>Deep Space Network Simulator - Lab Luis</title>
     <style>
+        :root {
+            --neon-green: #00ff66;
+            --neon-blue: #00ffff;
+            --neon-pink: #ff00ff;
+            --laser-glow: #ff3300;
+        }
+
         body {
             margin: 0;
             height: 100vh;
-            background: radial-gradient(circle, #111 60%, #000 100%);
+            background: radial-gradient(circle at center, #060a17 0%, #020308 100%);
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial, sans-serif;
-            color: white;
+            font-family: 'Courier New', monospace;
+            color: var(--neon-blue);
+            user-select: none;
         }
 
-        /* Conteneur de l'espace */
-        .universe {
-            position: relative;
-            width: 600px;
-            height: 600px;
+        /* Interfaz de Control Superior */
+        .header-controls {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            z-index: 1000;
         }
 
-        /* Le Soleil */
+        .title-box h1 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--neon-green);
+            text-shadow: 0 0 8px var(--neon-green);
+        }
+        .title-box p {
+            margin: 3px 0 0 0;
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* Botón Salir Estilo Satélite RGB */
+        .btn-exit {
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 10px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            font-size: 12px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            animation: rgb-border 4s linear infinite;
+            transition: transform 0.2s;
+        }
+        .btn-exit:hover {
+            transform: scale(1.05);
+        }
+
+        @keyframes rgb-border {
+            0% { border-color: #ff00ff; box-shadow: 0 0 12px #ff00ff; }
+            33% { border-color: #00ffff; box-shadow: 0 0 12px #00ffff; }
+            66% { border-color: #00ff66; box-shadow: 0 0 12px #00ff66; }
+            100% { border-color: #ff00ff; box-shadow: 0 0 12px #ff00ff; }
+        }
+
+        /* Contenedor del Espacio */
+        #space-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: grab;
+            transform-origin: center;
+            transition: transform 0.5s ease-out;
+        }
+
+        /* Elementos Celestes del DOM */
         .sun {
             position: absolute;
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle, #fffa73 20%, #ff5100 100%);
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #fff 20%, #ffaa00 60%, #ff3300 100%);
             border-radius: 50%;
-            box-shadow: 0 0 40px #ff5100;
+            box-shadow: 0 0 50px #ff5500, 0 0 100px #ff3300;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 10;
         }
 
-        /* Orbites de base */
-        .orbit {
+        .orbit-line {
             position: absolute;
-            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border: 1px dashed rgba(0, 255, 255, 0.08);
             border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: spin linear infinite;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
-        /* Définition des planètes */
-        .planet {
+        .planet-node {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
+            z-index: 5;
+        }
+
+        .planet-body {
             position: absolute;
             border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: inset -4px -4px 10px rgba(0,0,0,0.7);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .planet-body:hover {
+            box-shadow: 0 0 15px currentColor, inset -2px -2px 5px rgba(0,0,0,0.8);
+        }
+
+        .planet-label {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #fff;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px #000;
+            pointer-events: none;
+        }
+
+        /* Micro-Satélites */
+        .probe-satellite {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #fff;
+        }
+
+        /* Lienzo de Capa Láser */
+        #laser-canvas {
+            position: absolute;
             top: 0;
-            transform: translateY(-50%);
-        }
-
-        /* Spécificités des orbites et tailles (échelles non réelles pour la visibilité) */
-        .mercury-orbit { width: 120px; height: 120px; animation-duration: 3s; }
-        .mercury { width: 10px; height: 10px; background: #9c9c9c; }
-
-        .venus-orbit { width: 180px; height: 180px; animation-duration: 6s; }
-        .venus { width: 16px; height: 16px; background: #e3bb76; }
-
-        .earth-orbit { width: 260px; height: 260px; animation-duration: 10s; }
-        .earth { width: 18px; height: 18px; background: #4b70dd; }
-
-        .mars-orbit { width: 340px; height: 340px; animation-duration: 14s; }
-        .mars { width: 14px; height: 14px; background: #c1440e; }
-
-        .jupiter-orbit { width: 460px; height: 460px; animation-duration: 25s; }
-        .jupiter { width: 30px; height: 30px; background: #b07f35; }
-
-        /* Animation de rotation */
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        /* Titre */
-        .info {
-            position: absolute;
-            top: 20px;
-            text-align: center;
+            left: 0;
             width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
         }
-        h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
-        p { color: #888; font-size: 14px; }
+
+        /* Segunda Pantalla: Monitor de Telemetría Inferior */
+        .telemetry-screen {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 380px;
+            background: rgba(1, 8, 18, 0.85);
+            border: 2px solid var(--neon-blue);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            z-index: 1000;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .telemetry-screen h3 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: var(--neon-pink);
+            border-bottom: 1px solid var(--neon-pink);
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .telemetry-grid {
+            font-size: 11px;
+            line-height: 1.4;
+            color: #a0c0e0;
+        }
+
+        .telemetry-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .alert-flash {
+            color: #ff3333;
+            animation: flash 1s steps(2, start) infinite;
+            font-weight: bold;
+        }
+
+        @keyframes flash { to { visibility: hidden; } }
+
+        /* Botón de Disparar Simulación */
+        .btn-ping {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 8px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        .btn-ping:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        /* Controles de Vista de Reset */
+        .view-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .btn-view {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 14px;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="info">
-        <h1>Le Système Solaire</h1>
-        <p>Modèle d'animation CSS (les échelles et distances ne sont pas réelles)</p>
+    <div class="header-controls">
+        <div class="title-box">
+            <h1>DEEP SPACE NETWORK & TELEMETRY LAB</h1>
+            <p>Simulador Vectorial Heliocéntrico v2.4 • Red Láser de Cascada Pasiva</p>
+        </div>
+        <a href="index.html" class="btn-exit">
+            <span>🛰️ REGRESAR AL LAB</span>
+        </a>
     </div>
 
-    <div class="universe">
+    <div class="telemetry-screen">
+        <h3><span>📡 MONITOR CUÁNTICO DE ENRUTAMIENTO</span> <span id="realtime-clock">00:00:00</span></h3>
+        <div class="telemetry-grid" id="telemetry-content">
+            Selecciona un planeta para fijar coordenadas de aproximación o dispara un escaneo de red.
+        </div>
+        <button class="btn-ping" onclick="triggerLaserSimulation()">⚡ INICIAR DESCARGA DE COMPOSICIÓN (PULSO DESDE PLUTÓN)</button>
+    </div>
+
+    <div class="view-controls">
+        <button class="btn-view" onclick="resetZoom()">🌌 Vista Completa del Sistema</button>
+    </div>
+
+    <div id="space-container">
+        <canvas id="laser-canvas"></canvas>
         <div class="sun"></div>
-
-        <div class="orbit mercury-orbit">
-            <div class="planet mercury"></div>
-        </div>
-
-        <div class="orbit venus-orbit">
-            <div class="planet venus"></div>
-        </div>
-
-        <div class="orbit earth-orbit">
-            <div class="planet earth"></div>
-        </div>
-
-        <div class="orbit mars-orbit">
-            <div class="planet mars"></div>
-        </div>
-
-        <div class="orbit jupiter-orbit">
-            <div class="planet jupiter"></div>
-        </div>
+        <div id="planetary-system"></div>
     </div>
 
+    <script>
+        // Configuración de Datos Físicos Reales Escalados para Visibilidad
+        // Velocidad de la luz simulada ajustada para ver el recorrido por los puentes
+        const PLANET_DATA = [
+            { id: 'mercurio', name: 'Mercurio', radius: 45, size: 8, speed: 0.04, color: '#9e9e9e', comp: 'Rocoso - Hierro denso', distEarth: '91.7M km', geoRadius: 12 },
+            { id: 'venus', name: 'Vénus', radius: 75, size: 12, speed: 0.015, color: '#e3bb76', comp: 'Gaseoso/Invernadero - CO2', distEarth: '41.4M km', geoRadius: 16 },
+            { id: 'tierra', name: 'Tierra (Base)', radius: 115, size: 14, speed: 0.01, color: '#2b82c9', comp: 'Rocoso - Nitrógeno/Oxígeno', distEarth: '0 km', geoRadius: 22 },
+            { id: 'mars', name: 'Marte', radius: 155, size: 10, speed: 0.008, color: '#c1440e', comp: 'Rocoso - Óxido de Hierro', distEarth: '78.3M km', geoRadius: 15 },
+            { id: 'jupiter', name: 'Júpiter', radius: 215, size: 24, speed: 0.002, color: '#b07f35', comp: 'Gaseoso - Hidrógeno/Helio', distEarth: '628.7M km', geoRadius: 36 },
+            { id: 'saturno', name: 'Saturno', radius: 285, size: 20, speed: 0.0009, color: '#ead2ac', comp: 'Gaseoso - Hidrógeno/Anillos', distEarth: '1277M km', geoRadius: 32 },
+            { id: 'urano', name: 'Urano', radius: 345, size: 16, speed: 0.0004, color: '#aae6f0', comp: 'Gaseoso Helado - Metano', distEarth: '2721M km', geoRadius: 26 },
+            { id: 'neptuno', name: 'Neptuno', radius: 405, size: 15, speed: 0.0002, color: '#4b70dd', comp: 'Gaseoso Helado - Amoniaco', distEarth: '4347M km', geoRadius: 25 },
+            { id: 'pluton', name: 'Plutón (Enano)', radius: 465, size: 6, speed: 0.0001, color: '#9c8e7d', comp: 'Rocoso Helado - Nitrógeno sólido', distEarth: '5750M km', geoRadius: 10 }
+        ];
+
+        const systemContainer = document.getElementById('planetary-system');
+        const container = document.getElementById('space-container');
+        const canvas = document.getElementById('laser-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let planetElements = [];
+        let angles = {};
+        let selectedPlanet = null;
+        let laserAnimation = null;
+        let laserProgress = 0;
+        let activeLaserPath = [];
+        let currentAlertData = null;
+
+        // Inicialización del Espacio
+        function initSystem() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            PLANET_DATA.forEach(p => {
+                angles[p.id] = Math.random() * Math.PI * 2;
+
+                // Línea de órbita
+                const orbit = document.createElement('div');
+                orbit.className = 'orbit-line';
+                orbit.style.width = `${p.radius * 2}px`;
+                orbit.style.height = `${p.radius * 2}px`;
+                systemContainer.appendChild(orbit);
+
+                // Nodo del planeta (para rotación vectorial)
+                const node = document.createElement('div');
+                node.className = 'planet-node';
+                node.id = `node-${p.id}`;
+
+                // Cuerpo del planeta
+                const body = document.createElement('div');
+                body.className = 'planet-body';
+                body.style.width = `${p.size}px`;
+                body.style.height = `${p.size}px`;
+                body.style.backgroundColor = p.color;
+                body.style.color = p.color;
+                body.style.left = `${p.radius}px`;
+
+                // Etiqueta de identificación
+                const label = document.createElement('div');
+                label.className = 'planet-label';
+                label.innerText = p.name;
+                body.appendChild(label);
+
+                // Órbita Geoestacionaria / Científica Local
+                const geoOrbit = document.createElement('div');
+                geoOrbit.style.position = 'absolute';
+                geoOrbit.style.border = '1px dotted rgba(255,255,255,0.25)';
+                geoOrbit.style.borderRadius = '50%';
+                geoOrbit.style.width = `${p.size + p.geoRadius}px`;
+                geoOrbit.style.height = `${p.size + p.geoRadius}px`;
+                geoOrbit.style.top = '50%';
+                geoOrbit.style.left = '50%';
+                geoOrbit.style.transform = 'translate(-50%, -50%)';
+                body.appendChild(geoOrbit);
+
+                // Micro-Satélite Sonda de Control Integrado
+                const probe = document.createElement('div');
+                probe.className = 'probe-satellite';
+                probe.id = `probe-${p.id}`;
+                body.appendChild(probe);
+
+                body.onclick = (e) => {
+                    e.stopPropagation();
+                    focusPlanet(p);
+                };
+
+                node.appendChild(body);
+                systemContainer.appendChild(node);
+
+                planetElements.push({ id: p.id, radius: p.radius, node: node, body: body, geoR: (p.size + p.geoRadius)/2, data: p });
+            });
+
+            // Generar evento aleatorio en la sonda cada 8 segundos
+            setInterval(generateSpaceAnomaly, 8000);
+            generateSpaceAnomaly();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // Bucle Físico Principal (Ángulos y Posiciones de Satélites locales)
+        function updatePhysics() {
+            const time = Date.now();
+            
+            planetElements.forEach(p => {
+                // Actualizar órbita heliocéntrica
+                angles[p.id] += p.data.speed;
+                p.node.style.transform = `rotate(${angles[p.id]}rad)`;
+
+                // Rotar el micro-satélite local en su órbita geoestacionaria interna
+                const probe = document.getElementById(`probe-${p.id}`);
+                const probeAngle = (time * 0.003) + (p.radius); 
+                const px = Math.cos(probeAngle) * p.geoR;
+                const py = Math.sin(probeAngle) * p.geoR;
+                probe.style.left = `${(p.data.size/2) + px}px`;
+                probe.style.top = `${(p.data.size/2) + py}px`;
+            });
+
+            drawLasers();
+            updateLiveTelemetry();
+            requestAnimationFrame(updatePhysics);
+        }
+
+        // Obtener Coordenadas absolutas de las Sondas en la pantalla
+        function getProbeCoords(id) {
+            const probe = document.getElementById(`probe-${id}`);
+            if (!probe) return {x:0, y:0};
+            const rect = probe.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+        }
+
+        // Simulación Dinámica de Láser en Cascada usando Puentes Satelitales Sucesivos
+        function triggerLaserSimulation() {
+            if (laserAnimation) cancelAnimationFrame(laserAnimation);
+            
+            // La señal nace en Plutón y rebota de forma descendente en la red hasta llegar a la Tierra
+            activeLaserPath = ['pluton', 'neptuno', 'urano', 'saturno', 'jupiter', 'mars', 'tierra'];
+            laserProgress = 0;
+            animateLaser();
+        }
+
+        function animateLaser() {
+            laserProgress += 0.05; // Velocidad de propagación del pulso interplanetario
+            if (laserProgress >= activeLaserPath.length - 1) {
+                laserProgress = activeLaserPath.length - 1;
+                // Al llegar a la Tierra procesamos la lectura
+                processDownloadedData();
+                setTimeout(() => { activeLaserPath = []; }, 1000); // Apagar láser
+                return;
+            }
+            laserAnimation = requestAnimationFrame(animateLaser);
+        }
+
+        // Dibujar los vectores láser en el Canvas
+        function drawLasers() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (activeLaserPath.length === 0) return;
+
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 8;
+
+            for (let i = 0; i < activeLaserPath.length - 1; i++) {
+                if (laserProgress < i) break;
+
+                const startCoords = getProbeCoords(activeLaserPath[i]);
+                const endCoords = getProbeCoords(activeLaserPath[i+1]);
+
+                let targetX = endCoords.x;
+                let targetY = endCoords.y;
+
+                // Si el pulso está recorriendo el segmento actual
+                if (laserProgress < i + 1) {
+                    const segmentFactor = laserProgress - i;
+                    targetX = startCoords.x + (endCoords.x - startCoords.x) * segmentFactor;
+                    targetY = startCoords.y + (endCoords.y - startCoords.y) * segmentFactor;
+                }
+
+                ctx.strokeStyle = '#ff3300';
+                ctx.shadowColor = '#ff3300';
+                ctx.beginPath();
+                ctx.moveTo(startCoords.x, startCoords.y);
+                ctx.lineTo(targetX, targetY);
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        // Simulación de Alertas y Anomalías en Planetas Azuados por las Sondas
+        function generateSpaceAnomaly() {
+            const randomPlanet = PLANET_DATA[Math.floor(Math.random() * (PLANET_DATA.length - 1))]; // Excluir Tierra de anomalías directas
+            const alertTypes = [
+                { type: 'BARRIDO DE GASES', msg: `Variación crítica detectada en capas superiores de ${randomPlanet.name}. Composición: ${randomPlanet.comp}.` },
+                { type: 'CUERPO EXTRAÑO', msg: `¡ALERTA! Fragmento u objeto cinético detectado sobre la atmósfera de ${randomPlanet.name}. Trayectoria no calculada.` }
+            ];
+            currentAlertData = alertTypes[Math.floor(Math.random() * alertTypes.length)];
+            currentAlertData.planet = randomPlanet;
+            
+            // Forzar disparo del láser simulador de enlace de datos desde el planeta emisor
+            activeLaserPath = [randomPlanet.id];
+            // Construir puente hacia la Tierra
+            let pIdx = PLANET_DATA.findIndex(p => p.id === randomPlanet.id);
+            let earthIdx = PLANET_DATA.findIndex(p => p.id === 'tierra');
+            
+            if(pIdx > earthIdx) {
+                for(let i = pIdx - 1; i >= earthIdx; i--) activeLaserPath.push(PLANET_DATA[i].id);
+            } else {
+                for(let i = pIdx + 1; i <= earthIdx; i++) activeLaserPath.push(PLANET_DATA[i].id);
+            }
+            laserProgress = 0;
+            animateLaser();
+        }
+
+        function processDownloadedData() {
+            if (!currentAlertData) return;
+            
+            // Calcular tiempos de retraso matemáticos simulados según nodos de salto
+            const hops = activeLaserPath.length - 1;
+            const totalDistanceSimulated = hops * 1.21; // UA ficticias promedio por salto
+            const speedOfLight = 299792; // km/s
+            const speedSimulated = "Vector Láser Cuántico (Frecuencia: 430 THz)";
+            const timeDelay = (hops * 1.4).toFixed(2); // segundos de retraso simulados en laboratorio interactivo
+
+            const content = document.getElementById('telemetry-content');
+            content.innerHTML = `
+                <div class="telemetry-row"><span style="color:var(--neon-green)">[PAQUETE RECIBIDO DESDE SONDA]</span></div>
+                <div class="telemetry-row"><span>EMISOR INTERMEDIO:</span> <span>Sonda Geo-${currentAlertData.planet.id}</span></div>
+                <div class="telemetry-row"><span class="alert-flash">TIPO: ${currentAlertData.type}</span></div>
+                <div class="telemetry-row"><span style="color:#fff">${currentAlertData.msg}</span></div>
+                <div class="telemetry-row"><span>PUENTES EN CASCADA:</span> <span>${hops} Saltos de Red</span></div>
+                <div class="telemetry-row"><span>VELOCIDAD DE SEÑAL:</span> <span>${speedSimulated}</span></div>
+                <div class="telemetry-row"><span style="color:var(--neon-pink)">RETORNO DE LATENCIA:</span> <span>${timeDelay} seg (Calculado)</span></div>
+            `;
+        }
+
+        // Monitoreo de Distancia Dinámica respecto a la Tierra
+        function updateLiveTelemetry() {
+            if (selectedPlanet) {
+                const tContent = document.getElementById('telemetry-content');
+                // Si no hay alerta corriendo en este instante, mostrar datos fijos del planeta seleccionado
+                if(activeLaserPath.length === 0 || laserProgress === activeLaserPath.length - 1) {
+                    tContent.innerHTML = `
+                        <div class="telemetry-row"><span style="color:var(--neon-blue)">[APROXIMACIÓN EXCLUSIVA: ${selectedPlanet.name.toUpperCase()}]</span></div>
+                        <div class="telemetry-row"><span>COMPOSICIÓN DE NÚCLEO:</span> <span>${selectedPlanet.comp}</span></div>
+                        <div class="telemetry-row"><span>DISTANCIA NOMINAL A TIERRA:</span> <span>${selectedPlanet.distEarth}</span></div>
+                        <div class="telemetry-row"><span>RADIO DE ÓRBITA GEO:</span> <span>~${selectedPlanet.geoRadius * 400} km</span></div>
+                        <div class="telemetry-row"><span>ESTADO DE SONDA:</span> <span style="color:var(--neon-green)">ONLINE (Enlace Estable)</span></div>
+                        <div class="telemetry-row"><span>ÁNGULO HELIOCÉNTRICO:</span> <span>${angles[selectedPlanet.id].toFixed(3)} rad</span></div>
+                    `;
+                }
+            }
+            
+            // Reloj en tiempo real del sistema
+            const d = new Date();
+            document.getElementById('realtime-clock').innerText = d.toTimeString().split(' ')[0];
+        }
+
+        // Zoom Interactivo y Enfoque Quirúrgico de Planetas
+        function focusPlanet(planet) {
+            selectedPlanet = planet;
+            
+            // Calcular escala de acercamiento según el tamaño del cuerpo celeste
+            const zoomFactor = Math.max(3.5, 8 - (planet.size * 0.15));
+            
+            // Desplazamiento matemático para centrar el planeta seleccionado en la pantalla
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            // Posición heliocéntrica actual basada en el ángulo de rotación
+            const currentAngle = angles[planet.id];
+            const planetX = Math.cos(currentAngle) * planet.radius;
+            const planetY = Math.sin(currentAngle) * planet.radius;
+            
+            // Aplicar matriz de transformación CSS para crear el zoom fluido
+            container.style.transform = `scale(${zoomFactor}) translate(${-planetX}px, ${-planetY}px)`;
+        }
+
+        function resetZoom() {
+            selectedPlanet = null;
+            container.style.transform = `scale(1) translate(0px, 0px) `;
+            document.getElementById('telemetry-content').innerText = "Selecciona un planeta para fijar coordenadas de aproximación o dispara un escaneo de red.";
+        }
+
+        // Inicializar el laboratorio en carga
+        window.onload = () => {
+            initSystem();
+            updatePhysics();
+        };
+    </script>
 </body>
 </html>
