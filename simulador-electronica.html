@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <!-- SEO BÁSICO Y ENLACES DE LA PESTAÑA SECUNDARIA -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>🔬 Simulador de Electrónica Online | TRUE-SPICE Laboratorio Profesional v37.0</title>
@@ -10,14 +9,12 @@
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://duquemartini.com/simulador-electronica.html">
 
-    <!-- METATAGS OPEN GRAPH (Para redes sociales) -->
     <meta property="og:title" content="🔬 TRUE-SPICE Laboratorio Profesional v37.0 - DuqueMartini">
     <meta property="og:description" content="Simulador de circuitos interactivo con telemetría en tiempo real, osciloscopio integrado y análisis dinámico de energía continua.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://duquemartini.com/simulador-electronica.html">
     <meta property="og:image" content="https://duquemartini.com/assets/preview-laboratorio.jpg">
 
-    <!-- GOOGLE ANALYTICS (Global Site Tag) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=GT-MB642KNJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -282,12 +279,10 @@
             <div class="ac-icon">⚡ AC</div>
             <span>MOTOR</span>
         </div>
-<button class="exit-btn" onpointerdown="purgueNetlist(); window.location.href='index.html';">
-    <div class="exit-icon">🚪</div>
-    <span>SALIR</span>
-</button>
-
-
+        <button class="exit-btn" onpointerdown="purgueNetlist(); window.location.href='index.html';">
+            <div class="exit-icon">🚪</div>
+            <span>SALIR</span>
+        </button>
     </div>
 </header>
 
@@ -744,7 +739,6 @@
                 let A = Array.from({length: dim}, () => Array(dim).fill(0));
                 let Z = Array(dim).fill(0);
 
-                // PRIMERA PASADA ESTIMATIVA PARA DIODOS (VALORACIÓN NO LINEAL SIMPLIFICADA)
                 let diodoEstados = {};
                 netNodes.filter(n => n.tipo === 'diodo_rectificador' || n.tipo === 'led_verde').forEach(d => {
                     diodoEstados[d.id] = true; 
@@ -779,7 +773,6 @@
                         let Ieq = g_cap * (n.ajustes.v_hist || 0);
                         stampCurrentSource(Z, nA, nB, Ieq);
                     }
-                    // RECTIFICADOR DINÁMICO VALVULAR CORRE DE UN SOLO LADO
                     if(n.tipo === 'diodo_rectificador') {
                         let r_dio = 10; 
                         stampConductance(A, pinToNodeMap[`${n.id}_an`], pinToNodeMap[`${n.id}_ca`], 1 / r_dio);
@@ -804,20 +797,18 @@
                     nodeVoltagesArray[i] = X ? X[i] : 0;
                 }
 
-                // PASADA DE CONVERGENCIA PARA EVALUAR SI EL DIODO ESTÁ AL REVÉS ⏮️
                 let requiereReCalculo = false;
                 netNodes.forEach(n => {
                     if(n.tipo === 'diodo_rectificador') {
                         let vAn = nodeVoltagesArray[pinToNodeMap[`${n.id}_an`]]||0;
                         let vCa = nodeVoltagesArray[pinToNodeMap[`${n.id}_ca`]]||0;
-                        if(vAn < vCa) { // ¡ESTÁ AL REVÉS! No hay energía
+                        if(vAn < vCa) { 
                             diodoEstados[n.id] = false; 
                             requiereReCalculo = true;
                         }
                     }
                 });
 
-                // RE-ESTAMPADO CON LOS DIODOS COMPORTÁNDOSE COMO CIRCUITO ABIERTO SI ESTÁN AL REVÉS
                 if(requiereReCalculo) {
                     A = Array.from({length: dim}, () => Array(dim).fill(0));
                     Z = Array(dim).fill(0);
@@ -833,7 +824,7 @@
                             stampCurrentSource(Z, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], g_cap * (n.ajustes.v_hist || 0));
                         }
                         if(n.tipo === 'diodo_rectificador') {
-                            let r_dio = diodoEstados[n.id] ? 10 : 1e9; // 10 Ohms directo, 1 GigaOhm si está al revés ⏮️
+                            let r_dio = diodoEstados[n.id] ? 10 : 1e9; 
                             stampConductance(A, pinToNodeMap[`${n.id}_an`], pinToNodeMap[`${n.id}_ca`], 1 / r_dio);
                         }
                         if(n.tipo === 'led_verde') {
@@ -932,6 +923,7 @@
 
                 graphVoltage = nodeVoltagesArray[activeProbeNodeId] || 0;
 
+                // === BLOQUE DE CÁLCULO DE CORRIENTE CORREGIDO CON LEY DE OHM DINÁMICA ===
                 conexiones.forEach(w => {
                     let pNode = pinToNodeMap[`${w.m1}_${w.p1}`];
                     let sNode = pinToNodeMap[`${w.m2}_${w.p2}`];
@@ -939,14 +931,24 @@
                     let vB = nodeVoltagesArray[sNode] || 0;
                     let diffV = Math.abs(vA - vB);
 
-                    w.currentIntensity = diffV / 220; 
+                    let compAsociado = netNodes.find(n => n.id === w.m1 || n.id === w.m2);
+                    let rEfectiva = 220; 
+
+                    if (compAsociado) {
+                        if (compAsociado.tipo === 'resistencia') rEfectiva = parseFloat(compAsociado.ajustes.r) || 1;
+                        else if (compAsociado.tipo === 'motor_dc') rEfectiva = 150;
+                        else if (compAsociado.tipo === 'foco_edison') rEfectiva = (12 * 12) / (parseFloat(compAsociado.ajustes.wats) || 60);
+                        else if (compAsociado.tipo === 'led_verde') rEfectiva = compAsociado.burned ? 1e9 : 35;
+                    }
+
+                    w.currentIntensity = diffV / rEfectiva; 
                     let redActiva = Object.values(nodeVoltagesArray).some(v => Math.abs(v) > 0.1);
                     
                     if (pNode === 0 || sNode === 0) {
-                        w.hasCurrent = redActiva && netNodes.some(sw => sw.tipo === 'switch_cuchilla' && !sw.ajustes.open);
-                        w.currentIntensity = 0.05; 
+                        w.hasCurrent = redActiva;
+                        w.currentIntensity = diffV > 0 ? diffV / 150 : 0; 
                     } else {
-                        w.hasCurrent = Math.abs(vA) > 0.05 && Math.abs(vB) > 0.05;
+                        w.hasCurrent = diffV > 0.05 && (Math.abs(vA) > 0.05 || Math.abs(vB) > 0.05);
                     }
                 });
 
@@ -1149,7 +1151,7 @@
                     scopeCtx.beginPath(); scopeCtx.moveTo(i, 0); scopeCtx.lineTo(i, h); scopeCtx.stroke();
                 }
                 for (let j = 0; j < h; j += 20) {
-                    scopeCtx.beginPath(); scopeCtx.moveTo(0, j); scopeCtx.lineTo(w, j); strokeCtx = scopeCtx.stroke();
+                    scopeCtx.beginPath(); scopeCtx.moveTo(0, j); strokeCtx = scopeCtx.lineTo(w, j); scopeCtx.stroke();
                 }
 
                 let noise = (Math.random() - 0.5) * 0.04;
