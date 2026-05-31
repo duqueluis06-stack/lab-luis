@@ -2,577 +2,490 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DSN Deep Space Terminal - Telemetría Científica Avanzada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador del Sistema Solar</title>
     <style>
         :root {
-            --matrix-glow: #00ffaa;
-            --radar-blue: #00bfff;
-            --alert-red: #ff3344;
-            --dark-hull: #02040a;
-            --panel-border: rgba(0, 255, 170, 0.25);
-            --neon-shadow: 0 0 15px rgba(0, 255, 170, 0.3);
+            --space-bg: #030308;
+            --panel-bg: rgba(10, 15, 30, 0.75);
+            --border-color: rgba(0, 180, 216, 0.3);
+            --neon-glow: #00b4d8;
+            --text-color: #e2e8f0;
         }
 
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            overflow: hidden;
-            background-color: #000205;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #f0f4f8;
-            user-select: none;
-            touch-action: none;
-        }
-
-        #webgl-viewport {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            z-index: 1;
-        }
-
-        /* COMPONENTE INTERFAZ HUD TÁCTICO MÓVIL/DESKTOP */
-        .hud-container {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            z-index: 100;
-            pointer-events: none;
-            display: grid;
-            grid-template-rows: 65px 1fr auto;
+        * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        .hud-container * { pointer-events: auto; }
-
-        header {
-            background: linear-gradient(to bottom, rgba(2, 4, 10, 0.98), rgba(2, 4, 10, 0.75));
-            border-bottom: 2px solid var(--panel-border);
+        body {
+            background-color: var(--space-bg);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
+        }
+
+        /* --- FONDO ESTRELLADO --- */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            background-position: 0 0, 40px 60px, 130px 270px;
+            opacity: 0.6;
+            animation: starsTwinkle 100s linear infinite;
+        }
+
+        @keyframes starsTwinkle {
+            from { background-position: 0 0, 40px 60px, 130px 270px; }
+            to { background-position: 550px 1100px, 1050px 350px, 500px 1350px; }
+        }
+
+        /* --- BOTÓN SALIR (INDEX) --- */
+        .btn-salir {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
             align-items: center;
-            padding: 0 25px;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-        }
-
-        .header-title {
+            gap: 8px;
+            padding: 10px 18px;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            text-decoration: none;
             font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 3px;
-            color: var(--matrix-glow);
-            text-shadow: var(--neon-shadow);
+            font-weight: bold;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
         }
 
-        /* CONSOLA DE OPERACIONES INFERIOR REESTRUCTURADA */
-        .control-deck {
-            background: rgba(2, 4, 10, 0.96);
-            border-top: 2px solid var(--panel-border);
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            padding: 16px;
-            backdrop-filter: blur(15px);
-            box-shadow: 0 -4px 25px rgba(0,0,0,0.7);
+        .btn-salir:hover {
+            background-color: #ffffff;
+            color: #000000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
         }
 
-        @media(min-width: 768px) {
-            .control-deck { grid-template-columns: 1.3fr 1fr; }
+        /* --- CONTENEDOR PRINCIPAL --- */
+        .dashboard {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            margin: 80px auto 40px auto;
+            gap: 30px;
+            padding: 0 20px;
+            z-index: 10;
         }
 
-        .terminal-readout {
-            background: rgba(0, 2, 5, 0.85);
-            border: 1px solid rgba(0, 255, 170, 0.2);
+        /* --- MENÚ LATERAL: PLANETAS --- */
+        .sidebar-planets {
+            flex: 1;
+            max-width: 280px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+
+        .sidebar-planets h2 {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            color: var(--neon-glow);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .planet-btn {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #a0aec0;
+            text-align: left;
+            font-size: 15px;
+            cursor: pointer;
             border-radius: 8px;
-            padding: 14px;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.5;
-            box-shadow: inset 0 0 10px rgba(0,255,170,0.05);
+            transition: all 0.2s;
+            margin-bottom: 5px;
         }
 
-        .data-stream {
-            height: 95px;
-            overflow-y: auto;
-            color: #e2e8f0;
-            margin-bottom: 12px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(0, 255, 170, 0.3) transparent;
-        }
-
-        .action-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        .btn-core {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid rgba(0, 255, 170, 0.5);
-            color: var(--matrix-glow);
-            font-size: 11px;
-            font-weight: 700;
-            padding: 10px 6px;
-            border-radius: 5px;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .btn-core:hover {
-            background: rgba(0, 255, 170, 0.1);
-            box-shadow: 0 0 10px rgba(0, 255, 170, 0.2);
-        }
-
-        .btn-core:active, .btn-core.active {
-            background: var(--matrix-glow);
-            color: #02040a;
-            box-shadow: 0 0 15px rgba(0, 255, 170, 0.5);
-        }
-
-        .btn-telemetry {
-            border-color: var(--radar-blue);
-            color: var(--radar-blue);
-        }
-        .btn-telemetry:hover {
-            background: rgba(0, 191, 255, 0.1);
-        }
-
-        /* REJILLA MATRICIAL SISTEMA SOLAR */
-        .planet-matrix {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            align-content: center;
-        }
-
-        .btn-planet {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255,255,255,0.12);
-            color: #94a3b8;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 14px 4px;
-            border-radius: 5px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-        }
-
-        .btn-planet:hover {
+        .planet-btn:hover, .planet-btn.active {
+            background: rgba(0, 180, 216, 0.15);
             color: #fff;
-            border-color: rgba(255,255,255,0.3);
+            border-color: var(--border-color);
+            box-shadow: inset 0 0 10px rgba(0, 180, 216, 0.2);
         }
 
-        .btn-planet.active {
-            border-color: var(--radar-blue);
-            color: #ffffff;
-            background: rgba(0, 191, 255, 0.25);
-            box-shadow: 0 0 12px rgba(0, 191, 255, 0.4);
-            text-shadow: 0 0 5px #fff;
+        /* --- PANEL DE VISTA Y TEXTURAS --- */
+        .main-display {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        /* CONTENEDORES FLOTANTES HUD ESPACIAL REAL */
-        .space-tag {
-            position: absolute;
-            color: #ffffff;
-            font-size: 10px;
-            font-weight: 700;
-            background: rgba(2, 4, 10, 0.92);
-            border-left: 3px solid var(--matrix-glow);
-            padding: 5px 10px;
-            pointer-events: none;
-            transform: translate(-50%, -140%);
-            white-space: nowrap;
-            z-index: 50;
-            border-radius: 0 5px 5px 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+        .visualizer-container {
+            position: relative;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Simulación de Textura Esférica CSS */
+        .planet-texture-sphere {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            box-shadow: inset -25px -25px 50px #000, 0 0 30px rgba(0, 180, 216, 0.3);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            background-size: cover;
+        }
+
+        /* Efecto de Rotación de la textura */
+        @keyframes rotateTexture {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        /* --- TELEMETRÍA Y DATOS DE CIENCIA --- */
+        .telemetry-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .planet-title {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .planet-subtitle {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        /* Grid de Datos Técnicos */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .data-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .data-card label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #718096;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .data-card span {
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .laser-line {
+            color: #ff0055 !important;
             font-family: monospace;
         }
+
+        /* --- PANEL DE COMUNICACIONES EN TIEMPO REAL --- */
+        .comms-panel {
+            flex: 1;
+            max-width: 320px;
+            background: rgba(5, 10, 20, 0.85);
+            border: 1px solid rgba(239, 68, 68, 0.2); /* Tono rojizo para advertir comms */
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            height: fit-content;
+        }
+
+        .comms-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ef4444;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ping-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        .comms-log {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            color: #38bdf8;
+            line-height: 1.5;
+        }
+
+        .delay-counter {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 10px;
+            text-align: right;
+        }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="webgl-viewport"></div>
-    <div id="hud-labels-container"></div>
+    <div class="stars"></div>
 
-    <div class="hud-container">
-        <header>
-            <div class="header-title">🛰️ DSN DEEP SPACE OPERATIONAL TERMINAL // LUIS DUQUE</div>
-            <div style="font-family: 'Consolas', monospace; font-size: 13px; color: var(--radar-blue); font-weight: bold; letter-spacing: 1px;" id="sub-timer">00:00:00 UTC</div>
-        </header>
+    <a href="index.html" class="btn-salir">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+        </svg>
+        VOLVER AL MENÚ
+    </a>
 
-        <div></div>
+    <div class="dashboard">
+        
+        <div class="sidebar-planets">
+            <h2>Cuerpos Celestes</h2>
+            <button class="planet-btn active" onclick="selectPlanet('tierra')">🌎 Tierra</button>
+            <button class="planet-btn" onclick="selectPlanet('luna')">🌑 La Luna</button>
+            <button class="planet-btn" onclick="selectPlanet('marte')">🔴 Marte</button>
+            <button class="planet-btn" onclick="selectPlanet('jupiter')">🪐 Júpiter</button>
+        </div>
 
-        <footer class="control-deck">
-            <div class="terminal-readout">
-                <div id="terminal-stream" class="data-stream">
-                    SISTEMA OPERATIVO DSN ONLINE. Generando núcleos matemáticos de textura planetaria. Motores listos.
-                </div>
-                <div class="action-bar">
-                    <button class="btn-core" id="btn-pause" onclick="setSpeed(0)">⏸ PAUSA</button>
-                    <button class="btn-core active" id="btn-slow" onclick="setSpeed(0.04)">⏳ ORBITA</button>
-                    <button class="btn-core" id="btn-fast" onclick="setSpeed(0.35)">⚡ AVANCE</button>
-                    <button class="btn-core btn-telemetry" onclick="fireLaserNetwork()">🛰️ RETRANSMISIÓN</button>
-                </div>
+        <div class="main-display">
+            <div class="visualizer-container">
+                <div id="planetSphere" class="planet-texture-sphere" style="background: radial-gradient(circle at 30% 30%, #4f92ff, #001f54); animation: rotateTexture 20s linear infinite;"></div>
             </div>
 
-            <div class="planet-matrix" id="target-grid"></div>
-        </footer>
+            <div class="telemetry-panel">
+                <h1 id="pName" class="planet-title">Tierra</h1>
+                <p id="pSubtitle" class="planet-subtitle">Planeta Habitadero - Sector 01</p>
+                
+                <div class="data-grid">
+                    <div class="data-card">
+                        <label>Distancia Láser (Desde el Sol)</label>
+                        <span id="pDistance" class="laser-line">149,600,000 km</span>
+                    </div>
+                    <div class="data-card">
+                        <label>Demora de Zoom / Enfoque</label>
+                        <span id="pZoomTime">1.25 segundos</span>
+                    </div>
+                    <div class="data-card">
+                        <label>Periodo de Rotación</label>
+                        <span id="pRotation">23.9 Horas</span>
+                    </div>
+                    <div class="data-card">
+                        <label>Estructura y Composición</label>
+                        <span id="pComposition">Núcleo metálico, manto de silicato, corteza rocosa. Nitrógeno/Oxígeno.</span>
+                    </div>
+                    <div class="data-card">
+                        <label>Satélites Naturales</label>
+                        <span id="pSatellites">1 (La Luna)</span>
+                    </div>
+                    <div class="data-card">
+                        <label>Dinámica de Equinoccio</label>
+                        <span id="pEquinox">Dos por año (Marzo/Septiembre). Inclinación axial estable de 23.4°.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comms-panel">
+            <div class="comms-title">
+                <span class="ping-dot"></span> Telemetría de Red Cuántica
+            </div>
+            <div id="commsLog" class="comms-log">
+                [SISTEMA CONECTADO]<br>
+                Escaneando transmisiones de la Tierra...<br>
+                Enlace estable.<br>
+            </div>
+            <div id="commsDelay" class="delay-counter">Retraso de señal: 0.00s</div>
+        </div>
+
     </div>
 
     <script>
-        const COSMIC_DATA = [
-            { id: 'sun', name: 'SOL', r: 0, size: 24, speed: 0, color: '#ff6600', altColor: '#ffcc00', comp: '92.1% H, 7.8% He. Capas de plasma en fusión térmica masiva.', dist: '0.0 UA (Centro del Sistema Solar)' },
-            { id: 'mercurio', name: 'MERCURIO', r: 45, size: 1.8, speed: 0.016, color: '#555555', altColor: '#888888', comp: '70% Metales ferrosos densos, 30% Silicatos refractarios.', dist: '0.39 UA de la estrella base' },
-            { id: 'venus', name: 'VENUS', r: 65, size: 2.8, speed: 0.012, color: '#aa6622', altColor: '#e0a060', comp: 'Dióxido de Carbono hiper-denso, nubes de Ácido Sulfúrico.', dist: '0.72 UA de la estrella base' },
-            { id: 'tierra', name: 'TIERRA', r: 90, size: 3.2, speed: 0.009, color: '#1144aa', altColor: '#22aa55', comp: '78% Nitrógeno, 21% Oxígeno. Biosfera líquida y nubes de vapor.', dist: '1.00 UA [ESTACIÓN BASE PRINCIPAL DSN]' },
-            { id: 'marte', name: 'MARTE', r: 115, size: 2.3, speed: 0.007, color: '#aa3311', altColor: '#cc6644', comp: 'Óxido de Hierro superficial, atmósfera tenue de CO2.', dist: '1.52 UA de la estrella base' },
-            { id: 'jupiter', name: 'JÚPITER', r: 160, size: 8.0, speed: 0.004, color: '#b87a42', altColor: '#f5d0a9', comp: 'Hidrógeno líquido metálico, Helio. Sistemas de tormentas cíclicas.', dist: '5.20 UA de la estrella base' },
-            { id: 'saturno', name: 'SATURNO', r: 210, size: 6.5, speed: 0.0025, color: '#cc9955', altColor: '#eeddbb', comp: 'Envoltorio de Gas de Hidrógeno molecular masivo.', dist: '9.58 UA de la estrella base', hasRings: true },
-            { id: 'urano', name: 'URANO', r: 255, size: 4.4, speed: 0.0012, color: '#4488cc', altColor: '#66aacc', comp: 'Fluidos de Hielo Cuántico, Amoníaco y Metano Atmosférico.', dist: '19.22 UA de la estrella base' },
-            { id: 'neptuno', name: 'NEPTUNO', r: 300, size: 4.2, speed: 0.0009, color: '#2244aa', altColor: '#3366cc', comp: 'Núcleo Rocoso, Hielo de Metano de alta densidad energética.', dist: '30.05 UA de la estrella base' }
-        ];
-
-        let scene, camera, renderer;
-        let planets3D = {};
-        let orbitsAngles = {};
-        let timeMultiplier = 0.04;
-        let selectedNode = COSMIC_DATA[3];
-        let laserLines = [];
-        let networkIsActive = false;
-        
-        let targetCamPosition = new THREE.Vector3(0, 200, 260);
-        let targetLookAt = new THREE.Vector3(0, 0, 0);
-        let currentLookAt = new THREE.Vector3(0, 0, 0);
-
-        function generateProceduralTexture(id, baseColor, detailColor) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = baseColor;
-            ctx.fillRect(0, 0, 512, 256);
-
-            if (id === 'sun') {
-                for (let i = 0; i < 60; i++) {
-                    let grad = ctx.createRadialGradient(Math.random()*512, Math.random()*256, 10, Math.random()*512, Math.random()*256, 90);
-                    grad.addColorStop(0, detailColor);
-                    grad.addColorStop(1, 'transparent');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, 512, 256);
-                }
-            } else if (id === 'jupiter' || id === 'saturno') {
-                for (let y = 0; y < 256; y += 4) {
-                    ctx.fillStyle = Math.random() > 0.4 ? baseColor : detailColor;
-                    ctx.globalAlpha = Math.random() * 0.5;
-                    ctx.fillRect(0, y, 512, Math.random()*12);
-                }
-                ctx.globalAlpha = 1.0;
-                ctx.fillStyle = detailColor;
-                ctx.beginPath();
-                ctx.ellipse(300, 160, 35, 18, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (id === 'tierra') {
-                ctx.fillStyle = detailColor;
-                for(let i=0; i<18; i++) {
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*512, Math.random()*256, Math.random()*50 + 20, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                for(let i=0; i<25; i++) {
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*512, Math.random()*256, Math.random()*30 + 10, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            } else {
-                for (let i = 0; i < 150; i++) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*512, Math.random()*256, Math.random()*8, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*512, Math.random()*256, Math.random()*4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+        // Base de Datos Estructural del Sistema
+        const spaceData = {
+            tierra: {
+                name: "Tierra",
+                subtitle: "Planeta Terrestre - Cuna de la Humanidad",
+                distance: "149.600.000 km",
+                zoom: "0.80s",
+                rotation: "23.93 Horas (Progrado)",
+                composition: "Rocoso. Atmósfera densa rica en Nitrógeno (78%) y Oxígeno (21%). Agua líquida superficial.",
+                satellites: "1: La Luna (Lunares artificiales excluidos)",
+                equinox: "Sí, global. Ocurre por la inclinación de 23.4° respecto a su órbita.",
+                style: "radial-gradient(circle at 30% 30%, #4f92ff, #052e70, #001130)",
+                speed: "25s",
+                comms: "Recibiendo paquetes de datos de la red de satélites meteorológicos en órbita geoestacionaria...",
+                delay: "0.00s (Línea Base)"
+            },
+            luna: {
+                name: "La Luna",
+                subtitle: "Satélite Natural - Cuerpo Bloqueado por Marea",
+                distance: "384.400 km (Desde la Tierra)",
+                zoom: "0.40s",
+                rotation: "27.3 Días (Rotación Sincrónica)",
+                composition: "Corteza de regolito, manto rocoso y núcleo de hierro pequeño. Sin atmósfera significativa.",
+                satellites: "Ninguno (Es un satélite)",
+                equinox: "No tradicional. Su eje varía solo 1.5°, casi no tiene estaciones. El Sol siempre da casi horizontal en los polos.",
+                style: "radial-gradient(circle at 30% 30%, #a0aec0, #4a5568, #1a202c)",
+                speed: "45s",
+                comms: "Paquete de telemetría recibido de la estación lunar Artemis Base. Módulos de soporte vital estables.",
+                delay: "1.28s"
+            },
+            marte: {
+                name: "Marte",
+                subtitle: "Planeta Desértico - El Próximo Paso",
+                distance: "227.900.000 km",
+                zoom: "1.50s",
+                rotation: "24.62 Horas",
+                composition: "Óxido de hierro superficial (polvo rojizo). Atmósfera delgada de CO₂ (95%).",
+                satellites: "2: Fobos y Deimos (Cuerpos capturados)",
+                equinox: "Sí. Inclinación de 25.2° genera equinoccios y estaciones muy marcadas, similares a la Tierra pero el doble de largas.",
+                style: "radial-gradient(circle at 30% 30%, #f87171, #991b1b, #450a0a)",
+                speed: "20s",
+                comms: "Señal débil transmitida por el Rover en superficie. Descargando datos espectográficos del cráter Jezero...",
+                delay: "4.33m a 20.1m"
+            },
+            jupiter: {
+                name: "Júpiter",
+                subtitle: "Gigante Gaseoso - Protector del Sistema Interior",
+                distance: "778.500.000 km",
+                zoom: "2.80s",
+                rotation: "9.93 Horas (Extremadamente rápido)",
+                composition: "Fluido masivo. Principalmente Hidrógeno y Helio. Sin superficie sólida definida.",
+                satellites: "95 confirmados (Ío, Europa, Ganimedes y Calisto los principales)",
+                equinox: "Mínimo. Inclinación axial de solo 3.1°. Los cambios estacionales son prácticamente imperceptibles.",
+                style: "radial-gradient(circle at 30% 30%, #fbd38d, #c05621, #652b11)",
+                speed: "10s",
+                comms: "Transmisión de la sonda orbital interceptando ondas de radio de la magnetosfera joviana. Ruido severo.",
+                delay: "33.1m a 53.1m"
             }
+        };
 
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
-            return texture;
-        }
+        let commsInterval;
 
-        function initEngine() {
-            const container = document.getElementById('webgl-viewport');
-            
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x01030a, 0.0012);
+        function selectPlanet(planetKey) {
+            // Manejar estados de los botones activos
+            document.querySelectorAll('.planet-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2500);
-            camera.position.set(targetCamPosition.x, targetCamPosition.y, targetCamPosition.z);
+            const data = spaceData[planetKey];
+            const sphere = document.getElementById('planetSphere');
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            container.appendChild(renderer.domElement);
-
-            const ambient = new THREE.AmbientLight(0x444455);
-            scene.add(ambient);
-
-            const sunLight = new THREE.PointLight(0xffffff, 2.5, 1200);
-            scene.add(sunLight);
-
-            const starsGeo = new THREE.BufferGeometry();
-            const starPositions = new Float32Array(2000 * 3);
-            for(let i=0; i<6000; i++) starPositions[i] = (Math.random() - 0.5) * 1500;
-            starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.9 });
-            scene.add(new THREE.Points(starsGeo, starsMat));
-
-            buildCosmos3D();
-            buildBunkerInterface();
-            window.addEventListener('resize', onWindowResize);
-        }
-
-        function buildCosmos3D() {
-            COSMIC_DATA.forEach(data => {
-                orbitsAngles[data.id] = Math.random() * Math.PI * 2;
-
-                if(data.r > 0) {
-                    const points = [];
-                    for (let i = 0; i <= 180; i++) {
-                        const theta = (i / 180) * Math.PI * 2;
-                        points.push(new THREE.Vector3(Math.cos(theta) * data.r, 0, Math.sin(theta) * data.r));
-                    }
-                    const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
-                    const orbitMat = new THREE.LineBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.06 });
-                    scene.add(new THREE.Line(orbitGeo, orbitMat));
-                }
-
-                const pivot = new THREE.Group();
-                scene.add(pivot);
-
-                const geo = new THREE.SphereGeometry(data.size, 32, 32);
-                let mat;
-
-                const dynamicTexture = generateProceduralTexture(data.id, data.color, data.altColor);
-
-                if(data.id === 'sun') {
-                    mat = new THREE.MeshBasicMaterial({ map: dynamicTexture });
-                } else {
-                    mat = new THREE.MeshStandardMaterial({ 
-                        map: dynamicTexture,
-                        roughness: 0.7,
-                        metalness: 0.15
-                    });
-                }
-
-                const mesh = new THREE.Mesh(geo, mat);
-                if(data.r > 0) mesh.position.x = data.r;
-                pivot.add(mesh);
-
-                if(data.hasRings) {
-                    const ringGeo = new THREE.RingGeometry(data.size + 2.5, data.size + 8, 64);
-                    ringGeo.rotateX(Math.PI / 2);
-                    const ringMat = new THREE.MeshStandardMaterial({ 
-                        color: 0xbaa385, 
-                        side: THREE.DoubleSide, 
-                        transparent: true, 
-                        opacity: 0.65,
-                        roughness: 0.9
-                    });
-                    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-                    ringMesh.position.x = data.r;
-                    pivot.add(ringMesh);
-                }
-
-                let probeMesh = null;
-                if(data.r > 0) {
-                    const probeGeo = new THREE.ConeGeometry(0.5, 1.2, 4);
-                    probeGeo.rotateX(Math.PI / 2);
-                    const probeMat = new THREE.MeshBasicMaterial({ color: 0x00bfff });
-                    probeMesh = new THREE.Mesh(probeGeo, probeMat);
-                    probeMesh.position.set(data.r, data.size + 2.0, 0);
-                    pivot.add(probeMesh);
-                }
-
-                planets3D[data.id] = { pivot: pivot, mesh: mesh, probe: probeMesh, data: data };
-
-                const label = document.createElement('div');
-                label.className = 'space-tag';
-                label.id = `tag-${data.id}`;
-                label.innerText = data.name;
-                document.getElementById('hud-labels-container').appendChild(label);
-            });
-        }
-
-        function buildBunkerInterface() {
-            const grid = document.getElementById('target-grid');
-            COSMIC_DATA.forEach(data => {
-                const btn = document.createElement('button');
-                btn.className = 'btn-planet';
-                btn.id = `btn-${data.id}`;
-                btn.innerText = data.name;
-                btn.onclick = () => selectNode(data);
-                grid.appendChild(btn);
-            });
-            selectNode(selectedNode);
-        }
-
-        function selectNode(node) {
-            selectedNode = node;
-            COSMIC_DATA.forEach(d => {
-                const btn = document.getElementById(`btn-${d.id}`);
-                if(btn) btn.classList.remove('active');
-            });
-            const activeBtn = document.getElementById(`btn-${node.id}`);
-            if(activeBtn) activeBtn.classList.add('active');
-
-            document.getElementById('terminal-stream').innerHTML = `
-                <span style="color:var(--radar-blue); font-weight:bold;">[NODO ADQUIRIDO]: ${node.name}</span><br>
-                • DISTANCIA RADIAL AL SOL: ${node.dist}<br>
-                • ANÁLISIS ESPECTROGRÁFICO: ${node.comp}<br>
-                • CONEXIÓN LÁSER TRIDIMENSIONAL: Nodos alienados en órbita. Canal listo para ejecución.
-            `;
-        }
-
-        function fireLaserNetwork() {
-            if(networkIsActive) return;
-            networkIsActive = true;
-
-            laserLines.forEach(l => scene.remove(l));
-            laserLines = [];
-
-            const stream = document.getElementById('terminal-stream');
-            stream.innerHTML = `<span style="color:var(--alert-red); font-weight:bold;">[DISPARANDO ENLACE LÁSER EN CASCADA]</span> Propagando haz óptico a través de la red de sondas...`;
-
-            let startIdx = COSMIC_DATA.findIndex(x => x.id === selectedNode.id);
-            let earthIdx = COSMIC_DATA.findIndex(x => x.id === 'tierra');
-            
-            let path = [];
-            if(startIdx > earthIdx) {
-                for(let i = startIdx; i >= earthIdx; i--) path.push(COSMIC_DATA[i].id);
-            } else {
-                for(let i = startIdx; i <= earthIdx; i++) path.push(COSMIC_DATA[i].id);
-            }
-
-            for(let i = 0; i < path.length - 1; i++) {
-                const laserMat = new THREE.LineBasicMaterial({ color: 0x00ffaa, linewidth: 3 });
-                const laserGeo = new THREE.BufferGeometry();
-                const line = new THREE.Line(laserGeo, laserMat);
-                scene.add(line);
-                laserLines.push({ line: line, from: path[i], to: path[i+1] });
-            }
+            // Simular animación de carga/zoom dinámico
+            sphere.style.transform = "scale(0.2)";
+            sphere.style.opacity = "0.3";
 
             setTimeout(() => {
-                networkIsActive = false;
-                laserLines.forEach(l => scene.remove(l));
-                laserLines = [];
-                
-                const latency = (Math.abs(startIdx - earthIdx) * 7.4).toFixed(2);
-                stream.innerHTML = `
-                    <span style="color:var(--matrix-glow); font-weight:bold;">[TRANSMISIÓN CRÍTICA COMPLETADA]</span><br>
-                    • ESTADO DE DATOS: Paquetes recibidos sin corrupción en el Nodo Tierra.<br>
-                    • INTEGRIDAD DE SEÑAL: 100% Sincronizada.<br>
-                    • LATENCIA REAL DE RECORRIDO: ${latency} Minutos luz calculados.
-                `;
-            }, 2500);
+                // Actualizar interfaz técnica
+                sphere.style.background = data.style;
+                sphere.style.animationDuration = data.speed;
+                sphere.style.transform = "scale(1)";
+                sphere.style.opacity = "1";
+
+                document.getElementById('pName').innerText = data.name;
+                document.getElementById('pSubtitle').innerText = data.subtitle;
+                document.getElementById('pDistance').innerText = data.distance;
+                document.getElementById('pZoomTime').innerText = data.zoom;
+                document.getElementById('pRotation').innerText = data.rotation;
+                document.getElementById('pComposition').innerText = data.composition;
+                document.getElementById('pSatellites').innerText = data.satellites;
+                document.getElementById('pEquinox').innerText = data.equinox;
+                document.getElementById('pComms').innerText = data.comms;
+                document.getElementById('commsDelay').innerText = `Retraso de señal: ${data.delay}`;
+
+                // Reiniciar el simulador de logs de comunicaciones en tiempo real
+                startCommsSimulation(data.name, data.comms);
+            }, 400);
         }
 
-        function setSpeed(val) { 
-            timeMultiplier = val; 
-            document.getElementById('btn-pause').classList.remove('active');
-            document.getElementById('btn-slow').classList.remove('active');
-            document.getElementById('btn-fast').classList.remove('active');
-
-            if (val === 0) document.getElementById('btn-pause').classList.add('active');
-            else if (val < 0.1) document.getElementById('btn-slow').classList.add('active');
-            else document.getElementById('btn-fast').classList.add('active');
+        // Simulación de flujo de mensajes en tiempo real por cada planeta
+        function startCommsSimulation(planetName, baseMessage) {
+            clearInterval(commsInterval);
+            const log = document.getElementById('commsLog');
+            log.innerHTML = `[NUEVA CONEXIÓN DE ENFOQUE: ${planetName.toUpperCase()}]<br>Estableciendo enlace de datos...<br>OK.<br>${baseMessage}<br>`;
+            
+            commsInterval = setInterval(() => {
+                const timestamp = new Date().toLocaleTimeString();
+                const randomPackets = [
+                    `[${timestamp}] Paquete de telemetría de órbita verificado.`,
+                    `[${timestamp}] Actualizando matriz de coordenadas estelares.`,
+                    `[${timestamp}] Flujo de partículas solares estable en este sector.`,
+                    `[${timestamp}] Ping cuántico devuelto sin pérdidas de datos.`
+                ];
+                const randomMsg = randomPackets[Math.floor(Math.random() * randomPackets.length)];
+                log.innerHTML += randomMsg + "<br>";
+                log.scrollTop = log.scrollHeight; // Auto-scroll hacia abajo
+            }, 4000);
         }
 
-        function updateLoop() {
-            const tempV = new THREE.Vector3();
-
-            COSMIC_DATA.forEach(data => {
-                if(data.r > 0) {
-                    orbitsAngles[data.id] += data.speed * timeMultiplier;
-                    planets3D[data.id].pivot.rotation.y = orbitsAngles[data.id];
-                    planets3D[data.id].mesh.rotation.y += 0.008;
-                }
-
-                planets3D[data.id].mesh.getWorldPosition(tempV);
-
-                if (data.id === selectedNode.id) {
-                    targetLookAt.copy(tempV);
-                    
-                    if (data.id === 'sun') {
-                        targetCamPosition.set(0, data.size * 2.2, data.size * 3.2);
-                    } else {
-                        targetCamPosition.set(
-                            tempV.x + Math.cos(orbitsAngles[data.id] * 0.15) * (data.size * 4.2),
-                            tempV.y + data.size * 1.8,
-                            tempV.z + Math.sin(orbitsAngles[data.id] * 0.15) * (data.size * 4.2)
-                        );
-                    }
-                }
-
-                tempV.project(camera);
-                const x = (tempV.x * .5 + .5) * window.innerWidth;
-                const y = (tempV.y * -.5 + .5) * window.innerHeight;
-
-                const label = document.getElementById(`tag-${data.id}`);
-                if(label) {
-                    if(tempV.z > 1) { label.style.display = 'none'; }
-                    else {
-                        label.style.display = 'block';
-                        label.style.left = `${x}px`;
-                        label.style.top = `${y - 12}px`;
-                        label.style.borderColor = (data.id === selectedNode.id) ? '#00bfff' : 'rgba(0, 255, 170, 0.25)';
-                    }
-                }
-            });
-
-            camera.position.lerp(targetCamPosition, 0.06);
-            currentLookAt.lerp(targetLookAt, 0.06);
-            camera.lookAt(currentLookAt);
-
-            if(laserLines.length > 0) {
-                laserLines.forEach(item => {
-                    const pFrom = new THREE.Vector3();
-                    const pTo = new THREE.Vector3();
-                    
-                    if(item.from === 'sun') planets3D[item.from].mesh.getWorldPosition(pFrom);
-                    else planets3D[item.from].probe.getWorldPosition(pFrom);
-
-                    planets3D[item.to].probe.getWorldPosition(pTo);
-                    item.line.geometry.setFromPoints([pFrom, pTo]);
-                });
-            }
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function run() {
-            requestAnimationFrame(run);
-            updateLoop();
-            renderer.render(scene, camera);
-            document.getElementById('sub-timer').innerText = new Date().toTimeString().split(' ')[0] + " UTC";
-        }
-
+        // Inicializar el script con el primer planeta al cargar
         window.onload = () => {
-            initEngine();
-            run();
+            startCommsSimulation("Tierra", spaceData.tierra.comms);
         };
     </script>
 </body>
