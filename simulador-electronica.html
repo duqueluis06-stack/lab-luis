@@ -195,8 +195,8 @@
             background: var(--green); box-shadow: 0 0 6px var(--green);
         }
 
-        /* CABLES ACTIVOS */
-        .wire-shadow { fill: none; stroke: #12162b; stroke-width: 3.5; stroke-linecap: round; }
+        /* CABLES ACTIVOS CONFIGURADOS EN BASE A VOLTAJE */
+        .wire-shadow { fill: none; stroke: #4CD964; stroke-width: 3.5; stroke-linecap: round; opacity: 0.4; } /* Verde gnd tenue por defecto */
         .wire-active { fill: none; stroke: var(--cyan); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 5px var(--cyan)); }
         .wire-dots { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 6 14; }
 
@@ -226,7 +226,7 @@
         canvas { width: 100%; height: 100%; display: block; } 
 
         .motor-dashboard {
-            width: 100px;
+            width: 110px;
             background: #040814;
             border: 1.5px solid var(--cyan);
             border-radius: 6px;
@@ -236,7 +236,7 @@
             justify-content: space-around;
         }
         .dash-title { font-size: 8px; color: var(--cyan); text-align: center; font-weight: bold; border-bottom: 1px solid #162a54; padding-bottom: 2px; }
-        .dash-readout { text-align: center; margin: 2px 0; }
+        .dash-readout"> { text-align: center; margin: 2px 0; }
         .dash-label { font-size: 7px; color: #5c6c9c; display: block; }
         .dash-val { font-size: 11px; color: var(--green); font-weight: bold; text-shadow: 0 0 3px var(--green); }
 
@@ -352,10 +352,11 @@
         let scopeCanvas, scopeCtx;
         let graphVoltage = 0;
         let activeProbeNodeId = 0; 
-        let nodeVoltagesArray = {}; 
+        let nodeVoltagesArray = { 0: 0 }; 
         let globalWireDashOffset = 0;
         let motorAngles = {}; 
         let scopeOn = true;
+        let pinToNodeMapGlobal = {}; // Mapa global seguro para sincronizar el dibujo
 
         const DT = 0.05; 
 
@@ -458,8 +459,9 @@
                 <div class="comp-body">
                     <span class="polarity-sign pol-plus" style="left:5px; top:28px;">+</span>
                     <span class="polarity-sign pol-minus" style="right:5px; top:28px;">-</span>
+                    <span id="burn_fire_${n.id}" style="position:absolute; top:-10px; font-size:16px; display:none; z-index:10;">💥 Q</span>
                     <svg width="70" height="70" viewBox="0 0 70 70">
-                        <circle cx="35" cy="35" r="24" fill="#042330" stroke="var(--cyan)" stroke-width="2.5"/>
+                        <circle id="motor_hull_${n.id}" cx="35" cy="35" r="24" fill="#042330" stroke="var(--cyan)" stroke-width="2.5"/>
                         <g id="propeller_${n.id}" style="transform-origin: 35px 35px; transform: rotate(0deg);">
                             <line x1="35" y1="10" x2="35" y2="60" stroke="#ff073a" stroke-width="4.5" stroke-linecap="round"/>
                             <line x1="10" y1="35" x2="60" y2="35" stroke="#ff073a" stroke-width="4.5" stroke-linecap="round"/>
@@ -511,6 +513,7 @@
             `},
             foco_edison: { w: 75, h: 65, render: (n) => `
                 <div class="comp-body">
+                    <span id="burn_fire_${n.id}" style="position:absolute; top:-10px; font-size:14px; display:none;">💥 ROTO</span>
                     <svg width="60" height="50" viewBox="0 0 60 60">
                         <circle id="lamp_glass_${n.id}" cx="30" cy="25" r="16" fill="#111c14" stroke="#555" stroke-width="1.5"/>
                         <path id="lamp_filament_${n.id}" d="M 24,33 L 27,22 L 33,22 L 36,33" fill="none" stroke="#666" stroke-width="1.5"/>
@@ -640,17 +643,34 @@
             }
         }
 
+        // CORRECCIÓN DEL FILTRADO DE COLOR ASOCIADO A LOS NODOS EQUIPOTENCIALES DE CORRIENTE CONTINUA
         function drawNetlistWires() {
             wireLayer.innerHTML = '';
             conexiones.forEach(w => {
                 let c1 = getPinCoords(w.m1, w.p1); let c2 = getPinCoords(w.m2, w.p2);
                 if(!c1 || !c2) return;
+                
+                // Determinar el color unificado basado en el potencial eléctrico real del nodo
+                let kPin = `${w.m1}_${w.p1}`;
+                let idNodoMatriz = pinToNodeMapGlobal[kPin] !== undefined ? pinToNodeMapGlobal[kPin] : 0;
+                let vRealEnCable = nodeVoltagesArray[idNodoMatriz] || 0;
+
+                let colorDinamicoCable = "#4CD964"; // GND / Neutro por defecto (Verde)
+                if (vRealEnCable > 1.5) {
+                    colorDinamicoCable = "var(--red)"; // Línea de VCC activa
+                } else if (vRealEnCable < -0.5) {
+                    colorDinamicoCable = "var(--purple)"; // Tensiones invertidas
+                } else if (vRealEnCable > 0.05 && vRealEnCable <= 1.5) {
+                    colorDinamicoCable = "var(--orange)"; // Caídas intermedias de potencial
+                }
+
                 let g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 let pathStr = `M ${c1.x} ${c1.y} L ${c2.x} ${c2.y}`;
 
                 let shadow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 shadow.setAttribute('d', pathStr);
                 shadow.setAttribute('class', w.hasCurrent ? 'wire-active' : 'wire-shadow');
+                shadow.style.stroke = colorDinamicoCable; // Inyección de color equipotencial
                 g.appendChild(shadow);
 
                 if(w.hasCurrent && scopeOn) {
@@ -722,6 +742,9 @@
                     });
                 });
 
+                // Compartir el mapa local con la función de dibujo exterior de cables de forma segura
+                pinToNodeMapGlobal = pinToNodeMap;
+
                 netNodes.forEach(n => {
                     document.getElementById(n.id)?.querySelectorAll('.net-pin').forEach(p => {
                         let k = `${n.id}_${p.dataset.pin}`;
@@ -757,11 +780,13 @@
                         stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], 1 / r_sw);
                     }
                     if(n.tipo === 'motor_dc') {
-                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 150); 
+                        // Si el motor se quema por sobrepasar los 24V nominales, su bobinado se corta (Resistencia infinita)
+                        let r_motor = n.burned ? 1e9 : 150;
+                        stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / r_motor); 
                     }
                     if(n.tipo === 'foco_edison') {
-                        let wats = parseFloat(n.ajustes.wats) || 60;
-                        let r_eq = (12 * 12) / wats; 
+                        // Si la lámpara se quema por sobrevoltaje, el filamento se rompe
+                        let r_eq = n.burned ? 1e9 : ((12 * 12) / (parseFloat(n.ajustes.wats) || 60));
                         stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / r_eq); 
                     }
                     if(n.tipo === 'condensador') {
@@ -816,8 +841,8 @@
                         if(n.tipo === 'resistencia') stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / (parseFloat(n.ajustes.r)||1));
                         if(n.tipo === 'inductor') stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], 1 / 0.5);
                         if(n.tipo === 'switch_cuchilla') stampConductance(A, pinToNodeMap[`${n.id}_1`], pinToNodeMap[`${n.id}_2`], 1 / (n.ajustes.open ? 1e8 : 1e-4));
-                        if(n.tipo === 'motor_dc') stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / 150);
-                        if(n.tipo === 'foco_edison') stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / ((12*12)/(parseFloat(n.ajustes.wats)||60)));
+                        if(n.tipo === 'motor_dc') stampConductance(A, pinToNodeMap[`${n.id}_m1`], pinToNodeMap[`${n.id}_m2`], 1 / (n.burned ? 1e9 : 150));
+                        if(n.tipo === 'foco_edison') stampConductance(A, pinToNodeMap[`${n.id}_t1`], pinToNodeMap[`${n.id}_t2`], 1 / (n.burned ? 1e9 : ((12*12)/(parseFloat(n.ajustes.wats)||60))));
                         if(n.tipo === 'condensador') {
                             let g_cap = (2 * (parseFloat(n.ajustes.c)||1)) / DT;
                             stampConductance(A, pinToNodeMap[`${n.id}_a`], pinToNodeMap[`${n.id}_b`], g_cap);
@@ -846,6 +871,7 @@
                 let motorActivoGlobal = false;
                 let motorVdropGlobal = 0;
                 let motorMaxRpmGlobal = 3000;
+                let motorBurnedGlobal = false;
 
                 netNodes.forEach(n => {
                     let tel = document.getElementById('tel_' + n.id);
@@ -883,13 +909,23 @@
                     if(n.tipo === 'switch_cuchilla') {
                         if(tel) tel.innerText = n.ajustes.open ? "ABIERTO" : "CERRADO";
                     }
+                    
+                    // === INTEGRACIÓN DE LOGARITMO DE QUEMADO: MOTOR CC (Límite nominal 24V) ===
                     if(n.tipo === 'motor_dc') {
                         n.v_drop = Math.abs((nodeVoltagesArray[pinToNodeMap[`${n.id}_m1`]]||0) - (nodeVoltagesArray[pinToNodeMap[`${n.id}_m2`]]||0));
+                        if(n.v_drop > 24.0) n.burned = true; // Control de sobrecalentamiento destructivo
+                        
                         motorActivoGlobal = true;
-                        motorVdropGlobal = n.v_drop;
+                        motorBurnedGlobal = n.burned;
+                        motorVdropGlobal = n.burned ? 0 : n.v_drop;
                         motorMaxRpmGlobal = n.ajustes.max_rpm;
-                        let current_rpm = (n.v_drop / 12) * n.ajustes.max_rpm;
-                        if(tel) tel.innerText = `${current_rpm.toFixed(0)} RPM`;
+                        
+                        if(n.burned) {
+                            if(tel) tel.innerText = "¡FUSIÓN POR SOBRETENSIÓN! 🔥";
+                        } else {
+                            let current_rpm = (n.v_drop / 12) * n.ajustes.max_rpm;
+                            if(tel) tel.innerText = `${current_rpm.toFixed(0)} RPM (Max 24V)`;
+                        }
                     }
                     if(n.tipo === 'nice_power') {
                         n.v_drop = n.ajustes.v;
@@ -903,19 +939,31 @@
                         if(n.burned) { if(tel) tel.innerText = "¡QUEMADO! 🔥"; } 
                         else { if(tel) tel.innerText = `${Math.max(0, n.v_drop).toFixed(2)}V`; }
                     }
+
+                    // === INTEGRACIÓN DE LOGARITMO DE QUEMADO: LÁMPARA EDISON (+20% tolerancia sobre 12V = 14.4V) ===
                     if(n.tipo === 'foco_edison') {
                         n.v_drop = Math.abs((nodeVoltagesArray[pinToNodeMap[`${n.id}_t1`]]||0) - (nodeVoltagesArray[pinToNodeMap[`${n.id}_t2`]]||0));
-                        let r_eq = (12 * 12) / parseFloat(n.ajustes.wats);
-                        let real_wats = (n.v_drop * n.v_drop) / r_eq;
-                        if(tel) tel.innerText = `${real_wats.toFixed(1)}W (Real)`;
+                        if (n.v_drop > 14.4) n.burned = true; // El filamento se evapora académica e idealmente
+
+                        if (n.burned) {
+                            if(tel) tel.innerText = "FILAMENTO ROTO 💥";
+                        } else {
+                            let r_eq = (12 * 12) / parseFloat(n.ajustes.wats);
+                            let real_wats = (n.v_drop * n.v_drop) / r_eq;
+                            if(tel) tel.innerText = `${real_wats.toFixed(1)}W (Nominal 12V)`;
+                        }
                     }
                 });
 
-                if(motorActivoGlobal && motorVdropGlobal > 0.05) {
+                // Sincronización exacta con el panel de telemetría de instrumentación inferior
+                if(motorActivoGlobal && !motorBurnedGlobal && motorVdropGlobal > 0.05) {
                     let calculadoRpm = (motorVdropGlobal / 12) * motorMaxRpmGlobal;
                     let calculadoPwm = (motorVdropGlobal / 12) * 100;
                     document.getElementById('dashRpm').innerText = `${calculadoRpm.toFixed(0)} RPM`;
                     document.getElementById('dashPwm').innerText = `${Math.min(100, calculadoPwm).toFixed(1)}%`;
+                } else if (motorBurnedGlobal) {
+                    document.getElementById('dashRpm').innerText = "¡OVERLOAD!";
+                    document.getElementById('dashPwm').innerText = "0.0% (DC)";
                 } else {
                     document.getElementById('dashRpm').innerText = `0 RPM`;
                     document.getElementById('dashPwm').innerText = `0.0%`;
@@ -936,8 +984,8 @@
 
                     if (compAsociado) {
                         if (compAsociado.tipo === 'resistencia') rEfectiva = parseFloat(compAsociado.ajustes.r) || 1;
-                        else if (compAsociado.tipo === 'motor_dc') rEfectiva = 150;
-                        else if (compAsociado.tipo === 'foco_edison') rEfectiva = (12 * 12) / (parseFloat(compAsociado.ajustes.wats) || 60);
+                        else if (compAsociado.tipo === 'motor_dc') rEfectiva = compAsociado.burned ? 1e9 : 150;
+                        else if (compAsociado.tipo === 'foco_edison') rEfectiva = compAsociado.burned ? 1e9 : ((12 * 12) / (parseFloat(compAsociado.ajustes.wats) || 60));
                         else if (compAsociado.tipo === 'led_verde') rEfectiva = compAsociado.burned ? 1e9 : 35;
                     }
 
@@ -1040,8 +1088,14 @@
                 if(n.tipo === 'foco_edison') {
                     let glass = div.querySelector('#lamp_glass_' + n.id);
                     let filament = div.querySelector('#lamp_filament_' + n.id);
+                    let fire = div.querySelector('#burn_fire_' + n.id);
                     if(glass && filament) {
-                        if(n.v_drop >= 1.0) {
+                        if(n.burned) {
+                            glass.setAttribute('fill', '#261a1a');
+                            glass.setAttribute('stroke', '#ff073a');
+                            filament.setAttribute('stroke', '#222');
+                            if(fire) fire.style.display = 'block';
+                        } else if(n.v_drop >= 1.0) {
                             let r_eq = (12 * 12) / parseFloat(n.ajustes.wats);
                             let real_wats = (n.v_drop * n.v_drop) / r_eq;
                             let factorBrillo = Math.min(1, real_wats / parseFloat(n.ajustes.wats));
@@ -1050,23 +1104,32 @@
                             glass.style.filter = `drop-shadow(0 0 ${4 + factorBrillo * 12}px #ffee00)`;
                             filament.setAttribute('stroke', '#ffee00');
                             filament.style.filter = `drop-shadow(0 0 2px #ffee00)`;
+                            if(fire) fire.style.display = 'none';
                         } else { 
                             glass.setAttribute('fill', '#111c14'); 
                             glass.style.filter = 'none'; 
                             filament.setAttribute('stroke', '#666');
                             filament.style.filter = 'none';
+                            if(fire) fire.style.display = 'none';
                         }
                     }
                 }
 
                 if(n.tipo === 'motor_dc') {
                     let prop = div.querySelector('#propeller_' + n.id);
+                    let fire = div.querySelector('#burn_fire_' + n.id);
+                    let hull = div.querySelector('#motor_hull_' + n.id);
                     if(prop) {
-                        if(n.v_drop >= 0.1) {
+                        if(n.burned) {
+                            if(fire) fire.style.display = 'block';
+                            if(hull) hull.setAttribute('stroke', 'var(--red)');
+                        } else if(n.v_drop >= 0.1) {
                             if(!motorAngles[n.id]) motorAngles[n.id] = 0;
                             let factorRpm = (n.v_drop / 12) * n.ajustes.max_rpm;
                             motorAngles[n.id] = (motorAngles[n.id] + (factorRpm * 0.04)) % 360;
                             prop.style.transform = `rotate(${motorAngles[n.id]}deg)`;
+                            if(fire) fire.style.display = 'none';
+                            if(hull) hull.setAttribute('stroke', 'var(--cyan)');
                         }
                     }
                 }
@@ -1095,6 +1158,7 @@
 
         function applyNodeSettings() {
             if(activeSelectedNode) {
+                activeSelectedNode.burned = false; // Resetear estado de quemado si se reconfigura el componente
                 if(activeSelectedNode.tipo === 'nice_power') activeSelectedNode.ajustes.v = parseFloat(document.getElementById('val_v').value) || 0;
                 if(activeSelectedNode.tipo === 'resistencia') activeSelectedNode.ajustes.r = parseFloat(document.getElementById('val_r').value) || 1;
                 if(activeSelectedNode.tipo === 'foco_edison') activeSelectedNode.ajustes.wats = parseFloat(document.getElementById('val_w').value) || 60;
@@ -1151,7 +1215,7 @@
                     scopeCtx.beginPath(); scopeCtx.moveTo(i, 0); scopeCtx.lineTo(i, h); scopeCtx.stroke();
                 }
                 for (let j = 0; j < h; j += 20) {
-                    scopeCtx.beginPath(); scopeCtx.moveTo(0, j); strokeCtx = scopeCtx.lineTo(w, j); scopeCtx.stroke();
+                    scopeCtx.beginPath(); scopeCtx.moveTo(0, j); scopeCtx.lineTo(w, j); scopeCtx.stroke();
                 }
 
                 let noise = (Math.random() - 0.5) * 0.04;
@@ -1180,7 +1244,7 @@
 
                 scopeCtx.fillStyle = '#39ff14';
                 scopeCtx.font = '9px monospace';
-                scopeCtx.fillText(`CH1 (N${activeProbeNodeId}): ${v.toFixed(2)} V`, 8, 12);
+                scopeCtx.fillText(`CH1 (N${activeProbeNodeId}): ${v.toFixed(2)} V (DC)`, 8, 12);
             }
             renderScope();
         }
