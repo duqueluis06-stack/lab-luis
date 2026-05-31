@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DSN Quantum Lab 3D - Luis Duque</title>
+    <title>DSN Deep Space Terminal - Luis Duque</title>
     <style>
         :root {
             --phosphor-green: #00ff41;
             --radar-blue: #00d2ff;
-            --alert-orange: #ff9900;
-            --hull-black: #020408;
+            --alert-red: #ff3333;
+            --hull-black: #020406;
         }
 
         body, html {
@@ -23,7 +23,7 @@
             touch-action: none;
         }
 
-        /* HUD DE MANDOS MILITARES (ESTILO SUBMARINO) */
+        /* HUD MILITAR TIPO SUBMARINO DE EXPLORACIÓN */
         .bunker-hud {
             position: absolute;
             top: 0; left: 0;
@@ -31,30 +31,19 @@
             z-index: 100;
             pointer-events: none;
             display: grid;
-            grid-template-rows: 50px 1fr 170px;
+            grid-template-rows: 50px 1fr 180px;
             box-sizing: border-box;
         }
 
         .bunker-hud * { pointer-events: auto; }
 
         header {
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             border-bottom: 2px solid var(--phosphor-green);
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0 15px;
-        }
-
-        .btn-abort {
-            background: #ff2222;
-            color: #fff;
-            border: 1px solid #fff;
-            padding: 5px 10px;
-            font-size: 10px;
-            font-weight: bold;
-            text-decoration: none;
-            border-radius: 3px;
         }
 
         #webgl-viewport {
@@ -64,11 +53,12 @@
             z-index: 1;
         }
 
+        /* DECK DE COMANDOS INFERIOR */
         .deck-console {
-            background: rgba(2, 4, 8, 0.95);
+            background: rgba(2, 4, 8, 0.98);
             border-top: 2px solid var(--phosphor-green);
             display: grid;
-            grid-template-columns: 1fr 95px;
+            grid-template-columns: 1fr 140px;
             gap: 8px;
             padding: 8px;
         }
@@ -80,34 +70,27 @@
             padding: 6px;
             font-size: 10px;
             line-height: 1.3;
-        }
-
-        .joy-container {
-            background: #050a14;
-            border: 1px solid var(--radar-blue);
-            border-radius: 4px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            justify-content: space-between;
         }
 
-        .analog-pad {
-            width: 50px; height: 50px;
-            border: 2px solid var(--radar-blue);
-            border-radius: 50%;
-            position: relative;
-            background: #000;
+        .log-screen {
+            height: 65px;
+            overflow-y: auto;
+            color: #a0e0a0;
         }
 
-        .analog-stick {
-            width: 20px; height: 20px;
-            background: var(--alert-orange);
-            border-radius: 50%;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 8px var(--alert-orange);
+        /* BOTONERA TÁCTIL DE SELECCIÓN DE PLANETAS */
+        .selector-grid {
+            background: #040812;
+            border: 1px solid var(--radar-blue);
+            border-radius: 4px;
+            padding: 4px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            overflow-y: auto;
         }
 
         .btn-militar {
@@ -115,28 +98,31 @@
             border: 1px solid var(--phosphor-green);
             color: var(--phosphor-green);
             font-family: inherit;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: bold;
-            padding: 4px;
+            padding: 4px 2px;
             cursor: pointer;
-            width: 100%;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .btn-militar:active, .btn-militar.active { 
+            background: var(--phosphor-green); 
+            color: #000; 
         }
 
-        .btn-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 4px;
-            margin-top: 6px;
+        .btn-action {
+            border-color: var(--radar-blue);
+            color: var(--radar-blue);
         }
 
-        /* TEXTOS FLOTANTES SOBRE PLANETAS REALES */
+        /* ETIQUETAS HUD FLOTANTES EN 3D */
         .space-tag {
             position: absolute;
             color: #fff;
-            font-size: 9px;
-            background: rgba(0,0,0,0.8);
+            font-size: 8px;
+            background: rgba(0,0,0,0.85);
             border: 1px solid var(--phosphor-green);
-            padding: 2px 4px;
+            padding: 1px 4px;
             pointer-events: none;
             transform: translate(-50%, -100%);
             white-space: nowrap;
@@ -153,165 +139,179 @@
 
     <div class="bunker-hud">
         <header>
-            <div style="font-size: 11px; font-weight: bold;">🛰️ INTERFAZ DE COMANDO DSN REALISTA</div>
-            <a href="index.html" class="btn-abort">DISCONNECT</a>
+            <div style="font-size: 11px; font-weight: bold; letter-spacing: 1px;">⚠️ DSN SUB-SURFACE CONSOLE // MÓVIL OPTIMIZADO</div>
+            <div style="font-size: 10px; color: var(--radar-blue);" id="sub-timer">00:00:00</div>
         </header>
 
         <div></div>
 
         <footer class="deck-console">
             <div class="crt-terminal">
-                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(0,255,65,0.2); padding-bottom:2px; color:#fff;">
-                    <span>MONITOR DE RED DE TRANSMISIÓN LÁSER</span>
-                    <span id="sub-timer">00:00:00</span>
-                </div>
-                <div id="terminal-stream" style="margin-top:4px; height:60px; overflow-y:auto; color: #a0e0a0;">
-                    TEXTURAS DE ALTA FIDELIDAD CARGADAS DE SERVIDORES DE EXPLORACIÓN PLANETARIA. SELECCIONE NODO PERIMETRAL.
+                <div id="terminal-stream" class="log-screen">
+                    SISTEMA MATRICIAL ONLINE. TEXTURAS PROCEDURALES VECTORIALES GENERADAS POR GPU. CINTURÓN DE KUIPER DEPURADO.
                 </div>
                 
-                <div class="btn-grid">
-                    <button class="btn-militar" onclick="setOrbitSpeed(0)">⏸ PAUSA</button>
-                    <button class="btn-militar" onclick="setOrbitSpeed(0.1)">🎚️ LENTO</button>
-                    <button class="btn-militar" onclick="setOrbitSpeed(1)">⚡ TIEMPO R.</button>
-                    <button class="btn-militar" style="border-color:var(--radar-blue); color:var(--radar-blue);" onclick="fireLaserNetwork()">🛰️ ENRUTAR LÁSER</button>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px;">
+                    <button class="btn-militar" onclick="setSpeed(0)">⏸ PAUSA</button>
+                    <button class="btn-militar" onclick="setSpeed(0.15)">⏳ LENTO</button>
+                    <button class="btn-militar" onclick="setSpeed(1)">⚡ REAL</button>
+                    <button class="btn-militar btn-action" onclick="fireLaserNetwork()">🛰️ RETRANSMISIÓN CASCADA</button>
                 </div>
             </div>
 
-            <div class="joy-container">
-                <span style="font-size:7px; color:var(--radar-blue); margin-bottom:2px;">ORBIT-CAM</span>
-                <div class="analog-pad" id="padArea">
-                    <div class="analog-stick" id="joyStick"></div>
+            <div class="selector-grid" id="target-grid">
                 </div>
-                <button class="btn-militar" style="font-size:7px; padding:1px; margin-top:3px;" onclick="cycleSensorMode()">MODE: VIDEO</button>
-            </div>
         </footer>
     </div>
 
     <script>
-        // TEXTURAS PLANETARIAS REALISTAS (Servidores estables de mapas esféricos libres)
-        const TX_URL = "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/";
-        
+        // BASE DE DATOS CIENTÍFICA COMPLETA DEL SISTEMA SOLAR
         const COSMIC_DATA = [
-            { id: 'mercurio', name: 'MERCURIO', r: 35, size: 1.5, speed: 0.015, tx: 'https://i.imgur.com/768uVSu.jpeg', comp: 'Rocoso - Hierro denso' },
-            { id: 'venus', name: 'VENUS', r: 52, size: 2.3, speed: 0.010, tx: 'https://i.imgur.com/GisLw6f.jpeg', comp: 'Atmósfera Gaseosa Ácida' },
-            { id: 'tierra', name: 'TIERRA (BASE)', r: 72, size: 2.6, speed: 0.008, tx: 'https://i.imgur.com/b9U6n7s.jpeg', comp: 'Rocosa - Red de Antenas Base' },
-            { id: 'marte', name: 'MARTE', r: 92, size: 1.8, speed: 0.006, tx: 'https://i.imgur.com/9QZfXw8.jpeg', comp: 'Rocoso - Sonda Óxido Férrico' },
-            { id: 'jupiter', name: 'JÚPITER', r: 125, size: 5.8, speed: 0.003, tx: 'https://i.imgur.com/TofjGgU.jpeg', comp: 'Gaseoso Hidrógeno/Helio' },
-            { id: 'saturno', name: 'SATURNO', r: 165, size: 4.8, speed: 0.0015, tx: 'https://i.imgur.com/orZ0L10.jpeg', comp: 'Gaseoso Anillado', hasRings: true },
-            { id: 'urano', name: 'URANO', r: 200, size: 3.4, speed: 0.0008, tx: 'https://i.imgur.com/b7Oic9I.jpeg', comp: 'Gaseoso Helado - Metano' },
-            { id: 'neptuno', name: 'NEPTUNO', r: 230, size: 3.2, speed: 0.0005, tx: 'https://i.imgur.com/wVfK0Z2.jpeg', comp: 'Gaseoso Dinámico Azul' },
-            { id: 'pluton', name: 'PLUTÓN', r: 260, size: 1.1, speed: 0.0002, tx: 'https://i.imgur.com/Fw794lM.jpeg', comp: 'Nodo Enano Metano Sólido' }
+            { id: 'sun', name: 'SOL (CENTRO)', r: 0, size: 14, speed: 0, color: 0xff4500, type: 'star', comp: 'Plasma denso - Olas de fuego de 1.4M km' },
+            { id: 'mercurio', name: 'MERCURIO', r: 32, size: 1.4, speed: 0.02, color: 0x7f8c8d, type: 'planet', comp: 'Núcleo de Hierro Sólido' },
+            { id: 'venus', name: 'VENUS', r: 46, size: 2.2, speed: 0.014, color: 0xd35400, type: 'planet', comp: 'Gases de Invernadero e Hidrocarburos' },
+            { id: 'tierra', name: 'TIERRA (BASE)', r: 64, size: 2.5, speed: 0.01, color: 0x2980b9, type: 'planet', comp: 'Estación Base DSN - Nitrógeno/Oxígeno' },
+            { id: 'marte', name: 'MARTE', r: 80, size: 1.7, speed: 0.008, color: 0xc0392b, type: 'planet', comp: 'Óxido Férrico - Sondas de Superficie' },
+            { id: 'jupiter', name: 'JÚPITER', r: 115, size: 6.2, speed: 0.004, color: 0xe67e22, type: 'planet', comp: 'Hidrógeno Líquido Metálico Vórtice' },
+            { id: 'saturno', name: 'SATURNO', r: 155, size: 5.0, speed: 0.002, color: 0xf1c40f, type: 'planet', comp: 'Gaseoso - Complejo de Anillos Criosféricos', hasRings: true },
+            { id: 'urano', name: 'URANO', r: 190, size: 3.5, speed: 0.001, color: 0x1abc9c, type: 'planet', comp: 'Hielo Cuántico - Metano Atmosférico' },
+            { id: 'neptuno', name: 'NEPTUNO', r: 220, size: 3.3, speed: 0.0006, color: 0x34495e, type: 'planet', comp: 'Núcleo Rocoso - Vientos de Metano' },
+            { id: 'pluton', name: 'PLUTÓN', r: 250, size: 1.0, speed: 0.0003, color: 0x95a5a6, type: 'planet', comp: 'Frontera de Red - Metano y Nitrógeno Sólido' }
         ];
 
-        let scene, camera, renderer, texLoader;
+        let scene, camera, renderer;
         let planets3D = {};
         let orbitsAngles = {};
-        let timeMultiplier = 0.1; 
-        let selectedNode = COSMIC_DATA[8]; 
-        let sensorModeIdx = 0;
-        const SENSOR_MODES = ['VIDEO COMPLETO HD (1080P/CASCADA)', 'BARRIDO DE ENERGÍA DE GASES', 'DETECCIÓN METEORÍTICA'];
-
+        let timeMultiplier = 0.15;
+        let selectedNode = COSMIC_DATA[9]; // Plutón por defecto
         let laserLines = [];
         let networkIsActive = false;
 
-        function initEngine3D() {
+        // --- GENERADOR MATEMÁTICO DE TEXTURAS (PROCEDURAL SIN IMÁGENES) ---
+        function createProceduralTexture(type, baseColorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            // Color base
+            ctx.fillStyle = baseColorHex;
+            ctx.fillRect(0, 0, 128, 128);
+
+            // Inyección de ruido visual/cráteres/olas térmicas mediante patrones matemáticos
+            for (let i = 0; i < 400; i++) {
+                const x = Math.random() * 128;
+                const y = Math.random() * 128;
+                const r = Math.random() * 6;
+                
+                if (type === 'star') { // Olas de fuego del Sol
+                    ctx.fillStyle = Math.random() > 0.5 ? '#ffaa00' : '#ff0000';
+                } else if (type === 'tierra') { // Continentes simulados
+                    ctx.fillStyle = Math.random() > 0.4 ? '#27ae60' : '#f1c40f';
+                } else { // Cráteres y bandas gaseosas para el resto
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                }
+                
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        function initEngine() {
             const container = document.getElementById('webgl-viewport');
             
             scene = new THREE.Scene();
-            texLoader = new THREE.TextureLoader();
+            scene.fog = new THREE.FogExp2(0x010204, 0.002);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 160, 150);
-            camera.lookAt(0, 0, -10);
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1200);
+            camera.position.set(0, 200, 220);
+            camera.lookAt(0, 0, -20);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            // FONDO DE ESTRELLAS REALISTAS (STARFIELD MATEMÁTICO 3D)
-            const starsGeo = new THREE.BufferGeometry();
-            const starsCount = 1200;
-            const starPositions = new Float32Array(starsCount * 3);
-
-            for(let i=0; i<starsCount*3; i++) {
-                starPositions[i] = (Math.random() - 0.5) * 600;
-            }
-            starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-            const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, sizeAttenuation: true });
-            const starField = new THREE.Points(starsGeo, starsMat);
-            scene.add(starField);
-
-            // ILUMINACIÓN DEL COSMOS
-            const ambient = new THREE.AmbientLight(0x333333); // Luz de fondo para ver el lado oscuro planetario
+            // Luces del búnker científico
+            const ambient = new THREE.AmbientLight(0x444455);
             scene.add(ambient);
 
-            const sunLight = new THREE.PointLight(0xffffff, 2.5, 400); // Fuego del Sol
+            const sunLight = new THREE.PointLight(0xffffff, 3, 600);
             scene.add(sunLight);
 
-            buildSolarSystem3D();
+            // FONDO DE ESTRELLAS FIJAS
+            const starsGeo = new THREE.BufferGeometry();
+            const starPositions = new Float32Array(1000 * 3);
+            for(let i=0; i<3000; i++) starPositions[i] = (Math.random() - 0.5) * 800;
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
+            scene.add(new THREE.Points(starsGeo, starsMat));
+
+            buildCosmos3D();
+            buildBunkerInterface();
             window.addEventListener('resize', onWindowResize);
         }
 
-        function buildSolarSystem3D() {
-            // SOL MASIVO REALISTA CON TEXTURA DE CORONA SOLAR
-            const sunGeo = new THREE.SphereGeometry(12, 32, 32);
-            // Cargamos textura realista de fuego del Sol
-            const sunTex = texLoader.load('https://i.imgur.com/A6S814X.jpeg');
-            const sunMat = new THREE.MeshBasicMaterial({ map: sunTex });
-            const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-            scene.add(sunMesh);
-
-            // CONSTRUIR CORTE DE CADA PLANETA CON SU TEXTURA RESPECTIVA
+        function buildCosmos3D() {
             COSMIC_DATA.forEach(data => {
                 orbitsAngles[data.id] = Math.random() * Math.PI * 2;
 
-                // Línea guía de órbita
-                const points = [];
-                for (let i = 0; i <= 64; i++) {
-                    const theta = (i / 64) * Math.PI * 2;
-                    points.push(new THREE.Vector3(Math.cos(theta) * data.r, 0, Math.sin(theta) * data.r));
+                // Dibujar órbitas estables
+                if(data.r > 0) {
+                    const points = [];
+                    for (let i = 0; i <= 64; i++) {
+                        const theta = (i / 64) * Math.PI * 2;
+                        points.push(new THREE.Vector3(Math.cos(theta) * data.r, 0, Math.sin(theta) * data.r));
+                    }
+                    const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
+                    const orbitMat = new THREE.LineBasicMaterial({ color: 0x00ff41, transparent: true, opacity: 0.07 });
+                    scene.add(new THREE.Line(orbitGeo, orbitMat));
                 }
-                const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
-                const orbitMat = new THREE.LineBasicMaterial({ color: 0x00ff41, transparent: true, opacity: 0.08 });
-                const orbitLine = new THREE.Line(orbitGeo, orbitMat);
-                scene.add(orbitLine);
 
                 const pivot = new THREE.Group();
                 scene.add(pivot);
 
-                // Configuración de textura de alta fidelidad desde servidor
-                const pTex = texLoader.load(data.tx);
-                const planetGeo = new THREE.SphereGeometry(data.size, 32, 32);
-                const planetMat = new THREE.MeshStandardMaterial({ 
-                    map: pTex,
-                    roughness: 0.8,
-                    metalness: 0.1 
-                });
-                const planetMesh = new THREE.Mesh(planetGeo, planetMat);
-                planetMesh.position.x = data.r;
-                pivot.add(planetMesh);
+                // Configurar esfera con su textura procedural inmune a bloqueos
+                const geo = new THREE.SphereGeometry(data.size, 24, 24);
+                let mat;
+                const texturizado = createProceduralTexture(data.id, '#' + data.color.toString(16).padStart(6, '0'));
 
-                // Anillos texturizados para Saturno
+                if(data.type === 'star') {
+                    mat = new THREE.MeshBasicMaterial({ map: texturizado });
+                } else {
+                    mat = new THREE.MeshStandardMaterial({ map: texturizado, roughness: 0.7 });
+                }
+
+                const mesh = new THREE.Mesh(geo, mat);
+                if(data.r > 0) mesh.position.x = data.r;
+                pivot.add(mesh);
+
+                // Anillos de Saturno matemáticos
                 if(data.hasRings) {
-                    const ringGeo = new THREE.RingGeometry(data.size + 1.5, data.size + 4.5, 32);
+                    const ringGeo = new THREE.RingGeometry(data.size + 1.5, data.size + 4, 32);
                     ringGeo.rotateX(Math.PI / 2);
-                    const ringMat = new THREE.MeshStandardMaterial({ color: 0xbb9977, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+                    const ringMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
                     const ringMesh = new THREE.Mesh(ringGeo, ringMat);
                     ringMesh.position.x = data.r;
                     pivot.add(ringMesh);
                 }
 
-                // Sonda Repetidora de Señal (Fijada sobre la órbita de cada cuerpo)
-                const probeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-                const probeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-                const probeMesh = new THREE.Mesh(probeGeo, probeMat);
-                probeMesh.position.set(data.r, data.size + 1.0, 0);
-                pivot.add(probeMesh);
+                // Nodo Antena Sonda Repetidora
+                let probeMesh = null;
+                if(data.r > 0) {
+                    const probeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                    const probeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+                    probeMesh = new THREE.Mesh(probeGeo, probeMat);
+                    probeMesh.position.set(data.r, data.size + 1.0, 0);
+                    pivot.add(probeMesh);
+                }
 
-                planets3D[data.id] = { pivot: pivot, mesh: planetMesh, probe: probeMesh, data: data };
+                planets3D[data.id] = { pivot: pivot, mesh: mesh, probe: probeMesh, data: data };
 
-                // HUD de nombre flotante
+                // Crear etiqueta de texto HUD física
                 const label = document.createElement('div');
                 label.className = 'space-tag';
                 label.id = `tag-${data.id}`;
@@ -319,7 +319,66 @@
                 document.getElementById('hud-labels-container').appendChild(label);
             });
 
-            executeDataStreamUpdate();
+            // --- INTERSECCIÓN 1: CINTURÓN DE ASTEROIDES INTERNO (ENTRE MARTE Y JÚPITER) ---
+            const asteroidCount = 250;
+            const asteroidGeo = new THREE.BufferGeometry();
+            const astPositions = new Float32Array(asteroidCount * 3);
+            for(let i=0; i<asteroidCount; i++) {
+                const radius = 95 + Math.random() * 12; // Ubicación exacta radial
+                const theta = Math.random() * Math.PI * 2;
+                astPositions[i*3] = Math.cos(theta) * radius;
+                astPositions[i*3+1] = (Math.random() - 0.5) * 1.5;
+                astPositions[i*3+2] = Math.sin(theta) * radius;
+            }
+            asteroidGeo.setAttribute('position', new THREE.BufferAttribute(astPositions, 3));
+            const astMat = new THREE.PointsMaterial({ color: 0x887766, size: 0.6 });
+            scene.add(new THREE.Points(asteroidGeo, astMat));
+
+            // --- INTERSECCIÓN 2: CINTURÓN DE KUIPER DE EXTREMO PERIMETRAL ---
+            const kuiperCount = 400;
+            const kuiperGeo = new THREE.BufferGeometry();
+            const kuiperPositions = new Float32Array(kuiperCount * 3);
+            for(let i=0; i<kuiperCount; i++) {
+                const radius = 270 + Math.random() * 35; // Perímetro externo más allá de Plutón
+                const theta = Math.random() * Math.PI * 2;
+                kuiperPositions[i*3] = Math.cos(theta) * radius;
+                kuiperPositions[i*3+1] = (Math.random() - 0.5) * 3;
+                kuiperPositions[i*3+2] = Math.sin(theta) * radius;
+            }
+            kuiperGeo.setAttribute('position', new THREE.BufferAttribute(kuiperPositions, 3));
+            const kuiperMat = new THREE.PointsMaterial({ color: 0x7f8c8d, size: 0.5 });
+            scene.add(new THREE.Points(kuiperGeo, kuiperMat));
+        }
+
+        // CONSTRUCCIÓN DINÁMICA DE LA BOTONERA MILITAR
+        function buildBunkerInterface() {
+            const grid = document.getElementById('target-grid');
+            COSMIC_DATA.forEach(data => {
+                if(data.id === 'sun') return; // El sol no es un nodo repetidor de antena
+                const btn = document.createElement('button');
+                btn.className = 'btn-militar';
+                btn.id = `btn-${data.id}`;
+                btn.innerText = data.name.split(' ')[0];
+                btn.onclick = () => selectNode(data);
+                grid.appendChild(btn);
+            });
+            selectNode(selectedNode);
+        }
+
+        function selectNode(node) {
+            selectedNode = node;
+            COSMIC_DATA.forEach(d => {
+                const btn = document.getElementById(`btn-${d.id}`);
+                if(btn) btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`btn-${node.id}`);
+            if(activeBtn) activeBtn.classList.add('active');
+
+            document.getElementById('terminal-stream').innerHTML = `
+                <span style="color:var(--radar-blue)">[NODO BLOQUEADO]: ${node.name}</span><br>
+                • ANÁLISIS COMPOSICIÓN CRÍTICA: ${node.comp}<br>
+                • ESTADO ENLACE DE RED: Antenas alineadas. Listas para puente láser en cascada.
+            `;
         }
 
         function fireLaserNetwork() {
@@ -329,8 +388,8 @@
             laserLines.forEach(l => scene.remove(l));
             laserLines = [];
 
-            const terminal = document.getElementById('terminal-stream');
-            terminal.innerHTML = `<span style="color:yellow;">[DISPARO INTERPLANETARIO] Enrutando datos redundantes...</span>`;
+            const stream = document.getElementById('terminal-stream');
+            stream.innerHTML = `<span style="color:yellow; font-weight:bold;">[DISPARANDO PULSO REDUNDANTE EN CASCADA]</span> Avanzando por los nodos repetidores...`;
 
             let startIdx = COSMIC_DATA.findIndex(x => x.id === selectedNode.id);
             let earthIdx = COSMIC_DATA.findIndex(x => x.id === 'tierra');
@@ -343,7 +402,7 @@
             }
 
             for(let i = 0; i < path.length - 1; i++) {
-                const laserMat = new THREE.LineBasicMaterial({ color: 0xff0055, linewidth: 2 });
+                const laserMat = new THREE.LineBasicMaterial({ color: 0xff3333, linewidth: 2 });
                 const laserGeo = new THREE.BufferGeometry();
                 const line = new THREE.Line(laserGeo, laserMat);
                 scene.add(line);
@@ -355,25 +414,28 @@
                 laserLines.forEach(l => scene.remove(l));
                 laserLines = [];
                 
-                const latency = (Math.abs(startIdx - earthIdx) * 1.4).toFixed(1);
-
-                terminal.innerHTML = `
-                    <span style="color:#fff;">[PAQUETE HD DECODIFICADO EN SUBMARINO BASE]</span><br>
-                    • MODO: ${SENSOR_MODES[sensorModeIdx]}<br>
-                    • INFORME: Datos salvaguardados por puentes sucesivos.<br>
-                    • TIEMPO CALCULADO HASTA LA TIERRA: ${latency} Horas-Luz. Pérdida: 0%.
+                const latency = (Math.abs(startIdx - earthIdx) * 1.1).toFixed(1);
+                stream.innerHTML = `
+                    <span style="color:var(--phosphor-green); font-weight:bold;">[TRANSMISIÓN DE VÍDEO CONTRALADA]</span><br>
+                    • FILTRADO RED DE SONDAS: Éxito total. Contraste de Imagen: 100% íntegro.<br>
+                    • TIEMPO DE RETRASO SIMULADO: ${latency} Horas. Pérdida de paquetes por viento solar: 0.00%.
                 `;
             }, 2500);
         }
 
-        function updatePositionsAndHUD() {
+        function setSpeed(val) { timeMultiplier = val; }
+
+        function updateLoop() {
             const tempV = new THREE.Vector3();
 
             COSMIC_DATA.forEach(data => {
-                orbitsAngles[data.id] += data.speed * timeMultiplier;
-                planets3D[data.id].pivot.rotation.y = orbitsAngles[data.id];
-                planets3D[data.id].mesh.rotation.y += 0.008; // Giro natural del eje
+                if(data.r > 0) {
+                    orbitsAngles[data.id] += data.speed * timeMultiplier;
+                    planets3D[data.id].pivot.rotation.y = orbitsAngles[data.id];
+                    planets3D[data.id].mesh.rotation.y += 0.01; // Rotación de eje propia
+                }
 
+                // Vincular posiciones 3D exactas al plano de renderizado de etiquetas en pantalla
                 planets3D[data.id].mesh.getWorldPosition(tempV);
                 tempV.project(camera);
 
@@ -382,81 +444,30 @@
 
                 const label = document.getElementById(`tag-${data.id}`);
                 if(label) {
-                    if(tempV.z > 1) { label.style.display = 'none'; } 
+                    if(tempV.z > 1) { label.style.display = 'none'; }
                     else {
                         label.style.display = 'block';
                         label.style.left = `${x}px`;
-                        label.style.top = `${y - 10}px`;
-                        label.style.borderColor = (data.id === selectedNode.id) ? '#ff2222' : '#00ff41';
+                        label.style.top = `${y - 8}px`;
+                        label.style.borderColor = (data.id === selectedNode.id) ? '#ff3333' : '#00ff41';
                     }
                 }
             });
 
+            // Recalcular trayectorias del haz láser dinámico
             if(laserLines.length > 0) {
                 laserLines.forEach(item => {
                     const pFrom = new THREE.Vector3();
                     const pTo = new THREE.Vector3();
-                    planets3D[item.from].probe.getWorldPosition(pFrom);
+                    
+                    if(item.from === 'sun') planets3D[item.from].mesh.getWorldPosition(pFrom);
+                    else planets3D[item.from].probe.getWorldPosition(pFrom);
+
                     planets3D[item.to].probe.getWorldPosition(pTo);
                     item.line.geometry.setFromPoints([pFrom, pTo]);
                 });
             }
         }
-
-        function setOrbitSpeed(val) { timeMultiplier = val; }
-
-        function cycleSensorMode() {
-            sensorModeIdx = (sensorModeIdx + 1) % SENSOR_MODES.length;
-            event.target.innerText = `MODE: ${SENSOR_MODES[sensorModeIdx].split(' ')[1]}`;
-            executeDataStreamUpdate();
-        }
-
-        function executeDataStreamUpdate() {
-            if(networkIsActive) return;
-            document.getElementById('terminal-stream').innerHTML = `
-                <span style="color:var(--radar-blue)">[APUNTADO]: ${selectedNode.name}</span><br>
-                • COMPOSICIÓN: ${selectedNode.comp}<br>
-                • RED DE REPETIDORES: Sondas listas para el cálculo de latencia.
-            `;
-        }
-
-        // CONTROL DEL JOYSTICK ANALÓGICO PARA HACER GIRAR LA CÁMARA ESPACIAL
-        const joyStick = document.getElementById('joyStick');
-        const padArea = document.getElementById('padArea');
-
-        function handleJoystick(clientX, clientY) {
-            const rect = padArea.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-
-            let dx = clientX - cx;
-            let dy = clientY - cy;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if(dist > 15) { dx = (dx/dist)*15; dy = (dy/dist)*15; }
-
-            joyStick.style.left = `calc(50% + ${dx}px)`;
-            joyStick.style.top = `calc(50% + ${dy}px)`;
-
-            // Rotar cámara de observación usando el pad analógico
-            camera.position.x = Math.sin(dx * 0.06) * 150;
-            camera.position.z = Math.cos(dx * 0.06) * 150 + (dy * 1.5);
-            camera.lookAt(0, 0, -10);
-        }
-
-        joyStick.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            handleJoystick(e.touches[0].clientX, e.touches[0].clientY);
-        });
-        joyStick.addEventListener('touchend', () => { joyStick.style.left = '50%'; joyStick.style.top = '50%'; });
-
-        // Clic en pantalla cambia el foco de telemetría a un planeta aleatorio para análisis rápido
-        window.addEventListener('click', (e) => {
-            if(e.clientY < window.innerHeight - 170 && e.clientY > 50) {
-                const rIdx = Math.floor(Math.random() * COSMIC_DATA.length);
-                selectedNode = COSMIC_DATA[rIdx];
-                executeDataStreamUpdate();
-            }
-        });
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -464,16 +475,16 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function renderLoop() {
-            requestAnimationFrame(renderLoop);
-            updatePositionsAndHUD();
+        function run() {
+            requestAnimationFrame(run);
+            updateLoop();
             renderer.render(scene, camera);
             document.getElementById('sub-timer').innerText = new Date().toTimeString().split(' ')[0];
         }
 
         window.onload = () => {
-            initEngine3D();
-            renderLoop();
+            initEngine();
+            run();
         };
     </script>
 </body>
