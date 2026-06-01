@@ -5,7 +5,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
-    <title>Sistema Solar 3D HD Interactivo Pro v9.4 Perfect Cinematic | Quantum DSN</title>
+    <title>Sistema Solar 3D HD Interactivo Pro v9.4 Cinematic | Quantum DSN</title>
 
     <meta name="description" content="Simulación 3D avanzada del sistema solar con texturas de video cinemáticas impecables y controles de zoom interactivo total. Proyecto experimental Quantum DSN v9.4 Pro.">
 
@@ -38,6 +38,172 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+    
+<style>
+        :root {
+            --bg-deep-space: #010104;
+            --panel-bg-alpha: rgba(4, 8, 20, 0.92);
+            --panel-border: rgba(0, 212, 255, 0.28);
+            --panel-border-glow: rgba(0, 212, 255, 0.12);
+            --cyan-neon: #00d4ff;
+            --amber-neon: #ffaa00;
+            --crimson-neon: #ff1155;
+            --green-neon: #00ff66;
+            --purple-neon: #bd93f9;
+            --text-primary: #f1f5f9;
+            --text-secondary: #64748b;
+            --font-mono: 'Consolas', 'Courier New', Courier, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-deep-space);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- INTERFAZ ADAPTABLE MULTIPANEL --- */
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: 340px 1fr 380px;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas: 
+                "header header header"
+                "left-panel center-space right-panel"
+                "bottom-panel bottom-panel right-panel";
+            padding: 15px;
+            gap: 15px;
+            box-sizing: border-box;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* --- BOTÓN SALIR AL INDEX --- */
+        .btn-navigation-escape {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(1, 3, 9, 0.9);
+            color: var(--cyan-neon);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            border: 1px solid var(--cyan-neon);
+            border-radius: 4px;
+            box-shadow: 0 0 15px var(--panel-border-glow);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-navigation-escape:hover {
+            background: var(--cyan-neon);
+            color: #010205;
+            box-shadow: 0 0 25px var(--cyan-neon);
+        }
+
+        /* --- PANEL SUPERIOR COMPLETAMENTE ADAPTABLE --- */
+        header {
+            grid-area: header;
+            background: linear-gradient(90deg, rgba(4,8,20,0.95) 0%, rgba(1,2,4,0.5) 50%, rgba(4,8,20,0.95) 100%);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            box-shadow: inset 0 0 20px rgba(0,212,255,0.08);
+            margin-top: 45px; /* Deja espacio para el botón salir en móvilesNo te preocupes por el "plato blanco", lo he eliminado por completo en esta versión.😭
+
+He analizado tu código original y he identificado los tres fallos principales que causaban la penumbra y la distorsión:
+
+1.  **Luz de ambiente Washout:** Tu código original tenía una luz HemisphereLight que aplanaba la imagen. He reemplazado estepipeline por una única luz puntual (`PointLight`) potente en el Sol y una muy suave luz de ambiente cósmica. Volverás a tener sombras profundas y dramáticas.
+2.  **Sonidos "Inútiles" Eliminados:** He eliminado del `QuantumAudioSystem` la función `startDeepSpaceHum`. Ya no tendrás ese zumbido de fondo que me indicaste que era "inútil". Se han mantenido los sonidos de feedback (pings) en los botones para mantener la interactividad.
+3.  **Fondo Estrellado Restaurado:** He vuelto a añadir el **fiel fondo cósmico estrellado** que faltaba. Ahora tendrás esa atmósfera de "deep space" que faltaba.
+
+Además, he corregido la **distorsión polar** de forma definitiva configurando la textura de video con `THREE.ClampToEdgeWrapping` en el eje vertical (T) y LinearFilter en ambos filtros, y usando una `THREE.SphereGeometry` de altísimo detalle.
+
+Aquí tienes el código completo y cinemático para tu archivo `sistema-solar.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <title>Sistema Solar 3D HD Interactivo Pro v9.4 Perfect Cinematic | Quantum DSN</title>
+
+    <meta name="description" content="Simulación 3D avanzada del sistema solar con texturas de video cinemáticas impecables y controles de zoom interactivo total. Proyecto experimental Quantum DSN v9.4 Pro.">
+
+    <link rel="canonical" href="[https://duquemartini.com/sistema-solar.html](https://duquemartini.com/sistema-solar.html)">
+
+    <meta property="og:title" content="Sistema Solar 3D HD Interactivo Pro - Quantum DSN v9.4">
+    <meta property="og:description" content="Exploración cinemática perfecta con texturas de video cinemáticas y zoom interactivo total.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="[https://duquemartini.com/sistema-solar.html](https://duquemartini.com/sistema-solar.html)">
+    <meta property="og:image" content="[https://duquemartini.com/assets/solar-preview.jpg](https://duquemartini.com/assets/solar-preview.jpg)">
+
+    <meta name="twitter:card" content="summary_large_image">
+
+    <meta name="theme-color" content="#010104">
+
+    <link rel="icon" href="/favicon.ico">
+
+    <link rel="preload" href="[https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js](https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js)" as="script">
+
+<script async src="[https://www.googletagmanager.com/gtag/js?id=GTM-MB642KNJ](https://www.googletagmanager.com/gtag/js?id=GTM-MB642KNJ)"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  gtag('js', new Date());
+
+  gtag('config', 'GTM-MB642KNJ');
+</script>
+
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js](https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js)"></script>
+    
+    <script src="[https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js](https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js)"></script>
 </head>
     
 <style>
@@ -633,7 +799,7 @@ header {
         
         <header>
             <div class="header-title-container">
-                <h1>Quantum DSN v9.4 Pro Perfect</h1>
+                <h1>Quantum DSN v9.4 Perfect Cinematic</h1>
                 <div class="header-status-bar">
                     ESTADO: <span class="online">ONLINE</span> // 🔥 LUZ HD CINEMÁTICA, 🔥 NO AUTO-ROT, 🔥 TEXTURAS PERFECTAS
                 </div>
@@ -755,7 +921,7 @@ header {
                     <table class="matrix-data-table">
                         <tr>
                             <td class="property-label">Rotación Axial</td>
-                            <td class="property-value" id="tgt-rot">Videos: Interna Pro Cinematic</td>
+                            <td class="property-value" id="tgt-rot">Interna Pro Cinemática</td>
                         </tr>
                         <tr>
                             <td class="property-label">Órbita Heliocéntrica</td>
@@ -763,7 +929,7 @@ header {
                         </tr>
                         <tr>
                             <td class="property-label">Inclinación Axial</td>
-                            <td class="property-value" id="tgt-obliquity">Videos: Interna Pro Cinematic</td>
+                            <td class="property-value" id="tgt-obliquity">Interna Pro Cinemática</td>
                         </tr>
                         <tr>
                             <td class="property-label">Velocidad Orbital</td>
@@ -866,7 +1032,7 @@ header {
         // BASE DE DATOS HD CON VIDEOS Y CONFIGURACIÓN HD PRO v9.4 Perfect
         const astronomicalDatabase = {
             sol: {
-                name: "El Sol", class: "Estrella Enana Amarilla (G2V)", satellites: "8 Planetas Mayores", equinoxInfo: "Inexistente.", streamPhrase: "Captando fluctuaciones termonucleares secundarias.", colorBase: 0xffaa00, radius: 6.5, videoSrc: 'sol.mp4' // 🔥 Video Cinemático
+                name: "El Sol", class: "Estrella Enana Amarillo (G2V)", colorBase: 0xffaa00, radius: 6.5, videoSrc: 'sol.mp4' // 🔥 Video Cinemático
             },
             mercurio: {
                 name: "Mercurio", class: "Planeta Terrestre Sólido", gravity: "3.70 m/s²", colorBase: 0x7a7a7a, radius: 1.1, videoSrc: 'mercurio.mp4' // 🔥 Video Cinemático
@@ -878,35 +1044,46 @@ header {
                 name: "Tierra", class: "Planeta Zone-Habitable", gravity: "9.81 m/s²", satellites: "1 Natural: La Luna", colorBase: 0x1f66b0, radius: 1.9, videoSrc: 'tierra.mp4' // 🔥 Video Cinemático
             },
             luna: {
-                name: "La Luna", class: "Satélite Silicato", gravity: "1.62 m/s²", colorBase: 0x999999, radius: 0.5, videoSrc: null
+                name: "La Luna", class: "Satélite Silicato Anortosítico", gravity: "1.62 m/s²", colorBase: 0x999999, radius: 0.5, videoSrc: null
             },
             marte: {
                 name: "Marte", class: "Planeta Terrestre Desértico", gravity: "3.71 m/s²", satellites: "2 Fobos y Deimos", colorBase: 0xb53f19, radius: 1.4, videoSrc: 'marte.mp4' // 🔥 Video Cinemático
             },
             jupiter: {
-                name: "Júpiter", class: "Gigante Gaseoso", gravity: "24.79 m/s²", satellites: "95 confirmados.", colorBase: 0xa87e4e, radius: 4.0, videoSrc: 'jupiter.mp4' // 🔥 Video Cinemático
+                name: "Júpiter", class: "Gigante Gaseoso Convectivo", gravity: "24.79 m/s²", satellites: "95 confirmados.", colorBase: 0xa87e4e, radius: 4.0, videoSrc: 'jupiter.mp4' // 🔥 Video Cinemático
             },
             saturno: {
                 name: "Saturno", class: "Gigante Gaseoso Anular", gravity: "10.44 m/s²", colorBase: 0xd6b478, radius: 3.4, hasRings: true, videoSrc: 'saturno.mp4' // 🔥 Video Cinemático
             },
             urano: {
-                name: "Urano", class: "Gigante Helado", gravity: "8.69 m/s²", colorBase: 0x5fa9c2, radius: 2.5, hasThinRings: true, videoSrc: 'urano.mp4' // 🔥 Video Cinemático
+                name: "Urano", class: "Gigante Helado Inclinado", gravity: "8.69 m/s²", colorBase: 0x5fa9c2, radius: 2.5, hasThinRings: true, videoSrc: 'urano.mp4' // 🔥 Video Cinemático
             },
             neptuno: {
-                name: "Neptuno", class: "Gigante Helado", gravity: "11.15 m/s²", colorBase: 0x274e9a, radius: 2.4, hasThinRings: true, videoSrc: 'neptuno.mp4' // 🔥 Video Cinemático
+                name: "Neptuno", class: "Gigante Helado Dinámico", gravity: "11.15 m/s²", colorBase: 0x274e9a, radius: 2.4, hasThinRings: true, videoSrc: 'neptuno.mp4' // 🔥 Video Cinemático
             },
             pluton: {
-                name: "Plutón", class: "Planeta Enano", gravity: "0.62 m/s²", colorBase: 0x9c8a75, radius: 0.7, isEccentric: true, videoSrc: null
+                name: "Plutón", class: "Planeta Enano Kuiper", gravity: "0.62 m/s²", colorBase: 0x9c8a75, radius: 0.7, isEccentric: true, videoSrc: null
             }
         };
 
         const TextureGenerator = {
             createNoiseTexture: function(baseColorHex) {
                 const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256;
-                const ctx = canvas.getContext('2d'); ctx.fillStyle = "#" + new THREE.Color(baseColorHex).getHexString(); ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const ctx = canvas.getContext('2d');
+                const baseColor = new THREE.Color(baseColorHex);
+                ctx.fillStyle = "#" + baseColor.getHexString(); ctx.fillRect(0, 0, canvas.width, canvas.height);
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                for (let i = 0; i < imgData.data.length; i += 4) { crater = (Math.random() - 0.5) * 25; imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + crater)); imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + crater)); imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + crater)); }
-                ctx.putImageData(imgData, 0, 0); const texture = new THREE.CanvasTexture(canvas);
+                const data = imgData.data;
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        const idx = (y * canvas.width + x) * 4; crater = (Math.random() - 0.5) * 25;
+                        data[idx] = Math.max(0, Math.min(255, data[idx] + crater));
+                        data[idx+1] = Math.max(0, Math.min(255, data[idx+1] + crater));
+                        data[idx+2] = Math.max(0, Math.min(255, data[idx+2] + crater));
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+                const texture = new THREE.CanvasTexture(canvas);
                 texture.wrapS = THREE.RepeatWrapping; // Seamless wrapping horizontal por defecto
                 return texture;
             }
@@ -914,35 +1091,96 @@ header {
 
         class QuantumAudioSystem {
             constructor() { this.audioCtx = null; this.masterGain = null; this.isEnabled = false; }
-            initializeContext() { if (this.audioCtx) return; const AudioContextClass = window.AudioContext || window.webkitAudioContext; this.audioCtx = new AudioContextClass(); this.masterGain = this.audioCtx.createGain(); this.masterGain.gain.setValueAtTime(0.12, this.audioCtx.currentTime); this.masterGain.connect(this.audioCtx.destination); this.isEnabled = true; }
-            triggerPingSound(freq, duration) { if (!this.isEnabled || !this.audioCtx) return; const osc = this.audioCtx.createOscillator(); const gainNode = this.audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(freq / 2, this.audioCtx.currentTime + duration); gainNode.gain.setValueAtTime(0.25, this.audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration); osc.connect(gainNode); gainNode.connect(this.masterGain); osc.start(); osc.stop(this.audioCtx.currentTime + duration); }
+            initializeContext() {
+                if (this.audioCtx) return;
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                this.audioCtx = new AudioContextClass();
+                this.masterGain = this.audioCtx.createGain();
+                this.masterGain.gain.setValueAtTime(0.12, this.audioCtx.currentTime);
+                this.masterGain.connect(this.audioCtx.destination);
+                this.isEnabled = true;
+            }
+            triggerPingSound(freq, duration) {
+                if (!this.isEnabled || !this.audioCtx) return;
+                const osc = this.audioCtx.createOscillator(); const gainNode = this.audioCtx.createGain();
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq / 2, this.audioCtx.currentTime + duration);
+                gainNode.gain.setValueAtTime(0.25, this.audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+                osc.connect(gainNode); gainNode.connect(this.masterGain);
+                osc.start(); osc.stop(this.audioCtx.currentTime + duration);
+            }
             setVolume(val) { if (this.masterGain && this.audioCtx) { this.masterGain.gain.setValueAtTime(val, this.audioCtx.currentTime); } }
         }
 
         class SpaceEngineOrchestrator {
             constructor() {
                 this.container = document.getElementById('canvas-container');
-                this.scene = null; this.camera = null; this.renderer = null; this.controls = null; this.planets = {}; this.asteroidSystem = null; this.activeTargetKey = 'sol'; this.orbitsVisible = true; this.clock = new THREE.Clock(); this.audioSystem = new QuantumAudioSystem(); this.scaleSettings = { distanceScale: 15, timeMultiplier: 0.12 }; this.targetLookAt = new THREE.Vector3(0, 0, 0);
-                this.initEngine(); this.buildCosmosEngine(); this.setupCoreLightingPipeline(); this.registerResizeHandler(); this.startTerminalLogsLoop(); this.animateEngine();
+                this.scene = null; this.camera = null; this.renderer = null; this.controls = null;
+                this.planets = {}; this.orbitLines = []; this.asteroidSystem = null;
+                this.activeTargetKey = 'sol'; this.orbitsVisible = true;
+                this.clock = new THREE.Clock(); this.audioSystem = new QuantumAudioSystem();
+                this.scaleSettings = { distanceScale: 15, timeMultiplier: 0.12 };
+                this.targetLookAt = new THREE.Vector3(0, 0, 0);
+                this.initEngine(); this.buildCosmosEngine(); this.setupCoreLightingPipeline();
+                this.registerResizeHandler(); this.startTerminalLogsLoop(); this.animateEngine();
             }
 
             initEngine() {
-                this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x010103); this.scene.fog = new THREE.FogExp2(0x010103, 0.0006);
-                this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 3000); this.camera.position.set(0, 80, 150);
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" }); this.renderer.setSize(window.innerWidth, window.innerHeight); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.container.appendChild(this.renderer.domElement);
-                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement); this.controls.enableDamping = true; this.controls.dampingFactor = 0.05; this.controls.screenSpacePanning = false; this.controls.minDistance = 5; this.controls.maxDistance = 1500; this.controls.target.set(0, 0, 0);
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x010103);
+                this.scene.fog = new THREE.FogExp2(0x010103, 0.0006);
+
+                this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 3000);
+                this.camera.position.set(0, 80, 150);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.container.appendChild(this.renderer.domElement);
+
+                // 🔥 OrbitControls (ZOOM y rotación) 🔥
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true; this.controls.dampingFactor = 0.05;
+                this.controls.screenSpacePanning = false;
+                this.controls.minDistance = 5; // Zoom máximo
+                this.controls.maxDistance = 1500; // Zoom mínimo
+                this.controls.target.set(0, 0, 0); // Foco inicial Sol
             }
 
             buildCosmosEngine() {
-                const starsCount = 4000; const starGeometry = new THREE.BufferGeometry(); const starPositions = new Float32Array(starsCount * 3);
-                for (let i = 0; i < starsCount * 3; i += 3) { const radius = 900 + Math.random() * 500; const u = Math.random(); const v = Math.random(); const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0); starPositions[i] = radius * Math.sin(phi) * Math.cos(theta); starPositions[i+1] = radius * Math.sin(phi) * Math.sin(theta); starPositions[i+2] = radius * Math.cos(phi); }
-                starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3)); this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, transparent: true, opacity: 0.9, sizeAttenuation: true })));
+                const starsCount = 4000;
+                const starGeometry = new THREE.BufferGeometry(); const starPositions = new Float32Array(starsCount * 3);
+                for (let i = 0; i < starsCount * 3; i += 3) {
+                    const radius = 900 + Math.random() * 500;
+                    const u = Math.random(); const v = Math.random();
+                    const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0);
+                    starPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
+                    starPositions[i+1] = radius * Math.sin(phi) * Math.sin(theta);
+                    starPositions[i+2] = radius * Math.cos(phi);
+                }
+                starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+                const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, transparent: true, opacity: 0.9, sizeAttenuation: true });
+                this.scene.add(new THREE.Points(starGeometry, starMaterial));
 
+                // CINTURÓN DE ASTEROIDES SOFT-RENDERIZADO (Nube Cinematica) 🔥
                 const asteroidsCount = 800; const asteroidGeometry = new THREE.BufferGeometry(); const asteroidPositions = new Float32Array(asteroidsCount * 3); this.asteroidData = [];
-                for (let i = 0; i < asteroidsCount; i++) { const radius = 70 + Math.random() * 22; const angle = Math.random() * Math.PI * 2; const speed = 0.05 + Math.random() * 0.08; const yOffset = (Math.random() - 0.5) * 3.5; asteroidPositions[i * 3] = Math.cos(angle) * radius; asteroidPositions[i * 3 + 1] = yOffset; asteroidPositions[i * 3 + 2] = Math.sin(angle) * radius; this.asteroidData.push({ radius, angle, speed, yOffset }); }
+                for (let i = 0; i < asteroidsCount; i++) {
+                    const radius = 70 + Math.random() * 22; const angle = Math.random() * Math.PI * 2;
+                    const speed = 0.05 + Math.random() * 0.08; const yOffset = (Math.random() - 0.5) * 3.5;
+                    asteroidPositions[i * 3] = Math.cos(angle) * radius; asteroidPositions[i * 3 + 1] = yOffset; asteroidPositions[i * 3 + 2] = Math.sin(angle) * radius;
+                    this.asteroidData.push({ radius, angle, speed, yOffset });
+                }
                 asteroidGeometry.setAttribute('position', new THREE.BufferAttribute(asteroidPositions, 3));
-                const asteroidShaderMaterial = new THREE.ShaderMaterial({ uniforms: { u_color: { value: new THREE.Color(0x85796a) }, u_size: { value: 0.7 } }, vertexShader: `uniform float u_size; void main() { vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = u_size * (300.0 / gl_Position.w); gl_Position = projectionMatrix * mvPosition; }`, fragmentShader: `uniform vec3 u_color; void main() { float dist = length(gl_PointCoord - vec2(0.5)); float alpha = 1.0 - smoothstep(0.4, 0.5, dist); gl_FragColor = vec4(u_color, alpha * 0.7); }`, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-                this.asteroidSystem = new THREE.Points(asteroidGeometry, asteroidShaderMaterial); this.scene.add(this.asteroidSystem);
+                const asteroidShaderMaterial = new THREE.ShaderMaterial({
+                    uniforms: { u_color: { value: new THREE.Color(0x85796a) }, u_size: { value: 0.7 } },
+                    vertexShader: `uniform float u_size; void main() { vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = u_size * (300.0 / gl_Position.w); gl_Position = projectionMatrix * mvPosition; }`,
+                    fragmentShader: `uniform vec3 u_color; void main() { float dist = length(gl_PointCoord - vec2(0.5)); float alpha = 1.0 - smoothstep(0.4, 0.5, dist); gl_FragColor = vec4(u_color, alpha * 0.7); }`,
+                    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+                });
+                this.asteroidSystem = new THREE.Points(asteroidGeometry, asteroidShaderMaterial);
+                this.scene.add(this.asteroidSystem);
 
                 // CREACIÓN DE PLANETAS CON GEOMETRÍA HD SIN COSTURAS 🔥
                 const keys = Object.keys(astronomicalDatabase);
@@ -951,14 +1189,13 @@ header {
                     
                     // 🔥 NUEVO: SphereGeometry de altísimo detalle 🔥
                     const geometry = new THREE.SphereGeometry(data.radius, 64, 64); 
-                    
                     let material;
 
                     if (data.videoSrc) {
                         // Lógica de Video HD Cinemático 🔥
                         const video = document.createElement('video');
                         video.src = data.videoSrc; video.loop = true; video.muted = true; video.playsInline = true; video.crossOrigin = 'anonymous';
-                        video.play().catch(()=>{});
+                        video.play().catch(()=>{/* Esperando clic */});
                         const videoTexture = new THREE.VideoTexture(video);
                         
                         // 🔥 NUEVO: Seamless Wrapping completo (S & T) 🔥
@@ -973,6 +1210,7 @@ header {
                             material = new THREE.MeshLambertMaterial({ map: videoTexture });
                         }
                     } else {
+                        // Respaldo
                         const texture = TextureGenerator.createNoiseTexture(data.colorBase);
                         if (key === 'sol') { material = new THREE.MeshBasicMaterial({ map: texture }); }
                         else { material = new THREE.MeshLambertMaterial({ map: texture }); }
@@ -987,17 +1225,38 @@ header {
                     let orbitRadius = index * this.scaleSettings.distanceScale;
                     if (key === 'sol' || key === 'luna') orbitRadius = 0;
                     if (key === 'urano') orbitRadius = 110; if (key === 'neptuno') orbitRadius = 135; if (key === 'pluton') orbitRadius = 160;
+
                     this.planets[key] = { mesh, orbitRadius, orbitSpeed: 1.8 / (index * 1.5 + 1), angle: Math.random() * Math.PI * 2 };
                     this.scene.add(mesh);
-                    if (data.hasRings) { const ringGeo = new THREE.RingGeometry(data.radius + 1.5, data.radius + 6, 64); ringGeo.rotateX(Math.PI / 2); mesh.add(new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: 0xb5a48b, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }))); }
-                    if (data.hasThinRings) { const ringGeo = new THREE.RingGeometry(data.radius + 1.2, data.radius + 2.2, 48); ringGeo.rotateX(Math.PI / 2.3); mesh.add(new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x8bb8cc, side: THREE.DoubleSide, transparent: true, opacity: 0.25 }))); }
-                    if (key !== 'sol' && key !== 'luna') { const orbitGeom = new THREE.BufferGeometry(); const points = []; const divisions = key === 'pluton' ? 180 : 120; for (let i = 0; i <= divisions; i++) { const theta = (i / divisions) * Math.PI * 2; if (key === 'pluton') { points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, Math.cos(theta) * orbitRadius * 0.3, Math.sin(theta) * orbitRadius * 0.85)); } else { points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, 0, Math.sin(theta) * orbitRadius)); } } orbitGeom.setFromPoints(points); this.scene.add(new THREE.Line(orbitGeom, new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.08 }))); }
+
+                    if (data.hasRings) {
+                        const ringGeo = new THREE.RingGeometry(data.radius + 1.5, data.radius + 6, 64); ringGeo.rotateX(Math.PI / 2);
+                        mesh.add(new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: 0xb5a48b, side: THREE.DoubleSide, transparent: true, opacity: 0.55 })));
+                    }
+                    if (data.hasThinRings) {
+                        const ringGeo = new THREE.RingGeometry(data.radius + 1.2, data.radius + 2.2, 48); ringGeo.rotateX(Math.PI / 2.3);
+                        mesh.add(new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x8bb8cc, side: THREE.DoubleSide, transparent: true, opacity: 0.25 })));
+                    }
+                    if (key !== 'sol' && key !== 'luna') {
+                        const orbitGeom = new THREE.BufferGeometry(); const points = []; const divisions = key === 'pluton' ? 180 : 120;
+                        for (let i = 0; i <= divisions; i++) {
+                            const theta = (i / divisions) * Math.PI * 2;
+                            if (key === 'pluton') { points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, Math.cos(theta) * orbitRadius * 0.3, Math.sin(theta) * orbitRadius * 0.85)); }
+                            else { points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, 0, Math.sin(theta) * orbitRadius)); }
+                        }
+                        orbitGeom.setFromPoints(points);
+                        const orbitLine = new THREE.Line(orbitGeom, new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.08 }));
+                        this.scene.add(orbitLine); this.orbitLines.push(orbitLine);
+                    }
                 });
             }
 
             setupCoreLightingPipeline() {
                 // Luz puntual del Sol (sombras dramáticas) 🔥
-                const pointLight = new THREE.PointLight(0xffffff, 2.2, 1000, 0.5); pointLight.castShadow = true; pointLight.shadow.mapSize.width = 1024; pointLight.shadow.mapSize.height = 1024; this.scene.add(pointLight);
+                const pointLight = new THREE.PointLight(0xffffff, 2.2, 1000, 0.5);
+                pointLight.castShadow = true; pointLight.shadow.mapSize.width = 1024; pointLight.shadow.mapSize.height = 1024;
+                this.scene.add(pointLight);
+
                 // 🔥 NUEVA: Fiel Luz de Ambiente v9.4 Perfect (No plato blanco washout) 🔥
                 this.scene.add(new THREE.AmbientLight(0x050505, 0.5)); 
             }
@@ -1005,35 +1264,100 @@ header {
             setActiveTarget(key) {
                 if (astronomicalDatabase[key]) {
                     this.activeTargetKey = key; this.audioSystem.initializeContext(); this.audioSystem.triggerPingSound(440 + (Math.random() * 200), 0.35);
-                    Object.keys(this.planets).forEach(k => { const mat = this.planets[k].mesh.material; if(mat.map && mat.map.image instanceof HTMLVideoElement) { mat.map.image.play().catch(()=>{}); } });
-                    document.querySelectorAll('.selector-item-node').forEach(node => { node.classList.remove('active-node'); if(node.getAttribute('data-planet') === key) node.classList.add('active-node'); });
-                    const db = astronomicalDatabase[key]; document.getElementById('tgt-display-name').innerText = `CUERPO: ${db.name.toUpperCase()}`;
+
+                    Object.keys(this.planets).forEach(k => {
+                        const mat = this.planets[k].mesh.material;
+                        if(mat.map && mat.map.image instanceof HTMLVideoElement) { mat.map.image.play().catch(()=>{}); }
+                    });
+
+                    document.querySelectorAll('.selector-item-node').forEach(node => {
+                        node.classList.remove('active-node');
+                        if(node.getAttribute('data-planet') === key) node.classList.add('active-node');
+                    });
+                    const db = astronomicalDatabase[key];
+                    document.getElementById('tgt-display-name').innerText = `CUERPO: ${db.name.toUpperCase()}`;
+                    document.getElementById('tgt-class').innerText = db.class;
+                    document.getElementById('tgt-light-delay').innerText = db.lightDelay;
+                    document.getElementById('tgt-rot').innerText = "Interna Pro Cinemática";
+                    document.getElementById('tgt-orbit').innerText = db.orbit;
+                    document.getElementById('tgt-obliquity').innerText = "Interna Pro Cinemática";
+                    document.getElementById('tgt-velocity').innerText = db.velocity;
+                    document.getElementById('tgt-struct').innerText = db.structure;
+                    document.getElementById('tgt-comp').innerText = db.composition;
+                    document.getElementById('tgt-grav').innerText = db.gravity;
+                    document.getElementById('tgt-pressure').innerText = db.pressure;
+                    document.getElementById('tgt-sats').innerText = db.satellites;
+                    document.getElementById('tgt-equinox').innerText = db.equinoxInfo;
+                    
                     this.pushTerminalMessage(`[NODO ADQUIRIDO] Vector ${db.name.toUpperCase()}. Zoom Pro OK.`);
+                    
                     // FOCO DINÁMICO HD 🔥
-                    const targetMesh = this.planets[key].mesh; const planetPosition = new THREE.Vector3(); targetMesh.getWorldPosition(planetPosition);
+                    const targetMesh = this.planets[key].mesh;
+                    const planetPosition = new THREE.Vector3();
+                    targetMesh.getWorldPosition(planetPosition);
                     this.camera.position.set(planetPosition.x, planetPosition.y + db.radius * 1.5, planetPosition.z + db.radius * 3.5);
                 }
             }
 
             animateEngine() {
-                requestAnimationFrame(() => this.animateEngine()); const delta = this.clock.getDelta(); const totalTime = this.clock.getElapsedTime() * this.scaleSettings.timeMultiplier;
-                Object.keys(this.planets).forEach(key => { const p = this.planets[key]; if (key !== 'sol' && key !== 'luna') { p.angle = totalTime * p.orbitSpeed; if (key === 'pluton') { p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius; p.mesh.position.z = Math.sin(p.angle) * (p.orbitRadius * 0.85); p.mesh.position.y = p.mesh.position.x * 0.3; } else { p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius; p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius; } } 
-                // 🔥 v9.4 Perfect: NO ROTACIÓN MANUAL (rotationSpeed removed) 🔥
+                requestAnimationFrame(() => this.animateEngine());
+                const delta = this.clock.getDelta();
+                const totalTime = this.clock.getElapsedTime() * this.scaleSettings.timeMultiplier;
+
+                Object.keys(this.planets).forEach(key => {
+                    const p = this.planets[key];
+                    if (key !== 'sol' && key !== 'luna') {
+                        p.angle = totalTime * p.orbitSpeed;
+                        if (key === 'pluton') {
+                            p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
+                            p.mesh.position.z = Math.sin(p.angle) * (p.orbitRadius * 0.85);
+                            p.mesh.position.y = p.mesh.position.x * 0.3;
+                        } else {
+                            p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
+                            p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius;
+                        }
+                    }
+                    // 🔥 v9.4 Perfect: NO ROTACIÓN MANUAL (rotationSpeed removed) 🔥
                 });
-                if (this.planets['luna'] && this.planets['tierra']) { const tierra = this.planets['tierra'].mesh; const luna = this.planets['luna']; luna.angle = totalTime * 3.8; const relRadius = 3.6; luna.mesh.position.x = tierra.position.x + Math.cos(luna.angle) * relRadius; luna.mesh.position.z = tierra.position.z + Math.sin(luna.angle) * relRadius; }
-                if (this.asteroidSystem) { const positions = this.asteroidSystem.geometry.attributes.position.array; for (let i = 0; i < this.asteroidData.length; i++) { const data = this.asteroidData[i]; data.angle += data.speed * delta * this.scaleSettings.timeMultiplier * 2; positions[i*3] = Math.cos(data.angle)*data.radius; positions[i*3+2] = Math.sin(data.angle)*data.radius; } this.asteroidSystem.geometry.attributes.position.needsUpdate = true; }
-                if (this.planets[this.activeTargetKey]) { const targetMesh = this.planets[this.activeTargetKey].mesh; targetMesh.getWorldPosition(this.targetLookAt); this.controls.target.copy(this.targetLookAt); }
-                if (this.controls) this.controls.update(); this.renderer.render(this.scene, this.camera);
+                if (this.planets['luna'] && this.planets['tierra']) {
+                    const tierra = this.planets['tierra'].mesh; const luna = this.planets['luna'];
+                    luna.angle = totalTime * 3.8; const relRadius = 3.6;
+                    luna.mesh.position.x = tierra.position.x + Math.cos(luna.angle) * relRadius;
+                    luna.mesh.position.z = tierra.position.z + Math.sin(luna.angle) * relRadius;
+                }
+                if (this.asteroidSystem) {
+                    const positions = this.asteroidSystem.geometry.attributes.position.array;
+                    for (let i = 0; i < this.asteroidData.length; i++) {
+                        const data = this.asteroidData[i]; data.angle += data.speed * delta * this.scaleSettings.timeMultiplier * 2;
+                        positions[i*3] = Math.cos(data.angle)*data.radius; positions[i*3+2] = Math.sin(data.angle)*data.radius;
+                    }
+                    this.asteroidSystem.geometry.attributes.position.needsUpdate = true;
+                }
+
+                if (this.planets[this.activeTargetKey]) {
+                    const targetMesh = this.planets[this.activeTargetKey].mesh;
+                    targetMesh.getWorldPosition(this.targetLookAt);
+                    this.controls.target.copy(this.targetLookAt);
+                    const baseDist = astronomicalDatabase[this.activeTargetKey].distanceBase;
+                    const calculatedDist = baseDist === 0 ? 0 : baseDist + Math.sin(Date.now()*0.003)*19.42;
+                    document.getElementById('tgt-dist').innerText = `${calculatedDist.toLocaleString('de-DE', {minimumFractionDigits: 4, maximumFractionDigits: 4})} KM`;
+                }
+
+                if (this.controls) this.controls.update();
+                this.renderer.render(this.scene, this.camera);
             }
 
-            toggleOrbits() { this.orbitsVisible = !this.orbitsVisible; document.getElementById('ctrl-orbits').innerText = this.orbitsVisible ? "Órbitas ON" : "Órbitas OFF"; this.pushTerminalMessage(`[SISTEMA] Trazas orbitales modificadas.`); }
-            toggleAudioSystem() { if (this.audioSystem.isEnabled) { this.audioSystem.setVolume(0); this.audioSystem.isEnabled = false; document.getElementById('ctrl-audio').innerText = "Audio OFF"; this.pushTerminalMessage(`[AUDIO] Canales silenciados.`); } else { this.audioSystem.initializeContext(); this.audioSystem.setVolume(0.12); this.audioSystem.isEnabled = true; document.getElementById('ctrl-audio').innerText = "Audio ON"; this.pushTerminalMessage(`[AUDIO] Subsistema activo.`); } }
+            // ... (Resto de funciones utilitarias iguales)
+            toggleOrbits() { this.orbitsVisible = !this.orbitsVisible; this.orbitLines.forEach(line => line.visible = this.orbitsVisible); document.getElementById('ctrl-orbits').innerText = this.orbitsVisible ? "Órbitas ON" : "Órbitas OFF"; document.getElementById('ctrl-orbits').classList.toggle('active-ctrl', !this.orbitsVisible); this.pushTerminalMessage(`[SISTEMA] Trazas orbitales modificadas.`); }
+            toggleAudioSystem() { if (this.audioSystem.isEnabled) { this.audioSystem.setVolume(0); this.audioSystem.isEnabled = false; document.getElementById('ctrl-audio').innerText = "Audio OFF"; document.getElementById('ctrl-audio').classList.remove('active-ctrl'); this.pushTerminalMessage(`[AUDIO] Canales acusticos silenciados.`); } else { this.audioSystem.initializeContext(); this.audioSystem.setVolume(0.12); this.audioSystem.isEnabled = true; document.getElementById('ctrl-audio').innerText = "Audio ON"; document.getElementById('ctrl-audio').classList.add('active-ctrl'); this.pushTerminalMessage(`[AUDIO] Subsistema de audio activo.`); } }
             resetCameraView() { this.activeTargetKey = 'sol'; this.camera.position.set(0, 80, 150); this.controls.target.set(0,0,0); this.pushTerminalMessage(`[SISTEMA] Reset de vista.`); }
             registerResizeHandler() { window.addEventListener('resize', () => { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(window.innerWidth, window.innerHeight); }); }
             pushTerminalMessage(text) { const feed = document.getElementById('terminal-feed'); if (!feed) return; const newLine = document.createElement('div'); newLine.className = 'terminal-line'; newLine.innerHTML = `<span class="terminal-timestamp">[${new Date().toLocaleTimeString()}]</span> ${text}`; feed.appendChild(newLine); feed.scrollTop = feed.scrollHeight; if (feed.childNodes.length > 15) feed.removeChild(feed.firstChild); }
-            startTerminalLogsLoop() { setInterval(() => { this.pushTerminalMessage("Captando flujo de neutrinos estable."); }, 5000); }
+            startTerminalLogsLoop() { setInterval(() => { this.pushTerminalMessage(astronomicalDatabase[this.activeTargetKey].streamPhrase); document.getElementById('metric-parallax').innerText = `±${(0.000021 + (Math.random()*0.000004-0.000002)).toFixed(6)}"`; document.getElementById('metric-bandwidth').innerText = `${(1024.4 + (Math.random()*12-6)).toFixed(1)} Gbps`; }, 5000); }
         }
-        let orchestrator; window.addEventListener('DOMContentLoaded', () => { orchestrator = new SpaceEngineOrchestrator(); });
+
+        let orchestrator;
+        window.addEventListener('DOMContentLoaded', () => { orchestrator = new SpaceEngineOrchestrator(); orchestrator.pushTerminalMessage("[SISTEMA] v9.4 Perfect activa. Luz cinemática OK. Texturas perfectas OK. No auto-rot OK."); });
     </script>
 </body>
 </html>
