@@ -75,16 +75,32 @@
         width: 280px; 
         height: 280px;
         background-image: url('andromeda.jpg');
-        background-size: contain;
+        background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
-        opacity: 0.42; 
+        opacity: 0.45; 
         filter: blur(0.3px) drop-shadow(0 0 15px rgba(255, 255, 255, 0.12));
         pointer-events: none;
-        /* Corrección estética: elimina bordes cuadrados de la imagen */
         mix-blend-mode: screen;
-        mask-image: radial-gradient(circle, rgba(0,0,0,1) 35%, rgba(0,0,0,0) 70%);
-        -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 35%, rgba(0,0,0,0) 70%);
+        
+        /* Corrección absoluta de bordes cuadrados */
+        border-radius: 50%;
+        mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 70%);
+        -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 70%);
+        mask-repeat: no-repeat;
+        -webkit-mask-repeat: no-repeat;
+        mask-position: center;
+        -webkit-mask-position: center;
+    }
+
+    /* Ajuste de escala para pantallas de PC */
+    @media (min-width: 901px) {
+        #andromeda-distante {
+            width: 420px;
+            height: 420px;
+            top: 8%;
+            right: 8%;
+        }
     }
 
     #canvas-container {
@@ -563,8 +579,14 @@
                 this.clock = new THREE.Clock();
                 this.scaleSettings = { distanceScale: 25, timeMultiplier: 0.12 };
                 this.targetLookAt = new THREE.Vector3(0, 0, 0);
-                this.initEngine(); this.buildCosmosEngine(); this.setupCoreLightingPipeline();
-                this.registerResizeHandler(); this.startTerminalLogsLoop(); this.animateEngine();
+                
+                this.initEngine(); 
+                this.buildCosmosEngine(); 
+                this.setupCoreLightingPipeline();
+                this.registerResizeHandler(); 
+                this.startTerminalLogsLoop(); 
+                this.setupAudioTrigger(); // Activación unificada de música
+                this.animateEngine();
             }
 
             initEngine() {
@@ -598,7 +620,7 @@
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
                 this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 })));
 
-                // GENERAR CINTURÓN DE KUIPER (Partículas Alta Definición)
+                // GENERAR CINTURÓN DE KUIPER (Partículas circulares de Alta Definición corregidas)
                 const kuiperCount = 2500;
                 const kuiperGeometry = new THREE.BufferGeometry();
                 const kuiperPositions = new Float32Array(kuiperCount * 3);
@@ -611,7 +633,26 @@
                     kuiperPositions[i+2] = Math.sin(theta) * radius;
                 }
                 kuiperGeometry.setAttribute('position', new THREE.BufferAttribute(kuiperPositions, 3));
-                const kuiperMaterial = new THREE.PointsMaterial({ color: 0x7cd2ff, size: 0.9, transparent: true, opacity: 0.55 });
+
+                // Textura procedimental en Canvas para eliminar los cuadrados horribles
+                const canvasGen = document.createElement('canvas');
+                canvasGen.width = 16; canvasGen.height = 16;
+                const ctxGen = canvasGen.getContext('2d');
+                const gradGen = ctxGen.createRadialGradient(8, 8, 0, 8, 8, 8);
+                gradGen.addColorStop(0, 'rgba(255,255,255,1)');
+                gradGen.addColorStop(1, 'rgba(255,255,255,0)');
+                ctxGen.fillStyle = gradGen; ctxGen.fillRect(0, 0, 16, 16);
+                const particleTexture = new THREE.CanvasTexture(canvasGen);
+
+                const kuiperMaterial = new THREE.PointsMaterial({ 
+                    color: 0x7cd2ff, 
+                    size: 1.6, 
+                    map: particleTexture,
+                    transparent: true, 
+                    opacity: 0.65,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
                 this.scene.add(new THREE.Points(kuiperGeometry, kuiperMaterial));
 
                 const factorEscalaPlanetas = 1.35;
@@ -648,7 +689,6 @@
                     if (key === 'sol' || key === 'luna') orbitRadius = 0;
                     if (key === 'urano') orbitRadius = 185; if (key === 'neptuno') orbitRadius = 220; if (key === 'pluton') orbitRadius = 250;
 
-                    // Corrección de alineación: Guardar un ángulo inicial aleatorio único por planeta
                     this.planets[key] = { 
                         mesh, 
                         orbitRadius, 
@@ -677,6 +717,30 @@
             setupCoreLightingPipeline() {
                 this.scene.add(new THREE.PointLight(0xffffff, 2.2, 1000, 0.4));
                 this.scene.add(new THREE.AmbientLight(0x060c18, 0.5));
+            }
+
+            setupAudioTrigger() {
+                this.bgMusic = new Audio('musica.mp3'); // Apunta a tu archivo de música local
+                this.bgMusic.loop = true;
+                this.bgMusic.volume = 0.45;
+                this.musicStarted = false;
+
+                const activarAudioInteraccion = () => {
+                    if (!this.musicStarted) {
+                        this.bgMusic.play().then(() => {
+                            this.musicStarted = true;
+                            this.pushTerminalMessage("[AUDIO] Banda sonora acoplada. Transmisión musical activa.");
+                            
+                            // Desvincular listeners globales una vez ejecutado con éxito
+                            window.removeEventListener('click', activarAudioInteraccion);
+                            window.removeEventListener('touchstart', activarAudioInteraccion);
+                        }).catch(err => console.log("Fallo o bloqueo al inicializar pista de audio:", err));
+                    }
+                };
+                
+                // Captura el clic o toque en cualquier zona (botones, menú o canvas)
+                window.addEventListener('click', activarAudioInteraccion);
+                window.addEventListener('touchstart', activarAudioInteraccion);
             }
 
             setActiveTarget(key) {
@@ -730,7 +794,6 @@
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
                     if (key !== 'sol' && key !== 'luna') {
-                        // Corrección de alineación: Sumar ángulo dinámico al offset inicial aleatorio
                         p.angle = (totalTime * p.orbitSpeed) + p.initialAngle;
                         if (key === 'pluton') {
                             p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
@@ -747,7 +810,6 @@
                 if (this.planets['luna'] && this.planets['tierra']) {
                     const tierra = this.planets['tierra'].mesh; const luna = this.planets['luna'];
                     luna.angle = totalTime * 3.8;
-                    // Corrección de distancia: Se aumentó el multiplicador de 6.5 a 14.5 para alejarla de la superficie terrestre
                     luna.mesh.position.x = tierra.position.x + Math.cos(luna.angle) * 14.5;
                     luna.mesh.position.z = tierra.position.z + Math.sin(luna.angle) * 14.5;
                 }
