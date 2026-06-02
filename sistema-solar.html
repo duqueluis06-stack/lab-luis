@@ -51,25 +51,36 @@
         position: relative;
     }
 
-    /* CAPA DE ANDRÓMEDA: Ultra-HD, sin pixelación y con brillo sutil */
-    .espacio-fondo {
+    /* NUEVA CONFIGURACIÓN DE CAPAS DE FONDO UNIFICADAS */
+    #fondo-cosmos {
         position: fixed;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
-        background-image: url('andromeda.jpg');
+        background-image: url('galaxia.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
-        /* z-index en 0 para quedar justo detrás del canvas 3D */
         z-index: 0; 
-        /* Evita interceptar los clics del usuario y del zoom */
         pointer-events: none; 
-        /* Filtro de interpolación para evitar cuadrados pixelados en pantallas grandes */
         image-rendering: auto;
-        /* Brillo sutil y contraste optimizado para el espacio profundo */
-        filter: brightness(1.12) contrast(1.03); 
+        filter: brightness(1.05) contrast(1.02); 
+    }
+
+    #andromeda-distante {
+        position: absolute;
+        top: 14%; 
+        right: 12%; 
+        width: 280px; 
+        height: 280px;
+        background-image: url('andromeda.jpg');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0.42; 
+        filter: blur(0.3px) drop-shadow(0 0 15px rgba(255, 255, 255, 0.12));
+        pointer-events: none;
     }
 
     #canvas-container {
@@ -339,7 +350,9 @@
 </head>
 <body>
 
-    <div class="espacio-fondo"></div>
+    <div id="fondo-cosmos">
+        <div id="andromeda-distante"></div>
+    </div>
 
     <div class="top-control-bar">
         <a href="index.html" class="btn-escape">⚠️ SALIR</a>
@@ -599,13 +612,11 @@
 
             initEngine() {
                 this.scene = new THREE.Scene();
-                // Se elimina 'scene.background' de color sólido para permitir transparencia y ver a Andrómeda de fondo.
                 this.scene.fog = new THREE.FogExp2(0x010204, 0.0007);
 
                 this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2500);
                 this.camera.position.set(0, 120, 250);
 
-                // AJUSTE CRÍTICO: Se añade 'alpha: true' para permitir la transparencia del renderizador
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -630,10 +641,16 @@
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
                 this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 })));
 
+                // FACTOR DE ESCALA VISUAL: Incrementa el tamaño de todos los planetas/sol para mejor visibilidad
+                const factorEscalaPlanetas = 1.35;
+
                 // Instanciar Nodos Planetarios basados en video
                 Object.keys(astronomicalDatabase).forEach((key, index) => {
                     const data = astronomicalDatabase[key];
-                    const geometry = new THREE.PlaneGeometry(data.radius * 2.2, data.radius * 2.2);
+                    
+                    // Aplicamos el incremento de tamaño directamente a la geometría del plano cinemático
+                    const anchoVisible = data.radius * 2.2 * factorEscalaPlanetas;
+                    const geometry = new THREE.PlaneGeometry(anchoVisible, anchoVisible);
                     let material;
 
                     if (data.videoSrc) {
@@ -673,7 +690,9 @@
                             else points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, 0, Math.sin(theta) * orbitRadius));
                         }
                         orbitGeom.setFromPoints(points);
-                        const orbitLine = new THREE.Line(orbitGeom, new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.12 }));
+                        
+                        // ENFOQUE DE ÓRBITAS: Subimos la opacidad a 0.45 para que contrasten de forma excelente sobre galaxia.jpg
+                        const orbitLine = new THREE.Line(orbitGeom, new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.45 }));
                         this.scene.add(orbitLine); this.orbitLines.push(orbitLine);
                     }
                 });
@@ -690,7 +709,6 @@
                     this.audioSystem.initializeContext();
                     this.audioSystem.triggerPingSound(550 + (Math.random() * 80), 0.2);
 
-                    // Re-verificar reproducción de texturas vivas
                     Object.keys(this.planets).forEach(k => {
                         const mat = this.planets[k].mesh.material;
                         if(mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
@@ -703,7 +721,6 @@
                         if(node.getAttribute('data-planet') === key) node.classList.add('selected-node');
                     });
 
-                    // Carga sincrónica en DOM de Telemetría
                     const db = astronomicalDatabase[key];
                     document.getElementById('tgt-display-name').innerText = `CUERPO: ${db.name.toUpperCase()}`;
                     document.getElementById('tgt-class').innerText = db.class;
@@ -719,14 +736,12 @@
                     
                     this.pushTerminalMessage(`[OK] Enfoque centrado en vector radial de ${db.name.toUpperCase()}.`);
                     
-                    // Zoom de Cámara Automático Inmediato
                     const targetMesh = this.planets[key].mesh;
                     const pos = new THREE.Vector3(); targetMesh.getWorldPosition(pos);
                     this.camera.position.set(pos.x, pos.y + db.radius * 2.2, pos.z + db.radius * 4.2);
                     this.controls.target.copy(pos);
                     this.controls.update();
 
-                    // Cerrar paneles en móviles para no obstruir el canvas tras el click
                     if(window.innerWidth <= 900) {
                         closePanels();
                     }
@@ -831,7 +846,6 @@
             orchestrator.pushTerminalMessage("[SISTEMA OPERATIVO OK] Consola v9.6 inicializada con éxito."); 
         });
 
-        // Evento único de toque inicial para saltar restricciones de reproducción multimedia
         window.addEventListener('click', () => { if (orchestrator) orchestrator.startAudioOnInteraction(); }, { once: true });
         window.addEventListener('touchstart', () => { if (orchestrator) orchestrator.startAudioOnInteraction(); }, { once: true });
     </script>
