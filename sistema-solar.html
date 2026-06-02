@@ -627,7 +627,6 @@
                 this.setupCoreLightingPipeline();
                 this.registerResizeHandler(); 
                 this.startTerminalLogsLoop(); 
-                this.setupAudioTrigger(); 
                 this.animateEngine();
             }
 
@@ -662,12 +661,12 @@
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
                 this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 })));
 
-                // GENERAR CINTURÓN DE KUIPER CORREGIDO (Densidad ampliada a 6500 puntos para máxima definición)
+                // GENERAR CINTURÓN DE KUIPER CORREGIDO
                 const kuiperCount = 6500;
                 const kuiperGeometry = new THREE.BufferGeometry();
                 const kuiperPositions = new Float32Array(kuiperCount * 3);
                 for (let i = 0; i < kuiperCount * 3; i += 3) {
-                    const radius = 510 + Math.random() * 80; // Posicionado estratégicamente tras la órbita expandida de Plutón
+                    const radius = 510 + Math.random() * 80; 
                     const theta = Math.random() * Math.PI * 2;
                     const y = (Math.random() - 0.5) * 8; 
                     kuiperPositions[i] = Math.cos(theta) * radius;
@@ -698,13 +697,12 @@
 
                 const factorEscalaPlanetas = 1.35;
 
-                // MAPA DE DISTANCIAS EXPANDIDO (Previene solapamientos con el Sol y aleja los planetas uniformemente)
+                // MAPA DE DISTANCIAS EXPANDIDO
                 const orbitDistances = {
                     sol: 0, mercurio: 60, venus: 95, tierra: 130, luna: 0,
                     marte: 170, jupiter: 230, saturno: 295, urano: 365, neptuno: 425, pluton: 480
                 };
 
-                // Instanciar Nodos Planetarios basados en video
                 Object.keys(astronomicalDatabase).forEach((key, index) => {
                     const data = astronomicalDatabase[key];
                     const anchoVisible = data.radius * 2.2 * factorEscalaPlanetas;
@@ -762,36 +760,6 @@
             setupCoreLightingPipeline() {
                 this.scene.add(new THREE.PointLight(0xffffff, 2.2, 1200, 0.4));
                 this.scene.add(new THREE.AmbientLight(0x06180c, 0.5));
-            }
-
-            setupAudioTrigger() {
-                this.bgMusic = new Audio('Space.mp3'); // Enlazado a la nueva pista Space.mp3
-                this.bgMusic.loop = true;
-                this.bgMusic.volume = 0.45;
-                this.musicStarted = false;
-
-                const activarAudioInteraccion = () => {
-                    if (!this.musicStarted) {
-                        this.bgMusic.play().then(() => {
-                            this.musicStarted = true;
-                            this.pushTerminalMessage("[AUDIO] Banda sonora Space.mp3 acoplada vía interacción remota.");
-                            
-                            // Remover triggers interactivos una vez iniciado
-                            window.removeEventListener('click', activarAudioInteraccion);
-                            window.removeEventListener('touchstart', activarAudioInteraccion);
-                            window.removeEventListener('keydown', activarAudioInteraccion);
-                            window.removeEventListener('mousemove', activarAudioInteraccion);
-                            window.removeEventListener('pointermove', activarAudioInteraccion);
-                        }).catch(err => console.log("Bloqueo de reproducción por directiva del navegador:", err));
-                    }
-                };
-                
-                // DISPARADORES SOLICITADOS: Teclado, clics, movimientos y desplazamientos táctiles
-                window.addEventListener('click', activarAudioInteraccion);
-                window.addEventListener('touchstart', activarAudioInteraccion);
-                window.addEventListener('keydown', activarAudioInteraccion);
-                window.addEventListener('mousemove', activarAudioInteraccion);
-                window.addEventListener('pointermove', activarAudioInteraccion);
             }
 
             setActiveTarget(key) {
@@ -866,8 +834,18 @@
                 
                 if (this.planets[this.activeTargetKey]) {
                     const targetMesh = this.planets[this.activeTargetKey].mesh;
+                    const previousTarget = this.controls.target.clone();
+                    
                     targetMesh.getWorldPosition(this.targetLookAt);
+                    
+                    // SEGUIMIENTO MÓVIL ESTABLE: Desplaza la cámara en paralelo con el delta del planeta
+                    if (this.activeTargetKey !== 'sol') {
+                        const translation = new THREE.Vector3().subVectors(this.targetLookAt, previousTarget);
+                        this.camera.position.add(translation);
+                    }
+                    
                     this.controls.target.copy(this.targetLookAt);
+                    
                     const baseDist = astronomicalDatabase[this.activeTargetKey].distanceBase;
                     const finalDist = baseDist === 0 ? 0 : baseDist + Math.sin(Date.now() * 0.002) * 15.0;
                     document.getElementById('tgt-dist').innerText = `${finalDist.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KM`;
