@@ -51,6 +51,27 @@
         position: relative;
     }
 
+    /* CAPA DE ANDRÓMEDA: Ultra-HD, sin pixelación y con brillo sutil */
+    .espacio-fondo {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: url('andromeda.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        /* z-index en 0 para quedar justo detrás del canvas 3D */
+        z-index: 0; 
+        /* Evita interceptar los clics del usuario y del zoom */
+        pointer-events: none; 
+        /* Filtro de interpolación para evitar cuadrados pixelados en pantallas grandes */
+        image-rendering: auto;
+        /* Brillo sutil y contraste optimizado para el espacio profundo */
+        filter: brightness(1.12) contrast(1.03); 
+    }
+
     #canvas-container {
         position: absolute;
         top: 0;
@@ -318,6 +339,8 @@
 </head>
 <body>
 
+    <div class="espacio-fondo"></div>
+
     <div class="top-control-bar">
         <a href="index.html" class="btn-escape">⚠️ SALIR</a>
         <div class="central-title-desktop">SISTEMA DE MONITOREO HELIOCÉNTRICO v9.6</div>
@@ -546,7 +569,7 @@
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 this.audioCtx = new AudioContextClass();
                 this.masterGain = this.audioCtx.createGain();
-                this.masterGain.gain.setValueAtTime(0.0, this.audioCtx.currentTime); // Apagado por defecto
+                this.masterGain.gain.setValueAtTime(0.0, this.audioCtx.currentTime); 
                 this.masterGain.connect(this.audioCtx.destination);
             }
             triggerPingSound(freq, duration) {
@@ -576,13 +599,14 @@
 
             initEngine() {
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x010204);
+                // Se elimina 'scene.background' de color sólido para permitir transparencia y ver a Andrómeda de fondo.
                 this.scene.fog = new THREE.FogExp2(0x010204, 0.0007);
 
                 this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2500);
                 this.camera.position.set(0, 120, 250);
 
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+                // AJUSTE CRÍTICO: Se añade 'alpha: true' para permitir la transparencia del renderizador
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 this.container.appendChild(this.renderer.domElement);
