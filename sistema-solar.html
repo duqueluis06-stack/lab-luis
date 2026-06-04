@@ -144,7 +144,6 @@
         box-shadow: 0 0 12px var(--panel-border);
     }
 
-    /* Botón Archivos X */
     .btn-xfiles {
         background: rgba(255, 170, 0, 0.1) !important;
         border: 1px solid var(--amber-glow) !important;
@@ -318,7 +317,6 @@
 
     .toggle-panels-mobile { display: none; }
 
-    /* ESTILOS DEL COMPONENTE DE INTERCEPCIÓN SATELITAL (ALIENTALK) RE-ESTILIZADO Y DRAGGABLE */
     #satellite-intercept-panel {
         position: fixed;
         top: 75px;
@@ -484,7 +482,8 @@
 
             <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.35); margin-bottom: 0; background: #000; overflow: hidden; border-radius: 4px;">
                 <div class="matrix-title" id="alien-track-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #1</div>
-                <video id="alien-main-player" controls playsinline style="width: 100%; display: block; aspect-ratio: 16/9; object-fit: contain; background: #000;">
+                <!-- CORREGIDO: Se agregó crossorigin="anonymous" para permitir el análisis Web Audio sin restricciones de dominio -->
+                <video id="alien-main-player" controls playsinline crossorigin="anonymous" style="width: 100%; display: block; aspect-ratio: 16/9; object-fit: contain; background: #000;">
                     <source id="alien-video-source" src="alien1.mp4" type="video/mp4">
                     Tu navegador no soporta video.
                 </video>
@@ -937,16 +936,13 @@
                 this.pushTerminalMessage(`[📡] Conmutando receptor a CH 0${channelNum}. Sintonizando modulación.`);
             }
 
-            /* LOGICA DEL VÚMETRO CORREGIDA */
+            /* COMPONENTE VÚMETRO TOTALMENTE RECONSTRUIDO Y REPARADO */
             setupAlienAudioInterceptors() {
                 const bgAudio = document.getElementById('bg-space-audio');
                 const video = document.getElementById('alien-main-player');
                 const canvas = document.getElementById('alien-vu-canvas');
                 if(!video || !canvas) return;
                 const canvasCtx = canvas.getContext('2d');
-
-                // CORREGIDO: Se eliminó la asignación inicial de tamaño aquí, 
-                // ya que al estar oculto el panel (display:none) media 0px.
 
                 const initAnalyser = () => {
                     if (!this.alienAudioCtx) {
@@ -976,10 +972,12 @@
                     this.alienAnimationId = requestAnimationFrame(renderVuFrames);
                     if (!this.alienAnalyser) return;
 
-                    // CORREGIDO: Redimensionamiento adaptativo del canvas en tiempo real al abrirse el menú
-                    if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-                        canvas.width = canvas.clientWidth;
-                        canvas.height = canvas.clientHeight;
+                    // CORREGIDO: Redimensionamiento adaptativo seguro que evita el colapso permanente a 0px
+                    const w = canvas.clientWidth;
+                    const h = canvas.clientHeight;
+                    if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+                        canvas.width = w;
+                        canvas.height = h;
                     }
 
                     this.alienAnalyser.getByteFrequencyData(this.alienDataArray);
@@ -991,14 +989,16 @@
                     let x = 0;
 
                     for (let i = 0; i < this.alienAnalyser.frequencyBinCount; i++) {
-                        barHeight = this.alienDataArray[i] / 2.6;
+                        // CORREGIDO: Normalización matemática exacta de la altura según los píxeles reales del canvas
+                        barHeight = (this.alienDataArray[i] / 255) * canvas.height;
 
-                        if(barHeight > 55) {
-                            canvasCtx.fillStyle = 'var(--red-alert)';
-                        } else if (barHeight > 32) {
-                            canvasCtx.fillStyle = 'var(--green-phosphor)';
+                        // CORREGIDO: Colores directos en cadenas CSS estables (Canvas no acepta variables var(--))
+                        if(this.alienDataArray[i] > 190) {
+                            canvasCtx.fillStyle = '#ff1155'; // Rojo alerta
+                        } else if (this.alienDataArray[i] > 100) {
+                            canvasCtx.fillStyle = '#33ff33'; // Verde fósforo
                         } else {
-                            canvasCtx.fillStyle = 'var(--amber-glow)';
+                            canvasCtx.fillStyle = '#ffaa00'; // Ámbar
                         }
 
                         canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
