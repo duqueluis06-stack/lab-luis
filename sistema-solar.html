@@ -317,6 +317,36 @@
 
     .toggle-panels-mobile { display: none; }
 
+    /* ESTILOS DEL COMPONENTE DE INTERCEPCIÓN SATELITAL (ALIENTALK) */
+    #satellite-intercept-panel {
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        width: 340px;
+        z-index: 4000;
+        border-color: var(--amber-glow);
+        box-shadow: inset 0 0 20px rgba(255,170,0,0.1), 0 10px 30px rgba(0,0,0,0.85);
+        display: none;
+        max-height: 78vh;
+    }
+
+    .alien-video-scroll {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow-y: auto;
+        max-height: 42vh;
+        padding-right: 4px;
+    }
+
+    .alien-video-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .alien-video-scroll::-webkit-scrollbar-thumb {
+        background: var(--amber-glow);
+        border-radius: 2px;
+    }
+
     @media (max-width: 900px) {
         .pc-only-btn { display: none !important; }
 
@@ -385,6 +415,19 @@
             display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(51, 255, 51, 0.4);
         }
         .toggle-btn:active { background: var(--panel-border); color: #000; }
+
+        /* Ajustes responsivos móviles para el panel alien */
+        #satellite-intercept-panel {
+            top: auto !important;
+            bottom: 80px !important;
+            left: 10px !important;
+            right: 10px !important;
+            width: auto !important;
+            max-height: 55vh !important;
+        }
+        .alien-video-scroll {
+            max-height: 25vh !important;
+        }
     }
 </style>
 </head>
@@ -409,6 +452,43 @@
     <div id="canvas-container"></div>
 
     <div class="panel-overlay" id="panelOverlay" onclick="closePanels()"></div>
+
+    <div id="satellite-intercept-panel" class="bunker-panel">
+        <div class="panel-top-bar" style="background: rgba(255, 170, 0, 0.15); border-bottom: 2px solid var(--amber-glow);">
+            <h2 style="color: var(--amber-glow); text-shadow: 0 0 5px var(--amber-glow);">📡 SEÑAL SATELITAL DETECTADA</h2>
+            <button onclick="orchestrator.toggleAlienPanel()" style="background:none; border:none; color:var(--amber-glow); cursor:pointer; font-size:16px; font-weight:bold;">✕</button>
+        </div>
+        <div class="panel-interior" style="display:flex; flex-direction:column; gap:12px;">
+            
+            <div class="matrix-group" style="border-color: var(--amber-glow); margin-bottom: 0;">
+                <div class="matrix-title" style="background: rgba(255, 170, 0, 0.15); color: var(--amber-glow); text-shadow: 0 0 5px var(--amber-glow); font-size: 9px;">ANÁLISIS DE FRECUENCIA DE PRONUNCIACIÓN</div>
+                <div style="padding: 6px; background: #010603;">
+                    <canvas id="alien-vu-canvas" style="width: 100%; height: 65px; display: block; background: #000000; border: 1px solid rgba(255,170,0,0.2);"></canvas>
+                </div>
+            </div>
+
+            <div class="alien-video-scroll">
+                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
+                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #1</div>
+                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
+                        <source src="alien1.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
+                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #2</div>
+                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
+                        <source src="alien2.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
+                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #3</div>
+                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
+                        <source src="alien3.mp4" type="video/mp4">
+                    </video>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="hud-layer">
         
@@ -582,7 +662,7 @@
             },
             ufo: {
                 name: "UAP Desconocido", class: "Nave Transmedio", gravity: "0.00 m/s² (Anti-g)", satellites: "Ninguno", radius: 1.4, videoSrc: 'nave.mp4',
-                distanceBase: 384000, lightDelay: "0.001s", orbit: "Dinámica Elíptica Alterada", velocity: "Mach 450", structure: "Fuselaje Orgánico Oval", composition: "Elemento 115", pressure: "Desconocida", equinoxInfo: "Variable", streamPhrase: "[🚨 X-FILES] Firma de taquiones detectada. Patrón de vuelo no convencional."
+                distanceBase: 384000, lightDelay: "0.001s", orbit: "Dinámica Elíptica Alterada", velocity: "Mach 450", structure: "Fuselaje Orgánico Oval", composition: "Elemento 115", pressure: "Desconocida", equinoxInfo: "Variable", streamPhrase: "[🚨 X-FILES] Firma de taquiones detectada. Patrón de vuelo no unconventional."
             }
         };
 
@@ -633,11 +713,19 @@
                 this.ufoLocation = 'luna'; 
                 this.ufoTimer = null;
 
+                // Análisis de audio del Vúmetro Alien
+                this.alienAudioCtx = null;
+                this.alienAnalyser = null;
+                this.alienDataArray = null;
+                this.alienSourceNodes = new Map();
+                this.alienAnimationId = null;
+
                 this.initEngine(); 
                 this.buildCosmosEngine(); 
                 this.setupCoreLightingPipeline();
                 this.registerResizeHandler(); 
                 this.setupInteractiveAudioPipeline();
+                this.setupAlienAudioInterceptors(); // Acoplar interceptores de audio real
                 this.startTerminalLogsLoop(); 
                 this.animateEngine();
             }
@@ -808,6 +896,117 @@
                 window.addEventListener('touchstart', triggerMusic, { once: true });
             }
 
+            /* CONTROL DE DESPLIEGUE DEL ENLACE DE TRANSMISIÓN DE ALIENÍGENAS */
+            toggleAlienPanel() {
+                const panel = document.getElementById('satellite-intercept-panel');
+                if(panel.style.display === 'none' || panel.style.display === '') {
+                    panel.style.display = 'flex';
+                    this.pushTerminalMessage("[📡] Enlace de intercepción satelital acoplado. Analizador espectral de taquiones listo.");
+                } else {
+                    panel.style.display = 'none';
+                    // Detener videos al cerrar interfaz
+                    document.querySelectorAll('.alien-track-video').forEach(v => v.pause());
+                    this.pushTerminalMessage("[📡] Enlace satelital alienígena en stand-by.");
+                }
+            }
+
+            /* PROCESAMIENTO MATEMÁTICO REAL DE LAS FRECUENCIAS DE VOZ (WEB AUDIO API) */
+            setupAlienAudioInterceptors() {
+                const bgAudio = document.getElementById('bg-space-audio');
+                const alienVideos = document.querySelectorAll('.alien-track-video');
+                const canvas = document.getElementById('alien-vu-canvas');
+                const canvasCtx = canvas.getContext('2d');
+
+                // Asegurar resolución de pixeles nativos del Canvas
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+
+                const initAnalyser = (videoElement) => {
+                    if (!this.alienAudioCtx) {
+                        this.alienAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        this.alienAnalyser = this.alienAudioCtx.createAnalyser();
+                        this.alienAnalyser.fftSize = 64; // Segmentación fina de barras
+                        this.alienDataArray = new Uint8Array(this.alienAnalyser.frequencyBinCount);
+                    }
+
+                    if (!this.alienSourceNodes.has(videoElement)) {
+                        try {
+                            const source = this.alienAudioCtx.createMediaElementSource(videoElement);
+                            source.connect(this.alienAnalyser);
+                            this.alienAnalyser.connect(this.alienAudioCtx.destination);
+                            this.alienSourceNodes.set(videoElement, source);
+                        } catch(e) {
+                            console.warn("Restricciones normales de CORS o reconexiones de nodos evitadas.");
+                        }
+                    }
+
+                    if (this.alienAudioCtx.state === 'suspended') {
+                        this.alienAudioCtx.resume();
+                    }
+                };
+
+                const renderVuFrames = () => {
+                    this.alienAnimationId = requestAnimationFrame(renderVuFrames);
+                    if (!this.alienAnalyser) return;
+
+                    this.alienAnalyser.getByteFrequencyData(this.alienDataArray);
+                    canvasCtx.fillStyle = '#010502';
+                    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const barWidth = (canvas.width / this.alienAnalyser.frequencyBinCount) * 1.35;
+                    let barHeight;
+                    let x = 0;
+
+                    for (let i = 0; i < this.alienAnalyser.frequencyBinCount; i++) {
+                        barHeight = this.alienDataArray[i] / 2.8;
+
+                        // Estilo fósforo ámbar / alerta cuántica
+                        if(barHeight > 70) {
+                            canvasCtx.fillStyle = 'var(--red-alert)';
+                        } else if (barHeight > 45) {
+                            canvasCtx.fillStyle = '#ffdd00';
+                        } else {
+                            canvasCtx.fillStyle = 'var(--amber-glow)';
+                        }
+
+                        canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+                        x += barWidth;
+                    }
+                };
+
+                alienVideos.forEach(video => {
+                    // Al darle Play a un video de un alien
+                    video.addEventListener('play', (e) => {
+                        // 1. Pausar la música mp3 general automáticamente
+                        if (bgAudio && !bgAudio.paused) {
+                            bgAudio.pause();
+                            this.pushTerminalMessage("[AUDIO] Descarga Space.mp3 suspendida para decodificar señal alien.");
+                        }
+
+                        // 2. Apagar los otros videos aliens para que no se pisen las transmisiones
+                        alienVideos.forEach(v => {
+                            if (v !== e.target) v.pause();
+                        });
+
+                        // 3. Montar analizador y arrancar bucle de renderizado gráfico del vúmetro
+                        initAnalyser(e.target);
+                        if (!this.alienAnimationId) renderVuFrames();
+                    });
+
+                    // Al pausar o finalizar el video, si ya no queda ninguno activo, reanuda el ambiente
+                    const handleAudioRestoration = () => {
+                        const allPaused = Array.from(alienVideos).every(v => v.paused);
+                        if (allPaused && bgAudio && bgAudio.paused) {
+                            bgAudio.play().catch(()=>{});
+                            this.pushTerminalMessage("[AUDIO] Reanudando baliza Space.mp3 de fondo cósmico.");
+                        }
+                    };
+
+                    video.addEventListener('pause', handleAudioRestoration);
+                    video.addEventListener('ended', handleAudioRestoration);
+                });
+            }
+
             cycleSpeed() {
                 if (this.timeMultiplier === 1.0) this.timeMultiplier = 4.0;
                 else if (this.timeMultiplier === 4.0) this.timeMultiplier = 12.0;
@@ -852,6 +1051,10 @@
                     this.pushTerminalMessage("[AVISO] El rastreador de taquiones ya se encuentra activo sobre la anomalía.");
                     this.setActiveTarget('ufo');
                 }
+
+                // DESPLEGAR EL COMPONENTE DE SEÑALES DE LOS TRES MP4 AUTOMÁTICAMENTE
+                const panel = document.getElementById('satellite-intercept-panel');
+                if (panel) panel.style.display = 'flex';
             }
 
             // Inteligencia de teletransporte para esconderse detrás de otros planetas
