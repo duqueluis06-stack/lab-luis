@@ -422,6 +422,7 @@
                     <li class="tactical-node" id="node-urano" data-planet="urano"><button onclick="orchestrator.setActiveTarget('urano')"><span>🪐 URANO</span><span class="node-id">NODE-07</span></button></li>
                     <li class="tactical-node" id="node-neptuno" data-planet="neptuno"><button onclick="orchestrator.setActiveTarget('neptuno')"><span>🪐 NEPTUNO</span><span class="node-id">NODE-08</span></button></li>
                     <li class="tactical-node" id="node-pluton" data-planet="pluton"><button onclick="orchestrator.setActiveTarget('pluton')"><span>🪐 PLUTÓN</span><span class="node-id">NODE-09</span></button></li>
+                    <li class="tactical-node" id="node-nave" data-planet="nave" style="display: none; border: 1px dashed var(--amber-glow);"><button onclick="orchestrator.setActiveTarget('nave')"><span style="color: var(--amber-glow);">🛸 OBJETO NO ID.</span><span class="node-id" style="color: var(--amber-glow);">NODE-XX</span></button></li>
                 </ul>
             </div>
         </div>
@@ -528,7 +529,7 @@
         const astronomicalDatabase = {
             sol: {
                 name: "El Sol", class: "Estrella G2V", gravity: "274.0 m/s²", satellites: "8 Planetas", radius: 13.0, videoSrc: 'sol.mp4',
-                distanceBase: 0, lightDelay: "0m 0s", orbit: "Centro Sistema", velocity: "0.00 km/s", structure: "Fusión Termonuclear", composition: "73% H, 25% He", pressure: "N/A", equinoxInfo: "N/A", streamPhrase: "[SOL] Núcleo de fusión estable a 15,000,000°K."
+                distanceBase: 0, lightDelay: "0m 0s", orbit: "Centro Sistema", velocity: "0.00 km/s", structure: "Fusión Termonuclear", composition: "73% H, 25% He", pressure: "N/A", equinoxInfo: "N/A", streamPhrase: "[SOL] Núcleo de fusión stable a 15,000,000°K."
             },
             mercurio: {
                 name: "Mercurio", class: "Planeta Terrestre", gravity: "3.70 m/s²", satellites: "Ninguno", radius: 2.2, videoSrc: 'mercurio.mp4',
@@ -569,6 +570,11 @@
             pluton: {
                 name: "Plutón", class: "Planeta Enano", gravity: "0.62 m/s²", satellites: "5 Satélites", radius: 1.4, videoSrc: 'pluton.mp4',
                 distanceBase: 5906000000, lightDelay: "328.1m", orbit: "248 Años", velocity: "4.74 km/s", structure: "Nitrógeno Helado", composition: "70% Roca", pressure: "Mínima", equinoxInfo: "122.5°", streamPhrase: "[PLUTÓN] Órbita elíptica cruzando plano eclíptico."
+            },
+            // Datos de la nave Alienígena incorporados al diccionario general
+            nave: {
+                name: "Objeto Volador No Identificado", class: "UFO / Desconocido", gravity: "Gravedad Cero Sintética", satellites: "Ninguno", radius: 0.9, videoSrc: 'nave.mp4',
+                distanceBase: 412000000, lightDelay: "Variable", orbit: "Estocástica Inversa", velocity: "Hiperlumínica", structure: "Metamateriales Cristalinos", composition: "Elementos Post-Transuránicos", pressure: "1.0 Atm (Soportada)", equinoxInfo: "Rotación Multieje", streamPhrase: "[ALERTA MAXIMA] Señal taquiónica desconocida detectada en coordenadas móviles."
             }
         };
 
@@ -609,7 +615,6 @@
                 this.clock = new THREE.Clock();
                 this.targetLookAt = new THREE.Vector3(0, 0, 0);
                 
-                // Nuevas variables dinámicas solicitadas
                 this.timeMultiplier = 1.0; 
                 this.customAccumulatedTime = 0;
                 this.panelsHiddenPC = false;
@@ -620,6 +625,8 @@
                 this.registerResizeHandler(); 
                 this.setupInteractiveAudioPipeline();
                 this.startTerminalLogsLoop(); 
+                this.initAlienShipLogic(); // Inicialización de los saltos y timers de la nave
+                this.setupRaycastInteraction(); // Interacción por clic/toque en la nave
                 this.animateEngine();
             }
 
@@ -654,14 +661,14 @@
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
                 this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 })));
 
-                // GENERAR CINTURÓN DE KUIPER ENRIQUECIDO (Contenido Masivo Añadido)
-                const kuiperCount = 19500; // Multiplicado x3 la densidad estructural
+                // GENERAR CINTURÓN DE KUIPER ENRIQUECIDO
+                const kuiperCount = 19500; 
                 const kuiperGeometry = new THREE.BufferGeometry();
                 const kuiperPositions = new Float32Array(kuiperCount * 3);
                 for (let i = 0; i < kuiperCount * 3; i += 3) {
-                    const radius = 480 + Math.random() * 120; // Mayor dispersión y espesor
+                    const radius = 480 + Math.random() * 120; 
                     const theta = Math.random() * Math.PI * 2;
-                    const y = (Math.random() - 0.5) * 15; // Mayor volumen en el eje vertical elíptico
+                    const y = (Math.random() - 0.5) * 15; 
                     kuiperPositions[i] = Math.cos(theta) * radius;
                     kuiperPositions[i+1] = y;
                     kuiperPositions[i+2] = Math.sin(theta) * radius;
@@ -680,7 +687,7 @@
 
                 const kuiperMaterial = new THREE.PointsMaterial({ 
                     color: 0x9de0ff, 
-                    size: 1.8, // Partículas de hielo y roca más definidas
+                    size: 1.8, 
                     map: particleTexture,
                     transparent: true, 
                     opacity: 0.75,
@@ -694,7 +701,8 @@
                 // MAPA DE DISTANCIAS EXPANDIDO
                 const orbitDistances = {
                     sol: 0, mercurio: 60, venus: 95, tierra: 130, luna: 0,
-                    marte: 170, jupiter: 230, saturno: 295, urano: 365, neptuno: 425, pluton: 480
+                    marte: 170, jupiter: 230, saturno: 295, urano: 365, neptuno: 425, pluton: 480,
+                    nave: 0 // Se maneja de forma estocástica e independiente
                 };
 
                 Object.keys(astronomicalDatabase).forEach((key, index) => {
@@ -731,11 +739,12 @@
                         orbitRadius, 
                         orbitSpeed: 1.5 / (index * 1.4 + 1), 
                         initialAngle: Math.random() * Math.PI * 2, 
-                        angle: 0 
+                        angle: 0,
+                        staticPosition: new THREE.Vector3(0,0,0) // Posición estática controlada para la nave
                     };
                     this.scene.add(mesh);
 
-                    if (key !== 'sol' && key !== 'luna') {
+                    if (key !== 'sol' && key !== 'luna' && key !== 'nave') {
                         const orbitGeom = new THREE.BufferGeometry(); const points = [];
                         const steps = 120;
                         for (let i = 0; i <= steps; i++) {
@@ -756,7 +765,6 @@
                 this.scene.add(new THREE.AmbientLight(0x06180c, 0.5));
             }
 
-            // AUTO-PLAY REPRODUCTOR DE MÚSICA AL TOCAR LA PANTALLA (Cualquier interacción inicial)
             setupInteractiveAudioPipeline() {
                 const triggerMusic = () => {
                     const audio = document.getElementById('bg-space-audio');
@@ -770,7 +778,82 @@
                 window.addEventListener('touchstart', triggerMusic, { once: true });
             }
 
-            // CONTROLADOR DE VELOCIDAD DE ROTACIÓN ELÍPTICA (Acelerador unificado)
+            // GESTOR DE TIMERS Y POSICIONAMIENTO RANDOM DE LA NAVE ALIENÍGENA
+            initAlienShipLogic() {
+                // Estados secuenciales: 1:30 min (90s) -> 45s -> Escondida 6 min (360s)
+                const timelineStates = [
+                    { visible: true, duration: 90000 }, 
+                    { visible: true, duration: 45000 }, 
+                    { visible: false, duration: 360000 }
+                ];
+                let indexEstado = 0;
+
+                const ejecutarCicloNave = () => {
+                    const estadoActual = timelineStates[indexEstado];
+                    const naveObj = this.planets['nave'];
+
+                    if (estadoActual.visible) {
+                        // Calcular ubicación aleatoria impredecible por todo el mapa espacial
+                        const radioAleatorio = 70 + Math.random() * 360;
+                        const anguloAleatorio = Math.random() * Math.PI * 2;
+                        const alturaAleatoria = (Math.random() - 0.5) * 80; // Inclinación en eje Y
+
+                        naveObj.staticPosition.set(
+                            Math.cos(anguloAleatorio) * radioAleatorio,
+                            alturaAleatoria,
+                            Math.sin(anguloAleatorio) * radioAleatorio
+                        );
+                        naveObj.mesh.position.copy(naveObj.staticPosition);
+                        naveObj.mesh.visible = true;
+
+                        this.pushTerminalMessage("[ALERT] Interferencia electromagnética transitoria registrada.");
+                    } else {
+                        // Esconder completamente del espacio tridimensional
+                        naveObj.mesh.visible = false;
+                        
+                        // Si el usuario la tenía seleccionada al desaparecer, devolver el foco al Sol de forma segura
+                        if (this.activeTargetKey === 'nave') {
+                            this.resetCameraView();
+                        }
+                        this.pushTerminalMessage("[RADAR] Firma térmica desconocida disipada de los sensores.");
+                    }
+
+                    setTimeout(() => {
+                        indexEstado = (indexEstado + 1) % timelineStates.length;
+                        ejecutarCicloNave();
+                    }, estadoActual.duration);
+                };
+
+                ejecutarCicloNave();
+            }
+
+            // CONFIGURACIÓN DE RAYCASTER PARA LA DETECCIÓN DE CLIC EN LA NAVE
+            setupRaycastInteraction() {
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+
+                window.addEventListener('click', (e) => {
+                    // Evitar que interactúe si el clic se hace sobre paneles de la interfaz de usuario
+                    if (e.target.closest('.bunker-panel') || e.target.closest('.top-control-bar') || e.target.closest('.toggle-panels-mobile')) return;
+
+                    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                    raycaster.setFromCamera(mouse, this.camera);
+                    const naveMesh = this.planets['nave']?.mesh;
+
+                    if (naveMesh && naveMesh.visible) {
+                        const intersecciones = raycaster.intersectObject(naveMesh);
+                        if (intersecciones.length > 0) {
+                            // ¡Descubierta! Revelamos de manera permanente el botón del nodo en el menú lateral
+                            document.getElementById('node-nave').style.style.display = 'block';
+                            this.setActiveTarget('nave');
+                            this.pushTerminalMessage("[CONTACTO] ¡Firma Alienígena interceptada! Zoom acoplado.");
+                        }
+                    }
+                });
+            }
+
             cycleSpeed() {
                 if (this.timeMultiplier === 1.0) this.timeMultiplier = 4.0;
                 else if (this.timeMultiplier === 4.0) this.timeMultiplier = 12.0;
@@ -781,7 +864,6 @@
                 this.pushTerminalMessage(`[SISTEMA] Motor elíptico configurado a multiplicador: ${this.timeMultiplier}x.`);
             }
 
-            // OCULTAR/MOSTRAR PANELES LATERALES EN PC (Botón Dedicado)
             togglePCPanels() {
                 this.panelsHiddenPC = !this.panelsHiddenPC;
                 const hud = document.querySelector('.hud-layer');
@@ -846,14 +928,13 @@
             animateEngine() {
                 requestAnimationFrame(() => this.animateEngine());
                 
-                // Cálculo de tiempo acumulado delta para evitar saltos gráficos de posición al cambiar velocidades
                 const delta = this.clock.getDelta() * 0.12 * this.timeMultiplier;
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
 
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
-                    if (key !== 'sol' && key !== 'luna') {
+                    if (key !== 'sol' && key !== 'luna' && key !== 'nave') {
                         p.angle = (totalTime * p.orbitSpeed) + p.initialAngle;
                         if (key === 'pluton') {
                             p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
@@ -863,6 +944,9 @@
                             p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
                             p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius;
                         }
+                    } else if (key === 'nave') {
+                        // Forzar a la nave a permanecer estática en su punto asignado hasta el siguiente salto cuántico
+                        p.mesh.position.copy(p.staticPosition);
                     }
                     p.mesh.lookAt(this.camera.position);
                 });
@@ -880,7 +964,6 @@
                     
                     targetMesh.getWorldPosition(this.targetLookAt);
                     
-                    // SEGUIMIENTO MÓVIL ESTABLE
                     if (this.activeTargetKey !== 'sol') {
                         const translation = new THREE.Vector3().subVectors(this.targetLookAt, previousTarget);
                         this.camera.position.add(translation);
@@ -888,9 +971,15 @@
                     
                     this.controls.target.copy(this.targetLookAt);
                     
-                    const baseDist = astronomicalDatabase[this.activeTargetKey].distanceBase;
-                    const finalDist = baseDist === 0 ? 0 : baseDist + Math.sin(Date.now() * 0.002) * 15.0;
-                    document.getElementById('tgt-dist').innerText = `${finalDist.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KM`;
+                    // Cálculo de telemetría de distancias dinámicas en tiempo real
+                    if (this.activeTargetKey === 'nave') {
+                        const distanciaDinamicaNave = this.planets['nave'].mesh.position.length() * 2500000;
+                        document.getElementById('tgt-dist').innerText = `${Math.floor(distanciaDinamicaNave).toLocaleString('de-DE')}.00 KM`;
+                    } else {
+                        const baseDist = astronomicalDatabase[this.activeTargetKey].distanceBase;
+                        const finalDist = baseDist === 0 ? 0 : baseDist + Math.sin(Date.now() * 0.002) * 15.0;
+                        document.getElementById('tgt-dist').innerText = `${finalDist.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KM`;
+                    }
                 }
 
                 if (this.controls) this.controls.update();
