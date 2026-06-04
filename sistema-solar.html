@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Sistema Solar 3D HD - Centro de Mando v9.7 Pro-Speed</title>
-    <meta name="description" content="Simulación 3D avanzada del sistema solar optimizada con culling de texturas dinámicas v9.7.">
+    <title>Sistema Solar 3D HD - Centro de Mando v9.8 Stable</title>
+    <meta name="description" content="Simulación 3D avanzada del sistema solar optimizada con culling de texturas dinámicas v9.8.">
     <link rel="canonical" href="https://duquemartini.com/sistema-solar.html">
     <meta name="theme-color" content="#020408">
 
@@ -335,7 +335,7 @@
 
     <div class="top-control-bar">
         <a href="index.html" class="btn-escape">⚠️ SALIR</a>
-        <div class="central-title-desktop">SISTEMA DE MONITOREO HELIOCÉNTRICO v9.7 ULTRA-FLUID</div>
+        <div class="central-title-desktop">SISTEMA DE MONITOREO HELIOCÉNTRICO v9.8 ULTRA-FLUID</div>
         <div class="action-buttons">
             <button onclick="orchestrator.toggleOrbits()" id="global-orbits-btn" class="active-toggle">ÓRBITAS</button>
             <button onclick="orchestrator.cycleSpeed()" id="global-speed-btn">VEL: 1X</button>
@@ -542,7 +542,7 @@
                     float dist = distance(vUv, vec2(0.5, 0.5));
                     
                     if (u_isSaucer) {
-                        // RECORTE ELÍPTICO HORIZONTAL: Mantiene la fisonomía achatada de un platillo sin rebanarle las alas
+                        // RECORTE ELÍPTICO HORIZONTAL: Respeta la fisonomía chata de platillo volador
                         dist = length(vec2((vUv.x - 0.5) * 1.0, (vUv.y - 0.5) * 2.3));
                     }
                     
@@ -586,9 +586,6 @@
                 this.initAlienShipLogic(); 
                 this.setupRaycastInteraction(); 
                 this.animateEngine();
-
-                // Arrancar con Sol encendido, el resto en pausa inteligente (Culling Inicial)
-                this.updateVideoPlaybackStates();
             }
 
             initEngine() {
@@ -649,7 +646,6 @@
                 Object.keys(astronomicalDatabase).forEach((key, index) => {
                     const data = astronomicalDatabase[key];
                     
-                    // AJUSTE DE GEOMETRÍA: Si es la nave, creamos una proporción rectangular/achatada tipo platillo
                     let anchoMesh = data.radius * 2.2 * factorEscalaPlanetas;
                     let altoMesh = data.radius * 2.2 * factorEscalaPlanetas;
                     if (key === 'nave') {
@@ -658,7 +654,7 @@
                     }
 
                     const geometry = new THREE.PlaneGeometry(anchoMesh, altoMesh);
-                    let material; let video = null;
+                    let material; let video = null; let videoTexture = null;
 
                     if (data.videoSrc) {
                         video = document.createElement('video');
@@ -666,10 +662,8 @@
                         video.setAttribute('autoplay', 'true');
                         video.play().catch(()=>{});
                         
-                        const videoTexture = new THREE.VideoTexture(video);
-                        videoTexture.wrapS = THREE.RepeatWrapping; videoTexture.wrapT = THREE.ClampToEdgeWrapping;
-                        
-                        // CONFIGURACIÓN CRÍTICA DE RENDIMIENTO: Elimina el cálculo de Mipmaps en texturas de video dinámicas
+                        // SOLUCIÓN BULLETPROOF: Usamos una textura estándar para controlar manualmente las cargas a la GPU sin pausar el video
+                        videoTexture = new THREE.Texture(video);
                         videoTexture.minFilter = THREE.LinearFilter;
                         videoTexture.magFilter = THREE.LinearFilter;
                         videoTexture.generateMipmaps = false;
@@ -691,7 +685,7 @@
 
                     this.planets[key] = { 
                         mesh, orbitRadius, orbitSpeed: 1.5 / (index * 1.4 + 1), initialAngle: Math.random() * Math.PI * 2, angle: 0,
-                        staticPosition: new THREE.Vector3(0,0,0), videoElement: video
+                        staticPosition: new THREE.Vector3(0,0,0), videoElement: video, videoTexture: videoTexture, hasLoadedFirstFrame: false
                     };
                     this.scene.add(mesh);
 
@@ -762,8 +756,6 @@
                         this.pushTerminalMessage("[RADAR] Nave alienígena entró en modo ocultamiento invisible absoluto.");
                     }
 
-                    this.updateVideoPlaybackStates();
-
                     setTimeout(() => {
                         indexEstado = (indexEstado + 1) % timelineStates.length;
                         ejecutarCicloNave();
@@ -771,25 +763,6 @@
                 };
 
                 ejecutarCicloNave();
-            }
-
-            // GESTIÓN DE REPRODUCCIÓN INTELIGENTE (CULLING DINÁMICO): Congela videos inactivos para liberar CPU/GPU
-            updateVideoPlaybackStates() {
-                Object.keys(this.planets).forEach(k => {
-                    const video = this.planets[k].videoElement;
-                    if (video) {
-                        // El Sol siempre corre, el resto se congela si no está seleccionado o visible
-                        if (k === 'sol' || k === this.activeTargetKey) {
-                            if (k === 'nave' && !this.planets['nave'].mesh.visible) {
-                                video.pause();
-                            } else {
-                                video.play().catch(()=>{});
-                            }
-                        } else {
-                            video.pause();
-                        }
-                    }
-                });
             }
 
             scanConfidentialAnomaly() {
@@ -842,9 +815,6 @@
                 if (astronomicalDatabase[key]) {
                     this.activeTargetKey = key;
 
-                    // Al cambiar de objetivo, refrescar qué videos se pausan y cuáles se reproducen
-                    this.updateVideoPlaybackStates();
-
                     document.querySelectorAll('.tactical-node').forEach(node => {
                         node.classList.remove('selected-node');
                         if(node.getAttribute('data-planet') === key) node.classList.add('selected-node');
@@ -868,7 +838,6 @@
                     const targetMesh = this.planets[key].mesh;
                     const pos = new THREE.Vector3(); targetMesh.getWorldPosition(pos);
                     
-                    // Zoom optimizado según el cuerpo (ajuste especial para que el platillo se vea grande y de frente)
                     let multiplicadorZoom = key === 'nave' ? 2.5 : 4.2;
                     this.camera.position.set(pos.x, pos.y + db.radius * 1.5, pos.z + db.radius * multiplicadorZoom);
                     this.controls.target.copy(pos);
@@ -905,6 +874,18 @@
                         }
                     }
                     p.mesh.lookAt(this.camera.position);
+
+                    // CONTROL DINÁMICO DE SUBIDA DE TEXTURA: Solo procesa frames activos, los congelados quedan guardados en memoria GPU
+                    if (p.videoTexture && p.videoElement) {
+                        if (key === 'sol' || key === this.activeTargetKey || !p.hasLoadedFirstFrame) {
+                            if (p.videoElement.readyState >= 2) {
+                                p.videoTexture.needsUpdate = true;
+                                if (key !== 'sol' && key !== this.activeTargetKey) {
+                                    p.hasLoadedFirstFrame = true; // Primer cuadro memorizado con éxito
+                                }
+                            }
+                        }
+                    }
                 });
 
                 if (this.planets['luna'] && this.planets['tierra']) {
@@ -944,7 +925,7 @@
                 if(this.orbitsVisible) btn.classList.add('active-toggle'); else btn.classList.remove('active-toggle');
             }
 
-            resetCameraView() { this.activeTargetKey = 'sol'; this.camera.position.set(0, 180, 390); this.controls.target.set(0,0,0); this.updateVideoPlaybackStates(); closePanels(); }
+            resetCameraView() { this.activeTargetKey = 'sol'; this.camera.position.set(0, 180, 390); this.controls.target.set(0,0,0); closePanels(); }
             registerResizeHandler() { window.addEventListener('resize', () => { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(window.innerWidth, window.innerHeight); }); }
             pushTerminalMessage(text) { const feed = document.getElementById('terminal-feed'); if(!feed) return; const line = document.createElement('div'); line.innerHTML = `<span>[${new Date().toLocaleTimeString()}]</span> ${text}`; feed.appendChild(line); feed.scrollTop = feed.scrollHeight; if(feed.childNodes.length > 12) feed.removeChild(feed.firstChild); }
             startTerminalLogsLoop() { setInterval(() => { this.pushTerminalMessage(astronomicalDatabase[this.activeTargetKey].streamPhrase); document.getElementById('metric-parallax').innerText = `±${(0.000021 + (Math.random()*0.000004-0.000002)).toFixed(6)}"`; document.getElementById('metric-bandwidth').innerText = `${(1024.4 + (Math.random()*8-4)).toFixed(1)} Gbps`; }, 4000); }
