@@ -302,6 +302,7 @@
         line-height: 1.4; 
     }
     .metrics-grid-box { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .terminal-screen div span { color: rgba(51, 255, 51, 0.5); }
     .analog-card { 
         background: rgba(1, 10, 3, 0.5); 
         border: 1px solid rgba(51, 255, 51, 0.2); 
@@ -317,34 +318,51 @@
 
     .toggle-panels-mobile { display: none; }
 
-    /* ESTILOS DEL COMPONENTE DE INTERCEPCIÓN SATELITAL (ALIENTALK) */
+    /* ESTILOS DEL COMPONENTE DE INTERCEPCIÓN SATELITAL (ALIENTALK) RE-ESTILIZADO Y DRAGGABLE */
     #satellite-intercept-panel {
         position: fixed;
-        top: 70px;
+        top: 75px;
         right: 20px;
-        width: 340px;
+        width: 350px;
         z-index: 4000;
         border-color: var(--amber-glow);
-        box-shadow: inset 0 0 20px rgba(255,170,0,0.1), 0 10px 30px rgba(0,0,0,0.85);
         display: none;
-        max-height: 78vh;
+        max-height: 82vh;
+        backdrop-filter: blur(5px);
+        /* Fondo gradiente semi-transparente arriba y abajo, oscuro en el centro para el reproductor */
+        background: linear-gradient(to bottom, 
+            rgba(4, 12, 6, 0.4) 0%, 
+            rgba(2, 6, 4, 0.97) 12%, 
+            rgba(2, 6, 4, 0.97) 88%, 
+            rgba(4, 12, 6, 0.4) 100%) !important;
+        box-shadow: inset 0 0 25px rgba(255,170,0,0.1), 0 12px 40px rgba(0,0,0,0.9);
     }
 
-    .alien-video-scroll {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        overflow-y: auto;
-        max-height: 42vh;
-        padding-right: 4px;
+    .alien-ch-btn {
+        background: rgba(51, 255, 51, 0.05);
+        border: 1px solid var(--green-phosphor);
+        color: var(--green-phosphor);
+        padding: 8px 5px;
+        font-family: var(--font-console);
+        font-size: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s ease;
+        text-shadow: 0 0 3px var(--green-phosphor);
+    }
+    .alien-ch-btn:hover, .alien-ch-btn.active-ch {
+        background: var(--green-phosphor);
+        color: #000;
+        box-shadow: 0 0 12px var(--green-phosphor);
+        text-shadow: none;
     }
 
-    .alien-video-scroll::-webkit-scrollbar {
-        width: 4px;
-    }
-    .alien-video-scroll::-webkit-scrollbar-thumb {
-        background: var(--amber-glow);
-        border-radius: 2px;
+    .blink-dot {
+        color: var(--red-alert);
+        animation: blinkLight 0.8s infinite;
+        font-size: 14px;
+        margin-right: 4px;
     }
 
     @media (max-width: 900px) {
@@ -416,17 +434,14 @@
         }
         .toggle-btn:active { background: var(--panel-border); color: #000; }
 
-        /* Ajustes responsivos móviles para el panel alien */
+        /* Ajustes responsivos móviles para el panel alien emergente */
         #satellite-intercept-panel {
             top: auto !important;
-            bottom: 80px !important;
-            left: 10px !important;
-            right: 10px !important;
+            bottom: 85px !important;
+            left: 15px !important;
+            right: 15px !important;
             width: auto !important;
-            max-height: 55vh !important;
-        }
-        .alien-video-scroll {
-            max-height: 25vh !important;
+            max-height: 58vh !important;
         }
     }
 </style>
@@ -454,9 +469,11 @@
     <div class="panel-overlay" id="panelOverlay" onclick="closePanels()"></div>
 
     <div id="satellite-intercept-panel" class="bunker-panel">
-        <div class="panel-top-bar" style="background: rgba(255, 170, 0, 0.15); border-bottom: 2px solid var(--amber-glow);">
-            <h2 style="color: var(--amber-glow); text-shadow: 0 0 5px var(--amber-glow);">📡 SEÑAL SATELITAL DETECTADA</h2>
-            <button onclick="orchestrator.toggleAlienPanel()" style="background:none; border:none; color:var(--amber-glow); cursor:pointer; font-size:16px; font-weight:bold;">✕</button>
+        <div class="panel-top-bar" id="alien-panel-handle" style="background: rgba(255, 170, 0, 0.15); border-bottom: 2px solid var(--amber-glow); cursor: move; user-select: none;">
+            <h2 style="color: var(--amber-glow); text-shadow: 0 0 5px var(--amber-glow); display: flex; align-items: center;">
+                <span class="blink-dot">●</span> SEÑAL DETECTADA
+            </h2>
+            <button onclick="orchestrator.toggleAlienPanel()" style="background:none; border:none; color:var(--amber-glow); cursor:pointer; font-size:16px; font-weight:bold; pointer-events: auto;">✕</button>
         </div>
         <div class="panel-interior" style="display:flex; flex-direction:column; gap:12px;">
             
@@ -467,25 +484,18 @@
                 </div>
             </div>
 
-            <div class="alien-video-scroll">
-                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
-                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #1</div>
-                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
-                        <source src="alien1.mp4" type="video/mp4">
-                    </video>
-                </div>
-                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
-                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #2</div>
-                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
-                        <source src="alien2.mp4" type="video/mp4">
-                    </video>
-                </div>
-                <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.3); margin-bottom: 0;">
-                    <div class="matrix-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #3</div>
-                    <video class="alien-track-video" controls playsinline style="width: 100%; background: #000; display: block;">
-                        <source src="alien3.mp4" type="video/mp4">
-                    </video>
-                </div>
+            <div class="matrix-group" style="border-color: rgba(255, 170, 0, 0.35); margin-bottom: 0; background: #000; overflow: hidden; border-radius: 4px;">
+                <div class="matrix-title" id="alien-track-title" style="font-size: 8px; background: rgba(255,170,0,0.05); color: #ffaa00;">TRANSMISIÓN INTERCEPTADA #1</div>
+                <video id="alien-main-player" controls playsinline style="width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover;">
+                    <source id="alien-video-source" src="alien1.mp4" type="video/mp4">
+                    Tu navegador no soporta video.
+                </video>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <button class="alien-ch-btn active-ch" onclick="orchestrator.switchAlienChannel(1, 'alien1.mp4')">CH 01</button>
+                <button class="alien-ch-btn" onclick="orchestrator.switchAlienChannel(2, 'alien2.mp4')">CH 02</button>
+                <button class="alien-ch-btn" onclick="orchestrator.switchAlienChannel(3, 'alien3.mp4')">CH 03</button>
             </div>
         </div>
     </div>
@@ -725,7 +735,8 @@
                 this.setupCoreLightingPipeline();
                 this.registerResizeHandler(); 
                 this.setupInteractiveAudioPipeline();
-                this.setupAlienAudioInterceptors(); // Acoplar interceptores de audio real
+                this.setupAlienAudioInterceptors(); 
+                this.setupDraggablePanel(); // Habilitar arrastre por toque y click
                 this.startTerminalLogsLoop(); 
                 this.animateEngine();
             }
@@ -802,7 +813,7 @@
                 };
 
                 Object.keys(astronomicalDatabase).forEach((key, index) => {
-                    if (key === 'ufo') return; // Se gestiona de forma independiente para optimizar el hilo principal
+                    if (key === 'ufo') return;
                     
                     const data = astronomicalDatabase[key];
                     const anchoVisible = data.radius * 2.2 * factorEscalaPlanetas;
@@ -856,9 +867,7 @@
                     }
                 });
 
-                // INICIALIZACIÓN ASÍNCRONA DE LA NAVE (Platillo Volador Elíptico No Redondo)
                 const ufoData = astronomicalDatabase['ufo'];
-                // Geometría elíptica achatada (Relación de aspecto 3.5:1 para dar forma de platillo espacial nítido)
                 const ufoGeometry = new THREE.PlaneGeometry(ufoData.radius * 3.8, ufoData.radius * 1.2);
                 const ufoVideo = document.createElement('video');
                 ufoVideo.src = ufoData.videoSrc; ufoVideo.loop = true; ufoVideo.muted = true; ufoVideo.playsInline = true;
@@ -874,7 +883,7 @@
                 });
 
                 this.ufoMesh = new THREE.Mesh(ufoGeometry, ufoMaterial);
-                this.ufoMesh.visible = false; // Permanece oculta hasta interacción por consola
+                this.ufoMesh.visible = false; 
                 this.scene.add(this.ufoMesh);
             }
 
@@ -896,47 +905,70 @@
                 window.addEventListener('touchstart', triggerMusic, { once: true });
             }
 
-            /* CONTROL DE DESPLIEGUE DEL ENLACE DE TRANSMISIÓN DE ALIENÍGENAS */
             toggleAlienPanel() {
                 const panel = document.getElementById('satellite-intercept-panel');
                 if(panel.style.display === 'none' || panel.style.display === '') {
                     panel.style.display = 'flex';
-                    this.pushTerminalMessage("[📡] Enlace de intercepción satelital acoplado. Analizador espectral de taquiones listo.");
+                    this.pushTerminalMessage("[📡] Enlace de intercepción satelital acoplado. Analizador espectral listo.");
                 } else {
                     panel.style.display = 'none';
-                    // Detener videos al cerrar interfaz
-                    document.querySelectorAll('.alien-track-video').forEach(v => v.pause());
+                    const player = document.getElementById('alien-main-player');
+                    if(player) player.pause();
                     this.pushTerminalMessage("[📡] Enlace satelital alienígena en stand-by.");
                 }
             }
 
-            /* PROCESAMIENTO MATEMÁTICO REAL DE LAS FRECUENCIAS DE VOZ (WEB AUDIO API) */
+            /* INTERCAMBIO DINÁMICO DE CANALES DEL PANEL EMERGENT TALK */
+            switchAlienChannel(channelNum, srcPath) {
+                const player = document.getElementById('alien-main-player');
+                const source = document.getElementById('alien-video-source');
+                const title = document.getElementById('alien-track-title');
+                if(!player || !source) return;
+
+                source.src = srcPath;
+                if(title) title.innerText = `TRANSMISIÓN INTERCEPTADA #${channelNum}`;
+                
+                player.load();
+                player.play().catch(err => console.log("Reproducción en espera de interacción táctil."));
+
+                const buttons = document.querySelectorAll('.alien-ch-btn');
+                buttons.forEach((btn, index) => {
+                    if (index === (channelNum - 1)) {
+                        btn.classList.add('active-ch');
+                    } else {
+                        btn.classList.remove('active-ch');
+                    }
+                });
+                this.pushTerminalMessage(`[📡] Conmutando receptor a CH 0${channelNum}. Sintonizando modulación.`);
+            }
+
+            /* LOGICA DEL VÚMETRO CONECTADA AL REPRODUCTOR CENTRALIZADO */
             setupAlienAudioInterceptors() {
                 const bgAudio = document.getElementById('bg-space-audio');
-                const alienVideos = document.querySelectorAll('.alien-track-video');
+                const video = document.getElementById('alien-main-player');
                 const canvas = document.getElementById('alien-vu-canvas');
+                if(!video || !canvas) return;
                 const canvasCtx = canvas.getContext('2d');
 
-                // Asegurar resolución de pixeles nativos del Canvas
                 canvas.width = canvas.clientWidth;
                 canvas.height = canvas.clientHeight;
 
-                const initAnalyser = (videoElement) => {
+                const initAnalyser = () => {
                     if (!this.alienAudioCtx) {
                         this.alienAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         this.alienAnalyser = this.alienAudioCtx.createAnalyser();
-                        this.alienAnalyser.fftSize = 64; // Segmentación fina de barras
+                        this.alienAnalyser.fftSize = 64; 
                         this.alienDataArray = new Uint8Array(this.alienAnalyser.frequencyBinCount);
                     }
 
-                    if (!this.alienSourceNodes.has(videoElement)) {
+                    if (!this.alienSourceNodes.has(video)) {
                         try {
-                            const source = this.alienAudioCtx.createMediaElementSource(videoElement);
+                            const source = this.alienAudioCtx.createMediaElementSource(video);
                             source.connect(this.alienAnalyser);
                             this.alienAnalyser.connect(this.alienAudioCtx.destination);
-                            this.alienSourceNodes.set(videoElement, source);
+                            this.alienSourceNodes.set(video, source);
                         } catch(e) {
-                            console.warn("Restricciones normales de CORS o reconexiones de nodos evitadas.");
+                            console.warn("Nodos multimedia Web Audio ya vinculados.");
                         }
                     }
 
@@ -958,13 +990,12 @@
                     let x = 0;
 
                     for (let i = 0; i < this.alienAnalyser.frequencyBinCount; i++) {
-                        barHeight = this.alienDataArray[i] / 2.8;
+                        barHeight = this.alienDataArray[i] / 2.6;
 
-                        // Estilo fósforo ámbar / alerta cuántica
-                        if(barHeight > 70) {
+                        if(barHeight > 55) {
                             canvasCtx.fillStyle = 'var(--red-alert)';
-                        } else if (barHeight > 45) {
-                            canvasCtx.fillStyle = '#ffdd00';
+                        } else if (barHeight > 32) {
+                            canvasCtx.fillStyle = 'var(--green-phosphor)';
                         } else {
                             canvasCtx.fillStyle = 'var(--amber-glow)';
                         }
@@ -974,37 +1005,83 @@
                     }
                 };
 
-                alienVideos.forEach(video => {
-                    // Al darle Play a un video de un alien
-                    video.addEventListener('play', (e) => {
-                        // 1. Pausar la música mp3 general automáticamente
-                        if (bgAudio && !bgAudio.paused) {
-                            bgAudio.pause();
-                            this.pushTerminalMessage("[AUDIO] Descarga Space.mp3 suspendida para decodificar señal alien.");
-                        }
-
-                        // 2. Apagar los otros videos aliens para que no se pisen las transmisiones
-                        alienVideos.forEach(v => {
-                            if (v !== e.target) v.pause();
-                        });
-
-                        // 3. Montar analizador y arrancar bucle de renderizado gráfico del vúmetro
-                        initAnalyser(e.target);
-                        if (!this.alienAnimationId) renderVuFrames();
-                    });
-
-                    // Al pausar o finalizar el video, si ya no queda ninguno activo, reanuda el ambiente
-                    const handleAudioRestoration = () => {
-                        const allPaused = Array.from(alienVideos).every(v => v.paused);
-                        if (allPaused && bgAudio && bgAudio.paused) {
-                            bgAudio.play().catch(()=>{});
-                            this.pushTerminalMessage("[AUDIO] Reanudando baliza Space.mp3 de fondo cósmico.");
-                        }
-                    };
-
-                    video.addEventListener('pause', handleAudioRestoration);
-                    video.addEventListener('ended', handleAudioRestoration);
+                video.addEventListener('play', () => {
+                    if (bgAudio && !bgAudio.paused) {
+                        bgAudio.pause();
+                        this.pushTerminalMessage("[AUDIO] Descarga Space.mp3 suspendida para decodificar señal alien.");
+                    }
+                    initAnalyser();
+                    if (!this.alienAnimationId) renderVuFrames();
                 });
+
+                const handleAudioRestoration = () => {
+                    if (bgAudio && bgAudio.paused) {
+                        bgAudio.play().catch(()=>{});
+                        this.pushTerminalMessage("[AUDIO] Reanudando baliza Space.mp3 de fondo cósmico.");
+                    }
+                };
+
+                video.addEventListener('pause', handleAudioRestoration);
+                video.addEventListener('ended', handleAudioRestoration);
+            }
+
+            /* SISTEMA INTELLIGENT DRAGGABLE (RATÓN Y COMPORTAMIENTO TÁCTIL MÓVIL) */
+            setupDraggablePanel() {
+                const panel = document.getElementById('satellite-intercept-panel');
+                const handle = document.getElementById('alien-panel-handle');
+                if(!panel || !handle) return;
+
+                let isDragging = false;
+                let startX, startY, initialX, initialY;
+
+                const startDrag = (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+
+                    isDragging = true;
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                    startX = clientX;
+                    startY = clientY;
+
+                    const rect = panel.getBoundingClientRect();
+                    initialX = rect.left;
+                    initialY = rect.top;
+
+                    panel.style.right = 'auto';
+                    panel.style.bottom = 'auto';
+                    panel.style.left = `${initialX}px`;
+                    panel.style.top = `${initialY}px`;
+
+                    if (e.type === 'touchstart') {
+                        if(e.cancelable) e.preventDefault();
+                    }
+                };
+
+                const doDrag = (e) => {
+                    if (!isDragging) return;
+
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                    const deltaX = clientX - startX;
+                    const deltaY = clientY - startY;
+
+                    panel.style.left = `${initialX + deltaX}px`;
+                    panel.style.top = `${initialY + deltaY}px`;
+                };
+
+                const stopDrag = () => {
+                    isDragging = false;
+                };
+
+                handle.addEventListener('mousedown', startDrag);
+                document.addEventListener('mousemove', doDrag);
+                document.addEventListener('mouseup', stopDrag);
+
+                handle.addEventListener('touchstart', startDrag, { passive: false });
+                document.addEventListener('touchmove', doDrag, { passive: false });
+                document.addEventListener('touchend', stopDrag);
             }
 
             cycleSpeed() {
@@ -1035,12 +1112,11 @@
                 }
             }
 
-            // FUNCIÓN DEL BOTÓN ARCHIVO CONFIDENCIAL STILO ARCHIVOS-X
             triggerUfoDetection() {
                 if(!this.ufoDetected) {
                     this.ufoDetected = true;
                     this.ufoMesh.visible = true;
-                    this.ufoLocation = 'luna'; // Comienza detectándose cerca de la luna
+                    this.ufoLocation = 'luna'; 
                     
                     document.getElementById('node-ufo').style.display = 'block';
                     this.pushTerminalMessage("[📂 ALERTA EXTRA] ARCHIVO CONFIDENCIAL DESBLOQUEADO: Objeto no identificado detectado en proximidad lunar.");
@@ -1052,16 +1128,12 @@
                     this.setActiveTarget('ufo');
                 }
 
-                // DESPLEGAR EL COMPONENTE DE SEÑALES DE LOS TRES MP4 AUTOMÁTICAMENTE
                 const panel = document.getElementById('satellite-intercept-panel');
                 if (panel) panel.style.display = 'flex';
             }
 
-            // Inteligencia de teletransporte para esconderse detrás de otros planetas
             runUfoQuantumJumps() {
                 if(this.ufoTimer) clearTimeout(this.ufoTimer);
-
-                // Cambia de localización de forma asíncrona cada 6 a 10 segundos aleatorios
                 let randomDelay = 6000 + Math.random() * 4000;
 
                 this.ufoTimer = setTimeout(() => {
@@ -1069,19 +1141,18 @@
                     const nextPlanet = targets[Math.floor(Math.random() * targets.length)];
                     
                     this.pushTerminalMessage(`[X-FILES] ¡La nave ha desaparecido! Salto hiperespacial registrado. Buscando tras el vector de ${nextPlanet.toUpperCase()}...`);
-                    this.ufoMesh.visible = false; // Desaparece durante el salto de órbita
+                    this.ufoMesh.visible = false; 
 
                     setTimeout(() => {
                         this.ufoLocation = nextPlanet;
                         this.ufoMesh.visible = true;
                         this.pushTerminalMessage(`[ALERTA] Anomalía relocalizada con éxito. Ocultándose detrás de las texturas de ${nextPlanet.toUpperCase()}.`);
                         
-                        // Si la cámara la estaba siguiendo, reajustar foco automáticamente
                         if(this.activeTargetKey === 'ufo') {
                             this.setActiveTarget('ufo');
                         }
                         this.runUfoQuantumJumps();
-                    }, 1500); // 1.5 segundos en hiperespacio invisible para armonizar la carga
+                    }, 1500); 
 
                 }, randomDelay);
             }
@@ -1159,18 +1230,14 @@
                     luna.mesh.position.z = tierra.position.z + Math.sin(luna.angle) * 14.5;
                 }
 
-                // CÁLCULO DE POSICIÓN DINÁMICA DEL OVNI (Hinchado dinámico y ocultamiento)
                 if (this.ufoDetected && this.ufoMesh) {
                     if (this.ufoLocation === 'luna') {
-                        // Flota justo arriba del satélite natural Luna
                         const lunaMesh = this.planets['luna'].mesh;
                         this.ufoMesh.position.set(lunaMesh.position.x + 2.5, lunaMesh.position.y + 1.8, lunaMesh.position.z + 2.0);
                     } else {
-                        // Se posiciona físicamente "detrás" del planeta objetivo en su radio orbital relativo al sol
                         const hostPlanet = this.planets[this.ufoLocation];
                         if (hostPlanet) {
                             const dbHost = astronomicalDatabase[this.ufoLocation];
-                            // El desfase matemático lo sitúa en la parte oculta del vector orbital
                             const offsetAngle = hostPlanet.angle + Math.PI; 
                             this.ufoMesh.position.x = Math.cos(offsetAngle) * (hostPlanet.orbitRadius + dbHost.radius * 0.4);
                             this.ufoMesh.position.z = Math.sin(offsetAngle) * (hostPlanet.orbitRadius + dbHost.radius * 0.4);
