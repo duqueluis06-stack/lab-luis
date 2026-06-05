@@ -852,9 +852,18 @@
 
                     if (data.videoSrc) {
                         const video = document.createElement('video');
-                        video.src = data.videoSrc; video.loop = true; video.muted = true; video.playsInline = true; video.crossOrigin = 'anonymous';
+                        video.src = data.videoSrc; 
+                        video.loop = true; 
+                        video.muted = true; 
+                        video.playsInline = true; 
+                        video.crossOrigin = 'anonymous';
                         
-                        // OPTIMIZACIÓN DE ARRANQUE: Solo arranca reproduciendo el Sol para evitar lag inicial en PC
+                        // CORRECCIÓN MÓVIL: Atributos inline nativos obligatorios para inyección WebGL
+                        video.setAttribute('playsinline', '');
+                        video.setAttribute('webkit-playsinline', '');
+                        video.setAttribute('muted', '');
+                        video.preload = 'auto';
+                        
                         if (key === 'sol') {
                             video.setAttribute('autoplay', 'true');
                             video.play().catch(()=>{});
@@ -864,6 +873,12 @@
                         
                         const videoTexture = new THREE.VideoTexture(video);
                         videoTexture.wrapS = THREE.RepeatWrapping; videoTexture.wrapT = THREE.ClampToEdgeWrapping;
+                        videoTexture.minFilter = THREE.LinearFilter;
+
+                        // Forzar refresco de la matriz de píxeles al instanciar buffer multimedia
+                        video.addEventListener('loadeddata', () => {
+                            videoTexture.needsUpdate = true;
+                        });
 
                         material = new THREE.ShaderMaterial({
                             uniforms: { 
@@ -907,7 +922,11 @@
                 const ufoGeometry = new THREE.PlaneGeometry(ufoData.radius * 3.8, ufoData.radius * 1.2);
                 const ufoVideo = document.createElement('video');
                 ufoVideo.src = ufoData.videoSrc; ufoVideo.loop = true; ufoVideo.muted = true; ufoVideo.playsInline = true;
-                ufoVideo.pause(); // Inicialmente en pausa
+                ufoVideo.setAttribute('playsinline', '');
+                ufoVideo.setAttribute('webkit-playsinline', '');
+                ufoVideo.setAttribute('muted', '');
+                ufoVideo.preload = 'auto';
+                ufoVideo.pause(); 
 
                 const ufoTexture = new THREE.VideoTexture(ufoVideo);
                 const ufoMaterial = new THREE.ShaderMaterial({
@@ -928,16 +947,43 @@
             }
 
             setupInteractiveAudioPipeline() {
-                const triggerMusic = () => {
+                const triggerInteraction = () => {
+                    // 1. Desbloquear Banda sonora
                     const audio = document.getElementById('bg-space-audio');
                     if (audio && audio.paused) {
                         audio.play()
                         .then(() => this.pushTerminalMessage("[AUDIO] Banda sonora Space.mp3 inicializada con éxito."))
                         .catch(err => console.log("Bloqueo preventivo de audio:", err));
                     }
+
+                    // 2. CORRECCIÓN DISPOSITIVOS MÓVILES: Despertar síncronamente los decodificadores de video
+                    this.pushTerminalMessage("[SISTEMA] Inicializando búferes gráficos en dispositivo móvil...");
+                    Object.keys(this.planets).forEach(key => {
+                        const mat = this.planets[key].mesh.material;
+                        if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
+                            const videoEl = mat.uniforms.u_videoTexture.value.image;
+                            
+                            // Forzamos play momentáneo para renderizar el frame en el Canvas WebGL móvil
+                            videoEl.play().then(() => {
+                                // Mantenemos tu optimización original: si no es el foco actual ni el sol, vuelve a pausarse
+                                if (key !== 'sol' && key !== this.activeTargetKey) {
+                                    videoEl.pause();
+                                }
+                            }).catch(err => console.log("Salto preventivo de renderizado:", key));
+                        }
+                    });
+
+                    // Despertar textura oculta de la anomalía X-Files
+                    if (this.ufoMesh && this.ufoMesh.material && this.ufoMesh.material.uniforms) {
+                        const ufoVid = this.ufoMesh.material.uniforms.u_videoTexture.value.image;
+                        if (ufoVid instanceof HTMLVideoElement) {
+                            ufoVid.play().then(() => { ufoVid.pause(); }).catch(()=>{});
+                        }
+                    }
                 };
-                window.addEventListener('click', triggerMusic, { once: true });
-                window.addEventListener('touchstart', triggerMusic, { once: true });
+                // El primer toque en cualquier parte de la pantalla (un paneo de cámara o cerrar un panel) despierta todo
+                window.addEventListener('click', triggerInteraction, { once: true });
+                window.addEventListener('touchstart', triggerInteraction, { once: true });
             }
 
             toggleAlienPanel() {
@@ -1359,9 +1405,9 @@
                     document.getElementById('tgt-dist').innerText = `${finalDist.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KM`;
                 }
 
-                if (this.controls) this.controls.update(); // Modifica la cámara en base al damping final del frame
+                if (this.controls) this.controls.update(); 
 
-                // 3. CORRECCIÓN DE TEMBLOR: lookAt se ejecuta DESPUÉS del update de los controles
+                // 3. CORRECCIÓN DE TEMBLOR
                 Object.keys(this.planets).forEach(key => {
                     this.planets[key].mesh.lookAt(this.camera.position);
                 });
@@ -1369,7 +1415,7 @@
                     this.ufoMesh.lookAt(this.camera.position);
                 }
 
-                // 4. Renderizar escena con transformaciones sincronizadas
+                // 4. Renderizar escena
                 this.renderer.render(this.scene, this.camera);
             }
 
