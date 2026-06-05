@@ -80,7 +80,6 @@
         position: relative;
     }
 
-    /* Optimización base del espacio cósmico */
     #fondo-cosmos {
         position: fixed;
         top: 0;
@@ -110,11 +109,10 @@
         pointer-events: none;
     }
 
-    /* CORRECCIÓN: Media query dedicada para PC de alta resolución. Evita la baja resolución y realza los brillos sutiles */
     @media (min-width: 901px) {
         #fondo-cosmos {
             background-size: cover;
-            filter: brightness(1.25) contrast(1.08); /* Incrementa el contraste del mapa galaxia.jpg en monitores grandes */
+            filter: brightness(1.25) contrast(1.08); 
         }
         #fondo-cosmos::before {
             background-image: 
@@ -122,7 +120,7 @@
                 radial-gradient(rgba(255,255,255,0.9) 2.2px, transparent 4px),
                 radial-gradient(rgba(255,255,255,0.4) 3.5px, transparent 45px);
             background-size: 550px 550px, 350px 350px, 750px 750px;
-            opacity: 0.95; /* Mantiene la visibilidad frente al escalado de píxeles del escritorio */
+            opacity: 0.95; 
         }
     }
 
@@ -691,7 +689,7 @@
         const astronomicalDatabase = {
             sol: {
                 name: "El Sol", class: "Estrella G2V", gravity: "274.0 m/s²", satellites: "8 Planetas", radius: 13.0, videoSrc: 'sol.mp4',
-                distanceBase: 0, lightDelay: "0m 0s", orbit: "Centro Sistema [ORB-00]", velocity: "0.00 km/s", structure: "Fusión Termonuclear", composition: "73% H, 25% He", pressure: "N/A", equinoxInfo: "N/A", streamPhrase: "[SOL] Núcleo de fusión estable a 15,000,000°K."
+                distanceBase: 0, lightDelay: "0m 0s", orbit: "Centro Sistema [ORB-00]", velocity: "0.00 km/s", structure: "Fusión Termonuclear", composition: "73% H, 25% He", pressure: "N/A", equinoxInfo: "N/A", streamPhrase: "[SOL] Núcleo de fusión stable a 15,000,000°K."
             },
             mercurio: {
                 name: "Mercurio", class: "Planeta Terrestre", gravity: "3.70 m/s²", satellites: "Ninguno", radius: 2.2, videoSrc: 'mercurio.mp4',
@@ -703,7 +701,8 @@
             },
             tierra: {
                 name: "Tierra", class: "Mundo Habitable", gravity: "9.81 m/s²", satellites: "1 Natural", radius: 3.8, videoSrc: 'tierra.mp4',
-                distanceBase: 149600000, lightDelay: "8.3m", orbit: "365.25 días [ORB-03]", velocity: "29.78 km/s", structure: "Corteza Dinámica", composition: "78% N2, 21% O2", pressure: "1 Atm", equinoxInfo: "23.44°", streamPhrase: "[TIERRA] Escudo Van Allen reteniendo radiación cósmica."
+                distanceBase: 149600000, lightDelay: "8.3m", orbit: "365.25 días [ORB-03]", velocity: "29.78 km/s", structure: "Corteza Dinámica", composition: "78% N2, 21% O2", pressure: "1 Atm", equinoxInfo: "23.44°", streamPhrase: "[TIERRA] Escudo Van Allen reteniendo radiación cósmica.",
+                eccentricity: 0.0167 // Inyección de excentricidad real planetaria
             },
             luna: {
                 name: "La Luna", class: "Satélite Silicato", gravity: "1.62 m/s²", satellites: "N/A", radius: 1.0, videoSrc: 'luna.mp4',
@@ -837,7 +836,7 @@
                 this.starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 });
                 this.scene.add(new THREE.Points(starGeometry, this.starMaterial));
 
-                const kuiperCount = 560000; 
+                const kuiperCount = 56000; 
                 const kuiperGeometry = new THREE.BufferGeometry();
                 const kuiperPositions = new Float32Array(kuiperCount * 3);
                 for (let i = 0; i < kuiperCount * 3; i += 3) {
@@ -941,10 +940,21 @@
                     if (key !== 'sol' && key !== 'luna') {
                         const orbitGeom = new THREE.BufferGeometry(); const points = [];
                         const steps = 120;
+                        
+                        // Modificación para el renderizado geométrico elíptico de las trazas de órbita
+                        const e = data.eccentricity || 0;
+                        const a = orbitRadius;
+                        const b = a * Math.sqrt(1 - e * e);
+                        const focalShift = a * e;
+
                         for (let i = 0; i <= steps; i++) {
                             const theta = (i / steps) * Math.PI * 2;
-                            if (key === 'pluton') points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, Math.cos(theta) * orbitRadius * 0.28, Math.sin(theta) * orbitRadius * 0.88));
-                            else points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, 0, Math.sin(theta) * orbitRadius));
+                            if (key === 'pluton') {
+                                points.push(new THREE.Vector3(Math.cos(theta) * orbitRadius, Math.cos(theta) * orbitRadius * 0.28, Math.sin(theta) * orbitRadius * 0.88));
+                            } else {
+                                // Desplazamos el centro en X para que el Sol quede en el foco de la elipse
+                                points.push(new THREE.Vector3(Math.cos(theta) * a - focalShift, 0, Math.sin(theta) * b));
+                            }
                         }
                         orbitGeom.setFromPoints(points);
                         
@@ -1380,28 +1390,44 @@
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
 
-                // --- CORRECCIÓN 1: Rotación orbital coordinada del Cinturón de Kuiper ---
                 if (this.kuiperBelt) {
-                    // Cambiado a vector de rotación negativo para alinearse con la traslación antihoraria heliocéntrica de los planetas
                     this.kuiperBelt.rotation.y = -totalTime * 0.015;
                 }
 
-                // --- CORRECCIÓN 2: Centelleo/Brillo activo de estrellas procedimentales en PC ---
                 if (this.starMaterial) {
                     this.starMaterial.opacity = 0.70 + Math.sin(Date.now() * 0.0012) * 0.15;
                 }
 
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
+                    const data = astronomicalDatabase[key];
                     if (key !== 'sol' && key !== 'luna') {
-                        p.angle = (totalTime * p.orbitSpeed) + p.initialAngle;
+                        p.angle = (totalTime * p.orbitSpeed) + p.initialAngle; // Representa la Anomalía Media (M)
+                        
                         if (key === 'pluton') {
                             p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
                             p.mesh.position.z = Math.sin(p.angle) * (p.orbitRadius * 0.88);
                             p.mesh.position.y = p.mesh.position.x * 0.28;
                         } else {
-                            p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
-                            p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius;
+                            // Evaluación e inyección de la excentricidad física en el bucle principal
+                            const e = data.eccentricity || 0;
+                            if (e > 0) {
+                                // Cálculo de la Anomalía Excéntrica (E) aproximada
+                                const M = p.angle;
+                                const E = M + e * Math.sin(M);
+                                
+                                const a = p.orbitRadius;
+                                const b = a * Math.sqrt(1 - e * e);
+                                const focalShift = a * e; // Distancia foco-centro
+                                
+                                // El Sol permanece en (0,0,0) como foco geométrico real
+                                p.mesh.position.x = Math.cos(E) * a - focalShift;
+                                p.mesh.position.z = Math.sin(E) * b;
+                            } else {
+                                // Fallback para órbitas circulares base estándar
+                                p.mesh.position.x = Math.cos(p.angle) * p.orbitRadius;
+                                p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius;
+                            }
                         }
                     }
                 });
