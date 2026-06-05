@@ -853,8 +853,14 @@
                     if (data.videoSrc) {
                         const video = document.createElement('video');
                         video.src = data.videoSrc; video.loop = true; video.muted = true; video.playsInline = true; video.crossOrigin = 'anonymous';
-                        video.setAttribute('autoplay', 'true');
-                        video.play().catch(()=>{});
+                        
+                        // OPTIMIZACIÓN DE ARRANQUE: Solo arranca reproduciendo el Sol para evitar lag inicial en PC
+                        if (key === 'sol') {
+                            video.setAttribute('autoplay', 'true');
+                            video.play().catch(()=>{});
+                        } else {
+                            video.pause();
+                        }
                         
                         const videoTexture = new THREE.VideoTexture(video);
                         videoTexture.wrapS = THREE.RepeatWrapping; videoTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -901,8 +907,7 @@
                 const ufoGeometry = new THREE.PlaneGeometry(ufoData.radius * 3.8, ufoData.radius * 1.2);
                 const ufoVideo = document.createElement('video');
                 ufoVideo.src = ufoData.videoSrc; ufoVideo.loop = true; ufoVideo.muted = true; ufoVideo.playsInline = true;
-                ufoVideo.setAttribute('autoplay', 'true');
-                ufoVideo.play().catch(()=>{});
+                ufoVideo.pause(); // Inicialmente en pausa
 
                 const ufoTexture = new THREE.VideoTexture(ufoVideo);
                 const ufoMaterial = new THREE.ShaderMaterial({
@@ -971,7 +976,6 @@
                 this.pushTerminalMessage(`[📡] Conmutando receptor a CH 0${channelNum}. Sintonizando modulación.`);
             }
 
-            /* NUEVO COMPONENTE: RADAR MILITAR/AERONÁUTICO PROFESIONAL CON MAPEO POLAR */
             setupAlienAudioInterceptors() {
                 const bgAudio = document.getElementById('bg-space-audio');
                 const video = document.getElementById('alien-main-player');
@@ -983,7 +987,7 @@
                     if (!this.alienAudioCtx) {
                         this.alienAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         this.alienAnalyser = this.alienAudioCtx.createAnalyser();
-                        this.alienAnalyser.fftSize = 128; // Resolución ideal para relieve circular fluido
+                        this.alienAnalyser.fftSize = 128; 
                         this.alienDataArray = new Uint8Array(this.alienAnalyser.frequencyBinCount);
                     }
 
@@ -1016,7 +1020,6 @@
 
                     this.alienAnalyser.getByteFrequencyData(this.alienDataArray);
 
-                    // Efecto de persistencia / barrido de radar analógico (fósforo verde decayente)
                     canvasCtx.fillStyle = 'rgba(1, 7, 3, 0.18)';
                     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1025,7 +1028,6 @@
                     const maxRadius = Math.min(cx, cy) - 6;
                     const baseRadius = maxRadius * 0.25;
 
-                    // 1. DIBUJAR RETÍCULA / RETÍCULAS DE RANGO (Anillos concéntricos de radar de aeropuerto)
                     canvasCtx.lineWidth = 1;
                     for (let r = 1; r <= 4; r++) {
                         canvasCtx.beginPath();
@@ -1034,14 +1036,12 @@
                         canvasCtx.stroke();
                     }
 
-                    // Ejes de coordenadas de cuadrante aeronáutico (Miras en Cruz)
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(cx - maxRadius, cy); canvasCtx.lineTo(cx + maxRadius, cy);
                     canvasCtx.moveTo(cx, cy - maxRadius); canvasCtx.lineTo(cx, cy + maxRadius);
                     canvasCtx.strokeStyle = 'rgba(51, 255, 51, 0.08)';
                     canvasCtx.stroke();
 
-                    // 2. LÍNEA DE BARRIDO ACTIVO (Radar Sweep Line)
                     const sweepAngle = (Date.now() * 0.0022) % (Math.PI * 2);
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(cx, cy);
@@ -1049,16 +1049,12 @@
                     canvasCtx.strokeStyle = 'rgba(51, 255, 51, 0.35)';
                     canvasCtx.stroke();
 
-                    // 3. RELIEVE DE ANÁLISIS DE SONIDO (Polar Terrain Map Mapping)
                     canvasCtx.beginPath();
                     const binCount = this.alienAnalyser.frequencyBinCount;
                     
                     for (let i = 0; i < binCount; i++) {
-                        // Repartir los bines simétricamente en los 360 grados de la circunferencia
                         const angle = (i / binCount) * Math.PI * 2;
                         const amplitude = this.alienDataArray[i];
-                        
-                        // Modulación del radio en función de la energía espectral del canal
                         const currentRadius = baseRadius + (amplitude / 255) * (maxRadius - baseRadius);
                         const targetX = cx + Math.cos(angle) * currentRadius;
                         const targetY = cy + Math.sin(angle) * currentRadius;
@@ -1068,25 +1064,23 @@
                     }
                     canvasCtx.closePath();
 
-                    // Estilo del Relieve: Contorno Ámbar Neón y Relleno Degradado sutil
                     canvasCtx.strokeStyle = '#ffaa00';
                     canvasCtx.lineWidth = 1.8;
                     canvasCtx.shadowBlur = 4;
                     canvasCtx.shadowColor = '#ffaa00';
                     canvasCtx.stroke();
-                    canvasCtx.shadowBlur = 0; // Apagar filtro inmediatamente para optimizar GPU
+                    canvasCtx.shadowBlur = 0; 
 
                     canvasCtx.fillStyle = 'rgba(255, 170, 0, 0.06)';
                     canvasCtx.fill();
 
-                    // 4. NODOS DE ALERTA CRÍTICA (Picos de frecuencia máxima mapeados como vectores de impacto)
                     for (let i = 0; i < binCount; i += 3) {
                         if (this.alienDataArray[i] > 195) {
                             const angle = (i / binCount) * Math.PI * 2;
                             const currentRadius = baseRadius + (this.alienDataArray[i] / 255) * (maxRadius - baseRadius);
                             canvasCtx.beginPath();
                             canvasCtx.arc(cx + Math.cos(angle) * currentRadius, cy + Math.sin(angle) * currentRadius, 2.5, 0, Math.PI * 2);
-                            canvasCtx.fillStyle = '#ff1155'; // Nodos rojos de picos saturados
+                            canvasCtx.fillStyle = '#ff1155'; 
                             canvasCtx.fill();
                         }
                     }
@@ -1247,12 +1241,26 @@
                 if (astronomicalDatabase[key]) {
                     this.activeTargetKey = key;
 
+                    // OPTIMIZACIÓN CRÍTICA: Pausa videos en desuso para liberar hilos de GPU en la PC
                     Object.keys(this.planets).forEach(k => {
                         const mat = this.planets[k].mesh.material;
                         if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
-                            mat.uniforms.u_videoTexture.value.image.play().catch(()=>{});
+                            const videoEl = mat.uniforms.u_videoTexture.value.image;
+                            if (k === 'sol' || k === key) {
+                                videoEl.play().catch(()=>{});
+                            } else {
+                                videoEl.pause();
+                            }
                         }
                     });
+                    
+                    if (this.ufoMesh && this.ufoMesh.material && this.ufoMesh.material.uniforms) {
+                        const ufoVideoEl = this.ufoMesh.material.uniforms.u_videoTexture.value.image;
+                        if (ufoVideoEl instanceof HTMLVideoElement) {
+                            if (key === 'ufo') ufoVideoEl.play().catch(()=>{});
+                            else ufoVideoEl.pause();
+                        }
+                    }
 
                     document.querySelectorAll('.tactical-node').forEach(node => {
                         node.classList.remove('selected-node');
@@ -1293,6 +1301,7 @@
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
 
+                // 1. Resolver posiciones físicas
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
                     if (key !== 'sol' && key !== 'luna') {
@@ -1306,7 +1315,6 @@
                             p.mesh.position.z = Math.sin(p.angle) * p.orbitRadius;
                         }
                     }
-                    p.mesh.lookAt(this.camera.position);
                 });
 
                 if (this.planets['luna'] && this.planets['tierra']) {
@@ -1330,9 +1338,9 @@
                             this.ufoMesh.position.y = hostPlanet.mesh.position.y - 0.5;
                         }
                     }
-                    this.ufoMesh.lookAt(this.camera.position);
                 }
                 
+                // 2. Resolver traslación de cámara y update de OrbitControls
                 const currentMesh = (this.activeTargetKey === 'ufo') ? this.ufoMesh : this.planets[this.activeTargetKey]?.mesh;
                 
                 if (currentMesh) {
@@ -1351,7 +1359,17 @@
                     document.getElementById('tgt-dist').innerText = `${finalDist.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KM`;
                 }
 
-                if (this.controls) this.controls.update();
+                if (this.controls) this.controls.update(); // Modifica la cámara en base al damping final del frame
+
+                // 3. CORRECCIÓN DE TEMBLOR: lookAt se ejecuta DESPUÉS del update de los controles
+                Object.keys(this.planets).forEach(key => {
+                    this.planets[key].mesh.lookAt(this.camera.position);
+                });
+                if (this.ufoDetected && this.ufoMesh) {
+                    this.ufoMesh.lookAt(this.camera.position);
+                }
+
+                // 4. Renderizar escena con transformaciones sincronizadas
                 this.renderer.render(this.scene, this.camera);
             }
 
