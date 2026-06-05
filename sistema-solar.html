@@ -80,7 +80,6 @@
         position: relative;
     }
 
-    /* Corrección 1: Fondo cósmico avanzado con profundidad e ilusión óptica */
     #fondo-cosmos {
         position: fixed;
         top: 0;
@@ -474,7 +473,6 @@
         }
         .toggle-btn:active { background: var(--panel-border); color: #000; }
 
-        /* Corrección 3A: Aumento de la capacidad dimensional del monitor alien en mobile */
         #satellite-intercept-panel {
             top: auto !important;
             bottom: 85px !important;
@@ -776,6 +774,10 @@
                 this.alienSourceNodes = new Map();
                 this.alienAnimationId = null;
 
+                // Propiedades para referencias dinámicas de partículas
+                this.kuiperBelt = null;
+                this.starMaterial = null;
+
                 this.initEngine(); 
                 this.buildCosmosEngine(); 
                 this.setupCoreLightingPipeline();
@@ -815,7 +817,10 @@
                     starPositions[i+2] = radius * Math.cos(phi);
                 }
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-                this.scene.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 })));
+                
+                // Guardamos referencia al material de las estrellas para modular su brillo después
+                this.starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 });
+                this.scene.add(new THREE.Points(starGeometry, this.starMaterial));
 
                 const kuiperCount = 60000; 
                 const kuiperGeometry = new THREE.BufferGeometry();
@@ -849,7 +854,10 @@
                     blending: THREE.AdditiveBlending,
                     depthWrite: false
                 });
-                this.scene.add(new THREE.Points(kuiperGeometry, kuiperMaterial));
+                
+                // Guardamos la referencia de los puntos en la propiedad de la clase
+                this.kuiperBelt = new THREE.Points(kuiperGeometry, kuiperMaterial);
+                this.scene.add(this.kuiperBelt);
 
                 const factorEscalaPlanetas = 1.35;
 
@@ -878,16 +886,12 @@
                         video.setAttribute('webkit-playsinline', '');
                         video.setAttribute('muted', '');
                         video.preload = 'auto';
-                        
-                        // Corrección 2A: Obligamos a que todos usen autoplay en mute inicialmente.
-                        // Esto fuerza a los navegadores de móviles a decodificar el primer frame de inmediato en segundo plano.
                         video.autoplay = true;
                         
                         const videoTexture = new THREE.VideoTexture(video);
                         videoTexture.wrapS = THREE.RepeatWrapping; videoTexture.wrapT = THREE.ClampToEdgeWrapping;
                         videoTexture.minFilter = THREE.LinearFilter;
 
-                        // Corrección 2B: Manejador de carga asíncrona. Una vez listo el frame, pausamos los que no se usan.
                         video.addEventListener('loadeddata', () => {
                             videoTexture.needsUpdate = true;
                             if (key !== 'sol' && key !== this.activeTargetKey) {
@@ -1361,6 +1365,18 @@
                 const delta = this.clock.getDelta() * 0.12 * this.timeMultiplier;
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
+
+                // --- CORRECCIÓN 1: Rotación orbital del Cinturón de Kuiper ---
+                if (this.kuiperBelt) {
+                    // Ajustamos el factor numérico (0.015) para controlar la velocidad base de su órbita externa
+                    this.kuiperBelt.rotation.y = totalTime * 0.015;
+                }
+
+                // --- CORRECCIÓN 2: Efecto de brillo / centelleo sutil en estrellas de fondo ---
+                if (this.starMaterial) {
+                    // Modula la opacidad continuamente entre un rango de 0.55 y 0.85 usando una onda senoidal
+                    this.starMaterial.opacity = 0.70 + Math.sin(Date.now() * 0.0012) * 0.15;
+                }
 
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
