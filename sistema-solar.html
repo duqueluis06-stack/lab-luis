@@ -80,20 +80,34 @@
         position: relative;
     }
 
+    /* Corrección 1: Fondo cósmico avanzado con profundidad e ilusión óptica */
     #fondo-cosmos {
         position: fixed;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
-        background-image: url('galaxia.jpg');
+        background: radial-gradient(circle at 50% 50%, rgba(14, 18, 36, 0.35) 0%, #020408 100%), url('galaxia.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         z-index: 0; 
         pointer-events: none; 
         image-rendering: auto;
-        filter: brightness(1.05) contrast(1.02); 
+        filter: brightness(1.1) contrast(1.04); 
+    }
+    #fondo-cosmos::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image: 
+            radial-gradient(rgba(255,255,255,0.95) 1px, transparent 2px),
+            radial-gradient(rgba(255,255,255,0.7) 1.5px, transparent 3px),
+            radial-gradient(rgba(255,255,255,0.3) 2px, transparent 35px);
+        background-size: 450px 450px, 280px 280px, 600px 600px;
+        background-position: 0 0, 90px 140px, 200px 350px;
+        opacity: 0.75;
+        pointer-events: none;
     }
 
     #canvas-container {
@@ -460,13 +474,14 @@
         }
         .toggle-btn:active { background: var(--panel-border); color: #000; }
 
+        /* Corrección 3A: Aumento de la capacidad dimensional del monitor alien en mobile */
         #satellite-intercept-panel {
             top: auto !important;
             bottom: 85px !important;
             left: 15px !important;
             right: 15px !important;
             width: auto !important;
-            max-height: 58vh !important;
+            max-height: 76vh !important;
         }
     }
 </style>
@@ -507,7 +522,8 @@
             </h2>
             <button onclick="orchestrator.toggleAlienPanel()" style="background:none; border:none; color:var(--amber-glow); cursor:pointer; font-size:16px; font-weight:bold; pointer-events: auto;">✕</button>
         </div>
-        <div class="panel-interior" style="display:flex; flex-direction:column; gap:12px;">
+        
+        <div class="panel-interior" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; max-height:calc(100% - 45px); padding-bottom:15px;">
             
             <div class="matrix-group" style="border-color: var(--amber-glow); margin-bottom: 0;">
                 <div class="matrix-title" style="background: rgba(255, 170, 0, 0.15); color: var(--amber-glow); text-shadow: 0 0 5px var(--amber-glow); font-size: 9px;">BARRIDO TELEMÉTRICO / RELIEVE POLAR DE FRECUENCIAS</div>
@@ -524,7 +540,7 @@
                 </video>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: auto;">
                 <button class="alien-ch-btn active-ch" onclick="orchestrator.switchAlienChannel(1, 'alien1.mp4')">CH 01</button>
                 <button class="alien-ch-btn" onclick="orchestrator.switchAlienChannel(2, 'alien2.mp4')">CH 02</button>
                 <button class="alien-ch-btn" onclick="orchestrator.switchAlienChannel(3, 'alien3.mp4')">CH 03</button>
@@ -858,28 +874,29 @@
                         video.playsInline = true; 
                         video.crossOrigin = 'anonymous';
                         
-                        // CORRECCIÓN MÓVIL: Atributos inline nativos obligatorios para inyección WebGL
                         video.setAttribute('playsinline', '');
                         video.setAttribute('webkit-playsinline', '');
                         video.setAttribute('muted', '');
                         video.preload = 'auto';
                         
-                        if (key === 'sol') {
-                            video.setAttribute('autoplay', 'true');
-                            video.play().catch(()=>{});
-                        } else {
-                            video.pause();
-                        }
+                        // Corrección 2A: Obligamos a que todos usen autoplay en mute inicialmente.
+                        // Esto fuerza a los navegadores de móviles a decodificar el primer frame de inmediato en segundo plano.
+                        video.autoplay = true;
                         
                         const videoTexture = new THREE.VideoTexture(video);
                         videoTexture.wrapS = THREE.RepeatWrapping; videoTexture.wrapT = THREE.ClampToEdgeWrapping;
                         videoTexture.minFilter = THREE.LinearFilter;
 
-                        // Forzar refresco de la matriz de píxeles al instanciar buffer multimedia
+                        // Corrección 2B: Manejador de carga asíncrona. Una vez listo el frame, pausamos los que no se usan.
                         video.addEventListener('loadeddata', () => {
                             videoTexture.needsUpdate = true;
+                            if (key !== 'sol' && key !== this.activeTargetKey) {
+                                video.pause();
+                            }
                         });
 
+                        video.play().catch(()=>{});
+                        
                         material = new THREE.ShaderMaterial({
                             uniforms: { 
                                 u_videoTexture: { value: videoTexture },
@@ -926,9 +943,15 @@
                 ufoVideo.setAttribute('webkit-playsinline', '');
                 ufoVideo.setAttribute('muted', '');
                 ufoVideo.preload = 'auto';
-                ufoVideo.pause(); 
+                ufoVideo.autoplay = true; 
 
                 const ufoTexture = new THREE.VideoTexture(ufoVideo);
+                ufoVideo.addEventListener('loadeddata', () => {
+                    ufoTexture.needsUpdate = true;
+                    ufoVideo.pause();
+                });
+                ufoVideo.play().catch(()=>{});
+
                 const ufoMaterial = new THREE.ShaderMaterial({
                     uniforms: { u_videoTexture: { value: ufoTexture }, u_cleanEdges: { value: false } },
                     vertexShader: cinematicShader.vertexShader,
@@ -948,7 +971,6 @@
 
             setupInteractiveAudioPipeline() {
                 const triggerInteraction = () => {
-                    // 1. Desbloquear Banda sonora
                     const audio = document.getElementById('bg-space-audio');
                     if (audio && audio.paused) {
                         audio.play()
@@ -956,16 +978,12 @@
                         .catch(err => console.log("Bloqueo preventivo de audio:", err));
                     }
 
-                    // 2. CORRECCIÓN DISPOSITIVOS MÓVILES: Despertar síncronamente los decodificadores de video
-                    this.pushTerminalMessage("[SISTEMA] Inicializando búferes gráficos en dispositivo móvil...");
+                    this.pushTerminalMessage("[SISTEMA] Sincronizando búferes multimedia e hilos gráficos...");
                     Object.keys(this.planets).forEach(key => {
                         const mat = this.planets[key].mesh.material;
                         if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
                             const videoEl = mat.uniforms.u_videoTexture.value.image;
-                            
-                            // Forzamos play momentáneo para renderizar el frame en el Canvas WebGL móvil
                             videoEl.play().then(() => {
-                                // Mantenemos tu optimización original: si no es el foco actual ni el sol, vuelve a pausarse
                                 if (key !== 'sol' && key !== this.activeTargetKey) {
                                     videoEl.pause();
                                 }
@@ -973,15 +991,13 @@
                         }
                     });
 
-                    // Despertar textura oculta de la anomalía X-Files
                     if (this.ufoMesh && this.ufoMesh.material && this.ufoMesh.material.uniforms) {
                         const ufoVid = this.ufoMesh.material.uniforms.u_videoTexture.value.image;
                         if (ufoVid instanceof HTMLVideoElement) {
-                            ufoVid.play().then(() => { ufoVid.pause(); }).catch(()=>{});
+                            ufoVid.play().then(() => { if (this.activeTargetKey !== 'ufo') ufoVid.pause(); }).catch(()=>{});
                         }
                     }
                 };
-                // El primer toque en cualquier parte de la pantalla (un paneo de cámara o cerrar un panel) despierta todo
                 window.addEventListener('click', triggerInteraction, { once: true });
                 window.addEventListener('touchstart', triggerInteraction, { once: true });
             }
@@ -1287,7 +1303,6 @@
                 if (astronomicalDatabase[key]) {
                     this.activeTargetKey = key;
 
-                    // OPTIMIZACIÓN CRÍTICA: Pausa videos en desuso para liberar hilos de GPU en la PC
                     Object.keys(this.planets).forEach(k => {
                         const mat = this.planets[k].mesh.material;
                         if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
@@ -1347,7 +1362,6 @@
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
 
-                // 1. Resolver posiciones físicas
                 Object.keys(this.planets).forEach(key => {
                     const p = this.planets[key];
                     if (key !== 'sol' && key !== 'luna') {
@@ -1386,7 +1400,6 @@
                     }
                 }
                 
-                // 2. Resolver traslación de cámara y update de OrbitControls
                 const currentMesh = (this.activeTargetKey === 'ufo') ? this.ufoMesh : this.planets[this.activeTargetKey]?.mesh;
                 
                 if (currentMesh) {
@@ -1407,7 +1420,6 @@
 
                 if (this.controls) this.controls.update(); 
 
-                // 3. CORRECCIÓN DE TEMBLOR
                 Object.keys(this.planets).forEach(key => {
                     this.planets[key].mesh.lookAt(this.camera.position);
                 });
@@ -1415,7 +1427,6 @@
                     this.ufoMesh.lookAt(this.camera.position);
                 }
 
-                // 4. Renderizar escena
                 this.renderer.render(this.scene, this.camera);
             }
 
