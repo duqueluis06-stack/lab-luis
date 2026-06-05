@@ -80,6 +80,7 @@
         position: relative;
     }
 
+    /* Optimización base del espacio cósmico */
     #fondo-cosmos {
         position: fixed;
         top: 0;
@@ -107,6 +108,22 @@
         background-position: 0 0, 90px 140px, 200px 350px;
         opacity: 0.75;
         pointer-events: none;
+    }
+
+    /* CORRECCIÓN: Media query dedicada para PC de alta resolución. Evita la baja resolución y realza los brillos sutiles */
+    @media (min-width: 901px) {
+        #fondo-cosmos {
+            background-size: cover;
+            filter: brightness(1.25) contrast(1.08); /* Incrementa el contraste del mapa galaxia.jpg en monitores grandes */
+        }
+        #fondo-cosmos::before {
+            background-image: 
+                radial-gradient(rgba(255,255,255,1) 1.8px, transparent 2.8px),
+                radial-gradient(rgba(255,255,255,0.9) 2.2px, transparent 4px),
+                radial-gradient(rgba(255,255,255,0.4) 3.5px, transparent 45px);
+            background-size: 550px 550px, 350px 350px, 750px 750px;
+            opacity: 0.95; /* Mantiene la visibilidad frente al escalado de píxeles del escritorio */
+        }
     }
 
     #canvas-container {
@@ -774,7 +791,6 @@
                 this.alienSourceNodes = new Map();
                 this.alienAnimationId = null;
 
-                // Propiedades para referencias dinámicas de partículas
                 this.kuiperBelt = null;
                 this.starMaterial = null;
 
@@ -818,7 +834,6 @@
                 }
                 starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
                 
-                // Guardamos referencia al material de las estrellas para modular su brillo después
                 this.starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.8 });
                 this.scene.add(new THREE.Points(starGeometry, this.starMaterial));
 
@@ -855,7 +870,6 @@
                     depthWrite: false
                 });
                 
-                // Guardamos la referencia de los puntos en la propiedad de la clase
                 this.kuiperBelt = new THREE.Points(kuiperGeometry, kuiperMaterial);
                 this.scene.add(this.kuiperBelt);
 
@@ -1366,15 +1380,14 @@
                 this.customAccumulatedTime += delta;
                 const totalTime = this.customAccumulatedTime;
 
-                // --- CORRECCIÓN 1: Rotación orbital del Cinturón de Kuiper ---
+                // --- CORRECCIÓN 1: Rotación orbital coordinada del Cinturón de Kuiper ---
                 if (this.kuiperBelt) {
-                    // Ajustamos el factor numérico (0.015) para controlar la velocidad base de su órbita externa
-                    this.kuiperBelt.rotation.y = totalTime * 0.015;
+                    // Cambiado a vector de rotación negativo para alinearse con la traslación antihoraria heliocéntrica de los planetas
+                    this.kuiperBelt.rotation.y = -totalTime * 0.015;
                 }
 
-                // --- CORRECCIÓN 2: Efecto de brillo / centelleo sutil en estrellas de fondo ---
+                // --- CORRECCIÓN 2: Centelleo/Brillo activo de estrellas procedimentales en PC ---
                 if (this.starMaterial) {
-                    // Modula la opacidad continuamente entre un rango de 0.55 y 0.85 usando una onda senoidal
                     this.starMaterial.opacity = 0.70 + Math.sin(Date.now() * 0.0012) * 0.15;
                 }
 
