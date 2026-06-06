@@ -14,6 +14,8 @@
       gtag('config', 'GT-MB642KNJ');
     </script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Roboto+Mono:wght@300;700&display=swap');
         
@@ -23,8 +25,8 @@
             --neon-purple: #bc13fe;
             --neon-main: #00ffcc;
             --neon-gold: #ffcc00;
-            --bg-dark: #000000;
-            --ui-bg: rgba(0, 5, 5, 0.85);
+            --bg-dark: #020205;
+            --ui-bg: rgba(2, 6, 12, 0.65);
         }
 
         body, html {
@@ -36,172 +38,246 @@
             height: 100%; width: 100%;
         }
 
+        /* EFECTO CINEMÁTICO DE LENTE */
         .vignette {
             position: fixed; inset: 0;
-            background: radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.95) 100%);
+            background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.9) 100%);
             z-index: 5; pointer-events: none;
         }
 
-        canvas {
+        #webgl-canvas {
             position: fixed; top: 0; left: 0;
             z-index: 1;
-            filter: contrast(1.2) brightness(1.1) drop-shadow(0 0 10px rgba(0, 242, 255, 0.2));
+            width: 100%; height: 100%;
         }
 
+        /* ENTORNO HUD SIMÉTRICO (NUNCA TAPA EL CENTRO DE LA PANTALLA) */
         header {
-            position: fixed; top: 15px; left: 50%;
+            position: fixed; top: 20px; left: 50%;
             transform: translateX(-50%);
             z-index: 100; pointer-events: none;
-            width: 100%; text-align: center;
+            width: 90%; text-align: center;
         }
 
         .cinema-title { 
             font-family: 'Orbitron', sans-serif;
-            font-size: clamp(12px, 3vw, 18px);
-            letter-spacing: 6px;
-            color: #fff;
+            font-size: clamp(12px, 2.5vw, 16px);
+            letter-spacing: 8px;
+            color: rgba(255,255,255,0.9);
             text-shadow: 0 0 15px var(--neon-cyan);
-            opacity: 0.9;
         }
 
-        .ui-left-group {
-            position: fixed; top: 15px; left: 15px;
-            z-index: 100; display: flex; flex-direction: column; gap: 12px;
+        /* UBICACIÓN DE BOTONES EN MARGEN INFERIOR IZQUIERDO */
+        .ui-controls-hud {
+            position: fixed; bottom: 25px; left: 25px;
+            z-index: 100; display: flex; gap: 15px;
         }
 
-        .orb-btn {
-            width: 50px; height: 50px;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: var(--ui-bg);
-            backdrop-filter: blur(10px);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; text-decoration: none; color: #fff;
-            transition: 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        .home-btn {
+            height: 45px; padding: 0 20px;
+            border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-size: 11px; font-family: 'Orbitron', sans-serif; letter-spacing: 2px;
+            background: var(--ui-bg); border: 1px solid rgba(0, 242, 255, 0.4); color: #fff;
+            backdrop-filter: blur(15px); text-decoration: none;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.15); transition: all 0.3s ease;
+        }
+        .home-btn:hover { 
+            border-color: var(--neon-cyan); 
+            box-shadow: 0 0 25px var(--neon-cyan);
+            transform: translateY(-2px);
+            background: rgba(0, 242, 255, 0.1);
         }
 
-        .ui-right-group { position: fixed; top: 15px; right: 15px; z-index: 100; }
-
+        /* UBICACIÓN DEL ACCESO AL AGUJERO NEGRO (MARGEN INFERIOR DERECHO) */
+        .ui-right-hud {
+            position: fixed; bottom: 25px; right: 25px; z-index: 100;
+        }
         .orb-blackhole {
+            width: 45px; height: 45px; border-radius: 8px;
+            background: var(--ui-bg); border: 1px solid rgba(188, 19, 254, 0.4);
+            display: flex; align-items: center; justify-content: center; text-decoration: none;
+            backdrop-filter: blur(15px); transition: all 0.3s;
+        }
+        .orb-blackhole:hover {
             border-color: var(--neon-purple);
-            color: var(--neon-purple);
-            animation: pulse 2s infinite alternate;
+            box-shadow: 0 0 20px var(--neon-purple);
+            transform: translateY(-2px);
         }
 
-        @keyframes pulse {
-            from { box-shadow: 0 0 5px var(--neon-purple), inset 0 0 5px var(--neon-purple); }
-            to { box-shadow: 0 0 25px var(--neon-purple), inset 0 0 10px var(--neon-purple); }
-        }
-
-        /* PANEL NARRATIVO AVANZADO */
+        /* PANEL NARRATIVO OPTIMIZADO EN EL CENTRO INFERIOR */
         .narrative-card {
-            position: fixed; bottom: 25px; left: 50%;
+            position: fixed; bottom: 90px; left: 50%;
             transform: translateX(-50%);
-            width: 90%; max-width: 600px;
-            background: var(--ui-bg);
-            border: 1px solid rgba(0, 242, 255, 0.3);
-            border-top: 3px solid var(--neon-cyan);
-            padding: 20px;
-            border-radius: 16px;
-            z-index: 80;
-            backdrop-filter: blur(20px);
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.95);
-            transition: all 0.8s ease-in-out;
+            width: 90%; max-width: 550px;
+            background: rgba(3, 8, 16, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 3px solid var(--neon-cyan);
+            padding: 20px; border-radius: 12px; z-index: 80;
+            backdrop-filter: blur(25px); text-align: center;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.8);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
             box-sizing: border-box;
         }
 
         #stage-title { 
             font-family: 'Orbitron', sans-serif;
-            font-size: clamp(16px, 4vw, 24px); 
+            font-size: clamp(15px, 3.5vw, 20px); 
             color: var(--neon-cyan); margin: 0; 
-            text-transform: uppercase; letter-spacing: 4px;
-            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+            text-transform: uppercase; letter-spacing: 5px;
         }
 
         #stage-desc { 
-            font-size: clamp(11px, 2.5vw, 13px); 
-            margin-top: 12px; color: rgba(255,255,255,0.85); 
-            line-height: 1.6;
+            font-size: clamp(11px, 2.2vw, 12.5px); 
+            margin-top: 10px; color: rgba(255,255,255,0.75); 
+            line-height: 1.6; letter-spacing: 0.5px;
         }
 
-        #btn-main-init {
+        /* INTRO SCREEN ESTILO HOLLYWOOD */
+        #intro-overlay {
             position: fixed; inset: 0; z-index: 2000;
-            background: #000; color: var(--neon-main);
-            border: none; font-family: 'Orbitron'; font-size: 18px;
-            letter-spacing: 10px; cursor: pointer;
-            transition: 0.4s;
+            background: radial-gradient(circle at center, #050b14 0%, #000000 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s ease;
         }
-        #btn-main-init:hover { color: #fff; text-shadow: 0 0 20px var(--neon-main); background: #020202; }
+
+        .spielberg-btn {
+            background: transparent; border: 1px solid var(--neon-main);
+            color: var(--neon-main); font-family: 'Orbitron'; font-size: 14px;
+            padding: 15px 40px; letter-spacing: 6px; cursor: pointer; border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1); transition: all 0.4s;
+        }
+        .spielberg-btn:hover {
+            color: #fff; background: var(--neon-main);
+            box-shadow: 0 0 35px var(--neon-main);
+            letter-spacing: 8px;
+        }
 
         #creditos_btn {
-            position: fixed; bottom: 5px; right: 10px;
+            position: fixed; top: 20px; right: 20px;
             background: transparent; border: none;
-            color: rgba(255,255,255,0.2); font-size: 9px; cursor: pointer;
+            color: rgba(255,255,255,0.2); font-size: 9px; cursor: pointer; z-index: 100;
         }
-
-        .home-btn {
-            width: auto !important; height: 45px; padding: 0 16px;
-            border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;
-            font-size: 12px; font-family: 'Orbitron', sans-serif; letter-spacing: 1px;
-            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--neon-cyan); color: #fff;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); transition: 0.25s ease;
-        }
-        .home-btn:hover { transform: scale(1.05); background: rgba(0, 242, 255, 0.15); box-shadow: 0 0 25px var(--neon-cyan); }
     </style>
 </head>
 
 <body>
 
-<button id="btn-main-init">INICIAR MATRIX MAQUINA DEL TIEMPO</button>
+<div id="intro-overlay">
+    <button class="spielberg-btn" id="btn-main-init">INICIAR SECUENCIA CÓSMICA</button>
+</div>
 
 <div class="vignette"></div>
-<canvas id="canvas-cosmos"></canvas>
+<div id="webgl-canvas"></div>
 
-<header><div class="cinema-title">TEMPORAL METRICS & GALAXIES</div></header>
+<header><div class="cinema-title">TEMPORAL METRICS ENGINE 3D</div></header>
 
-<div class="ui-left-group">
-    <a href="index.html" class="orb-btn orb-start home-btn" title="Centro de control">⬅️ MENU</a>
-    <a href="fps-world.html" class="orb-btn home-btn" title="Entrar al mundo FPS">🚀 ENTRAR</a>
+<div class="ui-controls-hud">
+    <a href="index.html" class="home-btn" title="Centro de control">⬅ MTRX</a>
+    <a href="fps-world.html" class="home-btn" title="Entrar al mundo FPS">🚀 NAV</a>
 </div>
 
-<div class="ui-right-group">
-    <a href="demo-3d.html" class="orb-btn orb-blackhole" title="Simulación 3D de agujero negro" aria-label="Abrir simulación 3D">🌀</a>
+<div class="ui-right-hud">
+    <a href="demo-3d.html" class="orb-blackhole" title="Simulación 3D de agujero negro">🌀</a>
 </div>
 
-<div class="narrative-card" id="narrative-box" style="opacity: 0;">
+<div class="narrative-card" id="narrative-box" style="opacity: 0; transform: translate(-50%, 30px);">
     <h2 id="stage-title">...</h2>
     <p id="stage-desc">...</p>
 </div>
 
-<button id="creditos_btn" onclick="window.location.href='creditos.html'">CORE LOG SYSTEM</button>
+<button id="creditos_btn" onclick="window.location.href='creditos.html'">LOG SYSTEM</button>
 
 <script>
-    const canvas = document.getElementById("canvas-cosmos");
-    const ctx = canvas.getContext("2d");
-    let w, h, stage = 0, particles = [], active = false;
-    let audioCtx, mainGain;
-    let flashOpacity = 0;
-
-    // Reloj Holográfico Global (Parámetros mecánicos de la máquina del tiempo)
-    let clockAngleSeconds = 0;
-    let clockAngleMinutes = 0;
-    let clockGlitch = 0;
-
+    let scene, camera, renderer, starGeometry, starField, clockMesh, hourHand, minuteHand;
+    let stage = 0, active = false, audioCtx, mainGain;
+    let colors = [0x00f2ff, 0x39ff14, 0xffcc00, 0x00ffcc, 0xbc13fe];
+    
     const timeline = [
-        { t: "Espuma de Planck (Pre-Materia)", d: "Ubicación: Coordenada Cero. El tejido subatómico vibra. Nuestra máquina del tiempo calibra los motores sobre filamentos cuánticos estacionarios.", color: "#00f2ff", dur: 9000, freq: 440 },
-        { t: "Galaxia de Oxidación Biológica", d: "Ubicación: Cuadrante Andrómeda B. El tiempo fluye a través de corrientes químicas nocivas. El oxígeno desgasta las células y acelera las manecillas biológicas hacia el envejecimiento.", color: "#39ff14", dur: 11000, freq: 320 },
-        { t: "Pozo Gravitatorio de Virgo", d: "Ubicación: Núcleo Cúmulo de Virgo. La masa colosal de una galaxia elíptica curva la red temporal. La gravedad es tan extrema que la máquina del tiempo registra un retraso severo (Dilatación).", color: "#ffcc00", dur: 12000, freq: 200 },
-        { t: "Salto Warp Espacio-Temporal", d: "Ubicación: Hiper-Espacio Intergaláctico. Activación del campo Alcubierre. Rompemos la flecha lineal del tiempo; los relojes se vuelven locos girando hacia el pasado y el futuro.", color: "#00ffcc", dur: 12000, freq: 160 },
-        { t: "Singularidad de la Galaxia Oscura", d: "Ubicación: Agujero Negro Central M87*. Colapso total de la geometría métrica. Las galaxias vecinas son devoradas, el reloj de la máquina del tiempo se quiebra y el tiempo se congela.", color: "#bc13fe", dur: 13000, freq: 65 }
+        { t: "Líneas de Planck", d: "Dimensión cuántica base. Filamentos de energía pura vibran en un entorno hiperdimensional antes de la creación de la materia regular.", dur: 9000, freq: 440 },
+        { t: "Oxidación Celular Galáctica", d: "Corrientes bio-químicas de oxígeno degradan las estructuras celulares. Las partículas cambian de un verde vital a tonos óxido mientras decaen.", dur: 11000, freq: 320 },
+        { t: "Dilatación Gravitatoria", d: "Aproximación a un cúmulo estelar masivo. La gravedad curva el tejido de la galaxia elíptica. Las agujas del tiempo ralentizan su marcha drásticamente.", dur: 12000, freq: 200 },
+        { t: "Campo Warp Métrico", d: "Activación de la burbuja Alcubierre. El espacio tridimensional se contrae violentamente frente a la nave. El tiempo exterior gira hacia el pasado.", dur: 12000, freq: 160 },
+        { t: "Singularidad Espacio-Temporal", d: "Colapso gravitacional absoluto. Los brazos de la galaxia colapsan hacia el sumidero central. La geometría del reloj holográfico se quiebra.", dur: 13000, freq: 65 }
     ];
 
-    const resize = () => { 
-        w = canvas.width = window.innerWidth; 
-        h = canvas.height = window.innerHeight; 
-        initParticles();
-    };
-    window.addEventListener('resize', resize);
+    function init3DEngine() {
+        const container = document.getElementById('webgl-canvas');
+        
+        // 1. ESCENA Y CÁMARA CINEMÁTICA
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020205, 0.0015);
+        
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 150;
+
+        // 2. RENDERIZADOR WEBGL DE ALTA RESOLUCIÓN
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // 3. CREACIÓN DE LA GALAXIA TRIDIMENSIONAL (PUNTOS VOLUMÉTRICOS)
+        starGeometry = new THREE.BufferGeometry();
+        const particleCount = 2500;
+        const positions = new Float32Array(particleCount * 3);
+        const originalData = [];
+
+        for(let i=0; i<particleCount; i++) {
+            // Brazos espirales logarítmicos reales
+            let angle = Math.random() * Math.PI * 2;
+            let distance = Math.sqrt(Math.random()) * 180 + 5;
+            let arm = (i % 3) * (Math.PI * 2 / 3);
+            let spiralAngle = angle + arm + (distance * 0.02);
+
+            let x = Math.cos(spiralAngle) * distance;
+            let y = Math.sin(spiralAngle) * distance;
+            let z = (Math.random() - 0.5) * 20;
+
+            positions[i*3] = x;
+            positions[i*3+1] = y;
+            positions[i*3+2] = z;
+
+            originalData.push({ x, y, z, angle, distance, arm, life: Math.random() * 100 });
+        }
+
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        
+        // Material holográfico para las partículas
+        const starMaterial = new THREE.PointsMaterial({
+            size: 1.8,
+            vertexColors: false,
+            color: colors[0],
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+
+        starField = new THREE.Points(starGeometry, starMaterial);
+        starField.userData = originalData;
+        scene.add(starField);
+
+        // 4. MAQUINA DEL TIEMPO: RELOJ HOLOGRÁFICO EN 3D
+        const clockGroup = new THREE.Group();
+        const ringGeo = new THREE.RingGeometry(38, 40, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: colors[0], side: THREE.DoubleSide, transparent: true, opacity: 0.25 });
+        clockMesh = new THREE.Mesh(ringGeo, ringMat);
+        clockGroup.add(clockMesh);
+
+        // Manecillas 3D estilizadas
+        const handMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+        
+        const hourGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0, 22, 0)]);
+        hourHand = new THREE.Line(hourGeo, handMat);
+        clockGroup.add(hourHand);
+
+        const minGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0, 32, 0)]);
+        minuteHand = new THREE.Line(minGeo, new THREE.LineBasicMaterial({ color: colors[0] }));
+        clockGroup.add(minuteHand);
+
+        scene.add(clockGroup);
+
+        window.addEventListener('resize', onWindowResize);
+    }
 
     function initAudio() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -216,236 +292,97 @@
         const g = audioCtx.createGain();
         osc.type = stage === 3 ? 'sawtooth' : 'sine';
         osc.frequency.setValueAtTime(f, audioCtx.currentTime);
-        g.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime + 0.1);
-        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4.5);
+        g.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.1);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4);
         osc.connect(g); g.connect(mainGain);
-        osc.start(); osc.stop(audioCtx.currentTime + 4.5);
+        osc.start(); osc.stop(audioCtx.currentTime + 4);
     }
 
-    class Particle {
-        constructor(ix, iy) {
-            this.gridX = ix;
-            this.gridY = iy;
-            this.init();
-        }
+    let clockTime = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        if (!active) return;
 
-        init() {
-            // Diseño orbital para simular galaxias en espiral reales
-            this.angle = Math.random() * Math.PI * 2;
-            this.distance = Math.random() * (Math.max(w, h) * 0.45) + 20;
-            this.armOffset = (Math.random() - 0.5) * 0.4; 
-            // Número de brazos de la galaxia actual
-            this.arm = Math.floor(Math.random() * 3); 
-            
-            this.x = Math.cos(this.angle) * this.distance;
-            this.y = Math.sin(this.angle) * this.distance;
-            this.z = Math.random() * w;
-            this.pz = this.z;
-            this.size = Math.random() * 1.6 + 0.4;
-            
-            // Degradación metabólica celular (Fase 1)
-            this.cellHealth = Math.random() * 100 + 40;
-            this.maxHealth = this.cellHealth;
-            this.oxidationSpeed = Math.random() * 0.6 + 0.2;
-        }
+        const positions = starGeometry.attributes.position.array;
+        const data = starField.userData;
 
-        update() {
-            this.pz = this.z;
+        // ACTUALIZACIÓN DE MECÁNICAS DE TIEMPO SEGÚN EL ESTADO
+        if (stage === 0) clockTime += 0.015;
+        else if (stage === 1) clockTime += 0.08;  // Oxidación celular acelera el desgaste temporal
+        else if (stage === 2) clockTime += 0.002; // Dilatación: la gravedad frena el tiempo
+        else if (stage === 3) clockTime -= 0.15;  // Warp: el reloj viaja hacia atrás en el hiperespacio
+        else if (stage === 4) clockTime += (Math.random() - 0.5) * 0.2; // Singularidad: caótico/destruido
 
-            if (stage === 0) { // PLANCK ESPUMA
-                this.x += Math.sin(Date.now() * 0.005 + this.gridX) * 0.5;
-                this.y += Math.cos(Date.now() * 0.005 + this.gridY) * 0.5;
+        minuteHand.rotation.z = -clockTime;
+        hourHand.rotation.z = -clockTime * 0.1;
+
+        // GESTIÓN DEL ENTORNO DE PARTÍCULAS 3D
+        for (let i = 0; i < data.length; i++) {
+            let pt = data[i];
+
+            if (stage === 0) { // PLANCK: Fluctuación cuántica
+                positions[i*3] += Math.sin(Date.now() * 0.001 + i) * 0.08;
+                positions[i*3+1] += Math.cos(Date.now() * 0.001 + i) * 0.08;
             } 
-            else if (stage === 1) { // OXIDACIÓN CELULAR GALÁCTICA
-                this.cellHealth -= this.oxidationSpeed;
-                this.angle += 0.004; // Rotación lenta de la bio-galaxia
-                this.x = Math.cos(this.angle) * this.distance;
-                this.y = Math.sin(this.angle) * this.distance + Math.sin(Date.now() * 0.002) * 10;
-                if (this.cellHealth <= 0) this.init();
+            else if (stage === 1) { // OXIDACIÓN CELULAR: Pérdida de órbita y envejecimiento
+                pt.life -= 0.3;
+                positions[i*3+1] += 0.12; // Flotan hacia arriba como residuos degradados
+                if(pt.life <= 0) {
+                    positions[i*3] = pt.x;
+                    positions[i*3+1] = pt.y;
+                    pt.life = Math.random() * 100;
+                }
             } 
-            else if (stage === 2) { // POZO GRAVITATORIO DE VIRGO
-                // Simulación física de brazos espirales atraídos por el pozo
-                this.angle += 3 / (this.distance * 0.05 + 5); 
-                let pull = 2.5 / (this.distance * 0.008 + 1);
-                this.distance -= pull;
-                if (this.distance < 15) this.distance = Math.random() * (w * 0.4) + 100;
-                this.x = Math.cos(this.angle + (this.arm * (Math.PI * 2 / 3)) + this.armOffset) * this.distance;
-                this.y = Math.sin(this.angle + (this.arm * (Math.PI * 2 / 3)) + this.armOffset) * this.distance;
-            } 
-            else if (stage === 3) { // SALTO WARP MOTOR
-                this.z -= 40;
-                if(this.z < 1) { this.z = w; this.pz = w; }
-            } 
-            else if (stage === 4) { // SINGULARIDAD CRÍTICA
-                this.angle += 0.08;
-                this.distance *= 0.985; // Colapso galáctico hacia el centro de la máquina del tiempo
-                if(this.distance < 5) this.init();
-                this.x = Math.cos(this.angle) * this.distance;
-                this.y = Math.sin(this.angle) * this.distance;
-            }
-        }
-
-        draw() {
-            let s = timeline[stage];
-            ctx.globalAlpha = Math.min(1, 1 - (this.z / w));
-
-            let cx = this.x + w/2;
-            let cy = this.y + h/2;
-
-            if (stage === 1) { // Renderizado Oxidación Celular
-                let hRatio = this.cellHealth / this.maxHealth;
-                let r = Math.floor((1 - hRatio) * 230 + 40); 
-                let g = Math.floor(hRatio * 255 + (1 - hRatio) * 50);
-                let b = Math.floor((1 - hRatio) * 10);
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.beginPath(); ctx.arc(cx, cy, this.size * (hRatio * 2.5 + 0.5), 0, Math.PI * 2); ctx.fill();
-            } 
-            else if (stage === 3) { // Renderizado Warp (Túnel Métrico Intergaláctico)
-                let k = 600 / this.z;
-                let sx = (this.x * 0.1) * k + w/2;
-                let sy = (this.y * 0.1) * k + h/2;
-                let pk = 600 / this.pz;
-                let px = (this.x * 0.1) * pk + w/2;
-                let py = (this.y * 0.1) * pk + h/2;
+            else if (stage === 2 || stage === 4) { // GRAVEDAD Y SINGULARIDAD: Atracción centrípeta masiva
+                let speed = stage === 4 ? 0.06 : 0.01;
+                pt.distance *= (1 - speed);
+                if (pt.distance < 2) pt.distance = Math.random() * 150 + 30;
+                pt.angle += stage === 4 ? 0.05 : 0.01;
                 
-                ctx.strokeStyle = s.color;
-                ctx.lineWidth = (1 - this.z/w) * 5;
-                ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx, sy); ctx.stroke();
-            } 
-            else { // Resto de fases galácticas ordinarias
-                ctx.fillStyle = s.color;
-                ctx.beginPath(); ctx.arc(cx, cy, this.size * 1.5, 0, Math.PI * 2); ctx.fill();
+                let spiralAngle = pt.angle + pt.arm + (pt.distance * 0.02);
+                positions[i*3] = Math.cos(spiralAngle) * pt.distance;
+                positions[i*3+1] = Math.sin(spiralAngle) * pt.distance;
+            }
+            else if (stage === 3) { // MOTOR WARP: Movimiento de túnel 3D (Efecto Spielberg Starfield)
+                positions[i*3+2] += 4.5;
+                if (positions[i*3+2] > 150) positions[i*3+2] = -200;
             }
         }
-    }
-
-    function initParticles() {
-        particles = [];
-        // Población masiva para dar volumen a las galaxias
-        for(let i=0; i<650; i++) {
-            particles.push(new Particle(i % 25, Math.floor(i / 25)));
-        }
-    }
-
-    // ACTUALIZACIÓN MECÁNICA DE LA MÁQUINA DEL TIEMPO (RELOJ HOLOGRÁFICO)
-    function updateClockMechanics() {
-        if (stage === 0) { 
-            clockAngleSeconds += 0.02; // Ticking de calibración estándar
-        } else if (stage === 1) { 
-            clockAngleSeconds += 0.12; // La oxidación acelera el desgaste del tiempo biológico
-        } else if (stage === 2) { 
-            clockAngleSeconds += 0.003; // Dilatación: la gravedad masiva detiene el reloj
-        } else if (stage === 3) { 
-            clockAngleSeconds += (Math.sin(Date.now() * 0.01) * 0.8); // Warp: oscila caóticamente adelante/atrás
-        } else if (stage === 4) { 
-            clockAngleSeconds = Math.PI; // Singularidad: Roto, estático y colapsado
-        }
-        clockAngleMinutes = clockAngleSeconds / 12;
-    }
-
-    // RENDERIZADO DEL RELOJ DE LA MÁQUINA DEL TIEMPO
-    function drawTimeMachineClock() {
-        let s = timeline[stage];
-        ctx.save();
-        ctx.translate(w / 2, h / 2);
         
-        let radius = Math.min(w, h) * 0.22;
-        
-        // Efecto glitch visual si estamos en salto Warp o singularidad
-        if (stage === 3 || stage === 4) {
-            ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+        starGeometry.attributes.position.needsUpdate = true;
+
+        // EFECTOS DE MOVIMIENTO DE CÁMARA (DINÁMICA DE CINE)
+        if (stage === 3) {
+            camera.position.z = 100 + Math.sin(Date.now() * 0.003) * 10;
+            starField.rotation.z += 0.015;
+        } else {
+            camera.position.z = 150;
+            starField.rotation.z += 0.0015;
         }
 
-        // Esfera exterior del reloj holográfico
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = stage === 4 ? 0.2 : 0.4;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Marcas horarias intergalácticas
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 12; i++) {
-            let angle = (i * Math.PI) / 6;
-            ctx.rotate(angle);
-            ctx.beginPath();
-            ctx.moveTo(0, -radius + 4);
-            ctx.lineTo(0, -radius + 15);
-            ctx.stroke();
-            ctx.rotate(-angle);
-        }
-
-        // MANECILLA: SEGUNDOS / PASO DEL TIEMPO
-        ctx.save();
-        ctx.rotate(clockAngleSeconds);
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = stage === 4 ? 1 : 2;
-        ctx.globalAlpha = 0.85;
-        ctx.beginPath();
-        ctx.moveTo(0, 15);
-        ctx.lineTo(0, -radius + 25);
-        ctx.stroke();
-        // Detalle de flecha temporal de la máquina
-        ctx.fillStyle = s.color;
-        ctx.beginPath(); ctx.arc(0, -radius + 25, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-
-        // MANECILLA: MINUTOS / ERAS CÓSMICAS
-        ctx.save();
-        ctx.rotate(clockAngleMinutes);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -radius * 0.65);
-        ctx.stroke();
-        ctx.restore();
-
-        // Núcleo cuántico central de la máquina del tiempo
-        ctx.fillStyle = s.color;
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
-
-        ctx.restore();
-    }
-
-    function loop() {
-        ctx.fillStyle = (stage === 3 || stage === 4) ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.15)";
-        ctx.fillRect(0, 0, w, h);
-
-        if (active) {
-            updateClockMechanics();
-            particles.forEach(p => { p.update(); p.draw(); });
-            drawTimeMachineClock();
-        }
-
-        // Transición cuántica (Flash cinematográfico integrado estofado)
-        if (flashOpacity > 0) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
-            ctx.globalAlpha = 1;
-            ctx.fillRect(0, 0, w, h);
-            flashOpacity -= 0.025; 
-        }
-
-        requestAnimationFrame(loop);
+        renderer.render(scene, camera);
     }
 
     function nextStage() {
         const s = timeline[stage];
         const box = document.getElementById("narrative-box");
+        
         box.style.opacity = 0;
-        box.style.transform = "translateX(-50%) translateY(15px)";
+        box.style.transform = "translate(-50%, 25px)";
         
         setTimeout(() => {
             document.getElementById("stage-title").innerText = s.t;
             document.getElementById("stage-desc").innerText = s.d;
-            document.getElementById("stage-title").style.color = s.color;
+            document.getElementById("stage-title").style.color = "#" + colors[stage].toString(16).padStart(6, '0');
+            
+            // Transición limpia de colores en el motor 3D
+            starField.material.color.setHex(colors[stage]);
+            clockMesh.material.color.setHex(colors[stage]);
+            minuteHand.material.color.setHex(colors[stage]);
+            
             box.style.opacity = 1;
-            box.style.transform = "translateX(-50%) translateY(0px)";
+            box.style.transform = "translate(-50%, 0px)";
             playTone(s.freq);
-            flashOpacity = 0.6; 
         }, 800);
 
         setTimeout(() => {
@@ -454,15 +391,22 @@
         }, s.dur);
     }
 
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
     document.getElementById('btn-main-init').addEventListener('click', function() {
-        this.style.display = 'none';
+        document.getElementById('intro-overlay').style.opacity = 0;
+        setTimeout(() => document.getElementById('intro-overlay').style.display = 'none', 1000);
         initAudio();
         active = true;
         nextStage();
     });
 
-    resize();
-    loop();
+    init3DEngine();
+    animate();
 </script>
 </body>
 </html>
