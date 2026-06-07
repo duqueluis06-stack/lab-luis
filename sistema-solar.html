@@ -927,14 +927,57 @@
                     const mesh = new THREE.Mesh(geometry, material);
                     const orbitRadius = orbitDistances[key];
 
+                    let mainObject = mesh;
+                    let ringMesh = null;
+
+                    // Integración de Discos de Metano para Urano (Conservando la inclinación de ~90°)
+                    if (key === 'urano') {
+                        mainObject = new THREE.Group();
+                        mainObject.add(mesh);
+
+                        ringMesh = new THREE.Group();
+                        
+                        // Estructura de anillo interior translúcido cian/militarizado
+                        const ringGeo1 = new THREE.RingGeometry(data.radius * 1.4, data.radius * 1.9, 64);
+                        const ringMat1 = new THREE.MeshBasicMaterial({
+                            color: 0x00f0ff,
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 0.25,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const r1 = new THREE.Mesh(ringGeo1, ringMat1);
+                        ringMesh.add(r1);
+
+                        // Banda externa fina de acoplamiento espectral
+                        const ringGeo2 = new THREE.RingGeometry(data.radius * 2.1, data.radius * 2.2, 64);
+                        const ringMat2 = new THREE.MeshBasicMaterial({
+                            color: 0x33ffff,
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 0.45,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const r2 = new THREE.Mesh(ringGeo2, ringMat2);
+                        ringMesh.add(r2);
+
+                        // Ajuste angular crítico: RingGeometry se genera ortogonal al plano de la cámara (XY),
+                        // lo que por defecto ya representa 90° con la eclíptica XZ. Desfasamos 7.77° para sus 97.77° reales.
+                        ringMesh.rotation.x = THREE.MathUtils.degToRad(7.77);
+
+                        mainObject.add(ringMesh);
+                    }
+
                     this.planets[key] = { 
-                        mesh, 
+                        mesh: mainObject, 
+                        planetBillboard: mesh,
+                        ringMesh: ringMesh,
                         orbitRadius, 
                         orbitSpeed: 1.5 / (index * 1.4 + 1), 
                         initialAngle: Math.random() * Math.PI * 2, 
                         angle: 0 
                     };
-                    this.scene.add(mesh);
+                    this.scene.add(mainObject);
 
                     if (key !== 'sol' && key !== 'luna') {
                         const orbitGeom = new THREE.BufferGeometry(); const points = [];
@@ -1007,7 +1050,8 @@
 
                     this.pushTerminalMessage("[SISTEMA] Sincronizando búferes multimedia e hilos gráficos...");
                     Object.keys(this.planets).forEach(key => {
-                        const mat = this.planets[key].mesh.material;
+                        const targetMesh = (key === 'urano') ? this.planets[key].planetBillboard : this.planets[key].mesh;
+                        const mat = targetMesh.material;
                         if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
                             const videoEl = mat.uniforms.u_videoTexture.value.image;
                             videoEl.play().then(() => {
@@ -1331,7 +1375,7 @@
                     this.activeTargetKey = key;
 
                     Object.keys(this.planets).forEach(k => {
-                        const mat = this.planets[k].mesh.material;
+                        const mat = (k === 'urano') ? this.planets[k].planetBillboard.material : this.planets[k].mesh.material;
                         if(mat && mat.uniforms && mat.uniforms.u_videoTexture.value.image instanceof HTMLVideoElement) {
                             const videoEl = mat.uniforms.u_videoTexture.value.image;
                             if (k === 'sol' || k === key) {
@@ -1401,14 +1445,13 @@
                     const p = this.planets[key];
                     const data = astronomicalDatabase[key];
                     if (key !== 'sol' && key !== 'luna') {
-                        p.angle = (totalTime * p.orbitSpeed) + p.initialAngle; // Anomalía Media (M)
+                        p.angle = (totalTime * p.orbitSpeed) + p.initialAngle; 
                         
                         const e = data.eccentricity || 0;
                         const a = p.orbitRadius;
                         const b = a * Math.sqrt(1 - e * e);
                         const focalShift = a * e;
 
-                        // Solucionador de Newton-Raphson para la ecuación de Kepler (3 iteraciones bastan)
                         const M = p.angle;
                         let E = M;
                         for (let j = 0; j < 3; j++) {
@@ -1420,7 +1463,7 @@
                             const pz = Math.sin(E) * b;
                             p.mesh.position.x = px;
                             p.mesh.position.z = pz * 0.88;
-                            p.mesh.position.y = px * 0.28; // Inclinación orbital característica
+                            p.mesh.position.y = px * 0.28; 
                         } else {
                             p.mesh.position.x = Math.cos(E) * a - focalShift;
                             p.mesh.position.z = Math.sin(E) * b;
@@ -1472,9 +1515,18 @@
 
                 if (this.controls) this.controls.update(); 
 
+                // Orientación de vallas gráficas e hilos de rotación propios
                 Object.keys(this.planets).forEach(key => {
-                    this.planets[key].mesh.lookAt(this.camera.position);
+                    if (key === 'urano') {
+                        this.planets[key].planetBillboard.lookAt(this.camera.position);
+                        if (this.planets[key].ringMesh) {
+                            this.planets[key].ringMesh.rotation.z += delta * 0.3; // Rotación dinámica intrínseca sobre su propio eje
+                        }
+                    } else {
+                        this.planets[key].mesh.lookAt(this.camera.position);
+                    }
                 });
+
                 if (this.ufoDetected && this.ufoMesh) {
                     this.ufoMesh.lookAt(this.camera.position);
                 }
