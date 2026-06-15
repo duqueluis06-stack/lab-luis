@@ -8,7 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <style>
-    /* Reset básico y bloqueo de scroll */
+    /* Reset básico y bloqueo de scroll para evitar saltos de pantalla */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -23,7 +23,7 @@
       background-color: #020208;
     }
 
-    /* El lienzo donde se renderizará el espacio 3D */
+    /* El lienzo de fondo donde se renderizará el espacio 3D */
     #canvas-container {
       position: absolute;
       top: 0;
@@ -44,7 +44,35 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      pointer-events: none; /* Permite que el ratón interactúe con el fondo si es necesario */
+      pointer-events: none; /* Permite que el ratón interactúe con el fondo 3D */
+    }
+
+    /* Botón flotante para regresar al Index */
+    .btn-back {
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      z-index: 10;
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 10px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+      pointer-events: auto; /* Fuerza que el botón reciba los clics */
+    }
+
+    .btn-back:hover {
+      color: #ffffff;
+      border-color: #4aa3ff;
+      box-shadow: 0 0 15px rgba(74, 163, 255, 0.4);
+      transform: translateX(-3px);
     }
 
     /* Tarjeta futurista efecto Cristal (Glassmorphism) */
@@ -60,7 +88,7 @@
       width: 90%;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
                   0 0 40px rgba(74, 163, 255, 0.1) inset;
-      pointer-events: auto; /* Reactiva los clicks dentro de la tarjeta */
+      pointer-events: auto; /* Reactiva las interacciones táctiles y clics del contenido */
       transform: translateY(20px);
       opacity: 0;
       animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -111,7 +139,7 @@
       transform: scale(0.98) translateY(1px);
     }
 
-    /* Efecto de destello interno en el botón */
+    /* Efecto de destello metálico interno al pasar el mouse */
     .btn-portal::before {
       content: '';
       position: absolute;
@@ -128,6 +156,13 @@
       left: 150%;
     }
 
+    /* Ajuste para pantallas pequeñas (móviles) */
+    @media (max-width: 600px) {
+      h1 { font-size: 2.5rem; }
+      .btn-back { top: 15px; left: 15px; padding: 8px 15px; font-size: 0.8rem; }
+      .welcome-card { padding: 35px 20px; }
+    }
+
     /* Animación de entrada suave */
     @keyframes fadeInUp {
       to {
@@ -142,6 +177,9 @@
   <div id="canvas-container"></div>
 
   <div class="ui-container">
+    
+    <a href="index.html" class="btn-back">⬅ Volver al Inicio</a>
+
     <div class="welcome-card">
       <h1>Isla del Cielo</h1>
       <p>Estás a punto de ascender a una experiencia virtual interactiva en Viverse. Prepara tu avatar.</p>
@@ -150,6 +188,7 @@
         INICIAR ASCENSO
       </a>
     </div>
+
   </div>
 
   <script>
@@ -157,35 +196,34 @@
     const container = document.getElementById('canvas-container');
 
     function init() {
-      // 1. Escena y Niebla de fondo cósmico
+      // 1. Inicialización del espacio y efecto de niebla profunda
       scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x020208, 0.0015);
 
-      // 2. Cámara
+      // 2. Configuración de la perspectiva de la cámara
       camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
       camera.position.z = 1;
-      camera.rotation.x = Math.PI/2;
+      camera.rotation.x = Math.PI / 2;
 
-      // 3. Renderizador
+      // 3. Renderizador WebGL integrado al contenedor HTML
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       container.appendChild(renderer.domElement);
 
-      // 4. Creación del Campo de Estrellas (Partículas)
+      // 4. Generación matemática del campo de partículas cósmicas
       starGeo = new THREE.BufferGeometry();
       const starCount = 6000;
       const positions = new Float32Array(starCount * 3);
 
-      for(let i=0; i<starCount*3; i+=3) {
-        // Distribución en un cubo gigante en el espacio
-        positions[i] = (Math.random() - 0.5) * 600;     // X
-        positions[i+1] = (Math.random() - 0.5) * 600;   // Y
-        positions[i+2] = (Math.random() - 0.5) * 600;   // Z
+      for(let i = 0; i < starCount * 3; i += 3) {
+        positions[i] = (Math.random() - 0.5) * 600;     // Coordenadas X
+        positions[i+1] = (Math.random() - 0.5) * 600;   // Coordenadas Y
+        positions[i+2] = (Math.random() - 0.5) * 600;   // Coordenadas Z
       }
 
       starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-      // Textura estilizada de estrella (generada por código para evitar enlaces caídos)
+      // Propiedades del material de las partículas (brillo sutil)
       const mat = new THREE.PointsMaterial({
         color: 0xaaaaff,
         size: 0.9,
@@ -196,49 +234,51 @@
       stars = new THREE.Points(starGeo, mat);
       scene.add(stars);
 
-      // 5. Eventos
+      // 5. Escucha de eventos del navegador
       window.addEventListener('resize', onWindowResize, false);
       document.addEventListener('mousemove', onMouseMove, false);
 
       animate();
     }
 
-    // Efecto interactivo: mover ligeramente la cámara con el ratón
+    // Reactividad: Capturar movimiento del cursor para variar sutilmente la cámara
     let mouseX = 0, mouseY = 0;
     function onMouseMove(event) {
       mouseX = (event.clientX - window.innerWidth / 2) * 0.0005;
       mouseY = (event.clientY - window.innerHeight / 2) * 0.0005;
     }
 
+    // Corrección dinámica si el usuario cambia el tamaño de la ventana u orienta el móvil
     function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    // Loop de animación (Efecto de velocidad hiperespacial continua)
+    // Bucle infinito de renderizado (Efecto de viaje interestelar continuo)
     function animate() {
       requestAnimationFrame(animate);
 
-      // Movimiento de las estrellas hacia el frente
+      // Animación de traslación de las estrellas hacia el frente
       const positions = starGeo.attributes.position.array;
       for (let i = 1; i < positions.length; i += 3) {
-        positions[i] -= 0.18; // Velocidad de caída/acercamiento en Y
+        positions[i] -= 0.18; // Velocidad de avance
         
+        // Si la estrella pasa el umbral de la cámara, reaparece en el fondo profundo
         if (positions[i] < -300) {
-          positions[i] = 300; // Reseteo al fondo al salir de pantalla
+          positions[i] = 300; 
         }
       }
       starGeo.attributes.position.needsUpdate = true;
 
-      // Rotación suave guiada por el mouse del usuario
+      // Aplicar las rotaciones automáticas incrementales + inercia del mouse
       stars.rotation.y += 0.0008 + mouseX * 0.1;
       stars.rotation.x += 0.0002 + mouseY * 0.1;
 
       renderer.render(scene, camera);
     }
 
-    // Inicializar al cargar
+    // Arrancar el entorno gráfico al cargar el documento
     init();
   </script>
 </body>
