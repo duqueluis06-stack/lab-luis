@@ -116,7 +116,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, 5, 10);
+camera.position.set(0, 4, 10); // Ligeramente más baja para mejor inmersión
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -129,7 +129,7 @@ const clock = new THREE.Clock();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 2;
-controls.maxDistance = 25;
+controls.maxDistance = 30;
 controls.target.set(0, 1.2, 0);
 
 // Iluminación Global
@@ -138,7 +138,7 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(20, 30, 10);
 scene.add(dirLight);
 
-// --- SISTEMA DE AUDIO SEGURO (Anti-bloqueo de Chrome) ---
+// --- SISTEMA DE AUDIO SEGURO CON URL EXTERNA ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -148,16 +148,23 @@ const audioLoader = new THREE.AudioLoader();
 let userInteracted = false;
 let audioReady = false;
 
-audioLoader.load('mar.mp3', (buffer) => {
+// Luis: He cambiado 'mar.mp3' por esta URL pública para que no necesites buscar archivo!
+const oceanSoundUrl = 'https://www.w3schools.com/html/horse.mp3'; // NOTA: Esto es un sonido de caballo para probar, cámbialo por una URL de mar real si encuentras una CORS allowed. O use Mixkit.
+
+// Use Mixkit direct embed URL if possible, otherwise use local file with better instructions
+// Let's use a very reliable test sound provided by W3Schools, it's cross-origin allowed.
+// It's a horse sound, but it guarantees to sound and prove the audio system works.
+
+audioLoader.load(oceanSoundUrl, (buffer) => {
   oceanSound.setBuffer(buffer);
   oceanSound.setLoop(true);
   oceanSound.setVolume(0.4);
   audioReady = true;
-  document.getElementById('audio-prompt').innerText = "🔊 Toca cualquier parte para activar el sonido";
+  document.getElementById('audio-prompt').innerText = "🔊 Toca cualquier parte para activar el sonido (¡Oirás un caballo de prueba!)";
   intentarReproducirAudio();
 }, undefined, (err) => {
-  console.error("Falta el archivo mar.mp3 en tu repositorio:", err);
-  document.getElementById('audio-prompt').innerText = "❌ No se encontró mar.mp3";
+  console.error("Error cargando URL de audio:", err);
+  document.getElementById('audio-prompt').innerText = "❌ No se pudo cargar el audio externo.";
 });
 
 function intentarReproducirAudio() {
@@ -188,7 +195,7 @@ let islandMixer = null; // Animador Isla
 
 let avatarActions = {};
 let activeAction = null;
-let hasRealWalkAnimation = false;
+let hasWalkAnimation = false;
 
 // Cargar Isla
 loader.load("isla.glb", (gltf) => {
@@ -201,11 +208,16 @@ loader.load("isla.glb", (gltf) => {
   }
 }, undefined, (err) => console.error("Error isla:", err));
 
-// Cargar Avatar con Máquina de Estados
+// Cargar Avatar
 loader.load("luis-avatar2.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0);
   scene.add(avatar);
+
+  // --- LUIS, ATENCIÓN AQUÍ ---
+  // Esta línea es crucial. Imprime en tu consola (F12) qué animaciones traes.
+  // Si no ves nada aquí, tu GLB no tiene animaciones de patas móviles.
+  console.log("Animaciones disponibles en tu avatar Luis:", gltf.animations.map(a => a.name));
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixer = new THREE.AnimationMixer(avatar);
@@ -213,42 +225,43 @@ loader.load("luis-avatar2.glb", (gltf) => {
     gltf.animations.forEach((clip) => {
       const name = clip.name.toLowerCase();
       const action = mixer.clipAction(clip);
-      avatarActions[clip.name] = action;
-
-      // Identificar clips automáticamente
+      
+      // Mapeo automático inteligente
       if (name.includes('idle') || name.includes('quieto') || name.includes('espera')) {
         avatarActions['idle'] = action;
-      }
-      if (name.includes('walk') || name.includes('caminar') || name.includes('run') || name.includes('marcha')) {
+      } else if (name.includes('walk') || name.includes('caminar') || name.includes('marcha')) {
         avatarActions['walk'] = action;
-        hasRealWalkAnimation = true;
+        hasWalkAnimation = true;
       }
     });
-
-    // Asignaciones de respaldo si los nombres difieren
-    if (!avatarActions['idle']) avatarActions['idle'] = mixer.clipAction(gltf.animations[0]);
-    if (!avatarActions['walk'] && gltf.animations[1]) {
-      avatarActions['walk'] = mixer.clipAction(gltf.animations[1]);
-      hasRealWalkAnimation = true;
-    }
 
     // Arrancar en estado quieto
     if (avatarActions['idle']) {
       activeAction = avatarActions['idle'];
       activeAction.play();
+    } else {
+      // Si no hay idle, arrancar la primera que haya
+      activeAction = mixer.clipAction(gltf.animations[0]);
+      activeAction.play();
     }
   }
-}, undefined, (err) => console.error("Error avatar:", err));
+}, undefined, (err) => console.error("Error avatar Luis:", err));
 
-function cambiarAnimacion(name) {
-  const targetAction = avatarActions[name];
-  if (!targetAction || activeAction === targetAction) return;
-  
-  if (activeAction) {
-    activeAction.fadeOut(0.25);
-  }
-  targetAction.reset().fadeIn(0.25).play();
-  activeAction = targetAction;
+// Función para cambiar animaciones suavemente
+function fadeToAction(name, duration) {
+    const targetAction = avatarActions[name];
+    if (activeAction === targetAction || !targetAction) return;
+
+    targetAction.reset();
+    targetAction.setEffectiveTimeScale(1);
+    targetAction.setEffectiveWeight(1);
+    
+    if (activeAction) {
+        activeAction.crossFadeTo(targetAction, duration, true);
+    }
+    
+    targetAction.play();
+    activeAction = targetAction;
 }
 
 
@@ -320,18 +333,15 @@ function animate() {
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
 
-  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
-
   if (avatar) {
+    const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
+
     if (isMoving) {
-      // 1. Alternar a animación de caminar si existe
-      if (hasRealWalkAnimation) {
-        cambiarAnimacion('walk');
-      } else {
-        // Solución innovadora: Si el GLB no trae piernas móviles, simulamos paso físico procedimental
-        avatar.position.y = Math.abs(Math.sin(clock.getElapsedTime() * 9)) * 0.12;
-        avatar.rotation.z = Math.sin(clock.getElapsedTime() * 9) * 0.04;
+      // 1. Alternar a animación de caminar si existe, si no, se queda quieto
+      if (hasWalkAnimation) {
+        fadeToAction('walk', 0.2);
       }
+      // He quitado el "bamboleo horrible" (avatar.position.y procedimental)
 
       // 2. Calcular movimiento respecto al ángulo de la cámara
       const camDir = new THREE.Vector3();
@@ -347,8 +357,8 @@ function animate() {
       moveDirection.addScaledVector(camDir, moveInput.y);
       moveDirection.normalize();
 
-      // Mover modelo
-      const speed = 4.0;
+      // Mover modelo (ajustado para ser más fluido y lento, evitando el deslizamiento exagerado)
+      const speed = 2.5; 
       avatar.position.addScaledVector(moveDirection, speed * delta);
 
       // Rotar hacia el frente de marcha
@@ -358,11 +368,9 @@ function animate() {
       // Hacer que la cámara persiga al avatar suavemente
       controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
     } else {
-      // Estado Quieto
-      cambiarAnimacion('idle');
-      if (!hasRealWalkAnimation) {
-        avatar.position.y = 0;
-        avatar.rotation.z = 0;
+      // Estado Quieto suave
+      if (hasWalkAnimation) {
+        fadeToAction('idle', 0.2);
       }
     }
   }
