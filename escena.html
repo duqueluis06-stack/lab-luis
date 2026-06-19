@@ -99,7 +99,7 @@
   ⬅ Volver
 </button>
 
-<div id="audio-prompt">🔊 Cargando entorno y sonido... Toca la pantalla.</div>
+<div id="audio-prompt">🔊 Cargando música ambiental... Toca la pantalla.</div>
 
 <div id="joystick-container">
   <div id="joystick-knob"></div>
@@ -116,7 +116,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, 4, 10); // Ligeramente más baja para mejor inmersión
+camera.position.set(0, 4, 8); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -138,43 +138,41 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(20, 30, 10);
 scene.add(dirLight);
 
-// --- SISTEMA DE AUDIO SEGURO CON URL EXTERNA ---
+
+// --- SISTEMA DE AUDIO (Con música online garantizada de Three.js) ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
-const oceanSound = new THREE.Audio(listener);
+const backgroundMusic = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 
 let userInteracted = false;
 let audioReady = false;
 
-// Luis: He cambiado 'mar.mp3' por esta URL pública para que no necesites buscar archivo!
-const oceanSoundUrl = 'https://www.w3schools.com/html/horse.mp3'; // NOTA: Esto es un sonido de caballo para probar, cámbialo por una URL de mar real si encuentras una CORS allowed. O use Mixkit.
+// Esta URL apunta a un tema ambiental oficial de Three.js con CORS permitido. ¡Sonará seguro!
+const urlMusicaGitHub = "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/sounds/Project_Utopia.mp3";
 
-// Use Mixkit direct embed URL if possible, otherwise use local file with better instructions
-// Let's use a very reliable test sound provided by W3Schools, it's cross-origin allowed.
-// It's a horse sound, but it guarantees to sound and prove the audio system works.
-
-audioLoader.load(oceanSoundUrl, (buffer) => {
-  oceanSound.setBuffer(buffer);
-  oceanSound.setLoop(true);
-  oceanSound.setVolume(0.4);
+audioLoader.load(urlMusicaGitHub, (buffer) => {
+  backgroundMusic.setBuffer(buffer);
+  backgroundMusic.setLoop(true);
+  backgroundMusic.setVolume(0.3); // Volumen moderado de fondo
   audioReady = true;
-  document.getElementById('audio-prompt').innerText = "🔊 Toca cualquier parte para activar el sonido (¡Oirás un caballo de prueba!)";
+  document.getElementById('audio-prompt').innerText = "🔊 ¡Entorno listo! Toca la pantalla para activar la música";
   intentarReproducirAudio();
 }, undefined, (err) => {
-  console.error("Error cargando URL de audio:", err);
-  document.getElementById('audio-prompt').innerText = "❌ No se pudo cargar el audio externo.";
+  console.error("Error cargando el audio de internet:", err);
+  document.getElementById('audio-prompt').innerText = "❌ Error al conectar con el servidor de audio.";
 });
 
 function intentarReproducirAudio() {
-  if (userInteracted && audioReady && !oceanSound.isPlaying) {
-    oceanSound.play();
+  if (userInteracted && audioReady && !backgroundMusic.isPlaying) {
+    backgroundMusic.play();
     const promptElement = document.getElementById('audio-prompt');
     if (promptElement) promptElement.style.display = 'none';
   }
 }
 
+// Desbloqueo por interacción del usuario (Regla estricta de Chrome)
 window.addEventListener('click', () => {
   userInteracted = true;
   if (THREE.AudioContext.getContext().state === 'suspended') {
@@ -190,8 +188,8 @@ window.addEventListener('click', () => {
 // --- CARGA DE MODELOS Y ANIMACIONES ---
 const loader = new GLTFLoader();
 let avatar = null;
-let mixer = null;       // Animador Avatar
-let islandMixer = null; // Animador Isla
+let mixer = null;       
+let islandMixer = null; 
 
 let avatarActions = {};
 let activeAction = null;
@@ -206,27 +204,33 @@ loader.load("isla.glb", (gltf) => {
       islandMixer.clipAction(clip).play();
     });
   }
-}, undefined, (err) => console.error("Error isla:", err));
+}, undefined, (err) => console.error("Error cargando isla:", err));
 
-// Cargar Avatar
-loader.load("luis-avatar2.glb", (gltf) => {
+// Cargar Nuevo Avatar: luis-acostado.glb
+loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0);
+  
+  // --- LUIS: CONFIGURACIÓN PARA MIRAR AL MAR ---
+  // Math.PI equivale a 180 grados. 
+  // Si necesitas que mire a otro lado, puedes cambiarlo por:
+  // 0 (Frente original), Math.PI / 2 (90 grados), o Math.PI * 1.5 (270 grados).
+  avatar.rotation.y = Math.PI; 
+  
   scene.add(avatar);
 
-  // --- LUIS, ATENCIÓN AQUÍ ---
-  // Esta línea es crucial. Imprime en tu consola (F12) qué animaciones traes.
-  // Si no ves nada aquí, tu GLB no tiene animaciones de patas móviles.
-  console.log("Animaciones disponibles en tu avatar Luis:", gltf.animations.map(a => a.name));
+  // Ajustar la cámara para que apunte directamente al avatar recién cargado
+  controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
+
+  // Verificar si este nuevo GLB tiene animaciones internas
+  console.log("Animaciones detectadas en luis-acostado.glb:", gltf.animations.map(a => a.name));
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixer = new THREE.AnimationMixer(avatar);
-    
     gltf.animations.forEach((clip) => {
       const name = clip.name.toLowerCase();
       const action = mixer.clipAction(clip);
       
-      // Mapeo automático inteligente
       if (name.includes('idle') || name.includes('quieto') || name.includes('espera')) {
         avatarActions['idle'] = action;
       } else if (name.includes('walk') || name.includes('caminar') || name.includes('marcha')) {
@@ -235,31 +239,23 @@ loader.load("luis-avatar2.glb", (gltf) => {
       }
     });
 
-    // Arrancar en estado quieto
     if (avatarActions['idle']) {
       activeAction = avatarActions['idle'];
       activeAction.play();
     } else {
-      // Si no hay idle, arrancar la primera que haya
       activeAction = mixer.clipAction(gltf.animations[0]);
       activeAction.play();
     }
   }
-}, undefined, (err) => console.error("Error avatar Luis:", err));
+}, undefined, (err) => console.error("Error cargando luis-acostado.glb:", err));
 
-// Función para cambiar animaciones suavemente
 function fadeToAction(name, duration) {
     const targetAction = avatarActions[name];
     if (activeAction === targetAction || !targetAction) return;
-
     targetAction.reset();
     targetAction.setEffectiveTimeScale(1);
     targetAction.setEffectiveWeight(1);
-    
-    if (activeAction) {
-        activeAction.crossFadeTo(targetAction, duration, true);
-    }
-    
+    if (activeAction) activeAction.crossFadeTo(targetAction, duration, true);
     targetAction.play();
     activeAction = targetAction;
 }
@@ -303,7 +299,6 @@ joystick.addEventListener('pointerup', () => {
   moveInput.y = 0;
 });
 
-// Teclado WASD / Flechas
 const keys = { w: false, a: false, s: false, d: false, arrowup: false, arrowdown: false, arrowleft: false, arrowright: false };
 window.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
@@ -337,13 +332,10 @@ function animate() {
     const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
     if (isMoving) {
-      // 1. Alternar a animación de caminar si existe, si no, se queda quieto
       if (hasWalkAnimation) {
         fadeToAction('walk', 0.2);
       }
-      // He quitado el "bamboleo horrible" (avatar.position.y procedimental)
 
-      // 2. Calcular movimiento respecto al ángulo de la cámara
       const camDir = new THREE.Vector3();
       camera.getWorldDirection(camDir);
       camDir.y = 0;
@@ -357,18 +349,14 @@ function animate() {
       moveDirection.addScaledVector(camDir, moveInput.y);
       moveDirection.normalize();
 
-      // Mover modelo (ajustado para ser más fluido y lento, evitando el deslizamiento exagerado)
       const speed = 2.5; 
       avatar.position.addScaledVector(moveDirection, speed * delta);
 
-      // Rotar hacia el frente de marcha
       const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
       avatar.rotation.y = targetAngle;
 
-      // Hacer que la cámara persiga al avatar suavemente
       controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
     } else {
-      // Estado Quieto suave
       if (hasWalkAnimation) {
         fadeToAction('idle', 0.2);
       }
@@ -381,7 +369,6 @@ function animate() {
 
 animate();
 
-// Redimensionado de Pantalla
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
