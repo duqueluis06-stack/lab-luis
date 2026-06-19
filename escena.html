@@ -381,10 +381,11 @@ function loadTrack(index, startPlaying = false) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
-    if (startPlaying) {
+    // Corregido: Si el usuario ya interactuó durante la carga inicial, reproducimos al instante
+    if (startPlaying || hasStartedAutoplay) {
       executePlay();
     } else {
-      document.getElementById('track-display').innerText = cleanTrackName(playlist[0]);
+      document.getElementById('track-display').innerText = cleanTrackName(playlist[currentTrackIndex]);
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -413,19 +414,26 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
-// Inicialización pasiva
+// Inicialización pasiva de carga
 loadTrack(0, false);
 
-// DISPARADOR AUTO-PLAY INMEDIATO AL TOCAR PANTALLA
-window.addEventListener('pointerdown', () => {
+// FUNCIÓN INTEGRAL DE DESBLOQUEO POR INTERACCIÓN
+function unlockAudio() {
   if (THREE.AudioContext.getContext().state === 'suspended') {
     THREE.AudioContext.getContext().resume();
   }
-  if (!hasStartedAutoplay && soundSource.buffer && !soundSource.isPlaying) {
+  if (!hasStartedAutoplay) {
     hasStartedAutoplay = true;
-    executePlay();
+    // Si la pista asíncrona inicial ya terminó de descargarse, forzamos play
+    if (soundSource.buffer && !soundSource.isPlaying) {
+      executePlay();
+    }
   }
-});
+}
+
+// Solución definitiva usando fase de captura para ganarle a OrbitControls
+window.addEventListener('pointerdown', unlockAudio, { capture: true });
+window.addEventListener('keydown', unlockAudio, { capture: true });
 
 // Selector de temas directo del visor
 document.querySelectorAll('.track-pill').forEach(pill => {
