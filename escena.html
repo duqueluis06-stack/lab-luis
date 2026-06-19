@@ -35,7 +35,7 @@
       font-weight: bold;
     }
 
-    /* CONSOLA MULTIMEDIA OPTIMIZADA Y RESPONSIVA */
+    /* CONSOLA MULTIMEDIA RESPONSIVA */
     #media-console {
       position: absolute;
       top: 12px;
@@ -102,7 +102,7 @@
       display: block;
     }
 
-    /* DISEÑO PARA TELÉFONOS MÓVILES (EVITA QUE TAPE LA PANTALLA) */
+    /* OPTIMIZACIÓN PANTALLAS MÓVILES */
     @media (max-width: 600px) {
       #media-console {
         width: 150px;
@@ -117,7 +117,7 @@
       #volver { top: 8px; left: 8px; padding: 6px 10px; font-size: 12px; }
     }
 
-    /* Interfaz del Joystick Virtual */
+    /* Joystick Virtual */
     #joystick-container {
       position: absolute;
       bottom: 30px;
@@ -157,7 +157,7 @@
 <button id="volver" onclick="window.location.href='index.html'">⬅ Volver</button>
 
 <div id="media-console">
-  <div class="track-title" id="track-display">Pistas Locales</div>
+  <div class="track-title" id="track-display">Cargando tracks...</div>
   <select id="track-select" class="playlist-select">
     <option value="entre-tes-ombres.mp3">entre-tes-ombres.mp3</option>
     <option value="stade-de-nos-reves.mp3">stade-de-nos-reves.mp3</option>
@@ -206,7 +206,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- CONSOLA DE AUDIO LOCAL Y AUDIO ANALYSER ---
+// --- SISTEMA DE MULTIMEDIA Y CONSOLA DE PLAYLIST ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -214,50 +214,104 @@ const soundSource = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 let audioAnalyser = null;
 
+const playlist = ["entre-tes-ombres.mp3", "stade-de-nos-reves.mp3", "cumbia-de-minuit.mp3"];
+let currentTrackIndex = 0;
+let isManualChange = false; 
+let hasStartedAutoplay = false;
+
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
 vuCanvas.width = 200;
 vuCanvas.height = 30;
 
-function loadTrack(filename) {
+function loadTrack(index, startPlaying = false) {
+  currentTrackIndex = index;
+  const filename = playlist[currentTrackIndex];
   document.getElementById('track-display').innerText = "Cargando...";
-  if (soundSource.isPlaying) soundSource.stop();
+  document.getElementById('track-select').value = filename;
 
   audioLoader.load(filename, (buffer) => {
+    isManualChange = true;
+    if (soundSource.isPlaying) soundSource.stop();
+    isManualChange = false;
+
     soundSource.setBuffer(buffer);
-    soundSource.setLoop(true);
+    soundSource.setLoop(false); // Falso para obligar el avance de playlist
     soundSource.setVolume(0.5);
     document.getElementById('track-display').innerText = "🎵 " + filename;
     
     if(!audioAnalyser) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
+
+    if (startPlaying) {
+      executePlay();
+    }
   }, undefined, (err) => {
-    document.getElementById('track-display').innerText = "⚠ No hallado: " + filename;
-    console.error("Error cargando el archivo de audio local:", err);
+    document.getElementById('track-display').innerText = "⚠ Archivo no hallado";
+    console.error(err);
   });
 }
 
-// Cargar primera pista por defecto
-loadTrack(document.getElementById("track-select").value);
-
-document.getElementById("track-select").addEventListener("change", (e) => {
-  loadTrack(e.target.value);
-});
-
-document.getElementById("btn-play").addEventListener("click", () => {
+function executePlay() {
   if (THREE.AudioContext.getContext().state === 'suspended') {
     THREE.AudioContext.getContext().resume();
   }
-  if (soundSource.buffer && !soundSource.isPlaying) soundSource.play();
+  if (soundSource.buffer && !soundSource.isPlaying) {
+    soundSource.play();
+    
+    // Enganche de continuidad nativo seguro
+    if (soundSource.source) {
+      soundSource.source.onended = () => {
+        if (!isManualChange) {
+          // Si terminó sola de forma natural, salta a la siguiente pista
+          let nextIndex = (currentTrackIndex + 1) % playlist.length;
+          loadTrack(nextIndex, true);
+        }
+      };
+    }
+  }
+}
+
+// Cargar la primera canción en segundo plano
+loadTrack(0, false);
+
+// Eventos de botones físicos de la consola
+document.getElementById("track-select").addEventListener("change", (e) => {
+  let targetIndex = playlist.indexOf(e.target.value);
+  hasStartedAutoplay = true; 
+  loadTrack(targetIndex, true);
+});
+
+document.getElementById("btn-play").addEventListener("click", () => {
+  isManualChange = false;
+  hasStartedAutoplay = true;
+  executePlay();
 });
 
 document.getElementById("btn-pause").addEventListener("click", () => {
-  if (soundSource.isPlaying) soundSource.pause();
+  if (soundSource.isPlaying) {
+    isManualChange = true; 
+    soundSource.pause();
+  }
 });
 
 document.getElementById("btn-stop").addEventListener("click", () => {
-  if (soundSource.isPlaying) soundSource.stop();
+  if (soundSource.isPlaying) {
+    isManualChange = true;
+    soundSource.stop();
+  }
+});
+
+// Captura del primer clic en pantalla para saltar la restricción de Autoplay del navegador
+window.addEventListener('click', () => {
+  if (THREE.AudioContext.getContext().state === 'suspended') {
+    THREE.AudioContext.getContext().resume();
+  }
+  if (!hasStartedAutoplay && soundSource.buffer && !soundSource.isPlaying) {
+    hasStartedAutoplay = true;
+    executePlay();
+  }
 });
 
 function drawVuMeter() {
@@ -268,7 +322,7 @@ function drawVuMeter() {
     for (let i = 0; i < data.length; i++) {
       const value = data[i];
       const barHeight = vuCanvas.height * (value / 255);
-      const hue = (i / data.length) * 120 + 200; // Espectro azul-cian neon
+      const hue = (i / data.length) * 120 + 200; 
       vuCtx.fillStyle = `hsla(${hue}, 100%, 50%, 0.9)`;
       vuCtx.fillRect(i * barWidth, vuCanvas.height - barHeight, barWidth - 1, barHeight);
     }
@@ -282,7 +336,7 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA Y CALIBRACIÓN INDIVIDUAL DE MODELOS (ISLA BONITA) ---
+// --- SISTEMA DE GESTIÓN Y ESCALA DE MODELOS GLTF ---
 const loader = new GLTFLoader();
 let avatar = null;
 let mixer = null;       
@@ -298,32 +352,25 @@ loader.load("isla.glb", (gltf) => {
   }
 }, undefined, (err) => console.error("Error Isla:", err));
 
-// 2. Tu Avatar Principal (luis-acostado.glb)
+// 2. Tu Avatar Fijo (Avatarum .glb)
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0); 
-  avatar.rotation.y = Math.PI; // Mirando al mar original
+  avatar.rotation.y = Math.PI; // Mirando al mar
   scene.add(avatar);
   controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1, 0));
 
-  // OBLIGAR A QUE SE REPRODUZCA LA ANIMACIÓN INTERNA PARA QUE DEJE LA POSE EN T
   if (gltf.animations && gltf.animations.length > 0) {
     mixer = new THREE.AnimationMixer(avatar);
-    const action = mixer.clipAction(gltf.animations[0]); // Activa el primer clip disponible
-    action.play();
+    mixer.clipAction(gltf.animations[0]).play();
   }
 }, undefined, (err) => console.error("Error Luis-avatar:", err));
 
-// 3. Lara Baila (Corregida de escala gigante a tamaño humano normal)
+// 3. Lara Baila (Escala balanceada un poquitito más grande)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
-  
-  // ESCALA CORREGIDA: Ajustada al 35% para que coincida contigo
-  lara.scale.set(0.35, 0.35, 0.35); 
-  
-  // POSICIÓN CORREGIDA: y=0 asentada en tierra firme a tu lado
+  lara.scale.set(0.48, 0.48, 0.48); // Subido de 0.35 para tamaño ideal
   lara.position.set(1.8, 0, -1); 
-  
   scene.add(lara);
   
   if (gltf.animations && gltf.animations.length > 0) {
@@ -332,19 +379,19 @@ loader.load("lara-baila.glb", (gltf) => {
   }
 }, undefined, (err) => console.error("Error Lara:", err));
 
-// 4. Tiki Bar (Encogido y bajado al nivel del suelo para evitar flotes)
+// 4. Tiki Bar (Corregido de tamaño edificio a tamaño cabaña real)
 loader.load("tiki-bar.glb", (gltf) => {
   const bar = gltf.scene;
-  bar.scale.set(0.4, 0.4, 0.4);       // Reducido a menos de la mitad
-  bar.position.set(0, -0.05, -4.5);   // Bajado ligeramente en Y para anclarlo a la isla
+  bar.scale.set(0.04, 0.04, 0.04);   // Ajuste radical de proporciones
+  bar.position.set(0, 0, -4.5);       // Nivel del suelo exacto
   scene.add(bar);
 }, undefined, (err) => console.error("Error Tiki Bar:", err));
 
-// 5. Bambú Tiki (Escalado y reubicado armónicamente)
+// 5. Bambú Tiki (Escalado en armonía con la cabaña)
 loader.load("bambu-tiki.glb", (gltf) => {
   const bambu = gltf.scene;
-  bambu.scale.set(0.4, 0.4, 0.4);     // Proporcional al bar
-  bambu.position.set(-2.2, 0, -3.5);  // En el suelo, junto a la cabaña
+  bambu.scale.set(0.04, 0.04, 0.04);  // Ajuste idéntico al bar
+  bambu.position.set(-2.2, 0, -3.5); 
   scene.add(bambu);
 }, undefined, (err) => console.error("Error Bambú:", err));
 
