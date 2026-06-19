@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escena 3D</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #87ceeb;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #volver {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+
+<button id="volver" onclick="window.location.href='index.html'">
+  ⬅ Volver
+</button>
+
+<script type="module">
+
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  5000
+);
+
+camera.position.set(0, 4, 10);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true
+});
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+
+document.body.appendChild(renderer.domElement);
+
+// Controles de cámara
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 1.5, 0);
+
+// Luces
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
+
+const dir = new THREE.DirectionalLight(0xffffff, 2);
+dir.position.set(20, 30, 10);
+scene.add(dir);
+
+// Loader
+const loader = new GLTFLoader();
+
+// Cargar isla
+loader.load(
+  "isla.glb",
+  (gltf) => {
+    scene.add(gltf.scene);
+    console.log("Isla cargada");
+  },
+  undefined,
+  (err) => {
+    console.error("Error cargando isla:", err);
+  }
+);
+
+// Cargar avatar
+const clock = new THREE.Clock();
+let mixer = null;
+
+loader.load(
+  "luis-avatar2.glb",
+  (gltf) => {
+
+    const avatar = gltf.scene;
+
+    avatar.position.set(0, 0, 0);
+
+    scene.add(avatar);
+
+    if (gltf.animations && gltf.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(avatar);
+
+      gltf.animations.forEach((clip) => {
+        mixer.clipAction(clip).play();
+      });
+    }
+
+    console.log("Avatar cargado");
+  },
+  undefined,
+  (err) => {
+    console.error("Error cargando avatar:", err);
+  }
+);
+
+// Render
+function animate() {
+
+  requestAnimationFrame(animate);
+
+  if (mixer) {
+    mixer.update(clock.getDelta());
+  }
+
+  controls.update();
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Resize
+window.addEventListener("resize", () => {
+
+  camera.aspect = window.innerWidth / window.innerHeight;
+
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
+
+});
+
+</script>
+
+</body>
+</html>
