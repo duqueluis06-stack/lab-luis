@@ -39,7 +39,7 @@
       letter-spacing: 1px;
     }
 
-    /* CONSOLA HORIZONTAL DE DOS LÍNEAS - ESTILO GLASSMORPHISM DJ TIESTO */
+    /* CONSOLA HORIZONTAL DE DOS LÍNEAS - ESTILO GLASSMORPHISM */
     #media-console {
       position: absolute;
       top: 0;
@@ -171,7 +171,7 @@
       border: 1px solid rgba(30, 41, 59, 0.4);
     }
 
-    /* RESPONSIVO PARA SMARTPHONES VERTICALES */
+    /* RESPONSIVO PARA SMARTPHONES */
     @media (max-width: 600px) {
       #media-console { padding: 6px 10px; gap: 4px; }
       .led-display { max-width: 140px; }
@@ -297,7 +297,6 @@ const vuCtx = vuCanvas.getContext("2d");
 vuCanvas.width = 120;
 vuCanvas.height = 22;
 
-// Limpiador estricto de texto (Quita guiones y extensiones)
 function cleanTrackName(filename) {
   return filename.replace(/-/g, ' ').replace('.mp3', '').toUpperCase();
 }
@@ -307,7 +306,6 @@ function updateConsoleUI(filename, status) {
   const playBtn = document.getElementById('btn-play');
   const pauseBtn = document.getElementById('btn-pause');
 
-  // Actualizar resaltado luminoso en el visor de temas
   playlist.forEach((_, idx) => {
     const pill = document.getElementById(`pill-${idx}`);
     if (idx === currentTrackIndex) {
@@ -383,7 +381,7 @@ function nextTrack() {
 // Inicialización pasiva
 loadTrack(0, false);
 
-// DETALLE HÍPER IMPORTANTE: En cuanto toca la pantalla se activa la música solo
+// DISPARADOR AUTO-PLAY INMEDIATO AL TOCAR PANTALLA
 window.addEventListener('pointerdown', () => {
   if (THREE.AudioContext.getContext().state === 'suspended') {
     THREE.AudioContext.getContext().resume();
@@ -394,10 +392,10 @@ window.addEventListener('pointerdown', () => {
   }
 });
 
-// Eventos del Visor de Temas (Elección Directa)
+// Selector de temas directo del visor
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
-    e.stopPropagation(); // Evita re-disparar el listener global
+    e.stopPropagation(); 
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
     hasStartedAutoplay = true;
     loadTrack(trackIdx, true);
@@ -451,7 +449,7 @@ function drawVuMeter() {
 }
 
 
-// --- ENTORNO 3D (Carga de Elementos) ---
+// --- ENTORNO 3D (Carga de Mallas Externas) ---
 const loader = new GLTFLoader();
 let avatar = null;
 let mixer = null;       
@@ -502,10 +500,64 @@ loader.load("tiki-bar.glb", (gltf) => {
   scene.add(bar);
 });
 
-// EL LOADING DE BAMBÚ SIDO ELIMINADO COMPLETAMENTE
+
+// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES (100% CÓDIGO NATIVO) ---
+const gaviotas = [];
+const numGaviotas = 5; 
+
+function crearBandada() {
+  const materialBlanco = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const materialPico = new THREE.MeshLambertMaterial({ color: 0xffaa00 });
+
+  for (let i = 0; i < numGaviotas; i++) {
+    const gaviotaGroup = new THREE.Group();
+
+    // Cuerpo cónico aerodinámico
+    const cuerpoGeo = new THREE.ConeGeometry(0.06, 0.4, 4);
+    cuerpoGeo.rotateX(Math.PI / 2); 
+    const cuerpo = new THREE.Mesh(cuerpoGeo, materialBlanco);
+    gaviotaGroup.add(cuerpo);
+
+    // Pico amarillo
+    const picoGeo = new THREE.ConeGeometry(0.015, 0.1, 4);
+    picoGeo.rotateX(Math.PI / 2);
+    picoGeo.translate(0, 0, 0.23); 
+    const pico = new THREE.Mesh(picoGeo, materialPico);
+    gaviotaGroup.add(pico);
+
+    // Ala Izquierda
+    const alaIzquierdaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
+    alaIzquierdaGeo.translate(-0.2, 0, 0); 
+    const alaIzquierda = new THREE.Mesh(alaIzquierdaGeo, materialBlanco);
+    gaviotaGroup.add(alaIzquierda);
+
+    // Ala Derecha
+    const alaDerechaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
+    alaDerechaGeo.translate(0.2, 0, 0);
+    const alaDerecha = new THREE.Mesh(alaDerechaGeo, materialBlanco);
+    gaviotaGroup.add(alaDerecha);
+
+    // Parámetros orbitales dinámicos
+    const datosVuelo = {
+      malla: gaviotaGroup,
+      alaIzq: alaIzquierda,
+      alaDer: alaDerecha,
+      radio: 8 + Math.random() * 6,         
+      velocidad: 0.3 + Math.random() * 0.4, 
+      angulo: Math.random() * Math.PI * 2,   
+      alturaBase: 7 + Math.random() * 3,     
+      frecuenciaAleteo: 6 + Math.random() * 4,
+      desfase: Math.random() * 100           
+    };
+
+    scene.add(gaviotaGroup);
+    gaviotas.push(datosVuelo);
+  }
+}
+crearBandada();
 
 
-// --- JOYSTICK ---
+// --- JOYSTICK INTERACTIVO ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
@@ -550,16 +602,30 @@ function evaluarTeclado() {
 }
 
 
-// --- LOOP RENDER ---
+// --- LOOP RENDER PRINCIPAL ---
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
+  const tiempoTotal = clock.getElapsedTime();
 
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta);
 
   drawVuMeter();
+
+  // Animación del Vuelo y Aleteo Matemático de las Gaviotas
+  gaviotas.forEach((pajaro) => {
+    pajaro.angulo += pajaro.velocidad * delta;
+    pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
+    pajaro.malla.position.z = Math.sin(pajaro.angulo) * pajaro.radio;
+    pajaro.malla.position.y = pajaro.alturaBase + Math.sin(tiempoTotal * 1.2 + pajaro.desfase) * 0.15;
+    pajaro.malla.rotation.y = -pajaro.angulo + Math.PI;
+
+    const anguloAleteo = Math.sin(tiempoTotal * pajaro.frecuenciaAleteo + pajaro.desfase) * 0.35;
+    pajaro.alaIzq.rotation.z = anguloAleteo;
+    pajaro.alaDer.rotation.z = -anguloAleteo;
+  });
 
   if (avatar) {
     const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
