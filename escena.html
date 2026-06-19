@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Escena 3D Interactiva</title>
+  <title>Escena 3D - Viverse</title>
 
   <style>
     html, body {
@@ -58,14 +58,15 @@
       background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
       box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: transform 0.05s ease;
     }
 
-    /* Alerta de Audio para cumplir reglas de Chrome */
+    /* Alerta de Audio Dinámica */
     #audio-prompt {
       position: absolute;
       top: 12px;
       right: 12px;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
       padding: 10px 16px;
       border-radius: 8px;
@@ -98,7 +99,7 @@
   ⬅ Volver
 </button>
 
-<div id="audio-prompt">🔊 Haz clic en la pantalla para activar el sonido</div>
+<div id="audio-prompt">🔊 Cargando entorno y sonido... Toca la pantalla.</div>
 
 <div id="joystick-container">
   <div id="joystick-knob"></div>
@@ -110,12 +111,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-// Configuración básica
+// Configuración de la Escena
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, 6, 12);
+camera.position.set(0, 5, 10);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -124,99 +125,141 @@ document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
 
-// Controles de cámara
+// Controles de cámara fijos al objetivo
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.minDistance = 3;
-controls.maxDistance = 30;
-controls.target.set(0, 1.5, 0);
+controls.minDistance = 2;
+controls.maxDistance = 25;
+controls.target.set(0, 1.2, 0);
 
-// Iluminación
+// Iluminación Global
 scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
-const dir = new THREE.DirectionalLight(0xffffff, 2);
-dir.position.set(20, 30, 10);
-scene.add(dir);
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(20, 30, 10);
+scene.add(dirLight);
 
-// Gestión de Audio (Chrome compliance)
+// --- SISTEMA DE AUDIO SEGURO (Anti-bloqueo de Chrome) ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
 const oceanSound = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 
-// NOTA: Reemplaza 'mar.mp3' por la ruta de tu archivo de sonido en el repositorio
+let userInteracted = false;
+let audioReady = false;
+
 audioLoader.load('mar.mp3', (buffer) => {
   oceanSound.setBuffer(buffer);
   oceanSound.setLoop(true);
-  oceanSound.setVolume(0.5);
-}, undefined, (err) => console.log("Aviso: Agrega 'mar.mp3' a tu repositorio para escuchar las olas."));
+  oceanSound.setVolume(0.4);
+  audioReady = true;
+  document.getElementById('audio-prompt').innerText = "🔊 Toca cualquier parte para activar el sonido";
+  intentarReproducirAudio();
+}, undefined, (err) => {
+  console.error("Falta el archivo mar.mp3 en tu repositorio:", err);
+  document.getElementById('audio-prompt').innerText = "❌ No se encontró mar.mp3";
+});
 
-// Activar audio tras interacción del usuario
-window.addEventListener('click', () => {
-  if (THREE.AudioContext.getContext().state === 'suspended') {
-    THREE.AudioContext.getContext().resume();
-  }
-  if (oceanSound.buffer && !oceanSound.isPlaying) {
+function intentarReproducirAudio() {
+  if (userInteracted && audioReady && !oceanSound.isPlaying) {
     oceanSound.play();
-    const prompt = document.getElementById('audio-prompt');
-    if(prompt) prompt.style.display = 'none';
+    const promptElement = document.getElementById('audio-prompt');
+    if (promptElement) promptElement.style.display = 'none';
+  }
+}
+
+window.addEventListener('click', () => {
+  userInteracted = true;
+  if (THREE.AudioContext.getContext().state === 'suspended') {
+    THREE.AudioContext.getContext().resume().then(() => {
+      intentarReproducirAudio();
+    });
+  } else {
+    intentarReproducirAudio();
   }
 });
 
-// Loaders y Mixers de Animación
+
+// --- CARGA DE MODELOS Y ANIMACIONES ---
 const loader = new GLTFLoader();
 let avatar = null;
-let mixer = null;       // Mixer del Avatar
-let islandMixer = null; // Mixer de la Isla (Árboles/Mar)
+let mixer = null;       // Animador Avatar
+let islandMixer = null; // Animador Isla
 
-// Cargar isla con soporte de animación propio
-loader.load(
-  "isla.glb",
-  (gltf) => {
-    scene.add(gltf.scene);
-    console.log("Isla cargada");
+let avatarActions = {};
+let activeAction = null;
+let hasRealWalkAnimation = false;
 
-    // Si la isla trae animaciones de Blender para árboles o agua, las activamos aquí
-    if (gltf.animations && gltf.animations.length > 0) {
-      islandMixer = new THREE.AnimationMixer(gltf.scene);
-      gltf.animations.forEach((clip) => {
-        islandMixer.clipAction(clip).play();
-      });
+// Cargar Isla
+loader.load("isla.glb", (gltf) => {
+  scene.add(gltf.scene);
+  if (gltf.animations && gltf.animations.length > 0) {
+    islandMixer = new THREE.AnimationMixer(gltf.scene);
+    gltf.animations.forEach((clip) => {
+      islandMixer.clipAction(clip).play();
+    });
+  }
+}, undefined, (err) => console.error("Error isla:", err));
+
+// Cargar Avatar con Máquina de Estados
+loader.load("luis-avatar2.glb", (gltf) => {
+  avatar = gltf.scene;
+  avatar.position.set(0, 0, 0);
+  scene.add(avatar);
+
+  if (gltf.animations && gltf.animations.length > 0) {
+    mixer = new THREE.AnimationMixer(avatar);
+    
+    gltf.animations.forEach((clip) => {
+      const name = clip.name.toLowerCase();
+      const action = mixer.clipAction(clip);
+      avatarActions[clip.name] = action;
+
+      // Identificar clips automáticamente
+      if (name.includes('idle') || name.includes('quieto') || name.includes('espera')) {
+        avatarActions['idle'] = action;
+      }
+      if (name.includes('walk') || name.includes('caminar') || name.includes('run') || name.includes('marcha')) {
+        avatarActions['walk'] = action;
+        hasRealWalkAnimation = true;
+      }
+    });
+
+    // Asignaciones de respaldo si los nombres difieren
+    if (!avatarActions['idle']) avatarActions['idle'] = mixer.clipAction(gltf.animations[0]);
+    if (!avatarActions['walk'] && gltf.animations[1]) {
+      avatarActions['walk'] = mixer.clipAction(gltf.animations[1]);
+      hasRealWalkAnimation = true;
     }
-  },
-  undefined,
-  (err) => console.error("Error cargando isla:", err)
-);
 
-// Cargar avatar
-loader.load(
-  "luis-avatar2.glb",
-  (gltf) => {
-    avatar = gltf.scene;
-    avatar.position.set(0, 0, 0);
-    scene.add(avatar);
-
-    if (gltf.animations && gltf.animations.length > 0) {
-      mixer = new THREE.AnimationMixer(avatar);
-      gltf.animations.forEach((clip) => {
-        mixer.clipAction(clip).play();
-      });
+    // Arrancar en estado quieto
+    if (avatarActions['idle']) {
+      activeAction = avatarActions['idle'];
+      activeAction.play();
     }
-    console.log("Avatar cargado");
-  },
-  undefined,
-  (err) => console.error("Error cargando avatar:", err)
-);
+  }
+}, undefined, (err) => console.error("Error avatar:", err));
 
-// --- SISTEMA DE CONTROL DE MOVIMIENTO ---
-const moveInput = { x: 0, y: 0 }; // Valores normalizados entre -1 y 1
+function cambiarAnimacion(name) {
+  const targetAction = avatarActions[name];
+  if (!targetAction || activeAction === targetAction) return;
+  
+  if (activeAction) {
+    activeAction.fadeOut(0.25);
+  }
+  targetAction.reset().fadeIn(0.25).play();
+  activeAction = targetAction;
+}
 
-// 1. Lógica del Joystick Virtual (Mobile)
+
+// --- MANEJO DE ENTRADAS (Joystick + Teclado) ---
+const moveInput = { x: 0, y: 0 };
+
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
 let joystickActive = false;
 let joystickStart = { x: 0, y: 0 };
-const maxRadio = 40; // Rango máximo de movimiento del knob (px)
+const maxRadius = 40;
 
 joystick.addEventListener('pointerdown', (e) => {
   joystickActive = true;
@@ -228,17 +271,16 @@ joystick.addEventListener('pointermove', (e) => {
   if (!joystickActive) return;
   const dx = e.clientX - joystickStart.x;
   const dy = e.clientY - joystickStart.y;
-  const distancia = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadio);
-  const angulo = Math.atan2(dy, dx);
+  const distance = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadius);
+  const angle = Math.atan2(dy, dx);
 
-  const moveX = Math.cos(angulo) * distancia;
-  const moveY = Math.sin(angulo) * distancia;
+  const moveX = Math.cos(angle) * distance;
+  const moveY = Math.sin(angle) * distance;
 
   knob.style.transform = `translate(${moveX}px, ${moveY}px)`;
 
-  // Seteamos inputs basados en la posición del joystick
-  moveInput.x = moveX / maxRadio;
-  moveInput.y = -moveY / maxRadio; // Invertido para que arriba sea avance (+Z forward en cálculo de cámara)
+  moveInput.x = moveX / maxRadius;
+  moveInput.y = -moveY / maxRadius; 
 });
 
 joystick.addEventListener('pointerup', () => {
@@ -248,65 +290,81 @@ joystick.addEventListener('pointerup', () => {
   moveInput.y = 0;
 });
 
-// 2. Lógica de Teclado Fallback (Desktop WASD)
-const keys = { w: false, a: false, s: false, d: false };
+// Teclado WASD / Flechas
+const keys = { w: false, a: false, s: false, d: false, arrowup: false, arrowdown: false, arrowleft: false, arrowright: false };
 window.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
   if (key in keys) keys[key] = true;
-  actualizarTeclado();
+  evaluarTeclado();
 });
-
 window.addEventListener('keyup', (e) => {
   const key = e.key.toLowerCase();
   if (key in keys) keys[key] = false;
-  actualizarTeclado();
+  evaluarTeclado();
 });
 
-function actualizarTeclado() {
+function evaluarTeclado() {
   if (!joystickActive) {
-    moveInput.x = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
-    moveInput.y = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
+    moveInput.x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+    moveInput.y = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
   }
 }
 
-// Render loop alternado uniformemente con Delta
+
+// --- BUCLE DE ANIMACIÓN PRINCIPAL ---
 function animate() {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
 
-  // Actualizar animaciones de esqueleto si existen
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
 
-  // Procesar movimiento del Avatar si hay entrada registrada
-  if (avatar && (moveInput.x !== 0 || moveInput.y !== 0)) {
-    
-    // Calcular dirección horizontal de la cámara para que los controles sean relativos a la vista
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    camDir.y = 0;
-    camDir.normalize();
+  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-    const camRight = new THREE.Vector3();
-    camRight.crossVectors(camDir, camera.up).normalize();
+  if (avatar) {
+    if (isMoving) {
+      // 1. Alternar a animación de caminar si existe
+      if (hasRealWalkAnimation) {
+        cambiarAnimacion('walk');
+      } else {
+        // Solución innovadora: Si el GLB no trae piernas móviles, simulamos paso físico procedimental
+        avatar.position.y = Math.abs(Math.sin(clock.getElapsedTime() * 9)) * 0.12;
+        avatar.rotation.z = Math.sin(clock.getElapsedTime() * 9) * 0.04;
+      }
 
-    // Vector de movimiento final combinado
-    const direccionMovimiento = new THREE.Vector3();
-    direccionMovimiento.addScaledVector(camRight, moveInput.x);
-    direccionMovimiento.addScaledVector(camDir, moveInput.y);
-    direccionMovimiento.normalize();
+      // 2. Calcular movimiento respecto al ángulo de la cámara
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      camDir.y = 0;
+      camDir.normalize();
 
-    // Aplicar velocidad de traslación
-    const velocidad = 4.5; 
-    avatar.position.addScaledVector(direccionMovimiento, velocidad * delta);
+      const camRight = new THREE.Vector3();
+      camRight.crossVectors(camDir, camera.up).normalize();
 
-    // Rotar el avatar de forma instantánea hacia donde camina
-    const anguloRotacion = Math.atan2(direccionMovimiento.x, direccionMovimiento.z);
-    avatar.rotation.y = anguloRotacion;
+      const moveDirection = new THREE.Vector3();
+      moveDirection.addScaledVector(camRight, moveInput.x);
+      moveDirection.addScaledVector(camDir, moveInput.y);
+      moveDirection.normalize();
 
-    // Forzar a los controles OrbitControls a seguir el paso del avatar
-    controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.5, 0));
+      // Mover modelo
+      const speed = 4.0;
+      avatar.position.addScaledVector(moveDirection, speed * delta);
+
+      // Rotar hacia el frente de marcha
+      const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+      avatar.rotation.y = targetAngle;
+
+      // Hacer que la cámara persiga al avatar suavemente
+      controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
+    } else {
+      // Estado Quieto
+      cambiarAnimacion('idle');
+      if (!hasRealWalkAnimation) {
+        avatar.position.y = 0;
+        avatar.rotation.z = 0;
+      }
+    }
   }
 
   controls.update();
@@ -315,7 +373,7 @@ function animate() {
 
 animate();
 
-// Ajuste dinámico de pantalla
+// Redimensionado de Pantalla
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
