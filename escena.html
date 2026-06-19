@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Escena 3D - Isla Bonita</title>
+  <title>Escena 3D - Viverse Tiki Bar</title>
 
   <style>
     html, body {
@@ -12,7 +12,7 @@
       width: 100%;
       height: 100%;
       background: #87ceeb;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Arial, sans-serif;
       user-select: none;
     }
 
@@ -31,7 +31,81 @@
       cursor: pointer;
       font-size: 15px;
       background: white;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    #volver:hover { background: #eeeeee; }
+
+    /* CONTENEDOR CONSOLA MULTIMEDIA */
+    #media-console {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 280px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px;
+      color: white;
+      z-index: 100;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .track-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #38bdf8;
+    }
+
+    .playlist-select {
+      width: 100%;
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .console-btn {
+      flex: 1;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      background: #475569;
+      color: white;
+      transition: all 0.2s;
+    }
+    .console-btn:hover { background: #64748b; }
+    #btn-play { background: #16a34a; }
+    #btn-play:hover { background: #22c55e; }
+    #btn-stop { background: #dc2626; }
+    #btn-stop:hover { background: #ef4444; }
+
+    /* VÚMETRO ESPECTRAL AÉREO */
+    #vumeter-canvas {
+      width: 100%;
+      height: 40px;
+      background: #0f172a;
+      border-radius: 6px;
+      display: block;
     }
 
     /* Interfaz del Joystick Virtual */
@@ -58,28 +132,6 @@
       background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
       box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      transition: transform 0.05s ease;
-    }
-
-    /* Alerta de Audio Dinámica */
-    #audio-prompt {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      z-index: 100;
-      pointer-events: none;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 0.7; }
-      50% { opacity: 1; }
-      100% { opacity: 0.7; }
     }
   </style>
 
@@ -95,11 +147,22 @@
 
 <body>
 
-<button id="volver" onclick="window.location.href='index.html'">
-  ⬅ Volver
-</button>
+<button id="volver" onclick="window.location.href='index.html'">⬅ Volver</button>
 
-<div id="audio-prompt">🔊 Cargando música ambiental... Toca la pantalla.</div>
+<div id="media-console">
+  <div class="track-title" id="track-display">Pistas del Sistema</div>
+  <select id="track-select" class="playlist-select">
+    <option value="entre-tes-ombres.mp3">entre-tes-ombres.mp3</option>
+    <option value="stade-de-nos-reves.mp3">stade-de-nos-reves.mp3</option>
+    <option value="cumbia-de-minuit.mp3">cumbia-de-minuit.mp3</option>
+  </select>
+  <div class="controls-row">
+    <button class="console-btn" id="btn-play">▶ PLAY</button>
+    <button class="console-btn" id="btn-pause">⏸ PAUSE</button>
+    <button class="console-btn" id="btn-stop">⏹ STOP</button>
+  </div>
+  <canvas id="vumeter-canvas"></canvas>
+</div>
 
 <div id="joystick-container">
   <div id="joystick-knob"></div>
@@ -111,12 +174,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-// Configuración de la Escena
+// Configuración Base de Escena Virtual
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, 4, 8); 
+camera.position.set(0, 5, 12); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -125,145 +188,167 @@ document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
 
-// Controles de cámara fijos al objetivo
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 2;
-controls.maxDistance = 30;
+controls.maxDistance = 45;
 controls.target.set(0, 1.2, 0);
 
-// Iluminación Global
-scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
-const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-dirLight.position.set(20, 30, 10);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- SISTEMA DE AUDIO (Con música online garantizada de Three.js) ---
+// --- CONSOLA DE AUDIO Y ANALIZADOR ESPECTRAL ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
-const backgroundMusic = new THREE.Audio(listener);
+const soundSource = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
+let audioAnalyser = null;
 
-let userInteracted = false;
-let audioReady = false;
+// Canvas Vúmetro setup
+const vuCanvas = document.getElementById("vumeter-canvas");
+const vuCtx = vuCanvas.getContext("2d");
+vuCanvas.width = 250;
+vuCanvas.height = 40;
 
-// Esta URL apunta a un tema ambiental oficial de Three.js con CORS permitido. ¡Sonará seguro!
-const urlMusicaGitHub = "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/sounds/Project_Utopia.mp3";
+function loadTrack(filename) {
+  document.getElementById('track-display').innerText = "Cargando: " + filename;
+  if (soundSource.isPlaying) soundSource.stop();
 
-audioLoader.load(urlMusicaGitHub, (buffer) => {
-  backgroundMusic.setBuffer(buffer);
-  backgroundMusic.setLoop(true);
-  backgroundMusic.setVolume(0.3); // Volumen moderado de fondo
-  audioReady = true;
-  document.getElementById('audio-prompt').innerText = "🔊 ¡Entorno listo! Toca la pantalla para activar la música";
-  intentarReproducirAudio();
-}, undefined, (err) => {
-  console.error("Error cargando el audio de internet:", err);
-  document.getElementById('audio-prompt').innerText = "❌ Error al conectar con el servidor de audio.";
+  audioLoader.load(filename, (buffer) => {
+    soundSource.setBuffer(buffer);
+    soundSource.setLoop(true);
+    soundSource.setVolume(0.5);
+    document.getElementById('track-display').innerText = "🎵 " + filename;
+    
+    if(!audioAnalyser) {
+      audioAnalyser = new THREE.AudioAnalyser(soundSource, 32); // 32 bandas analíticas
+    }
+  }, undefined, (err) => {
+    document.getElementById('track-display').innerText = "❌ No encontrado: " + filename;
+    console.error("Error cargando track local:", err);
+  });
+}
+
+// Inicializar primer archivo de la lista
+loadTrack(document.getElementById("track-select").value);
+
+// Eventos de la Consola Interactiva
+document.getElementById("track-select").addEventListener("change", (e) => {
+  loadTrack(e.target.value);
 });
 
-function intentarReproducirAudio() {
-  if (userInteracted && audioReady && !backgroundMusic.isPlaying) {
-    backgroundMusic.play();
-    const promptElement = document.getElementById('audio-prompt');
-    if (promptElement) promptElement.style.display = 'none';
+document.getElementById("btn-play").addEventListener("click", () => {
+  if (THREE.AudioContext.getContext().state === 'suspended') {
+    THREE.AudioContext.getContext().resume();
+  }
+  if (soundSource.buffer && !soundSource.isPlaying) soundSource.play();
+});
+
+document.getElementById("btn-pause").addEventListener("click", () => {
+  if (soundSource.isPlaying) soundSource.pause();
+});
+
+document.getElementById("btn-stop").addEventListener("click", () => {
+  if (soundSource.isPlaying) soundSource.stop();
+});
+
+// Dibujado del Vúmetro Espectral
+function drawVuMeter() {
+  vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
+  
+  if (audioAnalyser && soundSource.isPlaying) {
+    const data = audioAnalyser.getFrequencyData();
+    const barWidth = vuCanvas.width / data.length;
+    
+    for (let i = 0; i < data.length; i++) {
+      const value = data[i];
+      const percent = value / 255;
+      const barHeight = vuCanvas.height * percent;
+      
+      // Degradado espectral aéreo neon
+      const hue = (i / data.length) * 200 + 180; // Tonos cian/azul/púrpura
+      vuCtx.fillStyle = `hsla(${hue}, 100%, 50%, 0.85)`;
+      
+      vuCtx.fillRect(i * barWidth, vuCanvas.height - barHeight, barWidth - 2, barHeight);
+    }
+  } else {
+    // Línea de espera estática si no hay sonido activo
+    vuCtx.strokeStyle = "rgba(255,255,255,0.15)";
+    vuCtx.beginPath();
+    vuCtx.moveTo(0, vuCanvas.height / 2);
+    vuCtx.lineTo(vuCanvas.width, vuCanvas.height / 2);
+    vuCtx.stroke();
   }
 }
 
-// Desbloqueo por interacción del usuario (Regla estricta de Chrome)
-window.addEventListener('click', () => {
-  userInteracted = true;
-  if (THREE.AudioContext.getContext().state === 'suspended') {
-    THREE.AudioContext.getContext().resume().then(() => {
-      intentarReproducirAudio();
-    });
-  } else {
-    intentarReproducirAudio();
-  }
-});
 
-
-// --- CARGA DE MODELOS Y ANIMACIONES ---
+// --- CARGA DE MODELOS ENTORNO VIVERSE ---
 const loader = new GLTFLoader();
 let avatar = null;
 let mixer = null;       
 let islandMixer = null; 
+let laraMixer = null; // Mezclador para el avatar de la chica bailando
 
-let avatarActions = {};
-let activeAction = null;
-let hasWalkAnimation = false;
-
-// Cargar Isla
+// 1. Cargar la Isla Base
 loader.load("isla.glb", (gltf) => {
   scene.add(gltf.scene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach((clip) => {
-      islandMixer.clipAction(clip).play();
-    });
+    gltf.animations.forEach((clip) => islandMixer.clipAction(clip).play());
   }
-}, undefined, (err) => console.error("Error cargando isla:", err));
+}, undefined, (err) => console.error("Error Isla:", err));
 
-// Cargar Nuevo Avatar: luis-acostado.glb
+// 2. Cargar tu Avatar Principal (Mirando al mar)
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
-  avatar.position.set(0, 0, 0);
-  
-  // --- LUIS: CONFIGURACIÓN PARA MIRAR AL MAR ---
-  // Math.PI equivale a 180 grados. 
-  // Si necesitas que mire a otro lado, puedes cambiarlo por:
-  // 0 (Frente original), Math.PI / 2 (90 grados), o Math.PI * 1.5 (270 grados).
-  avatar.rotation.y = Math.PI; 
-  
+  avatar.position.set(0, 0, 0); 
+  avatar.rotation.y = Math.PI; // Orientación mar
   scene.add(avatar);
-
-  // Ajustar la cámara para que apunte directamente al avatar recién cargado
   controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
+}, undefined, (err) => console.error("Error Luis-avatar:", err));
 
-  // Verificar si este nuevo GLB tiene animaciones internas
-  console.log("Animaciones detectadas en luis-acostado.glb:", gltf.animations.map(a => a.name));
-
+// 3. Cargar Avatar: Lara Baila (Alineada al piso y escala simétrica)
+loader.load("lara-baila.glb", (gltf) => {
+  const lara = gltf.scene;
+  
+  // Posicionamiento en tierra firme a la derecha del avatar principal, sin flotar (y = 0)
+  lara.position.set(2.5, 0, -1.5);
+  
+  // Forzamos escala proporcional para evitar tamaños colosales o diminutos
+  lara.scale.set(1, 1, 1); 
+  
+  scene.add(lara);
+  
   if (gltf.animations && gltf.animations.length > 0) {
-    mixer = new THREE.AnimationMixer(avatar);
-    gltf.animations.forEach((clip) => {
-      const name = clip.name.toLowerCase();
-      const action = mixer.clipAction(clip);
-      
-      if (name.includes('idle') || name.includes('quieto') || name.includes('espera')) {
-        avatarActions['idle'] = action;
-      } else if (name.includes('walk') || name.includes('caminar') || name.includes('marcha')) {
-        avatarActions['walk'] = action;
-        hasWalkAnimation = true;
-      }
-    });
-
-    if (avatarActions['idle']) {
-      activeAction = avatarActions['idle'];
-      activeAction.play();
-    } else {
-      activeAction = mixer.clipAction(gltf.animations[0]);
-      activeAction.play();
-    }
+    laraMixer = new THREE.AnimationMixer(lara);
+    // Ejecuta la animación de baile integrada en el GLB
+    laraMixer.clipAction(gltf.animations[0]).play();
+  } else {
+    console.warn("Advertencia: lara-baila.glb no contiene clips de animación internos.");
   }
-}, undefined, (err) => console.error("Error cargando luis-acostado.glb:", err));
+}, undefined, (err) => console.error("Error al cargar lara-baila.glb:", err));
 
-function fadeToAction(name, duration) {
-    const targetAction = avatarActions[name];
-    if (activeAction === targetAction || !targetAction) return;
-    targetAction.reset();
-    targetAction.setEffectiveTimeScale(1);
-    targetAction.setEffectiveWeight(1);
-    if (activeAction) activeAction.crossFadeTo(targetAction, duration, true);
-    targetAction.play();
-    activeAction = targetAction;
-}
+// 4. Cargar Estructura: Tiki Bar
+loader.load("tiki-bar.glb", (gltf) => {
+  const bar = gltf.scene;
+  bar.position.set(0, 0, -5); // Situado al fondo de la escena central
+  scene.add(bar);
+}, undefined, (err) => console.error("Error Tiki Bar:", err));
+
+// 5. Cargar Decoración: Bambú Tiki
+loader.load("bambu-tiki.glb", (gltf) => {
+  const bambu = gltf.scene;
+  bambu.position.set(-3, 0, -3); // Al costado izquierdo para ambientar el entorno
+  scene.add(bambu);
+}, undefined, (err) => console.error("Error Bambú Tiki:", err));
 
 
-// --- MANEJO DE ENTRADAS (Joystick + Teclado) ---
+// --- MANEJO DE ENTRADAS MÓVILES Y TECLADO ---
 const moveInput = { x: 0, y: 0 };
-
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
 let joystickActive = false;
@@ -285,7 +370,6 @@ joystick.addEventListener('pointermove', (e) => {
 
   const moveX = Math.cos(angle) * distance;
   const moveY = Math.sin(angle) * distance;
-
   knob.style.transform = `translate(${moveX}px, ${moveY}px)`;
 
   moveInput.x = moveX / maxRadius;
@@ -300,16 +384,8 @@ joystick.addEventListener('pointerup', () => {
 });
 
 const keys = { w: false, a: false, s: false, d: false, arrowup: false, arrowdown: false, arrowleft: false, arrowright: false };
-window.addEventListener('keydown', (e) => {
-  const key = e.key.toLowerCase();
-  if (key in keys) keys[key] = true;
-  evaluarTeclado();
-});
-window.addEventListener('keyup', (e) => {
-  const key = e.key.toLowerCase();
-  if (key in keys) keys[key] = false;
-  evaluarTeclado();
-});
+window.addEventListener('keydown', (e) => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true; evaluarTeclado(); });
+window.addEventListener('keyup', (e) => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; evaluarTeclado(); });
 
 function evaluarTeclado() {
   if (!joystickActive) {
@@ -319,23 +395,23 @@ function evaluarTeclado() {
 }
 
 
-// --- BUCLE DE ANIMACIÓN PRINCIPAL ---
+// --- BUCLE DE RENDERIZADO PRINCIPAL ---
 function animate() {
   requestAnimationFrame(animate);
-
   const delta = clock.getDelta();
 
+  // Actualización de motores de animación internos
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
+  if (laraMixer) laraMixer.update(delta);
+
+  // Procesamiento del Vúmetro Gráfico
+  drawVuMeter();
 
   if (avatar) {
     const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
     if (isMoving) {
-      if (hasWalkAnimation) {
-        fadeToAction('walk', 0.2);
-      }
-
       const camDir = new THREE.Vector3();
       camera.getWorldDirection(camDir);
       camDir.y = 0;
@@ -356,10 +432,6 @@ function animate() {
       avatar.rotation.y = targetAngle;
 
       controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1.2, 0));
-    } else {
-      if (hasWalkAnimation) {
-        fadeToAction('idle', 0.2);
-      }
     }
   }
 
@@ -376,6 +448,5 @@ window.addEventListener("resize", () => {
 });
 
 </script>
-
 </body>
 </html>
