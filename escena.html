@@ -74,6 +74,29 @@
       letter-spacing: 1px;
     }
 
+    /* ENLACE DE CRÉDITOS DISCRETO AZUL NEÓN */
+    #creditos-link {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: bold;
+      color: #00f0ff;
+      text-decoration: none;
+      letter-spacing: 2px;
+      opacity: 0.6;
+      text-shadow: 0 0 4px #00f0ff;
+      transition: opacity 0.3s ease, text-shadow 0.3s ease;
+    }
+
+    #creditos-link:hover {
+      opacity: 1;
+      text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
+    }
+
     /* CONSOLA HORIZONTAL DE DOS LÍNEAS - ESTILO GLASSMORPHISM */
     #media-console {
       position: absolute;
@@ -214,6 +237,7 @@
       #vumeter-canvas { width: 70px; height: 18px; }
       .track-pill { font-size: 8px; padding: 5px 2px; }
       .dj-btn { padding: 5px 8px; font-size: 10px; }
+      #creditos-link { bottom: 8px; font-size: 9px; } /* Ajuste móvil */
     }
 
     /* Joystick */
@@ -255,6 +279,8 @@
 <body>
 
 <button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
+
+<a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
 <div id="media-console">
   <div class="console-row-top">
@@ -381,7 +407,6 @@ function loadTrack(index, startPlaying = false) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
-    // Corregido: Si el usuario ya interactuó durante la carga inicial, reproducimos al instante
     if (startPlaying || hasStartedAutoplay) {
       executePlay();
     } else {
@@ -414,28 +439,23 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
-// Inicialización pasiva de carga
 loadTrack(0, false);
 
-// FUNCIÓN INTEGRAL DE DESBLOQUEO POR INTERACCIÓN
 function unlockAudio() {
   if (THREE.AudioContext.getContext().state === 'suspended') {
     THREE.AudioContext.getContext().resume();
   }
   if (!hasStartedAutoplay) {
     hasStartedAutoplay = true;
-    // Si la pista asíncrona inicial ya terminó de descargarse, forzamos play
     if (soundSource.buffer && !soundSource.isPlaying) {
       executePlay();
     }
   }
 }
 
-// Solución definitiva usando fase de captura para ganarle a OrbitControls
 window.addEventListener('pointerdown', unlockAudio, { capture: true });
 window.addEventListener('keydown', unlockAudio, { capture: true });
 
-// Selector de temas directo del visor
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
     e.stopPropagation(); 
@@ -499,7 +519,6 @@ let mixer = null;
 let islandMixer = null; 
 let laraMixer = null; 
 
-// 1. Isla
 loader.load("isla.glb", (gltf) => {
   scene.add(gltf.scene);
   if (gltf.animations && gltf.animations.length > 0) {
@@ -508,7 +527,6 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// 2. Tu Avatar (Luis)
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0); 
@@ -522,7 +540,6 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// 3. Lara Baila
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -535,7 +552,6 @@ loader.load("lara-baila.glb", (gltf) => {
   }
 });
 
-// 4. Tiki Bar
 loader.load("tiki-bar.glb", (gltf) => {
   const bar = gltf.scene;
   bar.scale.set(0.022, 0.022, 0.022); 
@@ -544,7 +560,7 @@ loader.load("tiki-bar.glb", (gltf) => {
 });
 
 
-// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES (100% CÓDIGO NATIVO) ---
+// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES ---
 const gaviotas = [];
 const numGaviotas = 5; 
 
@@ -555,32 +571,27 @@ function crearBandada() {
   for (let i = 0; i < numGaviotas; i++) {
     const gaviotaGroup = new THREE.Group();
 
-    // Cuerpo cónico aerodinámico
     const cuerpoGeo = new THREE.ConeGeometry(0.06, 0.4, 4);
     cuerpoGeo.rotateX(Math.PI / 2); 
     const cuerpo = new THREE.Mesh(cuerpoGeo, materialBlanco);
     gaviotaGroup.add(cuerpo);
 
-    // Pico amarillo
     const picoGeo = new THREE.ConeGeometry(0.015, 0.1, 4);
     picoGeo.rotateX(Math.PI / 2);
     picoGeo.translate(0, 0, 0.23); 
     const pico = new THREE.Mesh(picoGeo, materialPico);
     gaviotaGroup.add(pico);
 
-    // Ala Izquierda
     const alaIzquierdaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
     alaIzquierdaGeo.translate(-0.2, 0, 0); 
     const alaIzquierda = new THREE.Mesh(alaIzquierdaGeo, materialBlanco);
     gaviotaGroup.add(alaIzquierda);
 
-    // Ala Derecha
     const alaDerechaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
     alaDerechaGeo.translate(0.2, 0, 0);
     const alaDerecha = new THREE.Mesh(alaDerechaGeo, materialBlanco);
     gaviotaGroup.add(alaDerecha);
 
-    // Parámetros orbitales dinámicos
     const datosVuelo = {
       malla: gaviotaGroup,
       alaIzq: alaIzquierda,
@@ -657,7 +668,6 @@ function animate() {
 
   drawVuMeter();
 
-  // Animación del Vuelo y Aleteo Matemático de las Gaviotas
   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
