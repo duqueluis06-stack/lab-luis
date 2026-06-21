@@ -96,6 +96,7 @@
       text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
     }
 
+    /* CONSOLA DJ UNIFICADA CON GLASSMORPHISM MODERNO */
     #media-console {
       position: absolute;
       top: 0;
@@ -213,6 +214,7 @@
 
     #btn-next { color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
 
+    /* VÚMETRO SIMPLIFICADO UNIFICADO ESTILO OSCILOSCOPIO */
     #vumeter-canvas {
       width: 90px;
       height: 24px;
@@ -231,6 +233,7 @@
       #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
+    /* JOYSTICK UNIFICADO CIRCULAR MODERNO */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -383,8 +386,10 @@ function loadTrack(index, startPlaying = false) {
   const filename = playlist[currentTrackIndex];
   updateConsoleUI(filename, 'loading');
 
-  // Si la música se detiene para cargar otra pista, paramos a Lara de inmediato
-  if (window.laraAction) window.laraAction.paused = true;
+  // Si cambiamos de pista, Lara se para un momento para cargar el nuevo ritmo
+  if (window.laraAction) {
+    window.laraAction.paused = true;
+  }
 
   audioLoader.load(filename, (buffer) => {
     if (soundSource.source) soundSource.source.onended = null;
@@ -417,10 +422,10 @@ function executePlay() {
     soundSource.play();
     updateConsoleUI(playlist[currentTrackIndex], 'playing');
     
-    // Sincronización: Si la música suena, Lara baila
+    // SINCRONIZACIÓN: Si la música arranca, Lara baila
     if (window.laraAction) {
-      window.laraAction.paused = false;
-      window.laraAction.play();
+      window.laraAction.paused = false; // Desbloqueamos pausa
+      window.laraAction.play();        // Arrancamos reproducción
     }
     
     if (soundSource.source) {
@@ -440,9 +445,11 @@ loadTrack(0, false);
 
 // --- AUTOPLAY AUTOMÁTICO AL TOCAR PANTALLA ---
 function screenTouchAutoplay(e) {
+  // Solo arrancamos si no se ha disparado antes y si no estamos tocando la consola o joystick
   if (!autoPlayTriggered && !e.target.closest('#media-console') && !e.target.closest('#joystick-container')) {
     autoPlayTriggered = true;
     executePlay();
+    // Quitamos los listeners globales para no interferir con la rotación de cámara
     window.removeEventListener('pointerdown', screenTouchAutoplay);
     window.removeEventListener('keydown', screenTouchAutoplay);
   }
@@ -474,9 +481,9 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
     
-    // Sincronización: Si pausamos la música, pausamos a Lara
+    // SINCRONIZACIÓN: Si pausamos la música, pausamos a Lara (vuelve al reposo)
     if (window.laraAction) {
-      window.laraAction.paused = true;
+      window.laraAction.paused = true; // Simplemente congelamos el baile en reposo
     }
   }
 });
@@ -488,7 +495,7 @@ document.getElementById("btn-next").addEventListener("click", (e) => {
 });
 
 
-// --- VÚMETRO OSCILOSCOPIO ANALÓGICO COMPACTO ---
+// --- VÚMETRO OSCILOSCOPIO ANALÓGICO COMPACTO UNIFICADO ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
   
@@ -506,7 +513,7 @@ function drawVuMeter() {
   }
 
   vuCtx.lineWidth = 1.2;
-  vuCtx.strokeStyle = "#00ff66"; 
+  vuCtx.strokeStyle = "#00ff66"; // Verde neón puro
 
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
@@ -544,7 +551,7 @@ let mixer = null;
 let islandMixer = null; 
 let laraMixer = null; 
 let michigrisMixer = null;
-window.laraAction = null; // Variable global para control directo del baile
+window.laraAction = null; // Variable global para control directo del baile de Lara
 
 loader.load("isla.glb", (gltf) => {
   scene.add(gltf.scene);
@@ -567,81 +574,29 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- GENERADOR DE TEXTURA PROCEDIMENTAL PARA MICHIGRIS (CON OJOS AZULES INTEGRADOS) ---
-function createSiameseTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  
-  ctx.fillStyle = "#f8f5ed";
-  ctx.fillRect(0, 0, 512, 512);
-  
-  const gradient = ctx.createRadialGradient(256, 256, 90, 256, 256, 256);
-  gradient.addColorStop(0, "rgba(248, 245, 237, 0)");
-  gradient.addColorStop(0.7, "rgba(60, 55, 50, 0.15)"); 
-  gradient.addColorStop(1, "rgba(20, 18, 16, 0.4)");    
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 512, 512);
-  
-  ctx.fillStyle = "rgba(40, 35, 30, 0.35)";
-  ctx.beginPath();
-  ctx.ellipse(256, 240, 90, 70, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Ojo Izquierdo
-  ctx.fillStyle = "#00aaff"; 
-  ctx.beginPath();
-  ctx.ellipse(215, 230, 18, 12, Math.PI / 8, 0, Math.PI * 2); 
-  ctx.fill();
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(215, 230, 3, 10, Math.PI / 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Ojo Derecho
-  ctx.fillStyle = "#00aaff"; 
-  ctx.beginPath();
-  ctx.ellipse(297, 230, 18, 12, -Math.PI / 8, 0, Math.PI * 2); 
-  ctx.fill();
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(297, 230, 3, 10, -Math.PI / 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Bigotes
-  ctx.strokeStyle = "rgba(10, 10, 10, 0.6)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(190, 260); ctx.lineTo(130, 255); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(190, 265); ctx.lineTo(135, 270); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(190, 270); ctx.lineTo(140, 285); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(322, 260); ctx.lineTo(382, 255); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(322, 265); ctx.lineTo(377, 270); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(322, 270); ctx.lineTo(372, 285); ctx.stroke();
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-// --- CARGA DE MICHIGRIS (PINKY REINVENTADO CON TEXTURA PROTEGIDA) ---
+// --- CARGA DE MICHIGRIS (CON OJOS AZULES FORZADOS) ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
-  const siameseTexture = createSiameseTexture();
-
   michigris.traverse((child) => {
     if (child.isMesh && child.material) {
-      child.material = child.material.clone(); 
-      child.material.map = siameseTexture;
+      child.material = child.material.clone(); // Clona material para evitar conflictos globales
       
+      // Mantenemos base Grayish-White
       if (child.material.color) child.material.color.setHex(0xffffff);
       
-      // Corrección del bug crítico: cambiamos 'mat' por 'child.material'
+      // Ajustes físicos para pelaje no metálico
       if (child.material.metalness !== undefined) child.material.metalness = 0.0; 
       if (child.material.roughness !== undefined) child.material.roughness = 1.0; 
+      
+      // INYECCIÓN DE OJOS AZULES: Identificamos mallas de ojos por nombre o geometría
+      if (child.name.toLowerCase().includes('eye') || child.name.toLowerCase().includes('pupil')) {
+        child.material.color.setHex(0x0088ff); // Azul brillante intenso
+        child.material.roughness = 0.2;       // Ojos ligeramente reflectantes
+        child.material.metalness = 0.5;
+      }
       
       child.material.needsUpdate = true;
     }
@@ -666,10 +621,12 @@ loader.load("lara-baila.glb", (gltf) => {
   
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(lara);
+    
+    // Obtenemos el ClipAction de la animación de baile (Baila)
     window.laraAction = laraMixer.clipAction(gltf.animations[0]);
     window.laraAction.play();
     
-    // Condición inicial: Si arranca sin reproducirse la música por bloqueo del navegador, se queda pausada
+    // Condición inicial de realismo: Lara arranca pausada (congelada en reposo) si el audio está bloqueado
     if (!soundSource.isPlaying) {
       window.laraAction.paused = true;
     }
@@ -684,7 +641,7 @@ loader.load("tiki-bar.glb", (gltf) => {
 });
 
 
-// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES ---
+// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES UNIFICADO ---
 const gaviotas = [];
 const numGaviotas = 5; 
 
@@ -735,7 +692,7 @@ function crearBandada() {
 crearBandada();
 
 
-// --- JOYSTICK INTERACTIVO ---
+// --- JOYSTICK INTERACTIVO UNIFICADO ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
@@ -788,7 +745,7 @@ function animate() {
 
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
-  if (laraMixer) laraMixer.update(delta);
+  if (laraMixer) laraMixer.update(delta); // Actualización de Lara
   if (michigrisMixer) michigrisMixer.update(delta);
 
   drawVuMeter();
