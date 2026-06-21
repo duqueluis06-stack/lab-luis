@@ -386,7 +386,6 @@ function loadTrack(index, startPlaying = false) {
   const filename = playlist[currentTrackIndex];
   updateConsoleUI(filename, 'loading');
 
-  // Si cambiamos de pista, Lara se para un momento para cargar el nuevo ritmo
   if (window.laraAction) {
     window.laraAction.paused = true;
   }
@@ -422,10 +421,9 @@ function executePlay() {
     soundSource.play();
     updateConsoleUI(playlist[currentTrackIndex], 'playing');
     
-    // SINCRONIZACIÓN: Si la música arranca, Lara baila
     if (window.laraAction) {
-      window.laraAction.paused = false; // Desbloqueamos pausa
-      window.laraAction.play();        // Arrancamos reproducción
+      window.laraAction.paused = false; 
+      window.laraAction.play();        
     }
     
     if (soundSource.source) {
@@ -443,13 +441,10 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-// --- AUTOPLAY AUTOMÁTICO AL TOCAR PANTALLA ---
 function screenTouchAutoplay(e) {
-  // Solo arrancamos si no se ha disparado antes y si no estamos tocando la consola o joystick
   if (!autoPlayTriggered && !e.target.closest('#media-console') && !e.target.closest('#joystick-container')) {
     autoPlayTriggered = true;
     executePlay();
-    // Quitamos los listeners globales para no interferir con la rotación de cámara
     window.removeEventListener('pointerdown', screenTouchAutoplay);
     window.removeEventListener('keydown', screenTouchAutoplay);
   }
@@ -481,9 +476,8 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
     
-    // SINCRONIZACIÓN: Si pausamos la música, pausamos a Lara (vuelve al reposo)
     if (window.laraAction) {
-      window.laraAction.paused = true; // Simplemente congelamos el baile en reposo
+      window.laraAction.paused = true; 
     }
   }
 });
@@ -513,7 +507,7 @@ function drawVuMeter() {
   }
 
   vuCtx.lineWidth = 1.2;
-  vuCtx.strokeStyle = "#00ff66"; // Verde neón puro
+  vuCtx.strokeStyle = "#00ff66"; 
 
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
@@ -551,7 +545,7 @@ let mixer = null;
 let islandMixer = null; 
 let laraMixer = null; 
 let michigrisMixer = null;
-window.laraAction = null; // Variable global para control directo del baile de Lara
+window.laraAction = null; 
 
 loader.load("isla.glb", (gltf) => {
   scene.add(gltf.scene);
@@ -561,9 +555,10 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
+// CORREGIDO: Variable gltf bien nombrada y ligera elevación en Y
 loader.load("luis-acostado.glb", (gltf) => {
-  avatar = gtf.scene;
-  avatar.position.set(0, 0, 0); 
+  avatar = gltf.scene;
+  avatar.position.set(0, 0.3, 0); 
   avatar.rotation.y = Math.PI; 
   scene.add(avatar);
   controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1, 0));
@@ -574,59 +569,11 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- CARGA DE MICHIGRIS (CON INYECCIÓN DE OJOS PROCEDIMENTALES CORREGIDA) ---
+// CORREGIDO: El gato se añade nativo con sus propias texturas de archivo sin sobreescrituras absurdas
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
-
-  michigris.traverse((child) => {
-    if (child.isMesh && child.material) {
-      child.material = child.material.clone(); 
-      
-      if (child.material.color) child.material.color.setHex(0xffffff);
-      if (child.material.metalness !== undefined) child.material.metalness = 0.0; 
-      if (child.material.roughness !== undefined) child.material.roughness = 1.0; 
-      
-      child.material.needsUpdate = true;
-    }
-  });
-
-  // Geometrías y materiales estables
-  const eyeGeo = new THREE.SphereGeometry(0.018, 16, 16); 
-  const pupilGeo = new THREE.SphereGeometry(0.009, 12, 12); 
-
-  const eyeMat = new THREE.MeshStandardMaterial({ 
-    color: 0x0088ff, 
-    emissive: 0x0044aa, 
-    roughness: 0.2,
-    metalness: 0.5
-  });
-
-  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-
-  const crearOjoCompleto = () => {
-    const globoOcular = new THREE.Mesh(eyeGeo, eyeMat);
-    const pupila = new THREE.Mesh(pupilGeo, pupilMat);
-    pupila.position.z = 0.012; 
-    
-    const grupoOjo = new THREE.Group();
-    grupoOjo.add(globoOcular);
-    grupoOjo.add(pupila);
-    return grupoOjo;
-  };
-
-  const ojoIzquierdo = crearOjoCompleto();
-  const ojoDerecho = crearOjoCompleto();
-
-  // --- CALIBRACIÓN LOCAL DE COORDENADAS ---
-  // Formato: set( Izquierda/Derecha , Altura [Y] , Adelante/Atrás [Z] )
-  // Subido de 0.43 a 0.58 para mover las esferas del cuello a la cara del gato
-  ojoIzquierdo.position.set(0.06, 0.58, 0.18); 
-  ojoDerecho.position.set(-0.06, 0.58, 0.18);
-
-  michigris.add(ojoIzquierdo);
-  michigris.add(ojoDerecho);
 
   scene.add(michigris);
 
@@ -638,7 +585,7 @@ loader.load("michigris.glb", (gltf) => {
   console.error("Error cargando a michigris:", error);
 });
 
-// --- CARGA DE LARA TOTALMENTE SINCRONIZADA ---
+
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -647,12 +594,9 @@ loader.load("lara-baila.glb", (gltf) => {
   
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(lara);
-    
-    // Obtenemos el ClipAction de la animación de baile (Baila)
     window.laraAction = laraMixer.clipAction(gltf.animations[0]);
     window.laraAction.play();
     
-    // Condición inicial de realismo: Lara arranca pausada (congelada en reposo) si el audio está bloqueado
     if (!soundSource.isPlaying) {
       window.laraAction.paused = true;
     }
@@ -667,7 +611,7 @@ loader.load("tiki-bar.glb", (gltf) => {
 });
 
 
-// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES UNIFICADO ---
+// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES ---
 const gaviotas = [];
 const numGaviotas = 5; 
 
@@ -718,7 +662,7 @@ function crearBandada() {
 crearBandada();
 
 
-// --- JOYSTICK INTERACTIVO UNIFICADO ---
+// --- JOYSTICK INTERACTIVO ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
@@ -771,7 +715,7 @@ function animate() {
 
   if (mixer) mixer.update(delta);
   if (islandMixer) islandMixer.update(delta);
-  if (laraMixer) laraMixer.update(delta); // Actualización de Lara
+  if (laraMixer) laraMixer.update(delta); 
   if (michigrisMixer) michigrisMixer.update(delta);
 
   drawVuMeter();
