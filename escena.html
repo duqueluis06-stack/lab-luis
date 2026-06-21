@@ -314,6 +314,7 @@ camera.position.set(0, 4, 10);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace; // Asegura fidelidad de colores globales
 document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
@@ -330,7 +331,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ AUTOMÁTICO ---
+// --- ENGINE DE AUDIO DJ CONTROLADO ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -340,8 +341,6 @@ let audioAnalyser = null;
 
 const playlist = ["entre-tes-ombres.mp3", "stade-de-nos-reves.mp3", "cumbia-de-minuit.mp3"];
 let currentTrackIndex = 0;
-let isManualChange = false; 
-let hasStartedAutoplay = false;
 
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
@@ -385,9 +384,11 @@ function loadTrack(index, startPlaying = false) {
   updateConsoleUI(filename, 'loading');
 
   audioLoader.load(filename, (buffer) => {
-    isManualChange = true;
+    // Apagamos controladores anteriores para evitar encadenamientos erróneos de pistas
+    if (soundSource.source) {
+      soundSource.source.onended = null;
+    }
     if (soundSource.isPlaying) soundSource.stop();
-    isManualChange = false;
 
     soundSource.setBuffer(buffer);
     soundSource.setLoop(false); 
@@ -397,7 +398,7 @@ function loadTrack(index, startPlaying = false) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
-    if (startPlaying || hasStartedAutoplay) {
+    if (startPlaying) {
       executePlay();
     } else {
       document.getElementById('track-display').innerText = cleanTrackName(playlist[currentTrackIndex]);
@@ -416,9 +417,10 @@ function executePlay() {
     soundSource.play();
     updateConsoleUI(playlist[currentTrackIndex], 'playing');
     
+    // Vinculamos el fin de pista de forma limpia justo al arrancar
     if (soundSource.source) {
       soundSource.source.onended = () => {
-        if (!isManualChange) nextTrack();
+        nextTrack();
       };
     }
   }
@@ -429,43 +431,36 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
+// Carga inicial pasiva de la pista 0 (No arranca sola al tocar pantalla aleatoriamente)
 loadTrack(0, false);
 
-function unlockAudio() {
+// Desbloqueo silencioso del navegador (Cumple políticas de Chrome/Safari sin reproducir audio fantasma)
+function unlockAudioContext() {
   if (THREE.AudioContext.getContext().state === 'suspended') {
     THREE.AudioContext.getContext().resume();
   }
-  if (!hasStartedAutoplay) {
-    hasStartedAutoplay = true;
-    if (soundSource.buffer && !soundSource.isPlaying) {
-      executePlay();
-    }
-  }
 }
+window.addEventListener('pointerdown', unlockAudioContext, { passive: true });
+window.addEventListener('keydown', unlockAudioContext, { passive: true });
 
-window.addEventListener('pointerdown', unlockAudio, { capture: true });
-window.addEventListener('keydown', unlockAudio, { capture: true });
-
+// Eventos explícitos de los botones de la consola
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
     e.stopPropagation(); 
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
-    hasStartedAutoplay = true;
     loadTrack(trackIdx, true);
   });
 });
 
 document.getElementById("btn-play").addEventListener("click", (e) => {
   e.stopPropagation();
-  isManualChange = false;
-  hasStartedAutoplay = true;
   executePlay();
 });
 
 document.getElementById("btn-pause").addEventListener("click", (e) => {
   e.stopPropagation();
   if (soundSource.isPlaying) {
-    isManualChange = true; 
+    if (soundSource.source) soundSource.source.onended = null;
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
   }
@@ -473,7 +468,6 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
 
 document.getElementById("btn-next").addEventListener("click", (e) => {
   e.stopPropagation();
-  hasStartedAutoplay = true;
   nextTrack();
 });
 
@@ -502,7 +496,7 @@ function drawVuMeter() {
 }
 
 
-// --- ENTORNO 3D (Carga de Mallas Externas) ---
+// --- ENTORNO 3D ---
 const loader = new GLTFLoader();
 let avatar = null;
 let michigris = null;
@@ -532,20 +526,33 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- CARGA DE MICHIGRIS COMPLETAMENTE RESPETUOSA CON SUS TEXTURAS INTERNAS ---
+// --- CARGA DE MICHIGRIS CON CORRECCIÓN TOTAL DE MATERIAL PBR ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
-  // Mantenemos intacto el mapeado del material nativo original del GLB
   michigris.traverse((child) => {
     if (child.isMesh && child.material) {
-      if (child.material.map) {
-        child.material.map.colorSpace = THREE.SRGBColorSpace; 
-      }
-      child.material.needsUpdate = true;
+      // Soportamos configuraciones mono-material o multi-material
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      
+      materials.forEach((mat) => {
+        // Forzamos color base blanco para que el renderizador no oscurezca o vuelva gris el modelo
+        if (mat.color) mat.color.setHex(0xffffff);
+        
+        // Desactivamos el cálculo metálico del nodo PBR que requiere reflejos HDR inexistentes
+        if (mat.metalness !== undefined) mat.metalness = 0.0;
+        if (mat.roughness !== undefined) mat.roughness = 0.8;
+        
+        // Mapeamos correctamente el espacio de color sRGB de la textura difusa nativa encontrada
+        if (mat.map) {
+          mat.map.colorSpace = THREE.SRGBColorSpace; 
+          mat.map.needsUpdate = true;
+        }
+        mat.needsUpdate = true;
+      });
     }
   });
 
@@ -614,7 +621,7 @@ function crearBandada() {
     const datosVuelo = {
       malla: gaviotaGroup,
       alaIzq: alaIzquierda,
-      alaDer: alaDerecha, // Nombre correcto de la variable indexada
+      alaDer: alaDerecha,
       radio: 8 + Math.random() * 6,         
       velocidad: 0.3 + Math.random() * 0.4, 
       angulo: Math.random() * Math.PI * 2,   
@@ -697,7 +704,7 @@ function animate() {
 
     const anguloAleteo = Math.sin(tiempoTotal * pajaro.frecuenciaAleteo + pajaro.desfase) * 0.35;
     pajaro.alaIzq.rotation.z = anguloAleteo;
-    pajaro.alaDer.rotation.z = -anguloAleteo; // Corregido: ya no crashea el bucle
+    pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
   if (avatar) {
