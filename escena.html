@@ -535,8 +535,8 @@ function createSiameseTexture() {
   // 2. Degradado radial para simular las zonas oscurecidas (Points de extremidades)
   const gradient = ctx.createRadialGradient(256, 256, 110, 256, 256, 256);
   gradient.addColorStop(0, "rgba(245, 242, 23b, 0)");
-  gradient.addColorStop(0.65, "rgba(65, 58, 52, 0.25)"); // Grisáceo/marrón sutil
-  gradient.addColorStop(1, "rgba(25, 20, 20, 0.6)");    // Negro/carbón difuminado en bordes
+  gradient.addColorStop(0.65, "rgba(65, 58, 52, 0.25)"); 
+  gradient.addColorStop(1, "rgba(25, 20, 20, 0.6)");    
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 512, 512);
   
@@ -579,7 +579,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// Carga de Michigris con inyección de código procedimental estilo Siamés
+// Carga de Michigris con inyección de código procedimental blindado contra nodos sin nombre
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   
@@ -587,41 +587,45 @@ loader.load("michigris.glb", (gltf) => {
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
-  const siameseTexture = createSiameseTexture();
+  try {
+    const siameseTexture = createSiameseTexture();
 
-  // Recorrido de mallas para personalizar a Pinky
-  michigris.traverse((child) => {
-    if (child.isMesh) {
-      child.material = child.material.clone(); // Clona material para evitar conflictos
-      
-      const meshName = child.name.toLowerCase();
-      
-      // Filtro 1: Detectar ojos por nombre de nodo en la jerarquía
-      if (meshName.includes("ojo") || meshName.includes("eye") || meshName.includes("pupil") || meshName.includes("iris")) {
-        child.material.color.setHex(0x0088ff); // Ojos Azules intensos
-        if(child.material.map) child.material.map = null; // Remueve texturas grises del ojo
-        child.material.roughness = 0.05;
-        child.material.metalness = 0.4;
-      } 
-      // Filtro 2: Zonas que deben ser puramente oscuras/negras (Cola, orejas, nariz si se llaman así)
-      else if (meshName.includes("cola") || meshName.includes("tail") || meshName.includes("oreja") || meshName.includes("ear") || meshName.includes("nariz") || meshName.includes("nose")) {
-        child.material.color.setHex(0x1c1a17); // Extremidades Negro/Carbón
-        if(child.material.map) child.material.map = null;
-        child.material.roughness = 0.8;
-        child.material.metalness = 0.0;
-      } 
-      // Filtro 3: Cuerpo general (Pelaje base con rayitas y degradados Thai Point)
-      else {
-        child.material.map = siameseTexture;
-        child.material.color.setHex(0xffffff); // Blanco puro para actuar como lienzo limpio
-        child.material.roughness = 0.75;
-        child.material.metalness = 0.0;
+    michigris.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material = child.material.clone(); // Clona material de forma segura
+        
+        // Evita romper el código si el nodo no posee nombre asignado
+        const meshName = child.name ? child.name.toLowerCase() : "";
+        
+        // 1. Detectar ojos en la jerarquía
+        if (meshName.includes("ojo") || meshName.includes("eye") || meshName.includes("pupil") || meshName.includes("iris")) {
+          if (child.material.color) child.material.color.setHex(0x0088ff); // Ojos Azules intensos
+          child.material.map = null; 
+          child.material.roughness = 0.1;
+          child.material.metalness = 0.3;
+        } 
+        // 2. Extremidades oscuras (cola, orejas, hocico)
+        else if (meshName.includes("cola") || meshName.includes("tail") || meshName.includes("oreja") || meshName.includes("ear") || meshName.includes("nariz") || meshName.includes("nose")) {
+          if (child.material.color) child.material.color.setHex(0x1a1816); // Carbón oscuro
+          child.material.map = null;
+          child.material.roughness = 0.8;
+          child.material.metalness = 0.0;
+        } 
+        // 3. Resto del cuerpo (Cuerpo base claro con matices y rayas suaves)
+        else {
+          child.material.map = siameseTexture;
+          if (child.material.color) child.material.color.setHex(0xffffff); // Base blanca limpia para el Canvas
+          child.material.roughness = 0.75;
+          child.material.metalness = 0.0;
+        }
+        child.material.needsUpdate = true;
       }
-      child.material.needsUpdate = true;
-    }
-  });
+    });
+  } catch (e) {
+    console.error("Aviso en el pintado de Pinky, cargando aspecto base para evitar crasheos:", e);
+  }
 
-  // Añadido directo a la escena global
+  // Se añade pase lo que pase para asegurar la renderización
   scene.add(michigris);
 
   if (gltf.animations && gltf.animations.length > 0) {
