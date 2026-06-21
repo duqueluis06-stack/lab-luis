@@ -275,7 +275,7 @@
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
-      <div class="track-title" id="track-display">TAP TO GENERATE POWER</div>
+      <div class="track-title" id="track-display">TAP escenario para arrancar</div>
     </div>
     <canvas id="vumeter-canvas"></canvas>
   </div>
@@ -331,7 +331,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ OPTIMIZADO CON AUTOPLAY TOTAL ---
+// --- ENGINE DE AUDIO DJ CONTROLADO Y AUTOPLAY INTELIGENTE ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -398,7 +398,7 @@ function loadTrack(index, startPlaying = false) {
     if (startPlaying) {
       executePlay();
     } else {
-      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP TO PLAY";
+      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP escenario para arrancar";
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -429,12 +429,13 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-// Evento Global de Autoplay Reactivo al primer clic en el escenario
-function screenTouchAutoplay() {
-  if (!autoPlayTriggered) {
+// --- AUTOPLAY AUTOMÁTICO AL TOCAR PANTALLA ---
+function screenTouchAutoplay(e) {
+  // Solo arrancamos si no se ha disparado antes y si no estamos tocando la consola
+  if (!autoPlayTriggered && !e.target.closest('#media-console')) {
     autoPlayTriggered = true;
     executePlay();
-    // Quitamos los listeners globales para que no interfieran con futuras interacciones de rotación
+    // Quitamos los listeners globales para no interferir con la rotación de cámara
     window.removeEventListener('pointerdown', screenTouchAutoplay);
     window.removeEventListener('keydown', screenTouchAutoplay);
   }
@@ -446,7 +447,7 @@ window.addEventListener('keydown', screenTouchAutoplay);
 // --- EVENTOS DE CONSOLA MANUALES ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
-    e.stopPropagation(); // Evita re-disparar el autoplay de pantalla
+    e.stopPropagation(); // Freno para que la pantalla no malinterprete
     autoPlayTriggered = true;
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
     loadTrack(trackIdx, true);
@@ -475,20 +476,20 @@ document.getElementById("btn-next").addEventListener("click", (e) => {
 });
 
 
-// --- VÚMETRO OSCILOSCOPIO CON RETÍCULA ---
+// --- VÚMETRO OSCILOSCOPIO ANALÓGICO COMPACTO ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
   
-  // Fondo base semi-transparente
-  vuCtx.fillStyle = "rgba(15, 23, 42, 0.4)";
+  // Fondo sutil semi-transparente
+  vuCtx.fillStyle = "rgba(10, 15, 30, 0.4)";
   vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
   
-  // Ranuras del Osciloscopio (Retícula analógica)
-  vuCtx.strokeStyle = "rgba(0, 255, 102, 0.12)";
-  vuCtx.lineWidth = 1;
+  // Ranuras del Osciloscopio (Retícula analógica sutil)
+  vuCtx.strokeStyle = "rgba(0, 255, 102, 0.1)";
+  vuCtx.lineWidth = 0.5;
   
   // Líneas Verticales
-  for (let x = 0; x < vuCanvas.width; x += 12) {
+  for (let x = 0; x < vuCanvas.width; x += 10) {
     vuCtx.beginPath(); vuCtx.moveTo(x, 0); vuCtx.lineTo(x, vuCanvas.height); vuCtx.stroke();
   }
   // Líneas Horizontales
@@ -496,9 +497,9 @@ function drawVuMeter() {
     vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.width, y); vuCtx.stroke();
   }
 
-  // Dibujo de Señal de Frecuencia Estilo Onda Verde Láser
-  vuCtx.lineWidth = 1.5;
-  vuCtx.strokeStyle = "#00ff66";
+  // Dibujo de Señal Estilo Onda Verde Láser
+  vuCtx.lineWidth = 1.2;
+  vuCtx.strokeStyle = "#00ff66"; // Verde neón puro
 
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
@@ -509,9 +510,9 @@ function drawVuMeter() {
     
     for (let i = 0; i < data.length; i++) {
       const value = data[i] / 255;
-      // Convertimos barras en puntos interpolados en torno al eje central del monitor Y
-      const amplitude = value * (vuCanvas.height / 1.8);
-      const y = (vuCanvas.height / 2) + (i % 2 === 0 ? amplitude : -amplitude) * Math.sin(i * 0.4);
+      const amplitude = value * (vuCanvas.height / 1.5);
+      // Simulación de onda horizontal estilo radar analógico
+      const y = (vuCanvas.height / 2) + (i % 2 === 0 ? amplitude : -amplitude) * Math.sin(i * 0.3);
       
       if (i === 0) vuCtx.moveTo(x, y);
       else vuCtx.lineTo(x, y);
@@ -520,8 +521,8 @@ function drawVuMeter() {
     }
     vuCtx.stroke();
   } else {
-    // Línea de tierra plana de osciloscopio en reposo
-    vuCtx.strokeStyle = "rgba(0, 255, 102, 0.3)";
+    // Línea de tierra plana de osciloscopio en reposo sutil
+    vuCtx.strokeStyle = "rgba(0, 255, 102, 0.2)";
     vuCtx.beginPath();
     vuCtx.moveTo(0, vuCanvas.height / 2);
     vuCtx.lineTo(vuCanvas.width, vuCanvas.height / 2);
@@ -560,27 +561,97 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- CARGA DE MICHIGRIS TOTALMENTE CORREGIDA (CONSERVA TEXTURA Y OJOS) ---
+// --- GENERADOR DE TEXTURA PROCEDIMENTAL PARA MICHIGRIS (ESTILO THAI POINT/SIAMES CON OJOS AZULES) ---
+function createSiameseTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  
+  // 1. Base blanco crema sutil (Cuerpo de Pinky)
+  ctx.fillStyle = "#f8f5ed";
+  ctx.fillRect(0, 0, 512, 512);
+  
+  // 2. Degradado sutil oscuro envolvente (Points de extremidades/lomo)
+  const gradient = ctx.createRadialGradient(256, 256, 90, 256, 256, 256);
+  gradient.addColorStop(0, "rgba(248, 245, 237, 0)");
+  gradient.addColorStop(0.7, "rgba(60, 55, 50, 0.15)"); // Sutil gris/marrón
+  gradient.addColorStop(1, "rgba(20, 18, 16, 0.4)");    // Carbón difuminado
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 512, 512);
+  
+  // 3. Pintado sutil de la Máscara Facial (aproximadamente en el centro)
+  ctx.fillStyle = "rgba(40, 35, 30, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(256, 240, 90, 70, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. --- PINTADO EXPLÍCITO DE OJOS AZULES Y PUPILAS ---
+  // Ojo Izquierdo
+  ctx.fillStyle = "#00aaff"; // Azul intenso brillante
+  ctx.beginPath();
+  ctx.ellipse(215, 230, 18, 12, Math.PI / 8, 0, Math.PI * 2); // Forma ovalada de ojo
+  ctx.fill();
+  // Pupila Izquierda (Rayita negra vertical sutil)
+  ctx.fillStyle = "#111111";
+  ctx.beginPath();
+  ctx.ellipse(215, 230, 3, 10, Math.PI / 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ojo Derecho
+  ctx.fillStyle = "#00aaff"; // Azul intenso brillante
+  ctx.beginPath();
+  ctx.ellipse(297, 230, 18, 12, -Math.PI / 8, 0, Math.PI * 2); // Forma ovalada simétrica
+  ctx.fill();
+  // Pupila Derecha (Rayita negra vertical sutil)
+  ctx.fillStyle = "#111111";
+  ctx.beginPath();
+  ctx.ellipse(297, 230, 3, 10, -Math.PI / 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 5. --- BIGOTES NEGROS SIMPLISTAS ---
+  ctx.strokeStyle = "rgba(10, 10, 10, 0.6)";
+  ctx.lineWidth = 1.5;
+  // Lado izquierdo
+  ctx.beginPath(); ctx.moveTo(190, 260); ctx.lineTo(130, 255); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(190, 265); ctx.lineTo(135, 270); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(190, 270); ctx.lineTo(140, 285); ctx.stroke();
+  // Lado derecho
+  ctx.beginPath(); ctx.moveTo(322, 260); ctx.lineTo(382, 255); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(322, 265); ctx.lineTo(377, 270); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(322, 270); ctx.lineTo(372, 285); ctx.stroke();
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+// --- CARGA DE MICHIGRIS CON INYECCIÓN DE TEXTURA TOTAL (Pinky con Ojos Azules) ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
+  // Generamos e inyectamos la textura Siamés completa con ojos y bigotes
+  const siameseTexture = createSiameseTexture();
+
   michigris.traverse((child) => {
     if (child.isMesh && child.material) {
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      // Clona material para aplicar cambios sin conflictos
+      child.material = child.material.clone(); 
       
-      materials.forEach((mat) => {
-        // NO modificamos mat.color para preservar ojos azules y mapeado nativo
-        if (mat.metalness !== undefined) mat.metalness = 0.0; // Desactivamos el espejo PBR grisáceo
-        if (mat.roughness !== undefined) mat.roughness = 1.0; // Evitamos brillos artificiales planos
-        
-        if (mat.map) {
-          mat.map.colorSpace = THREE.SRGBColorSpace; 
-          mat.map.needsUpdate = true;
-        }
-        mat.needsUpdate = true;
-      });
+      // Mapeamos la textura procedimental que pintamos
+      child.material.map = siameseTexture;
+      // Ponemos base blanca limpia para que actúe como lienzo perfecto para el Canvas
+      if (child.material.color) child.material.color.setHex(0xffffff);
+      
+      // Ajustes físicos sutiles para que el pelaje no se vea metálico ni reflectante
+      if (mat.metalness !== undefined) child.material.metalness = 0.0; 
+      if (mat.roughness !== undefined) child.material.roughness = 1.0; 
+      
+      child.material.needsUpdate = true;
     }
   });
 
