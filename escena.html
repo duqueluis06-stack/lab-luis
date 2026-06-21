@@ -96,7 +96,7 @@
       text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
     }
 
-    /* CONSOLA DJ UNIFICADA CON GLASSMORPHISM MODERNO */
+    /* CONSOLA DJ GLASSMORPHISM */
     #media-console {
       position: absolute;
       top: 0;
@@ -214,7 +214,6 @@
 
     #btn-next { color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
 
-    /* VÚMETRO SIMPLIFICADO UNIFICADO ESTILO OSCILOSCOPIO */
     #vumeter-canvas {
       width: 90px;
       height: 24px;
@@ -233,7 +232,7 @@
       #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
-    /* JOYSTICK UNIFICADO CIRCULAR MODERNO */
+    /* JOYSTICK */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -272,13 +271,12 @@
 <body>
 
 <button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
-
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
-      <div class="track-title" id="track-display">TAP escenario para arrancar</div>
+      <div class="track-title" id="track-display">TAP EN LA PANTALLA PARA PLAY</div>
     </div>
     <canvas id="vumeter-canvas"></canvas>
   </div>
@@ -317,12 +315,7 @@ camera.position.set(0, 4, 10);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-
-// CONFIGURACIÓN CLAVE PARA TEXTURAS REALISTAS Y DETALLES PBR (Estilo Babylon.js)
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3; 
-
 document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
@@ -333,24 +326,13 @@ controls.minDistance = 2;
 controls.maxDistance = 40;
 controls.target.set(0, 1, 0);
 
-// RIG DE ILUMINACIÓN AVANZADA EN 360° PARA EVITAR ACABADOS GRISES
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-scene.add(ambientLight);
-
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.8);
-hemiLight.position.set(0, 20, 0);
-scene.add(hemiLight);
-
-const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-dirLight1.position.set(20, 40, 15);
-scene.add(dirLight1);
-
-const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.7);
-dirLight2.position.set(-20, 20, -15);
-scene.add(dirLight2);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+dirLight.position.set(20, 40, 15);
+scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CONTROLADO Y AUTOPLAY INTELIGENTE ---
+// --- ENGINE DE AUDIO DJ CON AUTOPLAY ROBUSTO POR INTERACCIÓN ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -421,7 +403,7 @@ function loadTrack(index, startPlaying = false) {
     if (startPlaying) {
       executePlay();
     } else {
-      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP escenario para arrancar";
+      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP EN LA PANTALLA PARA PLAY";
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -430,8 +412,9 @@ function loadTrack(index, startPlaying = false) {
 }
 
 function executePlay() {
-  if (THREE.AudioContext.getContext().state === 'suspended') {
-    THREE.AudioContext.getContext().resume();
+  const audioContext = THREE.AudioContext.getContext();
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
   }
   if (soundSource.buffer && !soundSource.isPlaying) {
     soundSource.play();
@@ -457,19 +440,21 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-function screenTouchAutoplay(e) {
-  if (!autoPlayTriggered && !e.target.closest('#media-console') && !e.target.closest('#joystick-container')) {
+// ESCUCHAS DE INTERACCIÓN GLOBAL EN TODA LA PANTALLA PARA ACTIVACIÓN INMEDIATA
+function pantallaTouchAutoplay() {
+  if (!autoPlayTriggered) {
     autoPlayTriggered = true;
     executePlay();
-    window.removeEventListener('pointerdown', screenTouchAutoplay);
-    window.removeEventListener('keydown', screenTouchAutoplay);
+    // Limpieza limpia de eventos
+    window.removeEventListener('click', pantallaTouchAutoplay);
+    window.removeEventListener('pointerdown', pantallaTouchAutoplay);
   }
 }
-window.addEventListener('pointerdown', screenTouchAutoplay);
-window.addEventListener('keydown', screenTouchAutoplay);
+window.addEventListener('click', pantallaTouchAutoplay);
+window.addEventListener('pointerdown', pantallaTouchAutoplay);
 
 
-// --- EVENTOS DE CONSOLA MANUALES ---
+// --- BOTONES MANUALES ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
     e.stopPropagation(); 
@@ -491,10 +476,7 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
     if (soundSource.source) soundSource.source.onended = null;
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
-    
-    if (window.laraAction) {
-      window.laraAction.paused = true; 
-    }
+    if (window.laraAction) window.laraAction.paused = true; 
   }
 });
 
@@ -505,13 +487,11 @@ document.getElementById("btn-next").addEventListener("click", (e) => {
 });
 
 
-// --- VÚMETRO OSCILOSCOPIO ANALÓGICO COMPACTO ---
+// --- VÚMETRO ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
-  
   vuCtx.fillStyle = "rgba(10, 15, 30, 0.4)";
   vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
-  
   vuCtx.strokeStyle = "rgba(0, 255, 102, 0.1)";
   vuCtx.lineWidth = 0.5;
   
@@ -528,18 +508,14 @@ function drawVuMeter() {
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
     vuCtx.beginPath();
-    
     const sliceWidth = vuCanvas.width / data.length;
     let x = 0;
-    
     for (let i = 0; i < data.length; i++) {
       const value = data[i] / 255;
       const amplitude = value * (vuCanvas.height / 1.5);
       const y = (vuCanvas.height / 2) + (i % 2 === 0 ? amplitude : -amplitude) * Math.sin(i * 0.3);
-      
       if (i === 0) vuCtx.moveTo(x, y);
       else vuCtx.lineTo(x, y);
-      
       x += sliceWidth;
     }
     vuCtx.stroke();
@@ -553,7 +529,7 @@ function drawVuMeter() {
 }
 
 
-// --- ENTORNO 3D ---
+// --- CARGA DE ENTORNO Y AVATARES ---
 const loader = new GLTFLoader();
 let avatar = null;
 let michigris = null;
@@ -571,7 +547,7 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// AVATAR AJUSTADO: Posicionado exactamente a ras de suelo (y = 0) para que no vuele sobre la arena
+// AVATAR RE-CORREGIDO: Sólido y plano a nivel 0 de la arena
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0); 
@@ -585,11 +561,56 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// MICHIGRIS 100% NATIVO: Se carga tal cual está en tu repositorio sin alterar materiales ni mallas artificiales
+// SOLUCIÓN INCONDICIONAL PARA MICHIGRIS: Carga limpia con Material Siamés Procedimental por Código
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
-  michigris.rotation.y = Math.PI; 
+  michigris.rotation.y = Math.PI;
+
+  michigris.traverse((child) => {
+    if (child.isMesh) {
+      // Creamos un material blanco-crema base de alta calidad
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.4,
+        metalness: 0.0
+      });
+
+      // Inyectamos sombreado dinámico estilo Siamés (Extremidades oscurecidas en base a coordenadas de malla)
+      child.material.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vLocalPos;\n'
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\nvLocalPos = position;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vLocalPos;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          'vec4 diffuseColor = vec4( diffuse, opacity );',
+          `
+          vec3 baseBlanco = vec3(0.98, 0.96, 0.90); // Blanco crema siamés impecable
+          vec3 tonosNegros = vec3(0.12, 0.09, 0.07); // Tonos oscuros siameses elegantes
+          
+          // Calculamos extremidades del gato usando distancias locales aproximadas
+          float regionCara = length(vLocalPos - vec3(0.0, 0.25, 0.35));
+          float regionPatas = smoothstep(0.12, -0.15, vLocalPos.y);
+          float regionOrejas = smoothstep(0.35, 0.65, vLocalPos.y);
+          
+          // Mezcla orgánica de gradientes
+          float factorSiamis = smoothstep(0.12, 0.38, regionCara) * (1.0 - regionPatas) * (1.0 - regionOrejas);
+          vec3 colorFinal = mix(tonosNegros, baseBlanco, clamp(factorSiamis, 0.0, 1.0));
+          
+          vec4 diffuseColor = vec4( colorFinal, opacity );
+          `
+        );
+      };
+    }
+  });
 
   scene.add(michigris);
 
@@ -612,10 +633,7 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(lara);
     window.laraAction = laraMixer.clipAction(gltf.animations[0]);
     window.laraAction.play();
-    
-    if (!soundSource.isPlaying) {
-      window.laraAction.paused = true;
-    }
+    if (!soundSource.isPlaying) window.laraAction.paused = true;
   }
 });
 
@@ -627,7 +645,7 @@ loader.load("tiki-bar.glb", (gltf) => {
 });
 
 
-// --- SISTEMA DE GAVIOTAS PROCEDIMENTALES ---
+// --- GAVIOTAS PROCEDIMENTALES ---
 const gaviotas = [];
 const numGaviotas = 5; 
 
