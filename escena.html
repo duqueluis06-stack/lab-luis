@@ -315,7 +315,12 @@ camera.position.set(0, 4, 10);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+
+// Mapeos de color estándar para respetar texturas PBR nativas de Babylon
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
 document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
@@ -326,13 +331,14 @@ controls.minDistance = 2;
 controls.maxDistance = 40;
 controls.target.set(0, 1, 0);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2.2));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+// Iluminación global neutra rica para que no ensombrezca los modelos nativos
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON AUTOPLAY ROBUSTO POR INTERACCIÓN ---
+// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO AL PRIMER CLICK ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -440,12 +446,11 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-// ESCUCHAS DE INTERACCIÓN GLOBAL EN TODA LA PANTALLA PARA ACTIVACIÓN INMEDIATA
+// Escuchas globales directas en la pantalla para activar autoplay con interacción obligatoria
 function pantallaTouchAutoplay() {
   if (!autoPlayTriggered) {
     autoPlayTriggered = true;
     executePlay();
-    // Limpieza limpia de eventos
     window.removeEventListener('click', pantallaTouchAutoplay);
     window.removeEventListener('pointerdown', pantallaTouchAutoplay);
   }
@@ -454,7 +459,7 @@ window.addEventListener('click', pantallaTouchAutoplay);
 window.addEventListener('pointerdown', pantallaTouchAutoplay);
 
 
-// --- BOTONES MANUALES ---
+// --- EVENTOS DE LA CONSOLA ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
     e.stopPropagation(); 
@@ -529,7 +534,7 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA DE ENTORNO Y AVATARES ---
+// --- CARGA DIRECTA DE ARCHIVOS 3D NATIVOS (SIN ALTERAR) ---
 const loader = new GLTFLoader();
 let avatar = null;
 let michigris = null;
@@ -547,7 +552,7 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// AVATAR RE-CORREGIDO: Sólido y plano a nivel 0 de la arena
+// AVATAR A RAS DE ARENA (y = 0)
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0); 
@@ -561,57 +566,12 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// SOLUCIÓN INCONDICIONAL PARA MICHIGRIS: Carga limpia con Material Siamés Procedimental por Código
+// MICHIGRIS.GLB INTEGRALMENTE NATIVO: Sin inyecciones de color, material ni shaders manuales
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
-  michigris.rotation.y = Math.PI;
-
-  michigris.traverse((child) => {
-    if (child.isMesh) {
-      // Creamos un material blanco-crema base de alta calidad
-      child.material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.4,
-        metalness: 0.0
-      });
-
-      // Inyectamos sombreado dinámico estilo Siamés (Extremidades oscurecidas en base a coordenadas de malla)
-      child.material.onBeforeCompile = (shader) => {
-        shader.vertexShader = shader.vertexShader.replace(
-          '#include <common>',
-          '#include <common>\nvarying vec3 vLocalPos;\n'
-        );
-        shader.vertexShader = shader.vertexShader.replace(
-          '#include <begin_vertex>',
-          '#include <begin_vertex>\nvLocalPos = position;\n'
-        );
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <common>',
-          '#include <common>\nvarying vec3 vLocalPos;\n'
-        );
-        shader.fragmentShader = shader.fragmentShader.replace(
-          'vec4 diffuseColor = vec4( diffuse, opacity );',
-          `
-          vec3 baseBlanco = vec3(0.98, 0.96, 0.90); // Blanco crema siamés impecable
-          vec3 tonosNegros = vec3(0.12, 0.09, 0.07); // Tonos oscuros siameses elegantes
-          
-          // Calculamos extremidades del gato usando distancias locales aproximadas
-          float regionCara = length(vLocalPos - vec3(0.0, 0.25, 0.35));
-          float regionPatas = smoothstep(0.12, -0.15, vLocalPos.y);
-          float regionOrejas = smoothstep(0.35, 0.65, vLocalPos.y);
-          
-          // Mezcla orgánica de gradientes
-          float factorSiamis = smoothstep(0.12, 0.38, regionCara) * (1.0 - regionPatas) * (1.0 - regionOrejas);
-          vec3 colorFinal = mix(tonosNegros, baseBlanco, clamp(factorSiamis, 0.0, 1.0));
-          
-          vec4 diffuseColor = vec4( colorFinal, opacity );
-          `
-        );
-      };
-    }
-  });
-
+  michigris.rotation.y = Math.PI; 
+  
   scene.add(michigris);
 
   if (gltf.animations && gltf.animations.length > 0) {
@@ -619,7 +579,7 @@ loader.load("michigris.glb", (gltf) => {
     michigrisMixer.clipAction(gltf.animations[0]).play();
   }
 }, undefined, (error) => {
-  console.error("Error cargando a michigris:", error);
+  console.error("Error cargando michigris.glb de manera nativa:", error);
 });
 
 
