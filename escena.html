@@ -74,7 +74,6 @@
       letter-spacing: 1px;
     }
 
-    /* ENLACE DE CRÉDITOS DISCRETO AZUL NEÓN */
     #creditos-link {
       position: absolute;
       bottom: 16px;
@@ -97,7 +96,6 @@
       text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
     }
 
-    /* CONSOLA HORIZONTAL DE DOS LÍNEAS - ESTILO GLASSMORPHISM */
     #media-console {
       position: absolute;
       top: 0;
@@ -115,7 +113,6 @@
       gap: 6px;
     }
 
-    /* Línea Superior: Pantalla LED y Vúmetro */
     .console-row-top {
       display: flex;
       align-items: center;
@@ -123,7 +120,6 @@
       gap: 12px;
     }
 
-    /* Línea Inferior: Visor Selector de Temas y Botones */
     .console-row-bottom {
       display: flex;
       align-items: center;
@@ -133,7 +129,6 @@
       padding-top: 6px;
     }
 
-    /* Pantalla LED RGB */
     .led-display {
       background: rgba(2, 6, 23, 0.7);
       border: 1px solid rgba(30, 41, 59, 0.8);
@@ -155,7 +150,6 @@
       text-overflow: ellipsis;
     }
 
-    /* VISOR HORIZONTAL CON LOS 3 TEMAS VISIBLES */
     .dj-track-selector {
       display: flex;
       gap: 6px;
@@ -193,7 +187,6 @@
       box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
     }
 
-    /* Botonera */
     .btn-group {
       display: flex;
       gap: 6px;
@@ -220,7 +213,6 @@
 
     #btn-next { color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
 
-    /* Vúmetro Ajustado */
     #vumeter-canvas {
       width: 120px;
       height: 22px;
@@ -229,7 +221,6 @@
       border: 1px solid rgba(30, 41, 59, 0.4);
     }
 
-    /* RESPONSIVO PARA SMARTPHONES */
     @media (max-width: 600px) {
       #media-console { padding: 6px 10px; gap: 4px; }
       .led-display { max-width: 140px; }
@@ -240,7 +231,6 @@
       #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
-    /* Joystick */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -521,43 +511,6 @@ let islandMixer = null;
 let laraMixer = null; 
 let michigrisMixer = null;
 
-// --- GENERADOR DE TEXTURA PROCEDIMENTAL PARA MICHIGRIS (ESTILO SIAMES/THAI POINT) ---
-function createSiameseTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  
-  // 1. Base blanco crema (Cuerpo del Thai Point)
-  ctx.fillStyle = "#f5f2eb";
-  ctx.fillRect(0, 0, 512, 512);
-  
-  // 2. Degradado radial para simular las zonas oscurecidas (Points de extremidades)
-  const gradient = ctx.createRadialGradient(256, 256, 110, 256, 256, 256);
-  gradient.addColorStop(0, "rgba(245, 242, 23b, 0)");
-  gradient.addColorStop(0.65, "rgba(65, 58, 52, 0.25)"); 
-  gradient.addColorStop(1, "rgba(25, 20, 20, 0.6)");    
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 512, 512);
-  
-  // 3. Añadir sutiles líneas horizontales para simular las "rayitas" oscuras en el lomo
-  ctx.strokeStyle = "rgba(35, 30, 30, 0.15)";
-  ctx.lineWidth = 3;
-  for (let i = 0; i < 9; i++) {
-    ctx.beginPath();
-    let yPos = 70 + i * 45;
-    ctx.moveTo(50, yPos);
-    ctx.quadraticCurveTo(256, yPos + 12, 462, yPos);
-    ctx.stroke();
-  }
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  return texture;
-}
-
 loader.load("isla.glb", (gltf) => {
   scene.add(gltf.scene);
   if (gltf.animations && gltf.animations.length > 0) {
@@ -579,55 +532,27 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// Carga de Michigris con inyección de código procedimental blindado contra nodos sin nombre
+// --- CARGA DE MICHIGRIS TOTALMENTE RESPETUOSA CON SUS TEXTURAS INTERNAS ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   
-  // Posición e inclinación estáticas al lado del avatar
+  // Posición fija al lado del avatar
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
-  try {
-    const siameseTexture = createSiameseTexture();
-
-    michigris.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material = child.material.clone(); // Clona material de forma segura
-        
-        // Evita romper el código si el nodo no posee nombre asignado
-        const meshName = child.name ? child.name.toLowerCase() : "";
-        
-        // 1. Detectar ojos en la jerarquía
-        if (meshName.includes("ojo") || meshName.includes("eye") || meshName.includes("pupil") || meshName.includes("iris")) {
-          if (child.material.color) child.material.color.setHex(0x0088ff); // Ojos Azules intensos
-          child.material.map = null; 
-          child.material.roughness = 0.1;
-          child.material.metalness = 0.3;
-        } 
-        // 2. Extremidades oscuras (cola, orejas, hocico)
-        else if (meshName.includes("cola") || meshName.includes("tail") || meshName.includes("oreja") || meshName.includes("ear") || meshName.includes("nariz") || meshName.includes("nose")) {
-          if (child.material.color) child.material.color.setHex(0x1a1816); // Carbón oscuro
-          child.material.map = null;
-          child.material.roughness = 0.8;
-          child.material.metalness = 0.0;
-        } 
-        // 3. Resto del cuerpo (Cuerpo base claro con matices y rayas suaves)
-        else {
-          child.material.map = siameseTexture;
-          if (child.material.color) child.material.color.setHex(0xffffff); // Base blanca limpia para el Canvas
-          child.material.roughness = 0.75;
-          child.material.metalness = 0.0;
-        }
-        child.material.needsUpdate = true;
+  // Mantenemos intacto el mapeado del material 'mi-cat' y forzamos el espacio de color sRGB correcto
+  michigris.traverse((child) => {
+    if (child.isMesh && child.material) {
+      if (child.material.map) {
+        child.material.map.colorSpace = THREE.SRGBColorSpace; // Asegura que los colores se procesen vivos y no grises/lavados
       }
-    });
-  } catch (e) {
-    console.error("Aviso en el pintado de Pinky, cargando aspecto base para evitar crasheos:", e);
-  }
+      child.material.needsUpdate = true;
+    }
+  });
 
-  // Se añade pase lo que pase para asegurar la renderización
   scene.add(michigris);
 
+  // Activamos su esqueleto de animaciones nativas detectadas
   if (gltf.animations && gltf.animations.length > 0) {
     michigrisMixer = new THREE.AnimationMixer(michigris);
     michigrisMixer.clipAction(gltf.animations[0]).play();
@@ -774,7 +699,7 @@ function animate() {
 
     const anguloAleteo = Math.sin(tiempoTotal * pajaro.frecuenciaAleteo + pajaro.desfase) * 0.35;
     pajaro.alaIzq.rotation.z = anguloAleteo;
-    pajaro.alaDer.rotation.z = -anguloAleteo;
+    pajaro.alaDerecha.rotation.z = -anguloAleteo; // Corregido índice de alaDer
   });
 
   if (avatar) {
