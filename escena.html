@@ -574,7 +574,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- CARGA DE MICHIGRIS (CON OJOS AZULES FORZADOS) ---
+// --- CARGA DE MICHIGRIS (CON INYECCIÓN DE OJOS PROCEDIMENTALES) ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -582,25 +582,55 @@ loader.load("michigris.glb", (gltf) => {
 
   michigris.traverse((child) => {
     if (child.isMesh && child.material) {
-      child.material = child.material.clone(); // Clona material para evitar conflictos globales
+      child.material = child.material.clone(); 
       
-      // Mantenemos base Grayish-White
       if (child.material.color) child.material.color.setHex(0xffffff);
-      
-      // Ajustes físicos para pelaje no metálico
       if (child.material.metalness !== undefined) child.material.metalness = 0.0; 
       if (child.material.roughness !== undefined) child.material.roughness = 1.0; 
-      
-      // INYECCIÓN DE OJOS AZULES: Identificamos mallas de ojos por nombre o geometría
-      if (child.name.toLowerCase().includes('eye') || child.name.toLowerCase().includes('pupil')) {
-        child.material.color.setHex(0x0088ff); // Azul brillante intenso
-        child.material.roughness = 0.2;       // Ojos ligeramente reflectantes
-        child.material.metalness = 0.5;
-      }
       
       child.material.needsUpdate = true;
     }
   });
+
+  // --- SOLUCIÓN: INYECCIÓN DE OJOS 3D ---
+  // Creamos geometrías y materiales para ojos y pupilas
+  const eyeGeo = new THREE.SphereGeometry(0.018, 16, 16); // Esfera pequeña
+  const pupilGeo = new THREE.SphereGeometry(0.009, 12, 12); // Pupila más pequeña
+
+  // Material Azul Neón brillante para el iris
+  const eyeMat = new THREE.MeshStandardMaterial({ 
+    color: 0x0088ff, // Azul brillante
+    emissive: 0x0044aa, // Ligero brillo propio
+    roughness: 0.2,
+    metalness: 0.5
+  });
+
+  // Material Negro puro para la pupila
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+  // Función auxiliar para montar un ojo completo
+  const crearOjo Completo = () => {
+    const globoOcular = new THREE.Mesh(eyeGeo, eyeMat);
+    const pupila = new THREE.Mesh(pupilGeo, pupilMat);
+    pupila.position.z = 0.012; // Sacamos la pupila un poco hacia adelante de la esfera azul
+    
+    const grupoOjo = new THREE.Group();
+    grupoOjo.add(globoOcular);
+    grupoOjo.add(pupila);
+    return grupoOjo;
+  };
+
+  const ojoIzquierdo = crearOjoCompleto();
+  const ojoDerecho = crearOjoCompleto();
+
+  // Posicionamiento relativo a la cabeza del gato (coordenadas aproximadas basadas en modelos estándar)
+  // X: ancho (+/-), Y: altura, Z: profundidad (adelante/atrás)
+  ojoIzquierdo.position.set(0.06, 0.43, 0.16); 
+  ojoDerecho.position.set(-0.06, 0.43, 0.16);
+
+  // Añadimos los ojos directamente a la escena del gato para que se muevan con él
+  michigris.add(ojoIzquierdo);
+  michigris.add(ojoDerecho);
 
   scene.add(michigris);
 
