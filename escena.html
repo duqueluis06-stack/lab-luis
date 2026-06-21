@@ -237,7 +237,7 @@
       #vumeter-canvas { width: 70px; height: 18px; }
       .track-pill { font-size: 8px; padding: 5px 2px; }
       .dj-btn { padding: 5px 8px; font-size: 10px; }
-      #creditos-link { bottom: 8px; font-size: 9px; } /* Ajuste móvil */
+      #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
     /* Joystick */
@@ -542,15 +542,37 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// Carga de Michigris de forma independiente en la escena global
+// Carga de Michigris de forma independiente en la escena global con corrección de texturas
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   
-  // Posición e inclinación estáticas al lado del punto de origen (0,0,0) del avatar
+  // Posición e inclinación estáticas al lado del avatar (separación lateral de 1 metro)
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
-  // Añadido directo a 'scene' para que no herede las traslaciones ni rotaciones de tu avatar
+  // --- RECORRIDO DE CORRECCIÓN DE TEXTURAS Y COLOR ---
+  michigris.traverse((child) => {
+    if (child.isMesh) {
+      // 1. Forzamos el espacio de color sRGB correcto si el archivo tiene un mapa de texturas cargado
+      if (child.material.map) {
+        child.material.map.colorSpace = THREE.SRGBColorSpace;
+        child.material.map.needsUpdate = true;
+      }
+      
+      // 2. Forzamos el color base del material a blanco puro (0xffffff).
+      // Esto elimina el "filtro gris" por defecto del modelo y permite ver los colores y rayas originales.
+      if (child.material.color) {
+        child.material.color.setHex(0xffffff);
+      }
+
+      // 3. Ajustamos propiedades físicas del pelaje para evitar el aspecto plástico opaco
+      child.material.roughness = 0.7; // Rugosidad realista para evitar reflejos extraños
+      child.material.metalness = 0.0; // El pelaje de un gato no es metálico
+      child.material.needsUpdate = true;
+    }
+  });
+
+  // Añadido directo a la escena global para que no se traslade con tu cursor
   scene.add(michigris);
 
   // Mantiene activas sus propias animaciones integradas si las tuviera (respirar, cola, etc.)
@@ -558,6 +580,8 @@ loader.load("michigris.glb", (gltf) => {
     michigrisMixer = new THREE.AnimationMixer(michigris);
     michigrisMixer.clipAction(gltf.animations[0]).play();
   }
+}, undefined, (error) => {
+  console.error("Error cargando a michigris:", error);
 });
 
 loader.load("lara-baila.glb", (gltf) => {
