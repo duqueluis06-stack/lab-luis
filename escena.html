@@ -101,9 +101,9 @@
       top: 0;
       left: 0;
       width: 100%;
-      background: rgba(10, 15, 30, 0.6);
-      backdrop-filter: blur(12px);        
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(10, 15, 30, 0.5);
+      backdrop-filter: blur(8px);        
+      -webkit-backdrop-filter: blur(8px);
       border-bottom: 2px solid rgba(0, 240, 255, 0.2);
       z-index: 100;
       display: flex;
@@ -214,20 +214,20 @@
     #btn-next { color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
 
     #vumeter-canvas {
-      width: 120px;
-      height: 22px;
-      background: rgba(2, 6, 23, 0.5);
+      width: 90px;
+      height: 24px;
+      background: rgba(2, 6, 23, 0.3);
       border-radius: 4px;
-      border: 1px solid rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(0, 255, 102, 0.2);
     }
 
     @media (max-width: 600px) {
-      #media-console { padding: 6px 10px; gap: 4px; }
-      .led-display { max-width: 140px; }
-      .track-title { font-size: 10px; }
-      #vumeter-canvas { width: 70px; height: 18px; }
-      .track-pill { font-size: 8px; padding: 5px 2px; }
-      .dj-btn { padding: 5px 8px; font-size: 10px; }
+      #media-console { padding: 4px 10px; gap: 4px; }
+      .led-display { max-width: 130px; padding: 2px 6px; }
+      .track-title { font-size: 9px; }
+      #vumeter-canvas { width: 80px; height: 20px; }
+      .track-pill { font-size: 8px; padding: 4px 2px; }
+      .dj-btn { padding: 4px 8px; font-size: 9px; }
       #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
@@ -275,7 +275,7 @@
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
-      <div class="track-title" id="track-display">SYSTEM ONLINE</div>
+      <div class="track-title" id="track-display">TAP TO GENERATE POWER</div>
     </div>
     <canvas id="vumeter-canvas"></canvas>
   </div>
@@ -314,7 +314,7 @@ camera.position.set(0, 4, 10);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.outputColorSpace = THREE.SRGBColorSpace; // Asegura fidelidad de colores globales
+renderer.outputColorSpace = THREE.SRGBColorSpace; 
 document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
@@ -331,7 +331,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CONTROLADO ---
+// --- ENGINE DE AUDIO DJ OPTIMIZADO CON AUTOPLAY TOTAL ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -341,11 +341,12 @@ let audioAnalyser = null;
 
 const playlist = ["entre-tes-ombres.mp3", "stade-de-nos-reves.mp3", "cumbia-de-minuit.mp3"];
 let currentTrackIndex = 0;
+let autoPlayTriggered = false;
 
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
-vuCanvas.width = 120;
-vuCanvas.height = 22;
+vuCanvas.width = 90;
+vuCanvas.height = 24;
 
 function cleanTrackName(filename) {
   return filename.replace(/-/g, ' ').replace('.mp3', '').toUpperCase();
@@ -358,10 +359,9 @@ function updateConsoleUI(filename, status) {
 
   playlist.forEach((_, idx) => {
     const pill = document.getElementById(`pill-${idx}`);
-    if (idx === currentTrackIndex) {
-      pill.classList.add('active-track');
-    } else {
-      pill.classList.remove('active-track');
+    if (pill) {
+      if (idx === currentTrackIndex) pill.classList.add('active-track');
+      else pill.classList.remove('active-track');
     }
   });
 
@@ -384,10 +384,7 @@ function loadTrack(index, startPlaying = false) {
   updateConsoleUI(filename, 'loading');
 
   audioLoader.load(filename, (buffer) => {
-    // Apagamos controladores anteriores para evitar encadenamientos erróneos de pistas
-    if (soundSource.source) {
-      soundSource.source.onended = null;
-    }
+    if (soundSource.source) soundSource.source.onended = null;
     if (soundSource.isPlaying) soundSource.stop();
 
     soundSource.setBuffer(buffer);
@@ -401,7 +398,7 @@ function loadTrack(index, startPlaying = false) {
     if (startPlaying) {
       executePlay();
     } else {
-      document.getElementById('track-display').innerText = cleanTrackName(playlist[currentTrackIndex]);
+      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP TO PLAY";
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -417,7 +414,6 @@ function executePlay() {
     soundSource.play();
     updateConsoleUI(playlist[currentTrackIndex], 'playing');
     
-    // Vinculamos el fin de pista de forma limpia justo al arrancar
     if (soundSource.source) {
       soundSource.source.onended = () => {
         nextTrack();
@@ -431,22 +427,27 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
-// Carga inicial pasiva de la pista 0 (No arranca sola al tocar pantalla aleatoriamente)
 loadTrack(0, false);
 
-// Desbloqueo silencioso del navegador (Cumple políticas de Chrome/Safari sin reproducir audio fantasma)
-function unlockAudioContext() {
-  if (THREE.AudioContext.getContext().state === 'suspended') {
-    THREE.AudioContext.getContext().resume();
+// Evento Global de Autoplay Reactivo al primer clic en el escenario
+function screenTouchAutoplay() {
+  if (!autoPlayTriggered) {
+    autoPlayTriggered = true;
+    executePlay();
+    // Quitamos los listeners globales para que no interfieran con futuras interacciones de rotación
+    window.removeEventListener('pointerdown', screenTouchAutoplay);
+    window.removeEventListener('keydown', screenTouchAutoplay);
   }
 }
-window.addEventListener('pointerdown', unlockAudioContext, { passive: true });
-window.addEventListener('keydown', unlockAudioContext, { passive: true });
+window.addEventListener('pointerdown', screenTouchAutoplay);
+window.addEventListener('keydown', screenTouchAutoplay);
 
-// Eventos explícitos de los botones de la consola
+
+// --- EVENTOS DE CONSOLA MANUALES ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
-    e.stopPropagation(); 
+    e.stopPropagation(); // Evita re-disparar el autoplay de pantalla
+    autoPlayTriggered = true;
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
     loadTrack(trackIdx, true);
   });
@@ -454,6 +455,7 @@ document.querySelectorAll('.track-pill').forEach(pill => {
 
 document.getElementById("btn-play").addEventListener("click", (e) => {
   e.stopPropagation();
+  autoPlayTriggered = true;
   executePlay();
 });
 
@@ -468,30 +470,62 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
 
 document.getElementById("btn-next").addEventListener("click", (e) => {
   e.stopPropagation();
+  autoPlayTriggered = true;
   nextTrack();
 });
 
+
+// --- VÚMETRO OSCILOSCOPIO CON RETÍCULA ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
+  
+  // Fondo base semi-transparente
+  vuCtx.fillStyle = "rgba(15, 23, 42, 0.4)";
+  vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
+  
+  // Ranuras del Osciloscopio (Retícula analógica)
+  vuCtx.strokeStyle = "rgba(0, 255, 102, 0.12)";
+  vuCtx.lineWidth = 1;
+  
+  // Líneas Verticales
+  for (let x = 0; x < vuCanvas.width; x += 12) {
+    vuCtx.beginPath(); vuCtx.moveTo(x, 0); vuCtx.lineTo(x, vuCanvas.height); vuCtx.stroke();
+  }
+  // Líneas Horizontales
+  for (let y = 0; y < vuCanvas.height; y += 6) {
+    vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.width, y); vuCtx.stroke();
+  }
+
+  // Dibujo de Señal de Frecuencia Estilo Onda Verde Láser
+  vuCtx.lineWidth = 1.5;
+  vuCtx.strokeStyle = "#00ff66";
+
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
-    const barWidth = vuCanvas.width / data.length;
+    vuCtx.beginPath();
+    
+    const sliceWidth = vuCanvas.width / data.length;
+    let x = 0;
     
     for (let i = 0; i < data.length; i++) {
-      const value = data[i];
-      const barHeight = vuCanvas.height * (value / 255);
+      const value = data[i] / 255;
+      // Convertimos barras en puntos interpolados en torno al eje central del monitor Y
+      const amplitude = value * (vuCanvas.height / 1.8);
+      const y = (vuCanvas.height / 2) + (i % 2 === 0 ? amplitude : -amplitude) * Math.sin(i * 0.4);
       
-      let gradient = vuCtx.createLinearGradient(0, vuCanvas.height, 0, 0);
-      gradient.addColorStop(0, '#00f0ff');
-      gradient.addColorStop(0.6, '#a855f7');
-      gradient.addColorStop(1, '#ff007f');
-
-      vuCtx.fillStyle = gradient;
-      vuCtx.fillRect(i * barWidth, vuCanvas.height - barHeight, barWidth - 1, barHeight);
+      if (i === 0) vuCtx.moveTo(x, y);
+      else vuCtx.lineTo(x, y);
+      
+      x += sliceWidth;
     }
+    vuCtx.stroke();
   } else {
-    vuCtx.fillStyle = "rgba(0, 240, 255, 0.15)";
-    vuCtx.fillRect(0, vuCanvas.height / 2, vuCanvas.width, 1);
+    // Línea de tierra plana de osciloscopio en reposo
+    vuCtx.strokeStyle = "rgba(0, 255, 102, 0.3)";
+    vuCtx.beginPath();
+    vuCtx.moveTo(0, vuCanvas.height / 2);
+    vuCtx.lineTo(vuCanvas.width, vuCanvas.height / 2);
+    vuCtx.stroke();
   }
 }
 
@@ -526,27 +560,21 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// --- CARGA DE MICHIGRIS CON CORRECCIÓN TOTAL DE MATERIAL PBR ---
+// --- CARGA DE MICHIGRIS TOTALMENTE CORREGIDA (CONSERVA TEXTURA Y OJOS) ---
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
-  
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
 
   michigris.traverse((child) => {
     if (child.isMesh && child.material) {
-      // Soportamos configuraciones mono-material o multi-material
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       
       materials.forEach((mat) => {
-        // Forzamos color base blanco para que el renderizador no oscurezca o vuelva gris el modelo
-        if (mat.color) mat.color.setHex(0xffffff);
+        // NO modificamos mat.color para preservar ojos azules y mapeado nativo
+        if (mat.metalness !== undefined) mat.metalness = 0.0; // Desactivamos el espejo PBR grisáceo
+        if (mat.roughness !== undefined) mat.roughness = 1.0; // Evitamos brillos artificiales planos
         
-        // Desactivamos el cálculo metálico del nodo PBR que requiere reflejos HDR inexistentes
-        if (mat.metalness !== undefined) mat.metalness = 0.0;
-        if (mat.roughness !== undefined) mat.roughness = 0.8;
-        
-        // Mapeamos correctamente el espacio de color sRGB de la textura difusa nativa encontrada
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace; 
           mat.map.needsUpdate = true;
