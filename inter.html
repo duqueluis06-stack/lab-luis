@@ -2,20 +2,125 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Inter 3D Scene</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Lab Luis - Inter 3D</title>
   <style>
+    /* Estilos base intermitentes estilo Laboratorio / Submarino */
     body {
       margin: 0;
       overflow: hidden;
-      background: #000;
+      background: #0a0a0a;
+      font-family: 'Courier New', Courier, monospace;
+      user-select: none;
+      -webkit-user-select: none;
     }
     canvas {
       display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Botón de Salida Superior Izquierda */
+    .btn-exit {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 12px 24px;
+      background: rgba(255, 0, 50, 0.2);
+      color: #ff3333;
+      border: 2px solid #ff3333;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(255, 0, 50, 0.5);
+      z-index: 100;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+    .btn-exit:hover, .btn-exit:active {
+      background: #ff3333;
+      color: #fff;
+      box-shadow: 0 0 20px #ff3333;
+      cursor: pointer;
+    }
+
+    /* Pantalla de Carga e Indicador del Sistema */
+    #ui-overlay {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      color: #00ff66;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border: 1px solid #00ff66;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+      z-index: 90;
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.2);
+    }
+
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #050505;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      color: #00ff66;
+      transition: opacity 0.5s ease;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(0,255,102,0.2);
+      border-top: 3px solid #00ff66;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Consola de errores visible en Pantalla (Crucial para móviles) */
+    #error-log {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      color: #ff3333;
+      background: rgba(0,0,0,0.8);
+      padding: 10px;
+      font-size: 11px;
+      max-width: 90%;
+      border-left: 3px solid #ff3333;
+      display: none;
+      z-index: 500;
     }
   </style>
 </head>
-
 <body>
+
+  <a href="index.html" class="btn-exit">◀ SALIR</a>
+
+  <div id="error-log"></div>
+
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div id="loading-text">INICIALIZANDO ENTORNO 3D...</div>
+  </div>
+
+  <div id="ui-overlay">
+    <div>SISTEMA: EN LÍNEA</div>
+    <div id="model-status">MODELOS: CARGANDO...</div>
+  </div>
 
 <script type="module">
 
@@ -23,107 +128,146 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
+// Captura de errores para verlos directo en el celular si falla la red
+const errorLog = document.getElementById("error-log");
+function showScreenError(msg) {
+  errorLog.style.display = "block";
+  errorLog.innerHTML += `<div>⚠️ ${msg}</div>`;
+}
+
 /* 🌐 ESCENA */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111111);
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015); // Niebla sutil de laboratorio
 
-/* 📏 GRID (SIEMPRE VISIBLE → evita “pantalla negra falsa”) */
-scene.add(new THREE.GridHelper(20, 20));
+/* 📏 REJILLA RADAR / GRID */
+const grid = new THREE.GridHelper(50, 50, 0x00ff66, 0x224422);
+grid.position.y = -0.01; 
+scene.add(grid);
 
-/* 📷 CÁMARA */
+/* 📷 CÁMARA (Ajustada para pantallas táctiles y PC) */
 const camera = new THREE.PerspectiveCamera(
-  70,
+  60,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
-camera.position.set(0, 2, 6);
+camera.position.set(0, 5, 12);
 
-/* 🎮 RENDER */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+/* 🎮 RENDERER OPTIMIZADO */
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Capado a 2 para evitar lag en celulares viejos
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-/* 💡 LUCES */
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+/* 💡 ILUMINACIÓN MEJORADA (Evita que los modelos se vean negros) */
+const ambient = new THREE.AmbientLight(0xffffff, 1.2); // Más intensidad base
 scene.add(ambient);
 
-const directional = new THREE.DirectionalLight(0xffffff, 1);
-directional.position.set(5, 10, 5);
+const directional = new THREE.DirectionalLight(0xffffff, 1.5);
+directional.position.set(10, 20, 10);
 scene.add(directional);
 
-/* 🎮 CONTROLES */
+// Luz azul/verde tecnológica desde abajo para dar estética Sci-Fi
+const techLight = new THREE.DirectionalLight(0x00ff66, 0.5);
+techLight.position.set(-10, -5, -10);
+scene.add(techLight);
+
+/* 🎮 CONTROLES TÁCTILES Y MOUSE */
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2 - 0.01; // No bajar del suelo
+controls.minDistance = 2;
+controls.maxDistance = 40;
 
 /* 📦 LOADER */
 const loader = new GLTFLoader();
 
-/* 🌐 URLS (TU RELEASE) */
+/* 🌐 URLS DE TUS RELEASES */
 const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
 const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
 const JON_URL  = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
 
-/* 🧠 FUNCIÓN SEGURA DE CARGA */
-function loadModel(url, onLoad) {
+let modelsToLoad = 3;
+let modelsLoaded = 0;
+
+function checkLoadProgress() {
+  modelsLoaded++;
+  document.getElementById("loading-text").innerText = `CARGANDO SISTEMAS (${modelsLoaded}/${modelsToLoad})...`;
+  if (modelsLoaded >= modelsToLoad) {
+    const loaderScreen = document.getElementById("loading-screen");
+    loaderScreen.style.opacity = "0";
+    setTimeout(() => loaderScreen.style.display = "none", 500);
+    document.getElementById("model-status").innerText = "MODELOS: LISTOS";
+  }
+}
+
+/* 🧠 FUNCIÓN DE CARGA AVANZADA CON CONTENEDOR */
+function loadModel(url, posX, posY, posZ, rotY, scaleFactor = 1.0) {
   loader.load(
     url,
     (gltf) => {
       const model = gltf.scene;
 
-      /* 🔧 ESCALA SEGURA (evita invisibles) */
-      model.scale.set(0.01, 0.01, 0.01);
+      // Creamos un contenedor (Group) para no romper las coordenadas al moverlo
+      const rootGroup = new THREE.Group();
+      rootGroup.add(model);
 
-      /* 🔧 CENTRAR AUTOMÁTICO */
+      // Centrado geométrico interno del modelo
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
-      model.position.sub(center);
+      model.position.sub(center); 
 
-      onLoad(model);
-      scene.add(model);
+      // Aplicar escala personalizada (1 por defecto, cámbialo si se ven gigantes)
+      rootGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
+      
+      // Colocar el contenedor en su lugar real en la escena
+      rootGroup.position.set(posX, posY, posZ);
+      rootGroup.rotation.y = rotY;
+
+      scene.add(rootGroup);
+      checkLoadProgress();
     },
     undefined,
     (err) => {
-      console.error("❌ ERROR CARGANDO:", url, err);
+      console.error("Error en URL:", url, err);
+      showScreenError(`No se pudo cargar: ${url.split('/').pop()}. Puede ser un bloqueo de red (CORS).`);
+      checkLoadProgress(); // Saltar para no trabar la pantalla de carga
     }
   );
 }
 
-/* 🌆 CITY */
-loadModel(CITY_URL, (city) => {
-  city.position.set(0, 0, 0);
-});
+/* 🌆 CARGA DE ELEMENTOS (Ajusta la escala final si se ven muy grandes o chicos) */
+// Sintaxis: loadModel(URL, X, Y, Z, RotaciónY, Escala)
 
-/* 👤 ADÁN (izquierda) */
-loadModel(ADAN_URL, (adan) => {
-  adan.position.set(-1.5, 0, 0);
-  adan.rotation.y = Math.PI / 2;
-});
+// 1. La ciudad en el centro (Escala 1.0 por defecto)
+loadModel(CITY_URL, 0, 0, 0, 0, 1.0);
 
-/* 👤 JON (derecha) */
-loadModel(JON_URL, (jon) => {
-  jon.position.set(1.5, 0, 0);
-  jon.rotation.y = -Math.PI / 2;
-});
+// 2. Adán a la izquierda (X: -3)
+loadModel(ADAN_URL, -3, 0, 0, Math.PI / 2, 1.0);
 
-/* 🔄 LOOP */
+// 3. Jon a la derecha (X: 3)
+loadModel(JON_URL, 3, 0, 0, -Math.PI / 2, 1.0);
+
+
+/* 🔄 LOOP DE RENDERIZADO */
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
 }
-
 animate();
 
-/* 📱 RESPONSIVE */
+/* 📱 ADAPTACIÓN PANTALLAS (PC / MÓVIL) */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
 </script>
-
 </body>
 </html>
