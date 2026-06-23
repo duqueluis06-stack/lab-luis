@@ -2,22 +2,106 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url='https://guileless-blini-351b40.netlify.app/'">
-    <title>Redirigiendo...</title>
+    <title>Luis F. Duque Martini | AI Living Lab</title>
     <style>
-        body {
-            background-color: #05030c;
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffe5; }
+        
+        #video-bg { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: -1; object-fit: cover; opacity: 0.6; }
+        
+        .container { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        
+        h1 { font-size: 3rem; text-shadow: 0 0 15px #00ffe5; margin: 0; letter-spacing: 5px; }
+        .poema { font-size: 1.2rem; color: #fff; margin: 20px 0; text-shadow: 0 0 5px #000; }
+
+        #osciloscopio { position: absolute; bottom: 20px; width: 80%; height: 200px; border: 2px solid #00ffe5; background: rgba(0, 0, 0, 0.5); }
+
+        #portal-btn {
+            margin-top: 30px;
+            padding: 20px 50px;
+            font-size: 1.5rem;
             color: #00ffe5;
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            background: transparent;
+            border: 3px solid #00ffe5;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-decoration: none;
+            box-shadow: 0 0 20px #00ffe5;
+            transition: 0.3s;
         }
+        #portal-btn:hover { background: #00ffe5; color: #000; box-shadow: 0 0 50px #00ffe5; }
     </style>
 </head>
 <body>
-    <p>Conectando con el entorno virtual...</p>
+
+    <video autoplay muted loop playsinline id="video-bg">
+        <source src="tx.mp4" type="video/mp4">
+    </video>
+
+    <div class="container">
+        <h1>LUIS F. DUQUE MARTINI</h1>
+        <div class="poema">
+            "Donde el silicio respira y el código se vuelve alma."<br>
+            Algoritmos en vivo: Mundos interactivos donde la IA cobra vida.
+        </div>
+        
+        <canvas id="osciloscopio"></canvas>
+        
+        <a id="portal-btn" href="https://guileless-blini-351b40.netlify.app/" target="_blank">
+            ENTRAR AL MUNDO INTERACTIVO
+        </a>
+    </div>
+
+    <audio id="audio" src="citadel.mp3" loop></audio>
+
+    <script>
+        const audio = document.getElementById('audio');
+        const canvas = document.getElementById('osciloscopio');
+        const ctx = canvas.getContext('2d');
+        let audioCtx, analyser, dataArray;
+
+        // Iniciar audio al primer click en cualquier parte
+        document.body.addEventListener('click', () => {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaElementSource(audio);
+                analyser = audioCtx.createAnalyser();
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 2048;
+                dataArray = new Uint8Array(analyser.fftSize);
+                drawOscilloscope();
+            }
+            audio.play();
+        }, { once: true });
+
+        function drawOscilloscope() {
+            requestAnimationFrame(drawOscilloscope);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Efecto estela
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar líneas de radio (Grid)
+            ctx.strokeStyle = '#00332e';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+
+            // Dibujar Onda (Osciloscopio)
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00ffe5';
+            ctx.beginPath();
+            let sliceWidth = canvas.width * 1.0 / analyser.fftSize;
+            let x = 0;
+            for(let i = 0; i < analyser.fftSize; i++) {
+                let v = dataArray[i] / 128.0;
+                let y = v * canvas.height / 2;
+                if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+        }
+    </script>
 </body>
 </html>
