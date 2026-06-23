@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Inter - Scene 3D</title>
+  <title>Inter 3D Scene</title>
   <style>
     body {
       margin: 0;
@@ -27,6 +27,9 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
+/* 📏 GRID (SIEMPRE VISIBLE → evita “pantalla negra falsa”) */
+scene.add(new THREE.GridHelper(20, 20));
+
 /* 📷 CÁMARA */
 const camera = new THREE.PerspectiveCamera(
   70,
@@ -39,14 +42,16 @@ camera.position.set(0, 2, 6);
 /* 🎮 RENDER */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
 /* 💡 LUCES */
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 5);
-scene.add(light);
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const directional = new THREE.DirectionalLight(0xffffff, 1);
+directional.position.set(5, 10, 5);
+scene.add(directional);
 
 /* 🎮 CONTROLES */
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -55,36 +60,51 @@ controls.enableDamping = true;
 /* 📦 LOADER */
 const loader = new GLTFLoader();
 
-/* 🌐 URLS (GitHub Releases) */
+/* 🌐 URLS (TU RELEASE) */
 const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
 const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
-const JOHN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
+const JON_URL  = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
+
+/* 🧠 FUNCIÓN SEGURA DE CARGA */
+function loadModel(url, onLoad) {
+  loader.load(
+    url,
+    (gltf) => {
+      const model = gltf.scene;
+
+      /* 🔧 ESCALA SEGURA (evita invisibles) */
+      model.scale.set(0.01, 0.01, 0.01);
+
+      /* 🔧 CENTRAR AUTOMÁTICO */
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+
+      onLoad(model);
+      scene.add(model);
+    },
+    undefined,
+    (err) => {
+      console.error("❌ ERROR CARGANDO:", url, err);
+    }
+  );
+}
 
 /* 🌆 CITY */
-loader.load(CITY_URL, (gltf) => {
-  const city = gltf.scene;
-  city.scale.set(1, 1, 1);
-  scene.add(city);
+loadModel(CITY_URL, (city) => {
+  city.position.set(0, 0, 0);
 });
 
 /* 👤 ADÁN (izquierda) */
-loader.load(ADAN_URL, (gltf) => {
-  const adan = gltf.scene;
-
+loadModel(ADAN_URL, (adan) => {
   adan.position.set(-1.5, 0, 0);
   adan.rotation.y = Math.PI / 2;
-
-  scene.add(adan);
 });
 
-/* 👤 JOHN (derecha) */
-loader.load(JOHN_URL, (gltf) => {
-  const john = gltf.scene;
-
-  john.position.set(1.5, 0, 0);
-  john.rotation.y = -Math.PI / 2;
-
-  scene.add(john);
+/* 👤 JON (derecha) */
+loadModel(JON_URL, (jon) => {
+  jon.position.set(1.5, 0, 0);
+  jon.rotation.y = -Math.PI / 2;
 });
 
 /* 🔄 LOOP */
