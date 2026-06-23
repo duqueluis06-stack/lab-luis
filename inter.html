@@ -98,7 +98,7 @@
         const loader = document.getElementById("loading-screen");
         if(log) {
           log.style.display = "block";
-          log.innerHTML += `<div>🚨 CRÍTICO: ${e.message}</div>`;
+          log.innerHTML += `<div>🚨 ERROR CRÍTICO: ${e.message}</div>`;
         }
         if(loader) loader.style.display = "none";
       }, 100);
@@ -122,12 +122,12 @@
 
   <div id="loading-screen">
     <div class="spinner"></div>
-    <div id="loading-text">CONECTANDO CON SERVIDOR DE ASSETS...</div>
+    <div id="loading-text">CARGANDO ENTORNO LABORATÓRIO...</div>
   </div>
 
   <div id="ui-overlay">
     <div>SISTEMA: EN LÍNEA</div>
-    <div id="model-status">CARGANDO MODELOS...</div>
+    <div id="model-status">PROCESANDO RENDER...</div>
   </div>
 
 <script type="module">
@@ -138,11 +138,11 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 const errorLog = document.getElementById("error-log");
 function forceScreenError(msg) {
   errorLog.style.display = "block";
-  errorLog.innerHTML += `<div>⚠️ FILTRO: ${msg}</div>`;
+  errorLog.innerHTML += `<div>⚠️ ALERTA: ${msg}</div>`;
   document.getElementById("loading-screen").style.display = "none";
 }
 
-/* 🌐 ESCENA Y CONFIGURACIÓN BASE */
+/* 🌐 ESCENA Y REJILLA */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a0a);
 
@@ -157,7 +157,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-/* 💡 ILUMINACIÓN GLOBAL FUERTE */
+/* 💡 ILUMINACIÓN */
 scene.add(new THREE.AmbientLight(0xffffff, 1.8));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
 dirLight.position.set(10, 20, 10);
@@ -166,28 +166,29 @@ scene.add(dirLight);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-/* 📦 LOADER */
+/* 📦 ENLACES DE TUS MODELOS */
 const loader = new GLTFLoader();
+loader.setCrossOrigin('anonymous'); 
 
-// Prefijo puente para burlar el bloqueo CORS de GitHub Releases
-const PROXY = "https://corsproxy.io/?";
-
-const CITY_URL = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
-const ADAN_URL = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
-const JON_URL  = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
+// 🛑 REEMPLAZA ÚNICAMENTE ESTOS TRES ENLACES CON TUS ENLACES DIRECTOS DE DROPBOX:
+const CITY_URL = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/city.glb"; 
+const ADAN_URL = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/adan.glb";
+const JON_URL  = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/jon.glb";
 
 let totalModels = 3;
 let loadedCount = 0;
+let mixers = []; 
+const clock = new THREE.Clock();
 
 function updateProgress() {
   loadedCount++;
   if (loadedCount >= totalModels) {
     document.getElementById("loading-screen").style.display = "none";
-    document.getElementById("model-status").innerText = "MODELOS: EN LÍNEA";
+    document.getElementById("model-status").innerText = "SISTEMA VIRTUAL: OPERACIONAL";
   }
 }
 
-/* 🧠 CARGADOR PROTEGIDO */
+/* 🧠 PROCESADOR DE ENTORNOS Y ANIMACIONES SKINNED */
 function safeLoad(url, posX, posY, posZ, rotY) {
   loader.load(
     url,
@@ -197,42 +198,56 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         const group = new THREE.Group();
         group.add(model);
 
-        // Centrado automático del objeto
+        // Centrado inteligente
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
 
         group.position.set(posX, posY, posZ);
         group.rotation.y = rotY;
-
         scene.add(group);
+
+        // 🎬 ACTIVACIÓN DE LOS MOVIMIENTOS/DIÁLOGOS GLB
+        if (gltf.animations && gltf.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(model);
+          const action = mixer.clipAction(gltf.animations[0]); 
+          action.play();
+          mixers.push(mixer);
+        }
+
         updateProgress();
       } catch (processingError) {
-        forceScreenError(`Fallo al procesar geometría: ${processingError.message}`);
+        forceScreenError(`Error de procesamiento: ${processingError.message}`);
         updateProgress();
       }
     },
     (xhr) => {
       if (xhr.total) {
         const p = Math.round((xhr.loaded / xhr.total) * 100);
-        document.getElementById("loading-text").innerText = `DESCARGANDO: ${p}%`;
+        document.getElementById("loading-text").innerText = `DESCARGANDO ${url.split('/').pop().split('?')[0]}: ${p}%`;
       }
     },
     (networkError) => {
-      forceScreenError(`Error de red al solicitar asset remoto.`);
+      forceScreenError(`Error de red al conectar con el servidor del asset.`);
       updateProgress();
     }
   );
 }
 
-/* 🚀 EJECUCIÓN DE CARGA */
+/* 🚀 DISPARO DE CARGA COORDENADA */
 safeLoad(CITY_URL, 0, 0, 0, 0);
-safeLoad(ADAN_URL, -4, 0, 0, Math.PI / 2);
-safeLoad(JON_URL, 4, 0, 0, -Math.PI / 2);
+safeLoad(ADAN_URL, -3, 0, 0, Math.PI / 2);  
+safeLoad(JON_URL, 3, 0, 0, -Math.PI / 2);   
 
-/* 🔄 ANIMACIÓN */
+/* 🔄 BUCLE DE RENDERIZADO (FPS REFRESH) */
 function animate() {
   requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+  for (const mixer of mixers) {
+    mixer.update(delta);
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }
