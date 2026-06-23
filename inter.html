@@ -2,40 +2,20 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Inter 3D Scene</title>
+  <title>Test City GLB</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
       background: #000;
-      font-family: 'Courier New', Courier, monospace;
     }
     canvas {
       display: block;
-    }
-    /* Monitor de diagnóstico en pantalla para controlar la carga en el móvil */
-    #monitor-sistema {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      background: rgba(5, 15, 5, 0.85);
-      border: 2px solid #ff3333;
-      color: #ff3333;
-      padding: 12px;
-      font-size: 11px;
-      line-height: 16px;
-      z-index: 999;
-      max-width: 280px;
-      border-radius: 4px;
-      box-shadow: 0 0 10px rgba(255, 51, 51, 0.2);
-      pointer-events: none;
     }
   </style>
 </head>
 
 <body>
-
-<div id="monitor-sistema">⚠️ SISTEMA: Inicializando diagnóstico de entorno...</div>
 
 <script type="module">
 
@@ -47,7 +27,7 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-/* 📏 GRID */
+/* 📏 REFERENCIA VISUAL */
 scene.add(new THREE.GridHelper(20, 20));
 
 /* 📷 CÁMARA */
@@ -62,16 +42,14 @@ camera.position.set(0, 2, 6);
 /* 🎮 RENDER */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limita a 2 para no reventar la GPU del móvil
 document.body.appendChild(renderer.domElement);
 
 /* 💡 LUCES */
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-const directional = new THREE.DirectionalLight(0xffffff, 1);
-directional.position.set(5, 10, 5);
-scene.add(directional);
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
 
 /* 🎮 CONTROLES */
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -80,102 +58,38 @@ controls.enableDamping = true;
 /* 📦 LOADER */
 const loader = new GLTFLoader();
 
-/* 🌐 URLS DE TU REPOSITORIO */
+/* 🌆 SOLO CITY */
 const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
-const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
-const JON_URL  = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
 
-const monitor = document.getElementById("monitor-sistema");
+loader.load(
+  CITY_URL,
+  (gltf) => {
+    const city = gltf.scene;
 
-function actualizarMonitor(mensaje, esError = false) {
-  if (esError) {
-    monitor.style.borderColor = "#ff3333";
-    monitor.style.color = "#ff3333";
-  } else {
-    monitor.style.borderColor = "#33ff33";
-    monitor.style.color = "#33ff33";
-  }
-  monitor.innerHTML = `⚠️ INFO: ${mensaje}`;
-}
+    /* 🔧 FIX UNIVERSAL */
+    city.scale.set(0.01, 0.01, 0.01);
 
-/* 🧠 PROMISE WRAPPER PARA CARGA SECUENCIAL */
-function cargarModeloAsincrono(url, nombreAsset) {
-  return new Promise((resolve, reject) => {
-    actualizarMonitor(`Esperando respuesta del servidor para: ${nombreAsset}...`);
-    
-    loader.load(
-      url,
-      (gltf) => {
-        const model = gltf.scene;
+    /* 🔧 CENTRAR */
+    const box = new THREE.Box3().setFromObject(city);
+    const center = box.getCenter(new THREE.Vector3());
+    city.position.sub(center);
 
-        /* 🔧 TU ESCALA SEGURA */
-        model.scale.set(0.01, 0.01, 0.01);
-
-        /* 🔧 TU CENTRADO AUTOMÁTICO */
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center);
-
-        resolve(model);
-      },
-      (xhr) => {
-        if (xhr.total) {
-          const porcentaje = Math.round((xhr.loaded / xhr.total) * 100);
-          actualizarMonitor(`Descargando ${nombreAsset}: [${porcentaje}%]`);
-        } else {
-          // Si el servidor no devuelve el tamaño total, calcula los megabytes procesados
-          const mb = (xhr.loaded / (1024 * 1024)).toFixed(1);
-          actualizarMonitor(`Descargando ${nombreAsset}: ${mb} MB cargados...`);
-        }
-      },
-      (err) => {
-        actualizarMonitor(`Fallo al adquirir ${nombreAsset}.`, true);
-        reject(err);
-      }
-    );
-  });
-}
-
-/* 🔄 ORQUESTADOR DE CARGA MAESTRO */
-async function inicializarEscena() {
-  try {
-    // 1. Cargar la Ciudad primero
-    const city = await cargarModeloAsincrono(CITY_URL, "Módulo Ciudad");
-    city.position.set(0, 0, 0);
     scene.add(city);
 
-    // 2. Una vez montada la ciudad, arranca con Adán (80 MB)
-    const adan = await cargarModeloAsincrono(ADAN_URL, "Avatar Adán [80MB]");
-    adan.position.set(-1.5, 0, 0);
-    adan.rotation.y = Math.PI / 2;
-    scene.add(adan);
-
-    // 3. Finalmente carga a Jon (53 MB)
-    const jon = await cargarModeloAsincrono(JON_URL, "Avatar Jon [53MB]");
-    jon.position.set(1.5, 0, 0);
-    jon.rotation.y = -Math.PI / 2;
-    scene.add(jon);
-
-    // Carga finalizada con éxito
-    actualizarMonitor("SISTEMA: EN LÍNEA.<br>ENTORNO: OPERACIONAL.");
-    setTimeout(() => { monitor.style.display = "none"; }, 3000); // Oculta el monitor tras 3 segundos en verde
-
-  } catch (error) {
-    console.error("Falla crítica en la secuencia:", error);
-    actualizarMonitor(`ERROR CRÍTICO: Verifique la consola o bloqueo CORS del servidor.`, true);
+    console.log("✔ CITY CARGADA");
+  },
+  undefined,
+  (err) => {
+    console.error("❌ ERROR CITY:", err);
   }
-}
+);
 
-// Lanzar la secuencia controlada
-inicializarEscena();
-
-/* 🔄 LOOP DE RENDER */
+/* 🔄 LOOP */
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
 }
-
 animate();
 
 /* 📱 RESPONSIVE */
