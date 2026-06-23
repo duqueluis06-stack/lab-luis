@@ -338,7 +338,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO AL PRIMER CLICK ---
+// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -348,7 +348,7 @@ let audioAnalyser = null;
 
 const playlist = ["entre-tes-ombres.mp3", "stade-de-nos-reves.mp3", "cumbia-de-minuit.mp3"];
 let currentTrackIndex = 0;
-let autoPlayTriggered = false;
+let userInteracted = false; 
 
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
@@ -406,10 +406,10 @@ function loadTrack(index, startPlaying = false) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
-    if (startPlaying) {
+    if (startPlaying || userInteracted) {
       executePlay();
     } else {
-      document.getElementById('track-display').innerText = autoPlayTriggered ? cleanTrackName(playlist[currentTrackIndex]) : "TAP EN LA PANTALLA PARA PLAY";
+      document.getElementById('track-display').innerText = "TAP EN LA PANTALLA PARA PLAY";
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -446,10 +446,9 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-// Escuchas globales directas en la pantalla para activar autoplay con interacción obligatoria
 function pantallaTouchAutoplay() {
-  if (!autoPlayTriggered) {
-    autoPlayTriggered = true;
+  if (!userInteracted) {
+    userInteracted = true;
     executePlay();
     window.removeEventListener('click', pantallaTouchAutoplay);
     window.removeEventListener('pointerdown', pantallaTouchAutoplay);
@@ -463,7 +462,7 @@ window.addEventListener('pointerdown', pantallaTouchAutoplay);
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('click', (e) => {
     e.stopPropagation(); 
-    autoPlayTriggered = true;
+    userInteracted = true;
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
     loadTrack(trackIdx, true);
   });
@@ -471,7 +470,7 @@ document.querySelectorAll('.track-pill').forEach(pill => {
 
 document.getElementById("btn-play").addEventListener("click", (e) => {
   e.stopPropagation();
-  autoPlayTriggered = true;
+  userInteracted = true;
   executePlay();
 });
 
@@ -487,7 +486,7 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
 
 document.getElementById("btn-next").addEventListener("click", (e) => {
   e.stopPropagation();
-  autoPlayTriggered = true;
+  userInteracted = true;
   nextTrack();
 });
 
@@ -534,7 +533,7 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA DIRECTA DE ARCHIVOS 3D NATIVOS (SIN ALTERAR) ---
+// --- CARGA DIRECTA DE ARCHIVOS 3D NATIVOS ---
 const loader = new GLTFLoader();
 let avatar = null;
 let michigris = null;
@@ -566,12 +565,28 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// MICHIGRIS.GLB INTEGRALMENTE NATIVO: Sin inyecciones de color, material ni shaders manuales
+// MICHIGRIS.GLB OPTIMIZADO: Ajuste dinámico de mapas PBR y texturas nativas
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
   michigris.rotation.y = Math.PI; 
   
+  michigris.traverse((child) => {
+    if (child.isMesh) {
+      if (child.material) {
+        if (child.material.map) {
+          child.material.map.colorSpace = THREE.SRGBColorSpace;
+          child.material.map.needsUpdate = true;
+        }
+        
+        if (child.material.metalness > 0.4) {
+          child.material.metalness = 0.1; 
+          child.material.roughness = 0.7; 
+        }
+      }
+    }
+  });
+
   scene.add(michigris);
 
   if (gltf.animations && gltf.animations.length > 0) {
@@ -579,7 +594,7 @@ loader.load("michigris.glb", (gltf) => {
     michigrisMixer.clipAction(gltf.animations[0]).play();
   }
 }, undefined, (error) => {
-  console.error("Error cargando michigris.glb de manera nativa:", error);
+  console.error("Error cargando michigris.glb:", error);
 });
 
 
