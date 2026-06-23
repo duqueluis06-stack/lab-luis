@@ -98,7 +98,7 @@
         const loader = document.getElementById("loading-screen");
         if(log) {
           log.style.display = "block";
-          log.innerHTML += `<div>🚨 ERROR CRÍTICO: ${e.message}</div>`;
+          log.innerHTML += `<div>🚨 SISTEMA: ${e.message}</div>`;
         }
         if(loader) loader.style.display = "none";
       }, 100);
@@ -122,12 +122,12 @@
 
   <div id="loading-screen">
     <div class="spinner"></div>
-    <div id="loading-text">CARGANDO ENTORNO LABORATÓRIO...</div>
+    <div id="loading-text">CONECTANDO DIRECTO CON RELEASES...</div>
   </div>
 
   <div id="ui-overlay">
     <div>SISTEMA: EN LÍNEA</div>
-    <div id="model-status">PROCESANDO RENDER...</div>
+    <div id="model-status">PROCESANDO GRÁFICOS...</div>
   </div>
 
 <script type="module">
@@ -138,42 +138,41 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 const errorLog = document.getElementById("error-log");
 function forceScreenError(msg) {
   errorLog.style.display = "block";
-  errorLog.innerHTML += `<div>⚠️ ALERTA: ${msg}</div>`;
-  document.getElementById("loading-screen").style.display = "none";
+  errorLog.innerHTML += `<div>⚠️ INFO: ${msg}</div>`;
 }
 
 /* 🌐 ESCENA Y REJILLA */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a0a);
 
-const grid = new THREE.GridHelper(40, 40, 0x00ff66, 0x113311);
+const grid = new THREE.GridHelper(50, 50, 0x00ff66, 0x113311);
 scene.add(grid);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 5, 15);
+camera.position.set(0, 8, 20);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-/* 💡 ILUMINACIÓN */
-scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-dirLight.position.set(10, 20, 10);
+/* 💡 ILUMINACIÓN GLOBAL POTENTE */
+scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(20, 40, 20);
 scene.add(dirLight);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-/* 📦 ENLACES DE TUS MODELOS */
+/* 📦 ENLACES DIRECTOS A TU GITHUB RELEASES (SIN PROXIES) */
 const loader = new GLTFLoader();
+// Forzar credenciales cruzadas nativas para que GitHub acepte el JavaScript del celular
 loader.setCrossOrigin('anonymous'); 
 
-// 🛑 REEMPLAZA ÚNICAMENTE ESTOS TRES ENLACES CON TUS ENLACES DIRECTOS DE DROPBOX:
-const CITY_URL = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/city.glb"; 
-const ADAN_URL = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/adan.glb";
-const JON_URL  = "https://dl.dropboxusercontent.com/s/TU_CODIGO_AQUI/jon.glb";
+const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb"; 
+const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
+const JON_URL  = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
 
 let totalModels = 3;
 let loadedCount = 0;
@@ -184,11 +183,11 @@ function updateProgress() {
   loadedCount++;
   if (loadedCount >= totalModels) {
     document.getElementById("loading-screen").style.display = "none";
-    document.getElementById("model-status").innerText = "SISTEMA VIRTUAL: OPERACIONAL";
+    document.getElementById("model-status").innerText = "ENTORNO: OPERACIONAL";
   }
 }
 
-/* 🧠 PROCESADOR DE ENTORNOS Y ANIMACIONES SKINNED */
+/* 🧠 CARGADOR CON REPRODUCTOR DE MOVIMIENTO EN TIEMPO REAL */
 function safeLoad(url, posX, posY, posZ, rotY) {
   loader.load(
     url,
@@ -198,7 +197,7 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         const group = new THREE.Group();
         group.add(model);
 
-        // Centrado inteligente
+        // Centrado de seguridad
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
@@ -207,7 +206,7 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         group.rotation.y = rotY;
         scene.add(group);
 
-        // 🎬 ACTIVACIÓN DE LOS MOVIMIENTOS/DIÁLOGOS GLB
+        // 🎬 DISPARADOR DE ANIMACIONES ESQUELÉTICAS (DIÁLOGO)
         if (gltf.animations && gltf.animations.length > 0) {
           const mixer = new THREE.AnimationMixer(model);
           const action = mixer.clipAction(gltf.animations[0]); 
@@ -216,30 +215,34 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         }
 
         updateProgress();
-      } catch (processingError) {
-        forceScreenError(`Error de procesamiento: ${processingError.message}`);
+      } catch (err) {
+        forceScreenError(`Error cargando geometría: ${err.message}`);
         updateProgress();
       }
     },
     (xhr) => {
       if (xhr.total) {
         const p = Math.round((xhr.loaded / xhr.total) * 100);
-        document.getElementById("loading-text").innerText = `DESCARGANDO ${url.split('/').pop().split('?')[0]}: ${p}%`;
+        document.getElementById("loading-text").innerText = `DESCARGANDO ${url.split('/').pop()}: ${p}%`;
+      } else {
+        // Si el servidor no envía el tamaño total, igual muestra el progreso en KBs
+        document.getElementById("loading-text").innerText = `RECIBIENDO DATOS DE ${url.split('/').pop()}...`;
       }
     },
     (networkError) => {
-      forceScreenError(`Error de red al conectar con el servidor del asset.`);
+      forceScreenError(`Esperando respuesta del servidor de Assets...`);
+      // Forzar avance para que no bloquee los demás modelos si uno tarda
       updateProgress();
     }
   );
 }
 
-/* 🚀 DISPARO DE CARGA COORDENADA */
+/* 🚀 CARGA DIRECTA */
 safeLoad(CITY_URL, 0, 0, 0, 0);
-safeLoad(ADAN_URL, -3, 0, 0, Math.PI / 2);  
-safeLoad(JON_URL, 3, 0, 0, -Math.PI / 2);   
+safeLoad(ADAN_URL, -3, 0, 0, Math.PI / 2);  // Izquierda mirando al frente-derecha
+safeLoad(JON_URL, 3, 0, 0, -Math.PI / 2);   // Derecha mirando al frente-izquierda
 
-/* 🔄 BUCLE DE RENDERIZADO (FPS REFRESH) */
+/* 🔄 MOTOR DE RENDER Y ANIMACIÓN (FPS) */
 function animate() {
   requestAnimationFrame(animate);
 
