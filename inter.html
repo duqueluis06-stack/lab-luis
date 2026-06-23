@@ -98,7 +98,7 @@
         const loader = document.getElementById("loading-screen");
         if(log) {
           log.style.display = "block";
-          log.innerHTML += `<div>🚨 CRÍTICO: ${e.message} <br><small>Línea: ${e.lineno}</small></div>`;
+          log.innerHTML += `<div>🚨 CRÍTICO: ${e.message}</div>`;
         }
         if(loader) loader.style.display = "none";
       }, 100);
@@ -122,16 +122,15 @@
 
   <div id="loading-screen">
     <div class="spinner"></div>
-    <div id="loading-text">INICIALIZANDO ENTORNO 3D...</div>
+    <div id="loading-text">CONECTANDO CON SERVIDOR DE ASSETS...</div>
   </div>
 
   <div id="ui-overlay">
-    <div>SISTEMA: PROCESANDO</div>
-    <div id="model-status">CONECTANDO...</div>
+    <div>SISTEMA: EN LÍNEA</div>
+    <div id="model-status">CARGANDO MODELOS...</div>
   </div>
 
 <script type="module">
-// Importaciones limpias usando el Mapa de Importación instalado arriba
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -159,8 +158,8 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 /* 💡 ILUMINACIÓN GLOBAL FUERTE */
-scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
 dirLight.position.set(10, 20, 10);
 scene.add(dirLight);
 
@@ -170,19 +169,21 @@ controls.enableDamping = true;
 /* 📦 LOADER */
 const loader = new GLTFLoader();
 
-const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
-const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
-const JON_URL  = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
+// Prefijo puente para burlar el bloqueo CORS de GitHub Releases
+const PROXY = "https://corsproxy.io/?";
+
+const CITY_URL = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
+const ADAN_URL = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
+const JON_URL  = PROXY + "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/jon.glb";
 
 let totalModels = 3;
 let loadedCount = 0;
 
 function updateProgress() {
   loadedCount++;
-  document.getElementById("loading-text").innerText = `PROCESANDO: ${loadedCount} DE ${totalModels}`;
   if (loadedCount >= totalModels) {
     document.getElementById("loading-screen").style.display = "none";
-    document.getElementById("model-status").innerText = "SISTEMA: EN LÍNEA";
+    document.getElementById("model-status").innerText = "MODELOS: EN LÍNEA";
   }
 }
 
@@ -196,6 +197,7 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         const group = new THREE.Group();
         group.add(model);
 
+        // Centrado automático del objeto
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
@@ -206,7 +208,7 @@ function safeLoad(url, posX, posY, posZ, rotY) {
         scene.add(group);
         updateProgress();
       } catch (processingError) {
-        forceScreenError(`Fallo al renderizar ${url.split('/').pop()}: ${processingError.message}`);
+        forceScreenError(`Fallo al procesar geometría: ${processingError.message}`);
         updateProgress();
       }
     },
@@ -217,7 +219,7 @@ function safeLoad(url, posX, posY, posZ, rotY) {
       }
     },
     (networkError) => {
-      forceScreenError(`Bloqueo de red/CORS en ${url.split('/').pop()}. El navegador impidió la descarga.`);
+      forceScreenError(`Error de red al solicitar asset remoto.`);
       updateProgress();
     }
   );
