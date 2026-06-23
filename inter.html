@@ -74,7 +74,6 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    /* Consola de diagnóstico de emergencia */
     #error-log {
       position: absolute;
       top: 80px;
@@ -101,9 +100,18 @@
           log.style.display = "block";
           log.innerHTML += `<div>🚨 CRÍTICO: ${e.message} <br><small>Línea: ${e.lineno}</small></div>`;
         }
-        if(loader) loader.style.display = "none"; // Forzar apagado de carga para ver qué pasó
+        if(loader) loader.style.display = "none";
       }, 100);
     });
+  </script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
   </script>
 </head>
 <body>
@@ -118,20 +126,20 @@
   </div>
 
   <div id="ui-overlay">
-    <div>SISTEMA: DIAGNÓSTICO</div>
+    <div>SISTEMA: PROCESANDO</div>
     <div id="model-status">CONECTANDO...</div>
   </div>
 
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+// Importaciones limpias usando el Mapa de Importación instalado arriba
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const errorLog = document.getElementById("error-log");
 function forceScreenError(msg) {
   errorLog.style.display = "block";
   errorLog.innerHTML += `<div>⚠️ FILTRO: ${msg}</div>`;
-  // Si hay error, quitamos la pantalla de carga para que no te quedes atrapado
   document.getElementById("loading-screen").style.display = "none";
 }
 
@@ -159,9 +167,8 @@ scene.add(dirLight);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-/* 📦 LOADER CON CONFIGURACIÓN DE CREDENCIALES */
+/* 📦 LOADER */
 const loader = new GLTFLoader();
-loader.setCrossOrigin('anonymous'); // Forzar modo seguro para evitar bloqueos de servidor
 
 const CITY_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/city.glb";
 const ADAN_URL = "https://github.com/duqueluis06-stack/lab-luis/releases/download/V1/adan.glb";
@@ -179,28 +186,20 @@ function updateProgress() {
   }
 }
 
-/* 🧠 CARGADOR PROTEGIDO CON CATCH INTERNO */
+/* 🧠 CARGADOR PROTEGIDO */
 function safeLoad(url, posX, posY, posZ, rotY) {
   loader.load(
     url,
     (gltf) => {
       try {
         const model = gltf.scene;
-        if (!model) {
-          forceScreenError(`El archivo de ${url.split('/').pop()} no contiene geometría 3D válida.`);
-          updateProgress();
-          return;
-        }
-
         const group = new THREE.Group();
         group.add(model);
 
-        // Centrado interno a prueba de fallos
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         model.position.sub(center);
 
-        // Posición final en la escena
         group.position.set(posX, posY, posZ);
         group.rotation.y = rotY;
 
