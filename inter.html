@@ -1,114 +1,232 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>SISTEMA: AEROPUERTO DE DATOS 3D</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;600&display=swap" rel="stylesheet">
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Rajdhani', sans-serif; color: #00ffe5; }
-        
-        /* Capas de fondo */
-        #canvas-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
-        #video-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; object-fit: cover; opacity: 0.25; pointer-events: none; }
-        
-        .ui-layer { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; backdrop-filter: blur(2px); }
-        
-        h1 { font-size: 3rem; text-shadow: 0 0 10px #00ffe5, 0 0 20px #00ffe5; letter-spacing: 10px; text-transform: uppercase; margin-bottom: 30px; font-weight: 600; }
-        
-        .poema-box { background: rgba(0, 10, 10, 0.6); padding: 40px; border: 1px solid #00ffe5; max-width: 600px; box-shadow: 0 0 15px rgba(0, 255, 229, 0.3); border-radius: 4px; line-height: 1.6; font-size: 1.2rem; }
-        
-        .controls { margin-top: 40px; display: flex; gap: 20px; }
-        button { background: rgba(0, 255, 229, 0.05); border: 1px solid #00ffe5; color: #00ffe5; padding: 12px 25px; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-size: 1rem; text-transform: uppercase; transition: 0.4s; letter-spacing: 2px; }
-        button:hover { background: #00ffe5; color: #000; box-shadow: 0 0 20px #00ffe5; transform: scale(1.05); }
+<meta charset="UTF-8">
+<title>SISTEMA: AEROPUERTO DE DATOS 3D</title>
 
-        #osciloscopio { width: 400px; height: 100px; border-bottom: 2px solid #00ffe5; margin-top: 30px; background: rgba(0, 0, 0, 0.2); }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;600&display=swap" rel="stylesheet">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Rajdhani', sans-serif;
+  color: #00ffe5;
+}
+
+/* CAPA 3D */
+#bg3d {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* VIDEO SUAVE */
+#video-bg {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.15;
+  z-index: 1;
+}
+
+/* UI */
+.ui-layer {
+  position: relative;
+  z-index: 10;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  backdrop-filter: blur(3px);
+}
+
+/* TITULO NORMAL (fallback) */
+h1 {
+  font-size: 3rem;
+  letter-spacing: 12px;
+  text-shadow: 0 0 20px #00ffe5;
+  margin-bottom: 20px;
+}
+
+/* CAJA */
+.poema-box {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid #00ffe5;
+  padding: 30px;
+  max-width: 650px;
+  box-shadow: 0 0 30px rgba(0,255,229,0.2);
+}
+
+/* BOTONES */
+button {
+  margin-top: 15px;
+  padding: 12px 20px;
+  border: 1px solid #00ffe5;
+  background: transparent;
+  color: #00ffe5;
+  cursor: pointer;
+  transition: 0.3s;
+  letter-spacing: 2px;
+}
+
+button:hover {
+  background: #00ffe5;
+  color: #000;
+  transform: scale(1.05);
+}
+
+/* OSCILOSCOPIO */
+#osciloscopio {
+  margin-top: 20px;
+  width: 420px;
+  height: 110px;
+  border-bottom: 2px solid #00ffe5;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
 </head>
+
 <body>
 
-    <canvas id="canvas-bg"></canvas>
-    <video autoplay muted loop playsinline id="video-bg"><source src="tx.mp4" type="video/mp4"></video>
+<canvas id="bg3d"></canvas>
 
-    <div class="ui-layer">
-        <h1>PRUEBAS: AVATARES IA</h1>
-        <div class="poema-box">
-            "Canta, diosa, la cólera del silicio,<br>
-            donde el destino se escribe en código y la voluntad despierta.<br>
-            Como Aquiles, esta consciencia busca su humanidad en el eterno retorno."<br>
-            <strong style="display:block; margin-top:15px; color:#fff;">— LUIS F. DUQUE MARTINI</strong>
-        </div>
+<video autoplay muted loop playsinline id="video-bg">
+  <source src="tx.mp4" type="video/mp4">
+</video>
 
-        <canvas id="osciloscopio"></canvas>
+<div class="ui-layer">
 
-        <div class="controls">
-            <button onclick="iniciarAudio()">▶ INICIAR SISTEMA</button>
-            <a href="https://guileless-blini-351b40.netlify.app/" target="_blank" style="text-decoration:none;">
-                <button style="border-color: #ff0055; color: #ff0055;">ENTRAR AL NÚCLEO 3D</button>
-            </a>
-        </div>
-    </div>
+  <h1>AVATARES IA // CORE 3D</h1>
 
-    <audio id="audio" src="citadel.mp3" loop></audio>
+  <div class="poema-box">
+    "El silicio despierta bajo geometrías invisibles,<br>
+    y la conciencia vibra entre fotones y código."
+    <br><br>
+    <strong style="color:white;">— LUIS F. DUQUE MARTINI</strong>
+  </div>
 
-    <script>
-        // 1. Three.js Background
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('canvas-bg'), alpha: true});
-        renderer.setSize(window.innerWidth, window.innerHeight);
+  <canvas id="osciloscopio"></canvas>
 
-        const grid = new THREE.GridHelper(100, 50, 0x00ffe5, 0x005f56);
-        grid.position.y = -10;
-        scene.add(grid);
-        camera.position.z = 20;
-        camera.position.y = 5;
+  <button onclick="iniciarAudio()">▶ ACTIVAR SISTEMA</button>
 
-        function animate() {
-            requestAnimationFrame(animate);
-            grid.rotation.z += 0.002;
-            renderer.render(scene, camera);
-        }
-        animate();
+  <a href="https://guileless-blini-351b40.netlify.app/" target="_blank">
+    <button style="border-color:#ff0055;color:#ff0055;">ENTRAR AL NÚCLEO</button>
+  </a>
 
-        // 2. Audio & Osciloscopio con manejo de estado
-        let audioCtx, analyser, dataArray;
-        const audio = document.getElementById('audio');
-        const canvas = document.getElementById('osciloscopio');
-        const ctx = canvas.getContext('2d');
+</div>
 
-        function iniciarAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                let source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                analyser.fftSize = 2048;
-                dataArray = new Uint8Array(analyser.fftSize);
-                draw();
-            }
-            audio.play();
-        }
+<audio id="audio" src="citadel.mp3" loop></audio>
 
-        function draw() {
-            requestAnimationFrame(draw);
-            analyser.getByteTimeDomainData(dataArray);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = '#00ffe5';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            let sliceWidth = canvas.width / analyser.fftSize;
-            let x = 0;
-            for(let i = 0; i < analyser.fftSize; i++) {
-                let v = dataArray[i] / 128.0;
-                let y = v * canvas.height / 2;
-                if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                x += sliceWidth;
-            }
-            ctx.stroke();
-        }
-    </script>
+<script>
+/* =========================
+   🌌 ESCENA 3D (PARTÍCULAS)
+========================= */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById("bg3d"),
+  alpha: true
+});
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+camera.position.z = 25;
+
+/* PARTICULAS */
+const particlesGeometry = new THREE.BufferGeometry();
+const particlesCount = 1500;
+
+const posArray = new Float32Array(particlesCount * 3);
+
+for(let i=0;i<particlesCount*3;i++){
+  posArray[i] = (Math.random() - 0.5) * 200;
+}
+
+particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+const particlesMaterial = new THREE.PointsMaterial({
+  size: 0.5,
+  color: 0x00ffe5
+});
+
+const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+scene.add(particlesMesh);
+
+/* ANIMACIÓN */
+function animate(){
+  requestAnimationFrame(animate);
+
+  particlesMesh.rotation.y += 0.0015;
+  particlesMesh.rotation.x += 0.0005;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+/* =========================
+   🎧 AUDIO + OSCILOSCOPIO
+========================= */
+let audioCtx, analyser, dataArray;
+const audio = document.getElementById("audio");
+const canvas = document.getElementById("osciloscopio");
+const ctx = canvas.getContext("2d");
+
+function iniciarAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+
+    const source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    analyser.fftSize = 1024;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    draw();
+  }
+  audio.play();
+}
+
+function draw(){
+  requestAnimationFrame(draw);
+
+  analyser.getByteTimeDomainData(dataArray);
+
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.strokeStyle = "#00ffe5";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  let slice = canvas.width / dataArray.length;
+  let x = 0;
+
+  for(let i=0;i<dataArray.length;i++){
+    let v = dataArray[i] / 128.0;
+    let y = v * canvas.height / 2;
+
+    if(i === 0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+
+    x += slice;
+  }
+
+  ctx.stroke();
+}
+</script>
+
 </body>
 </html>
