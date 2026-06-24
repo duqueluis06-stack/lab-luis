@@ -2,75 +2,188 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InterAI - Entorno de Pruebas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>InterAI - Luis Core v15.2 (Babylon Edition)</title>
     <style>
+        :root {
+            --neon-cyan: #00ffe5;
+            --neon-gold: #ffb703;
+            --neon-red: #ff0055;
+            --hud-bg: rgba(5, 3, 12, 0.85);
+            --panel-glow: 0 0 15px rgba(0, 255, 229, 0.35);
+        }
+
         html, body {
             overflow: hidden;
             width: 100%;
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #050505;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #010004;
+            color: var(--neon-cyan);
+            font-family: 'Courier New', Courier, monospace;
+            -webkit-user-select: none; user-select: none;
         }
+
         #renderCanvas {
             width: 100%;
             height: 100%;
             touch-action: none;
-        }
-        #loading-ui {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #00ffcc;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #00ffcc;
-            pointer-events: none;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* INTERFAZ HUD INTEGRAL ENLAZADA */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 10;
-        }
-        #instructions-ui {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #ffffff;
-            background: rgba(2, 2, 8, 0.75);
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+            padding: 10px;
             pointer-events: none;
-            text-align: center;
-            border: 1px solid rgba(0, 255, 229, 0.4);
-            z-index: 9;
         }
-        /* 🎯 BOTÓN FLOTANTE REGRESAR CÁMARA */
-        #reset-camera-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            color: #ffffff;
-            background: linear-gradient(90deg, #00a2ff, #00ffe5);
-            padding: 11px 22px;
-            border-radius: 5px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            letter-spacing: 1px;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 255, 204, 0.3);
-            z-index: 10;
-            transition: all 0.2s ease;
+
+        .interactive { pointer-events: auto; }
+
+        /* Barra Superior */
+        .top-matrix-panel {
+            background: var(--hud-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 229, 0.3);
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 0 10px rgba(0, 255, 229, 0.2);
         }
-        #reset-camera-btn:hover {
-            box-shadow: 0 4px 20px rgba(0, 255, 204, 0.6);
-            transform: translateY(-2px);
+
+        .top-row-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
         }
-        #reset-camera-btn:active {
-            transform: scale(0.95);
+
+        .exit-btn {
+            background: #000; border: 1px solid var(--neon-red);
+            color: var(--neon-red); padding: 4px 10px;
+            cursor: pointer; font-size: 11px; font-weight: bold;
+            font-family: monospace; transition: all 0.2s;
+        }
+        .exit-btn:hover {
+            background: var(--neon-red); color: #000; box-shadow: 0 0 8px var(--neon-red);
+        }
+
+        .greek-stream {
+            font-size: 11px; color: var(--neon-cyan);
+            white-space: nowrap; letter-spacing: 1px;
+            text-shadow: 0 0 5px var(--neon-cyan);
+            flex-grow: 1; text-align: center; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* Grid de Relojes Atómicos */
+        .atomic-stations-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+            border-top: 1px dashed rgba(0, 255, 229, 0.2); padding-top: 4px;
+        }
+        .atomic-station {
+            font-size: 9px; text-align: center; color: #fff; background: rgba(0,0,0,0.4); padding: 2px;
+            border: 1px solid rgba(255, 183, 3, 0.15);
+        }
+        .atomic-station span { color: var(--neon-gold); font-weight: bold; }
+
+        /* Consola de Comunicaciones Cuántica */
+        .console-hud {
+            background: rgba(5, 3, 12, 0.8);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid rgba(0, 255, 229, 0.25);
+            padding: 10px; display: flex; flex-direction: column; gap: 6px;
+            width: 100%; box-sizing: border-box;
+            box-shadow: 0 -5px 25px rgba(0, 255, 229, 0.1);
+            margin-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .log-view {
+            font-size: 11px; height: 95px; overflow-y: auto; color: #ffffff;
+            line-height: 1.4; padding: 8px; background: rgba(0, 0, 0, 0.75);
+            border-left: 3px solid var(--neon-gold); word-wrap: break-word; white-space: pre-wrap;
+        }
+
+        .meta-metrics-bar {
+            display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--neon-gold);
+            opacity: 0.9; border-bottom: 1px dashed rgba(255, 183, 3, 0.2); padding-bottom: 4px;
+            flex-wrap: wrap; gap: 6px;
+        }
+
+        .lang-selector-container { display: flex; align-items: center; gap: 6px; }
+        .lang-select {
+            background: #000; border: 1px solid var(--neon-gold); color: var(--neon-gold);
+            font-family: monospace; font-size: 10px; padding: 2px; outline: none; cursor: pointer;
+        }
+
+        .audio-hud-btn {
+            background: #000; border: 1px solid var(--neon-gold); color: var(--neon-gold);
+            font-family: monospace; font-size: 10px; padding: 2px 8px; cursor: pointer; font-weight: bold;
+            text-shadow: 0 0 3px var(--neon-gold);
+        }
+        .audio-hud-btn.active { background: var(--neon-gold); color: #000; }
+
+        .sumerian-bar { font-size: 11px; color: rgba(0, 255, 229, 0.4); overflow: hidden; white-space: nowrap; text-overflow: clip; }
+
+        /* Campo de Texto de Comando */
+        .input-group { display: flex; gap: 6px; width: 100%; align-items: flex-end; }
+        
+        textarea.main-chat-input {
+            flex: 1; background: rgba(0, 0, 0, 0.85); border: 1px solid var(--neon-cyan);
+            color: #fff; padding: 10px; font-family: monospace; font-size: 13px; outline: none; min-width: 0;
+            resize: none; height: 42px; max-height: 120px; box-sizing: border-box; line-height: 1.3;
+            box-shadow: inset 0 0 8px rgba(0, 255, 229, 0.1); transition: border 0.2s;
+        }
+        textarea.main-chat-input:focus { border-color: #fff; box-shadow: 0 0 8px rgba(0, 255, 229, 0.3); }
+
+        button.action-btn {
+            background: #000; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+            padding: 10px 20px; font-family: monospace; cursor: pointer; font-weight: bold; font-size: 12px; flex-shrink: 0;
+            height: 42px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+        }
+        button.action-btn:hover { background: var(--neon-cyan); color: #000; }
+        
+        button#exec-btn.stop-active {
+            border-color: var(--neon-red); color: #fff; background: var(--neon-red);
+            animation: alertGlow 1s infinite alternate;
+        }
+
+        /* Botón de Retorno de Cámara Estilo HUD */
+        .hud-cam-btn {
+            background: #000; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+            padding: 4px 8px; cursor: pointer; font-size: 10px; font-family: monospace;
+            transition: all 0.2s; font-weight: bold;
+        }
+        .hud-cam-btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 8px var(--neon-cyan); }
+
+        @keyframes alertGlow {
+            from { box-shadow: 0 0 4px var(--neon-red); }
+            to { box-shadow: 0 0 12px var(--neon-red); }
+        }
+
+        .privacy-notice {
+            font-size: 8px; color: var(--neon-cyan); text-align: center; opacity: 0.75;
+            letter-spacing: 0.5px; margin-top: 2px; text-transform: uppercase;
+        }
+
+        @media (min-width: 768px) {
+            .log-view { height: 120px; font-size: 12px; }
+            .atomic-station { font-size: 11px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -78,48 +191,300 @@
 </head>
 <body>
 
-    <div id="loading-ui">
-        <h3>Sistema InterAI</h3>
-        <p id="status">Cargando elementos del entorno...</p>
-    </div>
-
-    <div id="instructions-ui">
-        🖱️ <b>Clic Izquierdo:</b> Rotar | 🎡 <b>Rueda:</b> Zoom | 🖱️ <b>Clic Derecho:</b> Desplazarse por calles
-    </div>
-
-    <button id="reset-camera-btn" onclick="resetCamaraOrigen()">🎥 ENFOCAR AVATARES</button>
-
     <canvas id="renderCanvas"></canvas>
+
+    <div class="hud-overlay">
+        <div class="top-matrix-panel interactive">
+            <div class="top-row-actions">
+                <button class="exit-btn" onclick="location.href='index.html'">𗙚 INDEX</button>
+                <div class="greek-stream" id="hud-satellite-time">Ω LUIS_CORE v15.2 // SYNC ATÓMICA INITIALIZING...</div>
+                <button class="hud-cam-btn" onclick="resetCamaraOrigen()">🎥 RE-ENFOCAR</button>
+            </div>
+            <div class="atomic-stations-grid">
+                <div class="atomic-station">MARSEILLE <br><span id="clock-marseille">00:00:00</span></div>
+                <div class="atomic-station">NEW YORK <br><span id="clock-newyork">00:00:00</span></div>
+                <div class="atomic-station">BRASILIA <br><span id="clock-brasil">00:00:00</span></div>
+                <div class="atomic-station">ARGENTINA <br><span id="clock-argentina">00:00:00</span></div>
+                <div class="atomic-station">COLOMBIA <br><span id="clock-colombia">00:00:00</span></div>
+            </div>
+        </div>
+
+        <div class="console-hud interactive">
+            <div class="meta-metrics-bar">
+                <div>OPERADOR: <span id="hud-user-tag" style="color:#fff;">LUIS DUQUE</span></div>
+                <button id="mute-btn" class="audio-hud-btn" onclick="toggleAudioMaster()">🔇 MUTE</button>
+                <div class="lang-selector-container">
+                    <span>IDIOMA:</span>
+                    <select id="voice-lang-select" class="lang-select">
+                        <option value="es-ES" selected>ESPAÑOL (NATIVO MAS)</option>
+                        <option value="en-US">ENGLISH (US MALE)</option>
+                        <option value="fr-FR">FRANÇAIS (FR MALE)</option>
+                    </select>
+                </div>
+                <div>SESIÓN: <span id="hud-timer-tag" style="color:#fff;">00:00</span></div>
+            </div>
+
+            <div id="log-display" class="log-view">>>> Enlace cuántico Babylon establecido. Operador verificado.\n>>> Entorno urbano y núcleo de Groq vinculados de forma segura.</div>
+            
+            <div class="sumerian-bar">𓎳 𒀀 𒀁 𒀂 𒀃 𒀄 𒀅 𒀆 檻 𓊰 項目 𓋹 𓏃 𓃠</div>
+
+            <div class="input-group">
+                <textarea id="query-input" class="main-chat-input" placeholder="Escribe tu consulta táctica aquí..." rows="1" oninput="autoExpandTextarea(this)" onkeydown="handleTextareaKey(event)"></textarea>
+                <button id="exec-btn" class="action-btn" onclick="handleExecutionClick()">ENVIAR</button>
+            </div>
+
+            <div class="privacy-notice">
+                ▲ CONTROL DE NÚCLEO GROQ IA - FILTRO ANTIFEMENINO ESTRICTO MÓVIL ▲
+            </div>
+        </div>
+    </div>
 
     <script>
         // =======================================================================
-        // 🛠️ PANEL DE CONTROL DE POSICIONES (Calibrado cara a cara y altura rasa)
+        // 🛠️ CONFIGURACIÓN GEOMÉTRICA DE COORDENADAS
         // =======================================================================
         const COORDENADAS = {
-            agente: {
-                x: -1.0,       // CORRECCIÓN: Más cerca del centro
-                y: 0.05,       // CORRECCIÓN: Elevado medio milímetro a ras de suelo
-                z: 3.0,        
-                rotacion: -Math.PI / 2  // Mirando a Luis
-            },
-            luisavatar: {
-                x: 1.0,        // CORRECCIÓN: Más cerca de frente al agente
-                y: 0.05,       // CORRECCIÓN: Elevado medio milímetro a ras de suelo
-                z: 3.0,        
-                rotacion: Math.PI / 2   // Mirando al agente
-            }
+            agente: { x: -1.0, y: 0.05, z: 3.0, rotacion: -Math.PI / 2 },
+            luisavatar: { x: 1.0, y: 0.05, z: 3.0, rotacion: Math.PI / 2 }
         };
-        // =======================================================================
 
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
-        let camera; // Variable global para acceder desde el botón
+        let scene, camera;
+        
+        // Almacenamiento de referencias de mallas de deformación para simular habla
+        let mouthTargets = [];
+        let speakingActive = false;
+        let audioOutputEnabled = false;
+        let conversationHistory = [];
+        let sessionSeconds = 0;
+        const speechEngine = window.speechSynthesis;
+        let systemVoicesAvailable = [];
 
+        // RELOJES ATÓMICOS
+        function initAtomicGlobalClocks() {
+            setInterval(() => {
+                const now = new Date();
+                const ms = String(now.getMilliseconds()).padStart(3, '0').substring(0, 2);
+                const options = (tz) => ({
+                    timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+                });
+                document.getElementById("clock-marseille").innerText = now.toLocaleTimeString('es-ES', options('Europe/Paris')) + "." + ms;
+                document.getElementById("clock-newyork").innerText = now.toLocaleTimeString('es-ES', options('America/New_York')) + "." + ms;
+                document.getElementById("clock-brasil").innerText = now.toLocaleTimeString('es-ES', options('America/Sao_Paulo')) + "." + ms;
+                document.getElementById("clock-argentina").innerText = now.toLocaleTimeString('es-ES', options('America/Argentina/Buenos_Aires')) + "." + ms;
+                document.getElementById("clock-colombia").innerText = now.toLocaleTimeString('es-ES', options('America/Bogota')) + "." + ms;
+
+                document.getElementById("hud-satellite-time").innerText = `Ω CORE LUIS v15.2 // SYNC ATÓMICA ULTRA-PRECISA // OPERATIVO`;
+            }, 40);
+        }
+
+        function loadAvailableVoices() {
+            if (typeof silverware !== 'undefined' || typeof speechSynthesis !== 'undefined') {
+                systemVoicesAvailable = speechSynthesis.getVoices();
+            }
+        }
+        loadAvailableVoices();
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadAvailableVoices;
+        }
+
+        function autoExpandTextarea(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        function handleTextareaKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                const inputEl = document.getElementById("query-input");
+                if (!inputEl.disabled) executeQuery();
+            }
+        }
+
+        function toggleAudioMaster() {
+            audioOutputEnabled = !audioOutputEnabled;
+            const btn = document.getElementById("mute-btn");
+            if (audioOutputEnabled) {
+                btn.innerText = "🔊 AUDIO"; btn.classList.add("active");
+            } else {
+                btn.innerText = "🔇 MUTE"; btn.classList.remove("active");
+                stopDialogAudio();
+            }
+        }
+
+        function handleExecutionClick() {
+            if (speakingActive) stopDialogAudio(); else executeQuery();
+        }
+
+        function stopDialogAudio() {
+            if (speechEngine.speaking) speechEngine.cancel();
+            speakingActive = false;
+            resetMouthTargets();
+            setSpeakingState(false);
+            document.getElementById("log-display").innerHTML += "\n<span style='color:var(--neon-red)'>>>> Transmisión de voz interrumpida.</span>";
+            const logDisplay = document.getElementById("log-display");
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+            document.getElementById("query-input").disabled = false;
+        }
+
+        function setSpeakingState(active) {
+            const execBtn = document.getElementById("exec-btn");
+            const inputEl = document.getElementById("query-input");
+            if (active) {
+                execBtn.innerText = "🛑 STOP";
+                execBtn.classList.add("stop-active");
+            } else {
+                execBtn.innerText = "ENVIAR";
+                execBtn.classList.remove("stop-active");
+                inputEl.disabled = false;
+            }
+        }
+
+        // SELECCIÓN EXCLUSIVA MASCULINA PARA DISPOSITIVOS MÓVILES
+        function selectBestVoiceForSelectedLanguage(targetLang) {
+            loadAvailableVoices();
+            let baseLang = targetLang.substring(0, 2).toLowerCase();
+            let langVoices = systemVoicesAvailable.filter(v => v.lang.toLowerCase().startsWith(baseLang));
+            if (langVoices.length === 0) return null;
+
+            let filteredMaleVoices = langVoices.filter(v => {
+                const name = v.name.toLowerCase();
+                return !name.includes("helena") && !name.includes("sabina") && !name.includes("zira") && 
+                       !name.includes("google español") && !name.includes("female") && !name.includes("mujer") && 
+                       !name.includes("monica") && !name.includes("paula") && !name.includes("siri") && 
+                       !name.includes("marisol") && !name.includes("amélie") && !name.includes("chloe") && !name.includes("samantha");
+            });
+
+            let pool = filteredMaleVoices.length > 0 ? filteredMaleVoices : langVoices;
+            return pool.find(v => {
+                const name = v.name.toLowerCase();
+                if (baseLang === "es") return name.includes("david") || name.includes("microsoft") || name.includes("hombre") || name.includes("male") || name.includes("enrique") || name.includes("premium");
+                if (baseLang === "fr") return name.includes("paul") || name.includes("homme") || name.includes("denis");
+                if (baseLang === "en") return name.includes("george") || name.includes("david") || name.includes("male");
+                return false;
+            }) || pool[0];
+        }
+
+        // CONEXIÓN INTEGRADA AL NÚCLEO DE LA IA (Worker Seguro)
+        async function executeQuery() {
+            const inputEl = document.getElementById("query-input");
+            const execBtn = document.getElementById("exec-btn");
+            const query = inputEl.value.trim();
+            if (!query) return;
+
+            inputEl.disabled = true; execBtn.disabled = true;
+            const currentSelectedLanguage = document.getElementById("voice-lang-select").value;
+            
+            // Sincronización de línea temporal actual (2026)
+            const systemTimeContext = `[Contexto del Sistema: El operador se encuentra en el año 2026. Responde coherentemente a esta fecha]`;
+            conversationHistory.push({ role: "user", content: `${systemTimeContext} ${query}` });
+            if (conversationHistory.length > 10) conversationHistory.shift(); 
+            renderLogHistory();
+
+            try {
+                // Tu Worker Proxy de Cloudflare
+                const res = await fetch("https://little-salad-1611.duqueluis06.workers.dev", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        message: query, 
+                        context: conversationHistory,
+                        lang: currentSelectedLanguage
+                    })
+                });
+
+                const data = await res.json();
+                const replyText = data.reply || "Fallo crítico en el procesador central de Groq.";
+
+                conversationHistory.push({ role: "assistant", content: replyText });
+                if (conversationHistory.length > 10) conversationHistory.shift();
+                renderLogHistory();
+
+                if (audioOutputEnabled) {
+                    speechEngine.cancel();
+                    const cleanText = replyText.replace(/[\*#_`]/g, "").replace(/\n/g, " ").trim();
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    const chosenVoice = selectBestVoiceForSelectedLanguage(currentSelectedLanguage);
+                    
+                    if (chosenVoice) {
+                        utterance.voice = chosenVoice;
+                        utterance.lang = chosenVoice.lang; 
+                    } else {
+                        utterance.lang = currentSelectedLanguage;
+                    }
+                    
+                    utterance.rate = 0.95; 
+                    utterance.volume = 1.0;
+                    utterance.pitch = 0.70; // Forzado de frecuencia varonil profunda
+
+                    utterance.onstart = () => {
+                        speakingActive = true;
+                        setSpeakingState(true);
+                    };
+
+                    const endHandler = () => {
+                        speakingActive = false;
+                        resetMouthTargets();
+                        setSpeakingState(false);
+                        inputEl.disabled = false; execBtn.disabled = false;
+                        inputEl.style.height = 'auto';
+                    };
+
+                    utterance.onend = endHandler;
+                    utterance.onerror = endHandler;
+                    speechEngine.speak(utterance);
+                } else {
+                    inputEl.disabled = false; execBtn.disabled = false;
+                    inputEl.style.height = 'auto';
+                }
+
+            } catch (err) {
+                document.getElementById("log-display").innerHTML += "\n<span style='color:var(--neon-red)'>>>> ERROR TOTAL EN INFRAESTRUCTURA DE RED CLOUDFLARE/GROQ.</span>";
+                inputEl.disabled = false; execBtn.disabled = false;
+            }
+            inputEl.value = "";
+        }
+
+        function renderLogHistory() {
+            const logDisplay = document.getElementById("log-display");
+            let htmlBuffer = "";
+            conversationHistory.forEach(msg => {
+                if(msg.role === "user") {
+                    const visibleText = msg.content.includes("] ") ? msg.content.split("] ")[1] : msg.content;
+                    htmlBuffer += `<b style="color:var(--neon-cyan)">[LUIS DUQUE]:</b> ${visibleText}\n`;
+                } else {
+                    htmlBuffer += `<b style="color:var(--neon-gold)">[Luis AI]:</b> ${msg.content}\n\n`;
+                }
+            });
+            logDisplay.innerHTML = htmlBuffer;
+            logDisplay.scrollTop = logDisplay.scrollHeight; 
+        }
+
+        // DETECCIÓN DE FILTROS DE HABLA EN BABYLONJS (Morph Targets)
+        function registerMouthMorphTargets(mesh) {
+            if (mesh.morphTargetManager) {
+                const manager = mesh.morphTargetManager;
+                for (let i = 0; i < manager.numTargets; i++) {
+                    const name = manager.getTarget(i).name.toLowerCase();
+                    if (name.includes("mouth") || name.includes("jaw") || name.includes("lip") || name.includes("viseme") || name.includes("open")) {
+                        mouthTargets.push({ manager: manager, index: i });
+                    }
+                }
+            }
+        }
+
+        function resetMouthTargets() {
+            mouthTargets.forEach(t => {
+                t.manager.getTarget(t.index).influence = 0;
+            });
+        }
+
+        // CREACIÓN DE LA ESCENA 3D (Babylon Engine)
         const createScene = function () {
-            const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.04, 1);
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.0, 0.02, 1);
 
-            // Inicialización de cámara enfocando el punto medio de la conversación (Z: 3.0)
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 7, new BABYLON.Vector3(0, 0.9, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.2; 
@@ -133,66 +498,46 @@
             dirLight.position = new BABYLON.Vector3(5, 10, 5);
             dirLight.intensity = 0.6;
 
-            const statusText = document.getElementById("status");
-
-            // 1. Cargar la Ciudad (city2.glb)
-            BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Ciudad cargada. Trayendo avatares...";
-
-                // 2. Cargar Agente (agent.glb)
-                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
-                    statusText.innerText = "Agente cargado...";
-                    
+            // 1. Carga de Ciudad
+            BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function () {
+                
+                // 2. Carga de Agente
+                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, b, c, animationGroups) {
                     if(agentMeshes[0]) {
                         agentMeshes[0].rotationQuaternion = null; 
                         agentMeshes[0].position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
                         agentMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.agente.rotacion, 0);
-                    }
-
-                    // CORRECCIÓN AGENTE: Forzar la ejecución en bucle de TODAS sus capas de animación del GLB
-                    if (animationGroups.length > 0) {
-                        animationGroups.forEach(group => {
-                            group.start(true);
-                        });
-                    }
-
-                    // 3. Cargar tu Avatar (luisavatar4.glb)
-                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, luisAnimations) {
-                        statusText.innerText = "Sistema listo. Entorno y Avatares activos.";
                         
-                        setTimeout(() => {
-                            document.getElementById("loading-ui").style.display = "none";
-                        }, 2000);
+                        agentMeshes.forEach(mesh => registerMouthMorphTargets(mesh));
+                    }
+                    if (animationGroups.length > 0) {
+                        animationGroups.forEach(group => group.start(true));
+                    }
 
+                    // 3. Carga de tu Avatar
+                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, x, y, luisAnimations) {
                         if(luisMeshes[0]) {
                             luisMeshes[0].rotationQuaternion = null; 
                             luisMeshes[0].position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
                             luisMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.luisavatar.rotacion, 0);
+                            
+                            luisMeshes.forEach(mesh => registerMouthMorphTargets(mesh));
                         }
-
-                        // CORRECCIÓN LUIS: Ralentizar velocidad de animación para evitar repeticiones robóticas graciosas
                         if (luisAnimations.length > 0) {
                             luisAnimations.forEach(anim => {
                                 anim.start(true);
-                                anim.speedRatio = 0.7; // Velocidad suavizada al 70%
+                                anim.speedRatio = 0.7; // Suavizado de velocidad de animación
                             });
                         }
                     });
                 });
-            }, null, function (scene, message, exception) {
-                statusText.innerText = "Error al cargar los modelos. Revisa los archivos.";
-                console.error(message, exception);
             });
 
             return scene;
         };
 
-        const scene = createScene();
-
-        // 🎯 FUNCIÓN DE RETORNO AL PUNTO ORIGEN
         function resetCamaraOrigen() {
             if(camera) {
-                // Resetea ángulos, distancia focal y el objetivo central exacto entre ambos avatares
                 camera.alpha = -Math.PI / 2;
                 camera.beta = Math.PI / 2.3;
                 camera.radius = 7;
@@ -200,13 +545,37 @@
             }
         }
 
+        function startSessionTimer() {
+            setInterval(() => {
+                sessionSeconds++;
+                const mins = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+                const secs = String(sessionSeconds % 60).padStart(2, '0');
+                document.getElementById("hud-timer-tag").innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        // Inicializar Procesos de Backend al arrancar
+        initAtomicGlobalClocks();
+        startSessionTimer();
+        createScene();
+
+        // LOOP DE RENDERING Y GESTICULACIÓN DINÁMICA
         engine.runRenderLoop(function () {
-            scene.render();
+            if (scene && camera) {
+                scene.render();
+                
+                // Modulación matemática de morfología labial si la transmisión de Groq está activa
+                if (speakingActive && mouthTargets.length > 0) {
+                    const timeNow = Date.now();
+                    let wave = Math.abs(Math.sin(timeNow * 0.018)) * 0.6 + Math.random() * 0.4;
+                    mouthTargets.forEach(t => {
+                        t.manager.getTarget(t.index).influence = wave;
+                    });
+                }
+            }
         });
 
-        window.addEventListener("resize", function () {
-            engine.resize();
-        });
+        window.addEventListener("resize", function () { engine.resize(); });
     </script>
 </body>
 </html>
