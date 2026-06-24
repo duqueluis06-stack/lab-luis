@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color-scale=1.0, user-scalable=no">
     <title>InterAI - Panel Cinemático</title>
     <style>
         * {
@@ -52,7 +52,6 @@
             letter-spacing: 1px;
         }
         
-        /* 🌧️ VIÑETAS ESTILO NUBE MÁS PEQUEÑAS Y AJUSTADAS AL MARGEN INFERIOR */
         #comic-container {
             position: absolute;
             bottom: 12px;
@@ -151,7 +150,7 @@
 <body>
 
     <div id="loading-ui">
-        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ INICIALIZANDO CANAL DE AUDIO MASCULINO</h2>
+        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ CONECTANDO MULTICANAL ACÚSTICO</h2>
         <p id="status" style="margin:0; font-size:12px; color:#fff;">Sincronizando geometrías base...</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
@@ -200,12 +199,8 @@
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
-        // Pre-carga activa de voces de iOS para ganarle a la asincronía
         if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
-        }
-        if (typeof speechSynthesis !== 'undefined') {
-            window.speechSynthesis.getVoices();
         }
 
         function actualizarViñetasUI(hablante, texto) {
@@ -270,24 +265,25 @@
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
                         
                         const voices = window.speechSynthesis.getVoices();
-                        const esVoices = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
+                        const esVoices = voices.filter(v => v.lang.toLowerCase().includes("es"));
                         
-                        // Localización estricta de voces masculinas en español de Apple/Google
+                        // 1. FILTRADO AGRESIVO MASCULINO
                         const nombresMasculinos = ["jorge", "diego", "juan", "carlos", "david", "male", "pablo", "javier", "carlos"];
                         let selectedVoice = esVoices.find(v => 
                             nombresMasculinos.some(m => v.name.toLowerCase().includes(m))
                         );
 
-                        // Si iOS esconde las voces masculinas en la carga inicial, forzar la primera en español disponible
-                        utterance.voice = selectedVoice || esVoices[0] || voices[0];
-
-                        // 🚨 DEGRADACIÓN DE PITCH ABSOLUTA: Si iOS asigna una mujer por defecto, esto distorsiona la frecuencia hacia un rango grave y masculino de forma forzada.
+                        // 2. SEPARACIÓN GEOGRÁFICA Y VELOCIDAD DE IDENTIDAD (Solución de ruptura para iOS Safari)
                         if (avatar === "Luis") {
-                            utterance.pitch = 0.40; 
-                            utterance.rate = 0.88;
+                            utterance.lang = "es-ES"; // Forzar Castellano
+                            utterance.rate = 0.82;    // Ritmo pausado de ingeniería
+                            utterance.pitch = 0.35;   // Modulación ultra grave
+                            utterance.voice = selectedVoice || esVoices.find(v => v.lang.includes("ES")) || esVoices[0] || voices[0];
                         } else {
-                            utterance.pitch = 0.52; 
-                            utterance.rate = 0.95;
+                            utterance.lang = "es-MX"; // Forzar Región México
+                            utterance.rate = 1.05;    // Ritmo fluido acelerado de asistente
+                            utterance.pitch = 0.58;   // Modulación media
+                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("diego") || v.lang.includes("MX")) || esVoices[1] || esVoices[0] || voices[0];
                         }
 
                         utterance.onstart = () => { currentSpeaker = avatar; };
@@ -323,7 +319,6 @@
         }
 
         async function iniciarInteraccionAvatares() {
-            // 💬 DIÁLOGO NATURAL SIN EXPLICACIONES TÉCNICAS RIDÍCULAS
             let hablanteActual = "Agente";
             let ultimoMensaje = "Hola Luis, ¿cómo estás?";
             
@@ -358,7 +353,6 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // 🎥 CÁMARA ELEVADA (Target Y: 1.45 en vez de 1.2) para levantar los avatares y despejar los pies de las viñetas
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
