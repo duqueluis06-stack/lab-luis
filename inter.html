@@ -4,58 +4,135 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<title>IA CORE DUAL // TERMINAL DE DIAGNÓSTICO</title>
+<title>IA CORE DUAL // INTEL TACTICAL RADAR</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <style>
-/* 🌐 CONFIGURACIÓN GLOBAL HOLOGRÁFICA */
+/* 🌐 CONFIGURACIÓN GLOBAL MILITAR NEÓN */
 html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
   height: 100%;
-  background: #020208;
+  background: #010502;
   font-family: 'Share Tech Mono', monospace;
-  color: #00ffe5;
+  color: #00ff33;
   user-select: none;
 }
 
-/* 📺 EFECTO CRT SCANLINES (Suavizado, sin tinte rojo) */
+/* 🚨 PORTADA DE INICIO INTIMIDANTE (Scary Cover Overlay) */
+#scare-cover {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #000;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+  transition: opacity 0.8s cubic-bezier(0.8, 0, 0.2, 1);
+}
+
+#cover-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.65;
+  filter: contrast(130%) brightness(80%) saturate(120%);
+}
+
+.cover-hud {
+  position: relative;
+  z-index: 510;
+  max-width: 550px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #ff0033;
+  padding: 30px 20px;
+  box-shadow: 0 0 30px rgba(255, 0, 51, 0.4), inset 0 0 20px rgba(255, 0, 51, 0.2);
+  clip-path: polygon(0 0, 92% 0, 100% 8%, 100% 100%, 8% 100%, 0 92%);
+  animation: glitch-border 1.5s infinite alternate;
+}
+
+.cover-hud h2 {
+  font-family: 'Orbitron', sans-serif;
+  color: #ff0033;
+  font-size: clamp(1.4rem, 6vw, 2.2rem);
+  margin: 0 0 10px 0;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px #ff0033;
+}
+
+.cover-hud p {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 25px 0;
+}
+
+#btn-override {
+  width: 100%;
+  max-width: 320px;
+  padding: 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #000;
+  background: #00ff33;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 20px #00ff33;
+  letter-spacing: 2px;
+  transition: all 0.2s ease;
+}
+#btn-override:active { transform: scale(0.96); background: #ff0033; box-shadow: 0 0 25px #ff0033; }
+
+/* 📺 EFECTO CRT SCANLINES MILITAR */
 body::before {
   content: " ";
   display: block;
   position: fixed;
   inset: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(0, 255, 229, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 162, 255, 0.04));
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(0, 255, 51, 0.04), rgba(0, 0, 0, 0), rgba(0, 255, 51, 0.02));
   z-index: 99;
-  background-size: 100% 4px, 6px 100%;
+  background-size: 100% 5px, 6px 100%;
   pointer-events: none;
 }
 
-/* 🌌 CANVAS BACKGROUND */
-#bg3d {
+/* EFECTO BARRIDO DE RADAR RETRO */
+body::after {
+  content: "";
   position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(rgba(0, 255, 51, 0) 94%, rgba(0, 255, 51, 0.08) 95%, rgba(0, 255, 51, 0) 96%);
+  background-size: 100% 800px;
+  z-index: 98;
+  pointer-events: none;
+  animation: radar-sweep 6s infinite linear;
 }
 
-/* 📱 VIDEO OPTIMIZADO PARA TELÉFONOS (Más visible y nítido) */
+#bg3d { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+
 #video-bg {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.25; /* Incrementado para mayor visibilidad en móviles */
+  opacity: 0.18;
   z-index: 1;
-  mix-blend-mode: screen; /* Suaviza la integración con el fondo */
+  mix-blend-mode: screen;
 }
 
-/* 📲 CAPA UI ADAPTATIVA */
+/* 📲 CAPA HUD PRINCIPAL */
 .ui-layer {
   position: relative;
   z-index: 10;
@@ -66,166 +143,159 @@ body::before {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 12px;
+  padding: 12px;
   text-align: center;
 }
 
-/* CABECERA HUD */
-.hud-header {
-  width: 100%;
-  max-width: 500px;
-}
+.hud-header { width: 100%; max-width: 500px; margin-top: 5px; }
 
 h1 {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(1.2rem, 5.5vw, 2rem);
-  font-weight: 800;
+  font-size: clamp(1.1rem, 5.2vw, 1.8rem);
+  font-weight: 900;
   letter-spacing: 2px;
-  margin: 0 0 3px 0;
-  text-shadow: 0 0 10px rgba(0,255,229,0.6);
+  margin: 0;
+  color: #00ff33;
+  text-shadow: 0 0 12px rgba(0,255,51,0.7);
 }
 
 .system-status {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.7rem;
-  letter-spacing: 1px;
-  color: #00a2ff;
-  text-shadow: 0 0 5px #00a2ff;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: #ffaa00;
+  text-shadow: 0 0 5px #ffaa00;
+  margin-top: 4px;
 }
 
-/* 🗃️ MONITOR DE DATOS ULTRA-LEGIBLE */
+/* 🗃️ CAJA DE REGISTRO INTEGRADA */
 .poema-box {
-  width: 90vw;
+  width: 92vw;
   max-width: 480px;
-  max-height: 22dvh;
+  max-height: 20dvh;
   overflow-y: auto;
   padding: 12px;
-  background: rgba(2, 4, 15, 0.85);
-  border: 1px solid #00ffe5;
-  box-shadow: inset 0 0 12px rgba(0, 255, 229, 0.15);
-  font-size: 0.95rem;
+  background: rgba(1, 10, 3, 0.9);
+  border: 1px solid #00ff33;
+  box-shadow: inset 0 0 15px rgba(0, 255, 51, 0.15), 0 0 10px rgba(0,0,0,0.8);
+  font-size: 0.9rem;
   line-height: 1.4;
   text-align: left;
   box-sizing: border-box;
-  position: relative;
-  clip-path: polygon(0 0, 94% 0, 100% 6%, 100% 100%, 6% 100%, 0 94%);
+  clip-path: polygon(0 0, 95% 0, 100% 6%, 100% 100%, 5% 100%, 0 95%);
 }
 
-/* Scrollbar */
 .poema-box::-webkit-scrollbar { width: 4px; }
-.poema-box::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-.poema-box::-webkit-scrollbar-thumb { background: #00a2ff; }
+.poema-box::-webkit-scrollbar-thumb { background: #00ff33; }
 
-/* 💎 ALERTA DE RESTRICCIÓN SUAVE (Cambiado de Rojo a Azul Informativo) */
+/* PANEL ADVERTENCIA HARDWARE */
 .hardware-alert {
-  width: 90vw;
-  max-width: 400px;
-  background: rgba(0, 255, 229, 0.05);
-  border: 1px solid #00ffe5;
+  width: 92vw;
+  max-width: 420px;
+  background: rgba(255, 170, 0, 0.05);
+  border: 1px dashed #ffaa00;
   padding: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #00ffe5;
-  text-shadow: 0 0 8px rgba(0, 255, 229, 0.4);
+  font-size: 0.72rem;
+  color: #ffaa00;
+  text-shadow: 0 0 5px rgba(255, 170, 0, 0.4);
   box-sizing: border-box;
-  transition: all 0.4s ease;
 }
-
-/* Alerta de optimización móvil (Gentil, tono cyber-azul) */
 .hardware-alert.mobile-optimize {
-  background: rgba(0, 162, 255, 0.12);
-  border: 1px dashed #00a2ff;
-  color: #00ffe5;
-  text-shadow: 0 0 8px rgba(0, 162, 255, 0.6);
-  animation: pulse-info 2s infinite ease-in-out;
+  background: rgba(0, 255, 51, 0.05);
+  border: 1px solid #00ff33;
+  color: #00ff33;
+  text-shadow: 0 0 5px rgba(0,255,51,0.5);
 }
 
-@keyframes pulse-info {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
-}
+/* 📈 GRÁFICO OSCILOSCOPIO */
+.canvas-container { width: 85vw; max-width: 400px; height: 40px; }
+#osciloscopio { width: 100%; height: 100%; border-bottom: 1px dashed rgba(0, 255, 51, 0.3); }
 
-/* 📈 OSCILOSCOPIO */
-.canvas-container {
-  width: 85vw;
-  max-width: 400px;
-  height: 45px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#osciloscopio {
-  width: 100%;
-  height: 100%;
-  border-bottom: 1px solid rgba(0, 255, 229, 0.2);
-}
-
-/* 🔘 CONTROLADORES COMPACTOS */
+/* 🔘 PANEL DE ACCIONES: BOTONES AMPLIOS Y DEFINIDOS SEPARADAMENTE */
 .action-group {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 2px;
+  gap: 12px; /* Mayor separación física */
+  margin-bottom: 5px;
 }
 
-button {
+.tactical-btn {
   width: 100%;
-  padding: 12px;
+  padding: 14px 10px;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #fff;
-  background: linear-gradient(90deg, #00ffe5, #00a2ff, #a200ff);
-  background-size: 200% auto;
-  border: none;
-  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #00ff33;
+  background: rgba(0, 15, 5, 0.85);
+  border: 1px solid #00ff33;
+  border-radius: 2px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 255, 229, 0.2);
-  transition: 0.2s;
-  animation: rgb-shift 5s infinite linear;
+  box-shadow: 0 0 8px rgba(0, 255, 51, 0.2);
+  transition: all 0.2s ease;
+  position: relative;
+  text-transform: uppercase;
+}
+.tactical-btn::before {
+  content: "[ONLINE]";
+  position: absolute;
+  left: 10px;
+  font-size: 0.6rem;
+  color: rgba(0, 255, 51, 0.5);
 }
 
-/* Estilo destacado exclusivo para el nuevo botón InterAI */
-.btn-interai {
-  background: linear-gradient(90deg, #00ffe5, #ff00ff) !important;
-  box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3) !important;
+/* Botón 1: Link Principal InterAI */
+.btn-destacado {
+  color: #000 !important;
+  background: #00ff33 !important;
+  box-shadow: 0 0 15px rgba(0, 255, 51, 0.5) !important;
+  border: none !important;
+}
+.btn-destacado::before { content: "📡 LINK 01"; color: rgba(0,0,0,0.6); }
+
+/* Botón 2: Controlador Audio */
+.btn-audio { border-color: #ffaa00 !important; color: #ffaa00 !important; }
+.btn-audio::before { content: "🔊 AUDIO"; color: rgba(255, 170, 0, 0.5); }
+
+/* Botón 3: Sitio Alterno Netlify */
+.btn-externo { border-color: #00e5ff !important; color: #00e5ff !important; }
+.btn-externo::before { content: "🖥️ LINK 02"; color: rgba(0, 229, 255, 0.5); }
+
+/* Botón 4: Regresar */
+.btn-exit { border-color: #ff0033 !important; color: #ff0033 !important; }
+.btn-exit::before { content: "🗃️ RETORNO"; color: rgba(255, 0, 51, 0.5); }
+
+/* Efectos Activos tácticos */
+.tactical-btn:active { transform: scale(0.98); background: rgba(0, 255, 51, 0.15); }
+.btn-destacado:active { background: #00b324 !important; }
+
+@keyframes radar-sweep {
+  0% { background-position: 0 -800px; }
+  100% { background-position: 0 800px; }
+}
+@keyframes glitch-border {
+  0% { border-color: #ff0033; box-shadow: 0 0 15px rgba(255, 0, 51, 0.4); }
+  100% { border-color: #ffaa00; box-shadow: 0 0 25px rgba(255, 170, 0, 0.5); }
 }
 
-/* Botón Volver */
-.btn-back {
-  background: rgba(0, 0, 0, 0.6) !important;
-  border: 1px solid rgba(0, 255, 229, 0.5) !important;
-  color: #00ffe5 !important;
-  animation: none !important;
-  box-shadow: none !important;
-}
-
-.btn-back:active {
-  background: rgba(0, 255, 229, 0.2) !important;
-}
-
-button:active {
-  transform: scale(0.98);
-}
-
-@keyframes rgb-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-a {
-  width: 100%;
-  text-decoration: none;
-}
+a { width: 100%; text-decoration: none; display: block; }
 </style>
 </head>
 
 <body>
+
+<div id="scare-cover">
+  <video id="cover-video" autoplay muted loop playsinline webkit-playsinline>
+    <source src="tx.mp4" type="video/mp4">
+  </video>
+  <div class="cover-hud">
+    <h2>⚠️ ACCESO RESTRINGIDO ⚠️</h2>
+    <p>ADVERTENCIA DEL SISTEMA: El núcleo de análisis de datos multi-agente está activo. Se detectaron fluctuaciones críticas de audio y procesamiento virtual. No apague el terminal.</p>
+    <button id="btn-override" onclick="romperSeguridadYEntrar()">FORZAR INYECCIÓN DE CORE</button>
+  </div>
+</div>
 
 <canvas id="bg3d"></canvas>
 
@@ -236,20 +306,18 @@ a {
 <div class="ui-layer">
 
   <div class="hud-header">
-    <h1>AVATARES IA // CORE DUAL</h1>
-    <div class="system-status" id="sys-indicator">SYS STATUS: CALIBRANDO...</div>
+    <h1>RADAR CORE // INTERAI TACTICAL</h1>
+    <div class="system-status" id="sys-indicator">SEC: CALIBRANDO CANALES...</div>
   </div>
 
   <div class="poema-box">
-    <span style="color: #00a2ff; font-weight: bold;">[LOG]: INVESTIGACIÓN MULTI-AGENTE IA</span><br><br>
-    Este sistema analiza de forma dinámica la interacción de múltiples entidades cognitivas artificiales dentro de un entorno sintético simulado.<br><br>
-    Se registra la aparición de comportamiento emergente complejo sin líneas de código directas.<br><br>
-    <span style="color: #00ffe5;">CAPAS PROTOCOLO:</span><br>
-    • LAYER_01: Física (Luz, Ondas, Partículas)<br>
-    • LAYER_02: Cognitiva (Redes Neuronales IA)<br><br>
-    <span style="color: #00ffe5;">HIPÓTESIS DE TRABAJO:</span><br>
-    La inteligencia real emerge del caos interactivo de la colmena, nunca de un nodo aislado.<br><br>
-    <span style="opacity: 0.6; font-size: 0.8rem;">— OPERADOR: LUIS F. DUQUE MARTINI</span>
+    <span style="color: #ffaa00; font-weight: bold;">[LOG DUAL-CORE]: ANÁLISIS DE ENTIDADES</span><br><br>
+    Sincronización establecida sobre malla de radar militar. Monitoreando comportamiento autónomo en capas virtuales.<br><br>
+    Comportamiento de colmena detectado en coordenadas locales. Modulación RGB estabilizada por hardware.<br><br>
+    <span style="color: #00ff33;">ESTADO DE MATRIZ:</span><br>
+    • CAPA MILITAR: Radar activo de barrido continuo.<br>
+    • FLUJO DE VOZ: Escucha segura anti-GC móvil.<br><br>
+    <span style="opacity: 0.6; font-size: 0.8rem;">— OPERADOR RADAR: LUIS F. DUQUE MARTINI</span>
   </div>
 
   <div class="canvas-container">
@@ -257,22 +325,22 @@ a {
   </div>
 
   <div class="hardware-alert" id="hardware-panel">
-    VERIFICANDO COMPATIBILIDAD DEL TERMINAL...
+    ESCANEA HARDWARE COGNITIVO...
   </div>
 
   <div class="action-group">
     <a href="interai.html">
-      <button class="btn-interai">📱 ENTORNO MULTI-AVATAR 🖥️ PC & (teléfono)</button>
+      <button class="tactical-btn btn-destacado">ENTORNO AVATAR MÓVIL / PC (interai.html)</button>
     </a>
 
-    <button onclick="toggleAudio()">⚡ CONEXIÓN DE AUDIO</button>
+    <button class="tactical-btn btn-audio" onclick="toggleAudio()">VINCULAR FRECUENCIAS DE AUDIO</button>
     
-    <a href="https://guileless-blini-351b40.netlify.app/" id="core-link" target="_blank">
-      <button id="core-btn">Sitio Avatares-IA 3D / PC</button>
+    <a href="https://guileless-blini-351b40.netlify.app/" target="_blank">
+      <button class="tactical-btn btn-externo">SITIO NÚCLEO IA 3D COMPLETO (PC)</button>
     </a>
 
     <a href="index.html">
-      <button class="btn-back">⬅ REGRESAR AL INDEX</button>
+      <button class="tactical-btn btn-exit">DESCONECTAR TERMINAL (INDEX)</button>
     </a>
   </div>
 
@@ -282,7 +350,20 @@ a {
 
 <script>
 /* ====================================================
-    VERIFICACIÓN AMIGABLE (ADAPTACIÓN SIN BLOQUEO)
+    MANEJO DEL PORTADA / SUSTO Y AUDIO BYPASS
+==================================================== */
+function romperSeguridadYEntrar() {
+  const cover = document.getElementById("scare-cover");
+  cover.style.opacity = "0";
+  setTimeout(() => {
+    cover.style.display = "none";
+    // Disparar audio inmediatamente si el usuario activó la conexión
+    toggleAudio();
+  }, 800);
+}
+
+/* ====================================================
+    VERIFICACIÓN AMIGABLE MILITAR
 ==================================================== */
 function verifyDevice() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -290,19 +371,18 @@ function verifyDevice() {
   const sysIndicator = document.getElementById("sys-indicator");
 
   if (isMobile) {
-    sysIndicator.innerHTML = "SYS STATUS: MOBILE MODE // OPTIMIZED";
-    sysIndicator.style.color = "#00ffe5";
-
+    sysIndicator.innerHTML = "RADAR: MÓVIL MODO TÁCTICO // OPTIMIZADO";
+    sysIndicator.style.color = "#00ff33";
     alertPanel.classList.add("mobile-optimize");
-    alertPanel.innerHTML = "ℹ NOTA DE RENDIMIENTO: Terminal móvil detectado. Para una tasa de fotogramas fluida en el Núcleo 3D pesado se aconseja el uso de una estación PC.";
+    alertPanel.innerHTML = "ℹ️ ALERTA RENDIMIENTO: Canal móvil enlazado de forma segura. Para gráficos masivos, use terminales de escritorio.";
   } else {
-    sysIndicator.innerHTML = "SYS STATUS: ACTIVE // PC MODE VALIDATED";
-    alertPanel.innerHTML = "✔ INTEGRIDAD DE HARDWARE: OK. Estación de escritorio detectada. Asignación de recursos óptima.";
+    sysIndicator.innerHTML = "RADAR: ESTACIÓN PC DETECTADA // RENDIMIENTO COMPLETO";
+    alertPanel.innerHTML = "✔ INTEGRIDAD DE SISTEMA: Canales gráficos y de procesamiento operando a máxima capacidad.";
   }
 }
 
 /* ====================================================
-   THREE.JS - RED ESTELAR
+   THREE.JS - RED ESTELAR MILITAR RADAR (VERDE)
 ==================================================== */
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -316,7 +396,7 @@ function resize(){
   const w = window.innerWidth;
   const h = window.innerHeight;
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   fixOscilloscopeScale();
@@ -325,25 +405,27 @@ window.addEventListener("resize", resize);
 camera.position.z = 30;
 
 const geo = new THREE.BufferGeometry();
-const count = 400;
+const count = 350; 
 const pos = new Float32Array(count * 3);
 for(let i = 0; i < count * 3; i++){
-  pos[i] = (Math.random() - 0.5) * 140;
+  pos[i] = (Math.random() - 0.5) * 130;
 }
 geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-const mat = new THREE.PointsMaterial({ size: 0.9, color: 0x00ffe5, transparent: true, opacity: 0.7 });
+// Color cambiado a verde radar puro (0x00ff33)
+const mat = new THREE.PointsMaterial({ size: 1.0, color: 0x00ff33, transparent: true, opacity: 0.65 });
 const points = new THREE.Points(geo, mat);
 scene.add(points);
 
 function animate(){
   requestAnimationFrame(animate);
-  points.rotation.y += 0.0008;
+  points.rotation.y += 0.0012;
+  points.rotation.x += 0.0003;
   renderer.render(scene, camera);
 }
 animate();
 
 /* ====================================================
-   AUDIO CONTEXT & OSCILOSCOPIO
+   AUDIO CONTEXT & OSCILOSCOPIO VERDE NEÓN
 ==================================================== */
 let ctx, analyser, data;
 let playing = false;
@@ -377,15 +459,15 @@ function draw(){
   requestAnimationFrame(draw);
   if(!playing) {
     c.clearRect(0, 0, canvas.width, canvas.height);
-    c.strokeStyle = "rgba(0, 255, 229, 0.3)";
+    c.strokeStyle = "rgba(0, 255, 51, 0.2)";
     c.beginPath(); c.moveTo(0, canvas.height / 2); c.lineTo(canvas.width, canvas.height / 2); c.stroke();
     return;
   }
   analyser.getByteTimeDomainData(data);
-  c.fillStyle = "rgba(2, 4, 15, 0.4)";
+  c.fillStyle = "rgba(1, 8, 2, 0.3)";
   c.fillRect(0, 0, canvas.width, canvas.height);
-  c.strokeStyle = "#00ffe5";
-  c.lineWidth = 2;
+  c.strokeStyle = "#00ff33";
+  c.lineWidth = 2.5;
   c.beginPath();
   let x = 0;
   let slice = canvas.width / data.length;
