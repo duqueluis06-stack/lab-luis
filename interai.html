@@ -203,7 +203,6 @@
             speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
         }
 
-        // Control visual de la interfaz
         function actualizarViñetasUI(hablante, texto) {
             if (hablante === "Agente") {
                 boxAgente.classList.add("active");
@@ -242,39 +241,59 @@
         }
 
         async function generarYReproducirVoz(texto, avatar) {
-            return new Promise((resolve) => {
-                window.speechSynthesis.cancel();
-                
-                // Limpiar caracteres extraños del markdown para la lectura de voz
-                const textoLimpio = texto.replace(/[*#_`]/g, "");
-                const utterance = new SpeechSynthesisUtterance(textoLimpio);
-                
-                // Forzar el idioma español de manera nativa sin buscar voces de listas externas
-                utterance.lang = "es-ES";
+            try {
+                // Forzar el uso del Worker que generaba el audio correcto originalmente
+                const response = await fetch(WORKER_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: texto, voice: "male", speaker: avatar })
+                });
 
-                // Diferenciar sutilmente las tasas de velocidad nativas para que se distingan los avatares
-                if (avatar === "Luis") {
-                    utterance.rate = 0.90; 
+                if (response.ok && response.headers.get("content-type")?.includes("audio")) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+
+                    return new Promise((resolve) => {
+                        audio.onplay = () => { currentSpeaker = avatar; };
+                        const endHandler = () => { currentSpeaker = null; URL.revokeObjectURL(audioUrl); resolve(); };
+                        audio.onended = endHandler; audio.onerror = endHandler;
+                        audio.play().catch(() => { currentSpeaker = null; resolve(); });
+                    });
                 } else {
-                    utterance.rate = 1.10; 
+                    // Fallback nativo estricto si el Worker falla en retornar el archivo binario
+                    return new Promise((resolve) => {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
+                        
+                        const allVoices = window.speechSynthesis.getVoices();
+                        const esVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith("es"));
+                        
+                        // Selección estricta de perfiles masculinos nativos conocidos
+                        const vocesMasculinas = esVoices.filter(v => {
+                            const n = v.name.toLowerCase();
+                            return n.includes("jorge") || n.includes("diego") || n.includes("siri") || n.includes("google español") || n.includes("male");
+                        });
+
+                        if (avatar === "Luis") {
+                            utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("jorge")) || vocesMasculinas[0] || esVoices[0];
+                            utterance.rate = 0.88; 
+                        } else {
+                            utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("diego")) || vocesMasculinas[1] || vocesMasculinas[0] || esVoices[0];
+                            utterance.rate = 1.05; 
+                        }
+
+                        utterance.pitch = 0.9; // Forzar tono ligeramente más grave para evitar agudos femeninos
+
+                        utterance.onstart = () => { currentSpeaker = avatar; };
+                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 250); };
+                        utterance.onend = endHandler; utterance.onerror = endHandler;
+                        window.speechSynthesis.speak(utterance);
+                    });
                 }
-
-                utterance.pitch = 1.0; 
-
-                utterance.onstart = () => { 
-                    currentSpeaker = avatar; 
-                };
-                
-                const endHandler = () => { 
-                    currentSpeaker = null; 
-                    setTimeout(resolve, 250); 
-                };
-
-                utterance.onend = endHandler; 
-                utterance.onerror = endHandler;
-                
-                window.speechSynthesis.speak(utterance);
-            });
+            } catch (error) {
+                console.error("Error en generación de voz, aplicando rescate nativo:", error);
+            }
         }
 
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
