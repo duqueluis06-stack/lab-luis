@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>InterAI - Panel de Viñetas Cinemáticas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color-scale=1.0, user-scalable=no">
+    <title>InterAI - Viñetas de Cómic Retro</title>
     <style>
         * {
             box-sizing: border-box;
@@ -15,8 +15,8 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #04040a;
-            font-family: 'Courier New', Courier, monospace;
+            background-color: #030308;
+            font-family: 'Arial', sans-serif;
         }
         #renderCanvas {
             width: 100%;
@@ -24,7 +24,7 @@
             touch-action: none;
         }
         
-        /* PANTALLA DE AJUSTES INICIALES */
+        /* PANTALLA DE ENTRADA TÁCTIL */
         #loading-ui {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -37,6 +37,7 @@
             z-index: 200;
             padding: 20px;
             text-align: center;
+            font-family: monospace;
         }
         #start-btn {
             display: none;
@@ -44,120 +45,114 @@
             padding: 16px 32px;
             background: linear-gradient(90deg, #00ffcc, #00a2ff);
             border: 2px solid #fff;
-            border-radius: 0px;
             color: #000;
-            font-family: monospace;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
             letter-spacing: 1px;
         }
         
-        /* CONTENEDOR DE VIÑETAS ESTILO CÓMIC AÑOS 80 */
+        /* 🌧️ CONTENEDOR DE VIÑETAS BLANCAS ESTILO CÓMIC */
         #comic-container {
             position: absolute;
-            bottom: 25px;
-            left: 5%;
-            width: 90%;
+            bottom: 20px;
+            left: 4%;
+            width: 92%;
             display: flex;
             justify-content: space-between;
-            gap: 20px;
+            gap: 15px;
             z-index: 100;
             pointer-events: none;
         }
         
-        .vignette {
+        .comic-cloud {
             flex: 1;
-            background: rgba(3, 3, 8, 0.92);
-            border: 3px solid #333;
+            background: #ffffff; /* Viñeta blanca limpia */
+            color: #000000;      /* Texto negro de revista */
+            border: 3.5px solid #000000;
+            border-radius: 25px; /* Curvatura tipo nube */
             padding: 14px;
-            color: #fff;
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: bold;
             line-height: 1.4;
-            transition: all 0.3s ease;
-            opacity: 0.4;
-            transform: scale(0.98);
-            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
+            opacity: 0.15; /* Apagado por defecto */
+            transform: scale(0.96);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
-        /* Viñeta Izquierda - AGENTE */
-        #vignette-agente {
-            border-color: #00ffcc;
+        /* Viñeta Izquierda (Agente) */
+        #bubble-agente {
+            border-bottom-left-radius: 2px; /* Apunta sutilmente a la izquierda */
         }
-        #vignette-agente .character-title {
-            color: #00ffcc;
-            font-weight: bold;
-            border-bottom: 2px solid #00ffcc;
-            margin-bottom: 6px;
-            font-size: 11px;
-            letter-spacing: 1px;
+        #bubble-agente .speaker-tag {
+            color: #00aa88;
+            font-size: 10px;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
         }
         
-        /* Viñeta Derecha - LUIS */
-        #vignette-luis {
-            border-color: #ffb703;
+        /* Viñeta Derecha (Luis) */
+        #bubble-luis {
+            border-bottom-right-radius: 2px; /* Apunta sutilmente a la derecha */
         }
-        #vignette-luis .character-title {
-            color: #ffb703;
-            font-weight: bold;
-            border-bottom: 2px solid #ffb703;
-            margin-bottom: 6px;
-            font-size: 11px;
-            letter-spacing: 1px;
+        #bubble-luis .speaker-tag {
+            color: #cc7a00;
+            font-size: 10px;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
         }
         
-        /* Estado Activo cuando el personaje habla */
-        .vignette.active {
+        /* Estado Iluminado/Activo */
+        .comic-cloud.active {
             opacity: 1 !important;
-            transform: scale(1) translateY(-4px);
-            background: rgba(10, 10, 25, 0.96);
-            box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.7);
+            transform: scale(1) translateY(-5px);
+            box-shadow: 8px 8px 0px rgba(0, 0, 0, 1);
         }
 
+        /* 🎥 BOTONES DESPLAZADOS AL EXTREMO SUPERIOR - CERO OCLUSIÓN */
         .control-btn {
             position: absolute;
-            top: 20px;
-            padding: 10px 18px;
-            font-size: 11px;
+            top: 15px;
+            padding: 10px 14px;
+            font-size: 10px;
             font-weight: bold;
             font-family: monospace;
-            border: 2px solid #fff;
+            border: 2px solid #000;
+            border-radius: 6px;
             cursor: pointer;
-            z-index: 10;
+            z-index: 150;
+            box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
         #reset-camera-btn {
-            left: 20px;
+            left: 15px;
             color: #000;
             background: #00ffcc;
         }
         #exit-btn {
-            right: 20px;
+            right: 15px;
             color: #fff;
             background: #d90429;
         }
 
-        /* DISEÑO ADAPTADO PARA TU IPHONE */
+        /* AJUSTES ADAPTATIVOS PARA TU IPHONE */
         @media (max-width: 768px) {
             #comic-container {
-                flex-direction: column;
                 bottom: 15px;
                 gap: 10px;
-                left: 15px;
-                width: calc(100% - 30px);
+                left: 12px;
+                width: calc(100% - 24px);
             }
-            .vignette {
+            .comic-cloud {
                 padding: 10px;
                 font-size: 11px;
+                border-width: 2.5px;
             }
             .control-btn {
-                top: auto;
-                bottom: 240px; /* Sube los botones arriba de las viñetas */
-                padding: 12px;
-                width: 45%;
+                top: 12px;
+                padding: 8px 12px;
             }
-            #reset-camera-btn { left: 15px; }
-            #exit-btn { right: 15px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -166,26 +161,27 @@
 <body>
 
     <div id="loading-ui">
-        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ OPTIMIZANDO TRANSMISIÓN MULTICANAL</h2>
-        <p id="status" style="margin:0; font-size:12px; color:#fff;">Ajustando búfer de texturas...</p>
-        <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR PROTOCOLO DE VOZ</button>
+        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ ASIGNANDO FILTROS DE AUDIO FRONTAL</h2>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">Sincronizando mallas de los avatares...</p>
+        <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
-    <!-- 📺 DOS VIÑETAS INDEPENDIENTES ESTILO CÓMIC 80s -->
-    <div id="comic-container">
-        <div id="vignette-agente" class="vignette">
-            <div class="character-title">🔴 TRANSMISIÓN: AGENTE IA</div>
-            <div id="text-agente">Sincronizando modulación...</div>
-        </div>
-        
-        <div id="vignette-luis" class="vignette">
-            <div class="character-title">🔵 TRANSMISIÓN: LUIS (PROYECTO)</div>
-            <div id="text-luis">En espera de respuesta táctica...</div>
-        </div>
-    </div>
-
+    <!-- 🎥 BOTONES DE CONTROL ABSOLUTOS (ARRIBA) -->
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR CÁMARA</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
+
+    <!-- 🌧️ DISEÑO DE DOS VIÑETAS DE NUBE IZQUIERDA Y DERECHA -->
+    <div id="comic-container">
+        <div id="bubble-agente" class="comic-cloud">
+            <div class="speaker-tag">● AGENTE IA (IZQUIERDA)</div>
+            <div id="text-agente">Cargando canal...</div>
+        </div>
+        
+        <div id="bubble-luis" class="comic-cloud">
+            <div class="speaker-tag">● LUIS AVATAR (DERECHA)</div>
+            <div id="text-luis">En espera táctica...</div>
+        </div>
+    </div>
 
     <canvas id="renderCanvas"></canvas>
 
@@ -211,8 +207,8 @@
         let proximoCambioGaze = Date.now() + 6000; 
 
         const statusText = document.getElementById("status");
-        const boxAgente = document.getElementById("vignette-agente");
-        const boxLuis = document.getElementById("vignette-luis");
+        const boxAgente = document.getElementById("bubble-agente");
+        const boxLuis = document.getElementById("bubble-luis");
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
@@ -248,7 +244,7 @@
                 const data = await response.json();
                 return data.reply || "...";
             } catch (error) {
-                return "Restableciendo comunicación cuántica de respaldo...";
+                return "Restableciendo transmisiones...";
             }
         }
 
@@ -272,42 +268,39 @@
                         audio.play().catch(() => { currentSpeaker = null; resolve(); });
                     });
                 } else {
-                    // BLINDAJE DE SÍNTESIS DE VOZ PARA EVITAR ERRORES DE LOCALIZACIÓN FRANCESA/FEMENINA
+                    // FILTRO DE SÍNTESIS CON PITCH MUTADO ANTI-MUJER
                     return new Promise((resolve) => {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
                         
                         const voices = window.speechSynthesis.getVoices();
-                        // Filtro 1: Forzar únicamente canales que inicien con código de lenguaje Español
-                        const esVoices = voices.filter(v => v.lang.toLowerCase().startsWith("es"));
+                        const esVoices = voices.filter(v => v.lang.toLowerCase().includes("es"));
                         
-                        // Filtro 2: Lista de exclusión estricta de perfiles femeninos y franceses
-                        const nombresExcluidos = ["monica", "marisol", "helena", "paula", "sara", "siri", "female", "mujer", "amelie", "thomas", "fr-fr"];
-                        const maleEsVoices = esVoices.filter(v => 
-                            !nombresExcluidos.some(ex => v.name.toLowerCase().includes(ex))
+                        // Localizar voces masculinas nativas si existen
+                        const nombresMasculinos = ["jorge", "diego", "juan", "carlos", "david", "male", "macho", "pablo"];
+                        let selectedVoice = esVoices.find(v => 
+                            nombresMasculinos.some(m => v.name.toLowerCase().includes(m))
                         );
 
-                        // Selección refinada
+                        utterance.voice = selectedVoice || esVoices[0];
+
+                        // 🚨 FORCE MODULATION: Forzamos frecuencias graves pesadas para neutralizar agudos femeninos
                         if (avatar === "Luis") {
-                            // Voz masculina primaria de pruebas
-                            utterance.voice = maleEsVoices[0] || esVoices.find(v => v.name.toLowerCase().includes("jorge")) || esVoices[0];
-                            utterance.pitch = 0.70; 
-                            utterance.rate = 0.92;
+                            utterance.pitch = 0.45; // Súper grave, profundo e imponente
+                            utterance.rate = 0.88;
                         } else {
-                            // Segunda voz masculina para el Agente
-                            utterance.voice = maleEsVoices[1] || maleEsVoices[0] || esVoices[0];
-                            utterance.pitch = 0.88; 
-                            utterance.rate = 1.00;
+                            utterance.pitch = 0.55; // Tono masculino cibernético de soporte
+                            utterance.rate = 0.96;
                         }
 
                         utterance.onstart = () => { currentSpeaker = avatar; };
-                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 350); };
+                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 300); };
                         utterance.onend = endHandler; utterance.onerror = endHandler;
                         window.speechSynthesis.speak(utterance);
                     });
                 }
             } catch (error) {
-                console.error("Inestabilidad de audio:", error);
+                console.error(error);
             }
         }
 
@@ -334,7 +327,7 @@
 
         async function iniciarInteraccionAvatares() {
             let hablanteActual = "Agente";
-            let ultimoMensaje = "Hola Luis. Modulación de movimiento e interfaz de viñetas sincronizados. ¿Iniciamos la verificación electrónica?";
+            let ultimoMensaje = "Hola Luis. Canalización de viñetas blancas estilo nube activado en iPhone. Rostros limpios. ¿Iniciamos diagnóstico?";
             
             actualizarViñetasUI(hablanteActual, ultimoMensaje);
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
@@ -343,8 +336,8 @@
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 let contextoPrompt = (hablanteActual === "Luis") 
-                    ? `[Eres Luis, ingeniero senior de pruebas físicas electrónicas. Responde con soluciones innovadoras y concisas en 2 frases cortas]: ${ultimoMensaje}`
-                    : `[Eres el Agente, una IA analítica de laboratorio. Dale soporte preciso a Luis en 2 frases]: ${ultimoMensaje}`;
+                    ? `[Eres Luis, ingeniero senior de pruebas electrónicas. Responde innovador y directo en 2 frases cortas]: ${ultimoMensaje}`
+                    : `[Eres el Agente, una IA analítica de soporte técnico. Responde en 2 frases cortas]: ${ultimoMensaje}`;
 
                 let respuesta = await consultarGroqWorker(contextoPrompt);
                 if (respuesta) {
@@ -369,24 +362,19 @@
 
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.2, 3), scene);
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 30;
+            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
             camera.panningSensibility = 1800; 
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
-            const errorHandler = (meshName) => (scene, msg, exc) => {
-                statusText.style.color = "#ff3366";
-                statusText.innerText = `⚠️ Error crítico de carga de malla: ${meshName}`;
-            };
-
-            statusText.innerText = "Construyendo entorno urbano...";
+            statusText.innerText = "Sincronizando infraestructura gráfica...";
             
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Escenario acoplado. Importando Agente...";
+                statusText.innerText = "Mapa en línea. Cargando Agente...";
 
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
-                    statusText.innerText = "Agente en memoria. Vinculando LuisAvatar4...";
+                    statusText.innerText = "Agente acoplado. Cargando LuisAvatar4...";
                     agenteRoot = agentMeshes[0];
                     agentAnimations = animationGroups;
 
@@ -408,20 +396,19 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        document.getElementById("load-title").innerText = "⚙️ TRANSMISIÓN SINCRO COMPLETA";
-                        statusText.innerText = "Dispositivo móvil verificado con éxito.";
+                        document.getElementById("load-title").innerText = "⚙️ RED INTERAI SINCRONIZADA";
+                        statusText.innerText = "Entorno verificado. Interfaz libre.";
                         document.getElementById("start-btn").style.display = "block";
-                    }, null, errorHandler("luisavatar4.glb"));
-                }, null, errorHandler("agent.glb"));
-            }, null, errorHandler("city2.glb"));
+                    });
+                });
+            });
 
-            // ⚡ VELOCIDADES DE ANIMACIÓN ELEVADAS PARA ELIMINAR EL EFECTO "DORMIDO"
+            // CONTROL DE ANIMACIÓN Y FLUIDEZ RÁPIDA
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
                 if (luisAnimations.length > 0) {
                     luisAnimations.forEach(anim => { 
-                        // Hablando: velocidad fluida natural | Esperando: respiración activa visible
                         anim.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; 
                     });
                 }
@@ -432,10 +419,10 @@
                 }
 
                 if (ahora > proximoCambioGaze) {
-                    proximoCambioGaze = ahora + 18000 + Math.random() * 8000;
+                    proximoCambioGaze = ahora + 15000 + Math.random() * 5000;
                     if (Math.random() > 0.35) {
-                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.20, (Math.random() - 0.4) * 0.10, (Math.random() - 0.5) * 0.12);
-                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.20, (Math.random() - 0.4) * 0.10, (Math.random() - 0.5) * 0.12);
+                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
+                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
                     } else {
                         desvioMiradaAgente.setAll(0); desvioMiradaLuis.setAll(0);
                     }
