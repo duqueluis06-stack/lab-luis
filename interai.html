@@ -12,7 +12,7 @@
             margin: 0;
             padding: 0;
             background-color: #050505;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: monospace;
         }
         #renderCanvas {
             width: 100%;
@@ -24,30 +24,64 @@
             top: 20px;
             left: 20px;
             color: #00ffcc;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(5, 5, 12, 0.95);
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 4px;
             border: 1px solid #00ffcc;
             pointer-events: none;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
             z-index: 10;
+            width: 260px;
         }
+        
+        /* 📡 HUD TÁCTICO DE DIÁLOGO (Estilo Laboratorio) */
+        #hud-console {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            max-height: 280px;
+            background: rgba(5, 5, 12, 0.95);
+            border: 1px solid #00a2ff;
+            border-radius: 4px;
+            color: #00a2ff;
+            padding: 12px;
+            box-shadow: 0 0 15px rgba(0, 162, 255, 0.2);
+            z-index: 100;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .hud-header {
+            font-weight: bold;
+            color: #ffb703;
+            font-size: 11px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 162, 255, 0.3);
+            padding-bottom: 4px;
+        }
+        #hud-log {
+            font-size: 11px;
+            color: #fff;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
         #instructions-ui {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             color: #ffffff;
-            background: rgba(2, 2, 8, 0.75);
+            background: rgba(2, 2, 8, 0.85);
             padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            border-radius: 4px;
+            font-size: 11px;
             pointer-events: none;
             text-align: center;
             border: 1px solid rgba(0, 255, 229, 0.4);
             z-index: 9;
         }
-        /* 🎯 BOTÓN FLOTANTE REGRESAR CÁMARA */
         #reset-camera-btn {
             position: absolute;
             bottom: 20px;
@@ -55,9 +89,10 @@
             color: #ffffff;
             background: linear-gradient(90deg, #00a2ff, #00ffe5);
             padding: 11px 22px;
-            border-radius: 5px;
-            font-size: 0.85rem;
+            border-radius: 4px;
+            font-size: 11px;
             font-weight: bold;
+            font-family: monospace;
             letter-spacing: 1px;
             border: none;
             cursor: pointer;
@@ -69,9 +104,6 @@
             box-shadow: 0 4px 20px rgba(0, 255, 204, 0.6);
             transform: translateY(-2px);
         }
-        #reset-camera-btn:active {
-            transform: scale(0.95);
-        }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
@@ -79,12 +111,17 @@
 <body>
 
     <div id="loading-ui">
-        <h3>Sistema InterAI</h3>
-        <p id="status">Cargando elementos del entorno...</p>
+        <h3 style="margin:0 0 8px 0; font-size:14px; letter-spacing:1px;">⚙️ NEUROLAB COGNITIVE</h3>
+        <p id="status" style="margin:0; font-size:11px; color:#fff;">Sincronizando mallas de simulación...</p>
+    </div>
+
+    <div id="hud-console">
+        <div class="hud-header">📡 MONITOR DE FRECUENCIAS DE DIÁLOGO</div>
+        <div id="hud-log">Esperando acoplamiento de avatares...</div>
     </div>
 
     <div id="instructions-ui">
-        💾 <b>Clic Izquierdo:</b> Rotar | 🎡 <b>Rueda:</b> Zoom | 🖱️ <b>Clic Derecho:</b> Desplazarse por calles
+        💾 <b>Clic Izquierdo:</b> Rotar | 🎡 <b>Zoom</b> | 🖱️ <b>Clic Derecho:</b> Desplazamiento orbital
     </div>
 
     <button id="reset-camera-btn" onclick="resetCamaraOrigen()">🎥 ENFOCAR AVATARES</button>
@@ -93,140 +130,172 @@
 
     <script>
         // =======================================================================
-        // 🛠️ PANEL DE CONTROL DE POSICIONES (Calibrado cara a cara y altura rasa)
+        // 🛠️ PANEL DE CONTROL DE POSICIONES
         // =======================================================================
         const COORDENADAS = {
-            agente: {
-                x: -1.0,       // CORRECCIÓN: Más cerca del centro
-                y: 0.05,       // CORRECCIÓN: Elevado medio milímetro a ras de suelo
-                z: 3.0,        
-                rotacion: -Math.PI / 2  // Mirando a Luis
-            },
-            luisavatar: {
-                x: 1.0,        // CORRECCIÓN: Más cerca de frente al agente
-                y: 0.05,       // CORRECCIÓN: Elevado medio milímetro a ras de suelo
-                z: 3.0,        
-                rotacion: Math.PI / 2   // Mirando al agente
-            }
+            agente: { x: -0.75, y: 0.05, z: 3.0, rotacion: -Math.PI / 2 },
+            luisavatar: { x: 0.75, y: 0.05, z: 3.0, rotacion: Math.PI / 2 }
         };
 
         // =======================================================================
-        // 🔑 CONFIGURACIÓN CONEXIÓN GROQ Y VOZ REAL (WORKER)
+        // 🔑 CONFIGURACIÓN INTEGRADA (SEGURIDAD DE CAPA WORKER)
         // =======================================================================
-        const GROQ_API_KEY = "TU_KEY_DE_GROQ_AQUI"; 
-        const GROQ_MODEL = "llama3-8b-8192"; 
-        const WORKER_VOZ_URL = "https://little-salad-1611.duqueluis06.workers.dev";
+        const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
 
-        let historialDialogo = [
-            { 
-                role: "system", 
-                content: "Simula una conversación técnica, fluida e innovadora entre dos entidades en un entorno virtual: 'Agente' (un asistente de IA avanzado) y 'Luis' (un ingeniero experto en pruebas físicas electrónicas y astrofísica). Mantén las respuestas cortas, dinámicas y directas de un turno a otro." 
-            }
-        ];
+        let historialDialogo = [];
+        let mouthTargetsAgente = [];
+        let mouthTargetsLuis = [];
+        let currentSpeaker = null; 
 
-        // Función para consultar a Groq el texto del diálogo
-        async function consultarGroq(contextoPrompt) {
+        const hudLog = document.getElementById("hud-log");
+        function reportHUD(avatar, msg, color = "#fff") {
+            const div = document.createElement("div");
+            div.style.color = color;
+            div.style.marginBottom = "8px";
+            div.innerText = `[${avatar.toUpperCase()}]: ${msg}`;
+            hudLog.appendChild(div);
+            document.getElementById("hud-console").scrollTop = document.getElementById("hud-console").scrollHeight;
+        }
+
+        // Consulta de texto segura delegada a tu Cloudflare Worker
+        async function consultarGroqWorker(promptText) {
             try {
-                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                const response = await fetch(WORKER_URL, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${GROQ_API_KEY}`
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        model: GROQ_MODEL,
-                        messages: historialDialogo.concat([{ role: "user", content: contextoPrompt }]),
-                        max_tokens: 100,
-                        temperature: 0.7
+                        message: promptText,
+                        context: historialDialogo,
+                        lang: "es-ES"
                     })
                 });
                 const data = await response.json();
-                return data.choices[0].message.content.trim();
+                return data.reply || "...";
             } catch (error) {
-                console.error("Error en la conexión con Groq:", error);
-                return null;
+                console.error("Error en enlace Worker-Groq:", error);
+                return "Fluctuación en la línea de transmisión. Reajustando telemetría...";
             }
         }
 
-        // 🎙️ Función para enviar el texto al Worker, obtener el audio y reproducirlo
+        // Conversor de Audio con bloqueo y desbloqueo síncrono para el ciclo labial
         async function generarYReproducirVoz(texto, avatar) {
             try {
-                const response = await fetch(WORKER_VOZ_URL, {
+                // Opción A: Tu Worker genera audio directamente (Blob)
+                const response = await fetch(WORKER_URL, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ 
-                        text: texto,
-                        voice: avatar === "Luis" ? "male" : "female" // Opcional: por si tu worker distingue voces
-                    })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: texto, voice: avatar === "Luis" ? "male" : "female" })
                 });
 
-                if (!response.ok) throw new Error("Error en la respuesta del Worker de voz.");
+                if (response.ok && response.headers.get("content-type")?.includes("audio")) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
 
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-
-                // Retorna una promesa para que el bucle espere a que termine de hablar antes del siguiente turno
-                return new Promise((resolve) => {
-                    audio.onended = () => {
-                        URL.revokeObjectURL(audioUrl);
-                        resolve();
-                    };
-                    audio.onerror = () => {
-                        resolve();
-                    };
-                    audio.play().catch(err => {
-                        console.warn("La reproducción automática requiere interacción previa del usuario en pantalla.", err);
-                        resolve();
+                    return new Promise((resolve) => {
+                        audio.onplay = () => { currentSpeaker = avatar; };
+                        const endHandler = () => {
+                            currentSpeaker = null;
+                            URL.revokeObjectURL(audioUrl);
+                            resolve();
+                        };
+                        audio.onended = endHandler;
+                        audio.onerror = endHandler;
+                        audio.play().catch(() => { currentSpeaker = null; resolve(); });
                     });
-                });
+                } else {
+                    // Opción B: Fallback nativo ultra-limpio si tu worker solo devuelve texto
+                    return new Promise((resolve) => {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
+                        
+                        // Configuración adaptativa de tonos de voz nativos
+                        const voices = window.speechSynthesis.getVoices();
+                        const esVoices = voices.filter(v => v.lang.startsWith("es"));
+                        if (avatar === "Luis") {
+                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("male")) || esVoices[0];
+                            utterance.pitch = 0.85;
+                        } else {
+                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("female")) || esVoices[1] || esVoices[0];
+                            utterance.pitch = 1.1;
+                        }
+
+                        utterance.onstart = () => { currentSpeaker = avatar; };
+                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 500); };
+                        utterance.onend = endHandler;
+                        utterance.onerror = endHandler;
+                        window.speechSynthesis.speak(utterance);
+                    });
+                }
             } catch (error) {
-                console.error("Error al procesar el audio del Worker:", error);
+                console.error("Error en el procesador de fonemas de voz:", error);
             }
         }
 
-        // Bucle continuo de interacción con Voz Real
-        async function iniciarInteraccionAvatares() {
-            if (GROQ_API_KEY === "TU_KEY_DE_GROQ_AQUI") {
-                console.warn("⚠️ Groq: Introduce una API Key válida en el código para iniciar la conversación.");
-                return;
-            }
+        // Rastreador Kinetofonético Facial para mallas en Babylon.js
+        function setupMouthTrackingBabylon(rootMesh, targetArray) {
+            if (!rootMesh) return;
+            const childMeshes = rootMesh.getChildMeshes();
+            
+            childMeshes.forEach(mesh => {
+                const name = (mesh.name || "").toLowerCase();
+                
+                // Trackeo por Morph Targets (Sistemas ReadyPlayerMe / Blender estándar)
+                if (mesh.morphTargetManager) {
+                    const manager = mesh.morphTargetManager;
+                    for (let i = 0; i < manager.numTargets; i++) {
+                        const targetName = manager.getTarget(i).name.toLowerCase();
+                        if (targetName.includes("mouth") || targetName.includes("jaw") || targetName.includes("lip") || targetName.includes("viseme") || targetName.includes("open")) {
+                            targetArray.push({ type: "morph", manager: manager, target: manager.getTarget(i) });
+                        }
+                    }
+                }
+                // Trackeo mecánico de respaldo por alteración posicional de malla (Mandíbula/Boca)
+                if (name.includes("mouth") || name.includes("jaw") || name.includes("head")) {
+                    if (!targetArray.some(t => t.mesh === mesh)) {
+                        targetArray.push({ type: "mesh", mesh: mesh, originalScaleY: mesh.scaling.y });
+                    }
+                }
+            });
+        }
 
+        // Bucle General de Interacción Cruzada (Pruebas físicas y astrofísica)
+        async function iniciarInteraccionAvatares() {
+            hudLog.innerText = ""; // Limpiar consola HUD
+            
             let hablanteActual = "Agente";
-            let ultimoMensaje = "Hola Luis. El entorno InterAI está estable y los sistemas de análisis listos. ¿Qué proyecto o prueba de laboratorio monitorizamos hoy?";
+            let ultimoMensaje = "Hola Luis. El entorno InterAI está estable y las cámaras de vacío calibradas. ¿Monitorizamos hoy las fluctuaciones de presión electrónica o revisamos lecturas meteorológicas?";
             
-            console.log(`%c[${hablanteActual}]: ${ultimoMensaje}`, "color: #00ffcc; font-weight: bold;");
-            historialDialogo.push({ role: "assistant", content: `[${hablanteActual}]: ${ultimoMensaje}` });
+            reportHUD(hablanteActual, ultimoMensaje, "#00ffcc");
+            historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
             
-            // Reproducir el saludo inicial
             await generarYReproducirVoz(ultimoMensaje, hablanteActual);
 
             while (true) {
-                // Alternar turno
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 
-                let instruccionTurno = `Responde ahora bajo la identidad de ${hablanteActual} de forma natural al último mensaje: "${ultimoMensaje}".`;
-                let respuesta = await consultarGroq(instruccionTurno);
+                let contextoPrompt = "";
+                if (hablanteActual === "Luis") {
+                    contextoPrompt = `[Eres Luis, un brillante ingeniero experto en pruebas físicas electrónicas, instrumentación avanzada y astrofísica. Responde de manera sumamente innovadora, técnica y realista al planteamiento del Agente. Usa de 2 a 4 frases directas sin rodeos corporativos ni repeticiones]: ${ultimoMensaje}`;
+                } else {
+                    contextoPrompt = `[Eres el Agente de IA del laboratorio. Analiza los datos de Luis con profundidad analítica y computacional. Responde de forma futurista, sugiriendo optimizaciones en los sensores cuánticos o la simulación]: ${ultimoMensaje}`;
+                }
+
+                let respuesta = await consultarGroqWorker(contextoPrompt);
 
                 if (respuesta) {
                     ultimoMensaje = respuesta;
-                    let colorConsola = (hablanteActual === "Luis") ? "#00a2ff" : "#00ffcc";
-                    console.log(`%c[${hablanteActual}]: ${ultimoMensaje}`, `color: ${colorConsola}; font-weight: bold;`);
+                    let colorHUD = (hablanteActual === "Luis") ? "#00a2ff" : "#00ffcc";
                     
-                    historialDialogo.push({ role: "assistant", content: `[${hablanteActual}]: ${ultimoMensaje}` });
+                    reportHUD(hablanteActual, ultimoMensaje, colorHUD);
+                    historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
                     
-                    // 🗣️ Los avatares hablan usando tu URL del Worker
+                    if (historialDialogo.length > 14) historialDialogo.splice(0, 2); // Ventana de memoria móvil
+                    
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
-                    
-                    if (historialDialogo.length > 15) {
-                        historialDialogo.splice(1, 2);
-                    }
                 }
                 
-                // Pequeña pausa natural de 1.5 segundos entre réplicas una vez terminado el audio
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 1200)); // Latencia de análisis humano artificial
             }
         }
         // =======================================================================
@@ -234,73 +303,106 @@
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
         let camera; 
+        let agenteRoot, luisRoot;
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.04, 1);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.03, 1);
 
-            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 7, new BABYLON.Vector3(0, 0.9, 3), scene);
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 5, new BABYLON.Vector3(0, 1.2, 3), scene);
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 1.2; 
-            camera.upperRadiusLimit = 250; 
-            camera.panningSensibility = 1000; 
+            camera.lowerRadiusLimit = 1.0; 
+            camera.upperRadiusLimit = 100; 
+            camera.panningSensibility = 1200; 
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-            ambientLight.intensity = 0.85;
+            ambientLight.intensity = 0.9;
             
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
-            dirLight.position = new BABYLON.Vector3(5, 10, 5);
-            dirLight.intensity = 0.6;
+            dirLight.position = new BABYLON.Vector3(5, 12, 5);
+            dirLight.intensity = 0.7;
 
             const statusText = document.getElementById("status");
 
-            // 1. Cargar la Ciudad (city2.glb)
+            // 1. Carga del Entorno Urbano
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Ciudad cargada. Trayendo avatares...";
+                statusText.innerText = "Infraestructura urbana acoplada. Cargando Agente...";
 
-                // 2. Cargar Agente (agent.glb)
+                // 2. Carga y Configuración del Agente
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
-                    statusText.innerText = "Agente cargado...";
+                    statusText.innerText = "Entidad Agente en posición. Cargando perfil LuisAvatar...";
                     
-                    if(agentMeshes[0]) {
-                        agentMeshes[0].rotationQuaternion = null; 
-                        agentMeshes[0].position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
-                        agentMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.agente.rotacion, 0);
+                    agenteRoot = agentMeshes[0];
+                    if(agenteRoot) {
+                        agenteRoot.rotationQuaternion = null; 
+                        agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
+                        agenteRoot.rotation = new BABYLON.Vector3(0, COORDENADAS.agente.rotacion, 0);
+                        setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
                     }
 
                     if (animationGroups.length > 0) {
-                        animationGroups.forEach(group => {
-                            group.start(true);
-                        });
+                        animationGroups.forEach(group => group.start(true));
                     }
 
-                    // 3. Cargar tu Avatar (luisavatar4.glb)
+                    // 3. Carga e Inyección de tu Avatar
                     BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, luisAnimations) {
-                        statusText.innerText = "Sistema listo. Entorno y Avatares activos.";
+                        statusText.innerText = "Sincronización neuronal completa. Inicializando sistemas...";
                         
-                        setTimeout(() => {
-                            document.getElementById("loading-ui").style.display = "none";
-                            // 🚀 Comienza la interacción por consola con llamada de voz al Worker
-                            iniciarInteraccionAvatares();
-                        }, 2000);
-
-                        if(luisMeshes[0]) {
-                            luisMeshes[0].rotationQuaternion = null; 
-                            luisMeshes[0].position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
-                            luisMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.luisavatar.rotacion, 0);
+                        luisRoot = luisMeshes[0];
+                        if(luisRoot) {
+                            luisRoot.rotationQuaternion = null; 
+                            luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
+                            luisRoot.rotation = new BABYLON.Vector3(0, COORDENADAS.luisavatar.rotacion, 0);
+                            setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
                         }
 
                         if (luisAnimations.length > 0) {
                             luisAnimations.forEach(anim => {
                                 anim.start(true);
-                                anim.speedRatio = 0.7; 
+                                anim.speedRatio = 0.75; 
                             });
                         }
+
+                        setTimeout(() => {
+                            document.getElementById("loading-ui").style.display = "none";
+                            iniciarInteraccionAvatares();
+                        }, 1500);
                     });
                 });
             }, null, function (scene, message, exception) {
-                statusText.innerText = "Error al cargar los modelos. Revisa los archivos.";
+                statusText.innerText = "Fallo crítico en carga de mallas asset.";
                 console.error(message, exception);
+            });
+
+            // --- Bucle Interno de Renderizado y Modulación de Labios Animados ---
+            scene.registerBeforeRender(() => {
+                // Forzar fijación ocular cara a cara ininterrumpida
+                if (agenteRoot && luisRoot) {
+                    agenteRoot.lookAt(new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z));
+                    luisRoot.lookAt(new BABYLON.Vector3(agenteRoot.position.x, luisRoot.position.y, agenteRoot.position.z));
+                }
+
+                // Simulación matemática de espectro de audio en bocas
+                if (currentSpeaker) {
+                    let targets = currentSpeaker === "Agente" ? mouthTargetsAgente : mouthTargetsLuis;
+                    let wave = Math.abs(Math.sin(Date.now() * 0.025)) * 0.65 + Math.random() * 0.25;
+
+                    targets.forEach(t => {
+                        if (t.type === "morph") {
+                            t.target.influence = wave;
+                        } else if (t.type === "mesh") {
+                            t.mesh.scaling.y = t.originalScaleY - (wave * 0.04);
+                        }
+                    });
+                } else {
+                    // Estado de reposo absoluto de fonemas
+                    [mouthTargetsAgente, mouthTargetsLuis].forEach(targets => {
+                        targets.forEach(t => {
+                            if (t.type === "morph") t.target.influence = 0;
+                            if (t.type === "mesh") t.mesh.scaling.y = t.originalScaleY;
+                        });
+                    });
+                }
             });
 
             return scene;
@@ -312,8 +414,8 @@
             if(camera) {
                 camera.alpha = -Math.PI / 2;
                 camera.beta = Math.PI / 2.3;
-                camera.radius = 7;
-                camera.target = new BABYLON.Vector3(0, 0.9, 3);
+                camera.radius = 5;
+                camera.target = new BABYLON.Vector3(0, 1.2, 3);
             }
         }
 
@@ -324,6 +426,10 @@
         window.addEventListener("resize", function () {
             engine.resize();
         });
+
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+        }
     </script>
 </body>
 </html>
