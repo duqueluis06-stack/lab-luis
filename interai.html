@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterAI - Entorno de Pruebas</title>
+    <style>
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #loading-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffcc;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #00ffcc;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <div id="loading-ui">
+        <h3>Sistema InterAI</h3>
+        <p id="status">Cargando elementos del entorno...</p>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            
+            // Color de fondo oscuro (estilo laboratorio/espacial)
+            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.04, 1);
+
+            // Cámara Interactiva (puedes rotar con el mouse/dedo y hacer zoom)
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 10, new BABYLON.Vector3(0, 1, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 2; // Zoom máximo
+            camera.upperRadiusLimit = 40; // Zoom mínimo
+
+            // Iluminación ambiental y direccional para resaltar texturas
+            const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.7;
+            
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(2, 5, 2);
+            dirLight.intensity = 0.5;
+
+            const statusText = document.getElementById("status");
+
+            // 1. Cargar el Entorno (city2.glb)
+            BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
+                statusText.innerText = "Ciudad cargada. Trayendo avatares...";
+                
+                // Si el entorno es muy grande o muy pequeño, puedes escalarlo aquí de ser necesario:
+                meshes.forEach(mesh => {
+                    // mesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                });
+
+                // 2. Cargar Agente (agent.glb)
+                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
+                    statusText.innerText = "Agente cargado...";
+                    
+                    // Posicionar al agente un poco a la izquierda (X = -1.5) para que no se encima con el otro
+                    if(agentMeshes[0]) {
+                        agentMeshes[0].position = new BABYLON.Vector3(-1.5, 0, 0);
+                        // Rotar para que mire hacia el centro (ajusta el ángulo si es necesario)
+                        agentMeshes[0].rotation = new BABYLON.Vector3(0, Math.PI / 4, 0);
+                    }
+
+                    // Activar la primera animación disponible (gestos/idle)
+                    if (animationGroups.length > 0) {
+                        animationGroups[0].start(true); // true para bucle (loop)
+                    }
+
+                    // 3. Cargar tu Avatar (luisavatar4.glb)
+                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, luisAnimations) {
+                        statusText.innerText = "Sistema listo. Entorno y Avatares activos.";
+                        
+                        // Ocultar el panel de carga después de unos segundos
+                        setTimeout(() => {
+                            document.getElementById("loading-ui").style.display = "none";
+                        }, 3000);
+
+                        // Posicionar tu avatar un poco a la derecha (X = 1.5) frente al agente
+                        if(luisMeshes[0]) {
+                            luisMeshes[0].position = new BABYLON.Vector3(1.5, 0, 0);
+                            // Rotar para mirar al agente
+                            luisMeshes[0].rotation = new BABYLON.Vector3(0, -Math.PI / 4, 0);
+                        }
+
+                        // Activar animaciones de luisavatar4 si existen
+                        if (luisAnimations.length > 0) {
+                            luisAnimations[0].start(true);
+                        }
+                    });
+                });
+            }, function (evt) {
+                // Progreso de carga opcional
+            }, function (scene, message, exception) {
+                statusText.innerText = "Error al cargar los modelos. Revisa los nombres.";
+                console.error(message, exception);
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        // Bucle de renderizado para mantener el movimiento
+        engine.runRenderLoop(function () {
+            scene.render();
+        });
+
+        // Ajustar el lienzo si se cambia el tamaño de la ventana
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
