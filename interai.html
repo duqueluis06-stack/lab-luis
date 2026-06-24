@@ -257,41 +257,37 @@ let proximoCambioGaze = Date.now() + 6000;
             }
         }
 
-        async function generarYReproducirVoz(texto, avatar) {
-            return new Promise((resolve) => {
-                window.speechSynthesis.cancel();
-                
-                const textoLimpio = texto.replace(/[*#_`]/g, "");
-                const utterance = new SpeechSynthesisUtterance(textoLimpio);
-                
-                // Forzar obtención limpia de voces disponibles en el sistema operativo real
-                const todasLasVoces = window.speechSynthesis.getVoices();
-                const vocesEs = todasLasVoces.filter(v => v.lang.toLowerCase().startsWith("es"));
-                
-                // Filtrado estricto para perfiles masculinos de Windows, Mac, Android o Google Chrome
-                const vocesMasculinas = vocesEs.filter(v => {
-                    const n = v.name.toLowerCase();
-                    return n.includes("jorge") || n.includes("diego") || n.includes("siri") || n.includes("google") || n.includes("male") || n.includes("david");
-                });
+       async function generarYReproducirVoz(texto, avatar) {
+    return new Promise((resolve) => {
+        window.speechSynthesis.cancel();
 
-                // Asignación de voces diferenciadas si existen; si no, forzar variaciones físicas reales en el motor
-                if (avatar === "Luis") {
-                    utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("jorge") || v.name.toLowerCase().includes("david")) || vocesMasculinas[0] || vocesEs[0];
-                    utterance.rate = 0.85; 
-                    utterance.pitch = 0.8; // Baja el tono drásticamente para masculinar la voz por defecto
-                } else {
-                    utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("diego") || v.name.toLowerCase().includes("google")) || vocesMasculinas[1] || vocesMasculinas[0] || vocesEs[0];
-                    utterance.rate = 1.05; 
-                    utterance.pitch = 1.0; // Mantiene tono estándar o neutral
-                }
+        const limpio = texto.replace(/[*#_`]/g, "");
+        const utterance = new SpeechSynthesisUtterance(limpio);
 
-                utterance.onstart = () => { currentSpeaker = avatar; };
-                const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 200); };
-                utterance.onend = endHandler; utterance.onerror = endHandler;
-                
-                window.speechSynthesis.speak(utterance);
-            });
+        const voces = window.speechSynthesis.getVoices();
+        const es = voces.filter(v => v.lang && v.lang.toLowerCase().startsWith("es"));
+
+        const v1 = es[0] || voces[0];
+        const v2 = es[1] || es[0] || voces[0];
+
+        if (avatar === "Luis") {
+            utterance.voice = v1;
+            utterance.rate = 0.9;
+            utterance.pitch = 0.6;
+        } else {
+            utterance.voice = v2;
+            utterance.rate = 1.05;
+            utterance.pitch = 1.0;
         }
+
+        utterance.onstart = () => { currentSpeaker = avatar; };
+        const end = () => { currentSpeaker = null; setTimeout(resolve, 200); };
+        utterance.onend = end;
+        utterance.onerror = end;
+
+        window.speechSynthesis.speak(utterance);
+    });
+}
 
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
             if (!rootMesh) return;
