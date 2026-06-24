@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InterAI - Panel Cinemático</title>
     <style>
         * {
@@ -150,8 +150,8 @@
 <body>
 
     <div id="loading-ui">
-        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ CONECTANDO MULTICANAL ACÚSTICO</h2>
-        <p id="status" style="margin:0; font-size:12px; color:#fff;">Sincronizando geometrías base...</p>
+        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ ANALIZANDO CANALES DE AUDIO LOCALES</h2>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">Buscando registros de voz en tu iPhone...</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
@@ -199,8 +199,18 @@
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
+        // Rastreador visual en pantalla para auditar las voces reales que Safari detecta
+        function auditarVocesDisponibles() {
+            if (typeof speechSynthesis === 'undefined') return;
+            const lista = speechSynthesis.getVoices();
+            const esVoces = lista.filter(v => v.lang.toLowerCase().startsWith("es")).map(v => v.name);
+            if (esVoces.length > 0 && document.getElementById("loading-ui").style.display !== "none") {
+                statusText.innerText = "Voces en Español detectadas: " + esVoces.join(" | ");
+            }
+        }
+
         if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+            speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); auditarVocesDisponibles(); };
         }
 
         function actualizarViñetasUI(hablante, texto) {
@@ -264,30 +274,32 @@
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
                         
-                        const voices = window.speechSynthesis.getVoices();
-                        const esVoices = voices.filter(v => v.lang.toLowerCase().includes("es"));
+                        const allVoices = window.speechSynthesis.getVoices();
+                        const esVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith("es"));
                         
-                        // 1. FILTRADO AGRESIVO MASCULINO
-                        const nombresMasculinos = ["jorge", "diego", "juan", "carlos", "david", "male", "pablo", "javier", "carlos"];
-                        let selectedVoice = esVoices.find(v => 
-                            nombresMasculinos.some(m => v.name.toLowerCase().includes(m))
-                        );
+                        // Buscamos explícitamente registros masculinos nativos de Apple
+                        let vozJorge = esVoices.find(v => v.name.toLowerCase().includes("jorge"));
+                        let vozDiego = esVoices.find(v => v.name.toLowerCase().includes("diego"));
+                        let vozSiri = esVoices.find(v => v.name.toLowerCase().includes("siri"));
 
-                        // 2. SEPARACIÓN GEOGRÁFICA Y VELOCIDAD DE IDENTIDAD (Solución de ruptura para iOS Safari)
+                        // ASIGNACIÓN LOGÍSTICA INTELIGENTE
                         if (avatar === "Luis") {
-                            utterance.lang = "es-ES"; // Forzar Castellano
-                            utterance.rate = 0.82;    // Ritmo pausado de ingeniería
-                            utterance.pitch = 0.35;   // Modulación ultra grave
-                            utterance.voice = selectedVoice || esVoices.find(v => v.lang.includes("ES")) || esVoices[0] || voices[0];
+                            // Prioridad 1: Jorge (España - Masculino de fábrica)
+                            // Prioridad 2: Si no existe, una variante regional distinta a la del agente
+                            utterance.voice = vozJorge || esVoices.find(v => v.lang.includes("ES")) || esVoices[0] || allVoices[0];
+                            utterance.rate = 0.88; // Luis habla con un ritmo pausado, técnico y analítico
                         } else {
-                            utterance.lang = "es-MX"; // Forzar Región México
-                            utterance.rate = 1.05;    // Ritmo fluido acelerado de asistente
-                            utterance.pitch = 0.58;   // Modulación media
-                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("diego") || v.lang.includes("MX")) || esVoices[1] || esVoices[0] || voices[0];
+                            // Prioridad 1: Diego (México - Masculino) o Siri alternativa
+                            // Prioridad 2: Segunda voz disponible para evitar duplicidad idéntica
+                            utterance.voice = vozDiego || vozSiri || esVoices.find(v => v.lang.includes("MX")) || esVoices[1] || esVoices[0] || allVoices[0];
+                            utterance.rate = 1.12; // El Agente habla de forma más ágil y fluida
                         }
 
+                        // Eliminamos la alteración del pitch que rompía las voces en iOS
+                        utterance.pitch = 1.0; 
+
                         utterance.onstart = () => { currentSpeaker = avatar; };
-                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 300); };
+                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 250); };
                         utterance.onend = endHandler; utterance.onerror = endHandler;
                         window.speechSynthesis.speak(utterance);
                     });
@@ -353,6 +365,7 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
+            // Mantener elevación de encuadre perfecta para liberar el suelo del calzado
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
@@ -361,13 +374,10 @@
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
-            statusText.innerText = "Cargando componentes gráficos...";
+            auditarVocesDisponibles();
             
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Entorno acoplado. Sincronizando Agente...";
-
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
-                    statusText.innerText = "Agente en memoria. Vinculando LuisAvatar4...";
                     agenteRoot = agentMeshes[0];
                     agentAnimations = animationGroups;
 
@@ -390,7 +400,7 @@
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
                         document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO PREPARADA";
-                        statusText.innerText = "Sincronización de audio forzada lista.";
+                        auditarVocesDisponibles();
                         document.getElementById("start-btn").style.display = "block";
                     });
                 });
