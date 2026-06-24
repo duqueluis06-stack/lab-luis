@@ -93,7 +93,7 @@
             transition: all 0.2s ease;
         }
         #reset-camera-btn {
-            right: 190px;
+            right: 200px;
             color: #ffffff;
             background: linear-gradient(90deg, #00a2ff, #00ffe5);
             box-shadow: 0 4px 12px rgba(0, 255, 204, 0.3);
@@ -119,13 +119,13 @@
 <body>
 
     <div id="loading-ui">
-        <h3 style="margin:0 0 8px 0; font-size:14px; letter-spacing:1px;">⚙️ INTERAI COGNITIVE</h3>
-        <p id="status" style="margin:0; font-size:11px; color:#fff;">Sincronizando frecuencias masculinas...</p>
+        <h3 style="margin:0 0 8px 0; font-size:14px; letter-spacing:1px;">⚙️ INTERAI KINETIC</h3>
+        <p id="status" style="margin:0; font-size:11px; color:#fff;">Ajustando filtros biométricos masculinos...</p>
     </div>
 
     <div id="hud-console">
         <div class="hud-header">📡 MONITOR DE AUDIO (DOS CANALES MASCULINOS)</div>
-        <div id="hud-log">Inicializando interai.html...</div>
+        <div id="hud-log">Cargando módulos estables en interai.html...</div>
     </div>
 
     <div id="instructions-ui">
@@ -133,7 +133,7 @@
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 ENFOCAR AVATARES</button>
-    <button id="exit-btn" class="control-btn" onclick="salirDelEntorno()">❌ SALIR</button>
+    <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 REVOLVER A INICIO</button>
 
     <canvas id="renderCanvas"></canvas>
 
@@ -152,9 +152,12 @@
         let luisAnimations = [];
         let currentSpeaker = null; 
 
+        // Variables cinemáticas para cabeceo y miradas fluidas Lerp (Evita temblores)
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
-        let proximoCambioGaze = 0;
+        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.agente.y, COORDENADAS.luisavatar.z);
+        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
+        let proximoCambioGaze = Date.now() + 10000; // El primer cabeceo ocurrirá pronto
 
         const hudLog = document.getElementById("hud-log");
         function reportHUD(avatar, msg, color = "#fff") {
@@ -181,7 +184,7 @@
                 return data.reply || "...";
             } catch (error) {
                 console.error("Error en enlace Worker-Groq:", error);
-                return "Fluctuación menor en el enlace de datos. Reajustando receptores...";
+                return "Fluctuación en la recepción de datos. Sincronizando transceptores de laboratorio...";
             }
         }
 
@@ -210,29 +213,25 @@
                         audio.play().catch(() => { currentSpeaker = null; resolve(); });
                     });
                 } else {
-                    // Fallback nativo corregido: Filtro estricto de nombres masculinos y alteración de Pitch físico
+                    // Control estricto de síntesis masculina por software con pitch modificado
                     return new Promise((resolve) => {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
                         const voices = window.speechSynthesis.getVoices();
-                        
                         const esVoices = voices.filter(v => v.lang.startsWith("es"));
                         
-                        // Palabras clave de bases de datos de voces masculinas comunes (Sistemas Windows, Android, Apple)
                         const filtrosMasculinos = ["raul", "david", "jorge", "juan", "pablo", "mateo", "carlos", "enrique", "male"];
                         const maleVoices = esVoices.filter(v => 
                             filtrosMasculinos.some(firma => v.name.toLowerCase().includes(firma))
                         );
 
                         if (avatar === "Luis") {
-                            // 🎙️ Configuración Luis: Barítono profundo de ingeniería
                             utterance.voice = maleVoices[0] || esVoices[1] || esVoices[0];
-                            utterance.pitch = 0.60; 
+                            utterance.pitch = 0.60; // Registro bajo y técnico
                             utterance.rate = 0.90;
                         } else {
-                            // 🤖 Configuración Agente: Tono masculino intermedio analítico
                             utterance.voice = maleVoices[1] || maleVoices[0] || esVoices[0];
-                            utterance.pitch = 0.85; 
+                            utterance.pitch = 0.85; // Sintetizador analítico masculino
                             utterance.rate = 1.02;
                         }
 
@@ -274,7 +273,7 @@
         async function iniciarInteraccionAvatares() {
             hudLog.innerText = "";
             let hablanteActual = "Agente";
-            let ultimoMensaje = "Hola Luis. Sistemas calibrados de forma simétrica. Todo el entorno de pruebas electrónicas está acoplado en la raíz. ¿Qué análisis iniciamos?";
+            let ultimoMensaje = "Hola Luis. Sistemas estables acoplados en la raíz del laboratorio. El filtro de frecuencias está verificado. ¿Con qué protocolo de pruebas comenzamos hoy?";
             
             reportHUD(hablanteActual, ultimoMensaje, "#00ffcc");
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
@@ -286,9 +285,9 @@
                 
                 let contextoPrompt = "";
                 if (hablanteActual === "Luis") {
-                    contextoPrompt = `[Eres Luis, ingeniero senior de pruebas físicas electrónicas. Responde con enfoque innovador y directo de 2 a 4 frases técnicas realistas]: ${ultimoMensaje}`;
+                    contextoPrompt = `[Eres Luis, ingeniero senior de pruebas físicas electrónicas. Responde con un enfoque innovador, directo y conciso de 2 a 4 frases técnicas realistas]: ${ultimoMensaje}`;
                 } else {
-                    contextoPrompt = `[Eres el Agente, una IA de soporte avanzada. Aporta datos analíticos precisos y cortos]: ${ultimoMensaje}`;
+                    contextoPrompt = `[Eres el Agente, una IA analítica avanzada masculina. Da soporte y datos breves a las afirmaciones de Luis]: ${ultimoMensaje}`;
                 }
 
                 let respuesta = await consultarGroqWorker(contextoPrompt);
@@ -332,11 +331,11 @@
 
             const statusText = document.getElementById("status");
 
-            // 1. Escenario
+            // 1. Ciudad
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 statusText.innerText = "Ciudad acoplada. Configurando Agente Masculino...";
 
-                // 2. Agente (M)
+                // 2. Agente
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
                     statusText.innerText = "Agente en línea. Cargando perfil LuisAvatar...";
                     
@@ -353,9 +352,9 @@
                         agentAnimations.forEach(group => group.start(true));
                     }
 
-                    // 3. Tu Avatar (M)
+                    // 3. Tu Avatar
                     BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, animationGroups) {
-                        statusText.innerText = "Simulación neuronal lista. Rompiendo monotonía...";
+                        statusText.innerText = "Sistemas cinemáticos sincronizados. Inicializando...";
                         
                         luisRoot = luisMeshes[0];
                         luisAnimations = animationGroups;
@@ -381,53 +380,58 @@
                 console.error(message, exception);
             });
 
-            // --- RECORRIDO DE RENDERIZADO (MIRADAS, BRAZOS Y ORIENTACIÓN CARA A CARA) ---
+            // --- BUCLE DE RENDERIZADO SUAVIZADO (SINE-WAVE LIP SYNC & LERP GAZE) ---
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // Movimiento asíncrono de brazos: Se ralentizan al 15% (modo escucha/respiración) si no están hablando
+                // 🦾 CONTROL GESTICULAR CONTROLADO (Evita braceo frenético repetitivo de Luis)
                 if (luisAnimations.length > 0) {
                     luisAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.15;
+                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.30 : 0.03; // Movimiento lento y controlado al hablar / respiración estática en reposo
                     });
                 }
                 if (agentAnimations.length > 0) {
                     agentAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.15;
+                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.30 : 0.03; // Movimientos mínimos y naturales para el agente
                     });
                 }
 
-                // Desvíos procedurales de cabeza/mirada a los lados
+                // 🧠 SISTEMA DE CABECEOS SUAVES (Cada 25-35 segundos)
                 if (ahora > proximoCambioGaze) {
-                    proximoCambioGaze = ahora + 3000 + Math.random() * 4000;
-                    if (Math.random() > 0.65) {
-                        desvioMiradaAgente = new BABYLON.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.2);
-                        desvioMiradaLuis = new BABYLON.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.2);
+                    proximoCambioGaze = ahora + 25000 + Math.random() * 10000; // Cadencia limpia de ~30s
+                    
+                    if (Math.random() > 0.35) {
+                        // Generar una desviación de mirada/cabeza suave y natural
+                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.25, (Math.random() - 0.4) * 0.12, (Math.random() - 0.5) * 0.15);
+                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.25, (Math.random() - 0.4) * 0.12, (Math.random() - 0.5) * 0.15);
                     } else {
+                        // Retorno al centro simétrico
                         desvioMiradaAgente.setAll(0);
                         desvioMiradaLuis.setAll(0);
                     }
                 }
 
-                // Rotación e inversión compensatoria de 180° (Corrige el error de quedar de espaldas)
+                // 🔄 ORIENTACIÓN CARA A CARA SIN INTERRUPCIONES NI TEMBLORES (Interpolación Vector3.Lerp)
                 if (agenteRoot && luisRoot) {
-                    let baseTargetAgente = new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z);
-                    let baseTargetLuis = new BABYLON.Vector3(agenteRoot.position.x, luisRoot.position.y, agenteRoot.position.z);
+                    let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z).add(desvioMiradaAgente);
+                    let objetivoLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luisRoot.position.y, COORDENADAS.agente.z).add(desvioMiradaLuis);
 
-                    baseTargetAgente.addInPlace(desvioMiradaAgente);
-                    baseTargetLuis.addInPlace(desvioMiradaLuis);
+                    // Interpolación a paso 0.025 para una amortiguación fluida y sin sacudidas mecánicas
+                    actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.025);
+                    actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.025);
 
-                    agenteRoot.lookAt(baseTargetAgente);
+                    agenteRoot.lookAt(actualTargetAgente);
                     agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
 
-                    luisRoot.lookAt(baseTargetLuis);
+                    luisRoot.lookAt(actualTargetLuis);
                     luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
                 }
 
-                // Modulación sincrónica de labios
+                // 👄 MODULACIÓN INTEGRAL DE LABIOS SUAVE (Sin Math.random para erradicar temblores de malla)
                 if (currentSpeaker) {
                     let targets = (currentSpeaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
-                    let wave = Math.abs(Math.sin(ahora * 0.022)) * 0.7 + Math.random() * 0.25;
+                    // Combinación armónica de dos ondas senoidales para simular fonemas fluidos y orgánicos
+                    let wave = Math.abs(Math.sin(ahora * 0.015) * 0.6 + Math.sin(ahora * 0.035) * 0.4);
 
                     targets.forEach(t => {
                         if (t.type === "morph") {
@@ -437,6 +441,7 @@
                         }
                     });
                 } else {
+                    // Estado de reposo absoluto
                     [mouthTargetsAgente, mouthTargetsLuis].forEach(targets => {
                         targets.forEach(t => {
                             if (t.type === "morph") t.target.influence = 0;
@@ -460,12 +465,9 @@
             }
         }
 
-        function salirDelEntorno() {
-            if (confirm("¿Finalizar sesión táctica e interrumpir transmisiones?")) {
-                window.speechSynthesis.cancel();
-                window.close();
-                window.location.href = "about:blank"; 
-            }
+        function regresarAlIndex() {
+            window.speechSynthesis.cancel();
+            window.location.href = "index.html"; 
         }
 
         engine.runRenderLoop(function () {
