@@ -58,26 +58,44 @@
     </div>
 
     <div id="instructions-ui">
-        🖱️ <b>Clic Izquierdo:</b> Rotar cámara | 🎡 <b>Rueda:</b> Zoom | 🖱️ <b>Clic Derecho:</b> Desplazarse por la ciudad
+        Anclados en zona despejada. 🖱️ <b>Clic Derecho:</b> Desplazarse por la ciudad | 🎡 <b>Rueda:</b> Zoom
     </div>
 
     <canvas id="renderCanvas"></canvas>
 
     <script>
+        // =======================================================================
+        // 🛠️ PANEL DE CONTROL DE POSICIONES (Modifica estos números fácilmente)
+        // =======================================================================
+        const COORDENADAS = {
+            agente: {
+                x: -2.5,       // Movido más a la izquierda para librar el poste
+                y: 0.02,       // BAJADO de 0.25 a 0.02 para que pise el suelo
+                z: 3.0,        // Movido hacia adelante (eje Z) para sacarlo del poste por completo
+                rotacion: -Math.PI / 2  // Girado 180° respecto al anterior para que mire a Luis
+            },
+            luisavatar: {
+                x: 2.5,        // Movido más a la derecha frente al agente
+                y: 0.02,       // BAJADO de 0.25 a 0.02 para que pise el suelo
+                z: 3.0,        // Alineado en el mismo eje Z despejado
+                rotacion: Math.PI / 2   // Girado para mirar de frente al agente
+            }
+        };
+        // =======================================================================
+
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            
             scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.04, 1);
 
-            // CÁMARA MEJORADA: Se aumentó el límite de alejamiento a 250 para explorar toda la ciudad
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 12, new BABYLON.Vector3(0, 1, 0), scene);
+            // Cámara con paneo habilitado para explorar libremente
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 15, new BABYLON.Vector3(0, 1, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.5; 
-            camera.upperRadiusLimit = 250; // Permite un zoom out masivo
-            camera.panningSensibility = 1000; // Activa y suaviza el movimiento libre por el mapa (Clic derecho)
+            camera.upperRadiusLimit = 300; 
+            camera.panningSensibility = 1000; // Clic derecho para arrastrar la cámara por las calles
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.85;
@@ -88,7 +106,7 @@
 
             const statusText = document.getElementById("status");
 
-            // 1. Cargar el Entorno (city2.glb)
+            // 1. Cargar la Ciudad (city2.glb)
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 statusText.innerText = "Ciudad cargada. Trayendo avatares...";
 
@@ -97,14 +115,11 @@
                     statusText.innerText = "Agente cargado...";
                     
                     if(agentMeshes[0]) {
-                        // Forzar a Babylon a ignorar quaternions nativos para permitir rotación manual limpia
-                        agentMeshes[0].rotationQuaternion = null;
+                        agentMeshes[0].rotationQuaternion = null; // Desbloquear rotación
                         
-                        // CORRECCIÓN: Y aumentado a 0.25 para sacar los pies del cemento
-                        agentMeshes[0].position = new BABYLON.Vector3(-1.8, 0.25, 0);
-                        
-                        // CORRECCIÓN: Rotación fijada para mirar hacia el frente (+X)
-                        agentMeshes[0].rotation = new BABYLON.Vector3(0, Math.PI / 2, 0);
+                        // Aplicar los valores del Panel de Control superior
+                        agentMeshes[0].position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
+                        agentMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.agente.rotacion, 0);
                     }
 
                     if (animationGroups.length > 0) {
@@ -117,17 +132,14 @@
                         
                         setTimeout(() => {
                             document.getElementById("loading-ui").style.display = "none";
-                        }, 2500);
+                        }, 2000);
 
                         if(luisMeshes[0]) {
-                            // Forzar a Babylon a ignorar quaternions nativos
-                            luisMeshes[0].rotationQuaternion = null;
+                            luisMeshes[0].rotationQuaternion = null; // Desbloquear rotación
                             
-                            // CORRECCIÓN: Y aumentado a 0.25 para sacar los pies del cemento
-                            luisMeshes[0].position = new BABYLON.Vector3(1.8, 0.25, 0);
-                            
-                            // CORRECCIÓN: Rotación invertida para mirar directamente al agente (-X)
-                            luisMeshes[0].rotation = new BABYLON.Vector3(0, -Math.PI / 2, 0);
+                            // Aplicar los valores del Panel de Control superior
+                            luisMeshes[0].position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
+                            luisMeshes[0].rotation = new BABYLON.Vector3(0, COORDENADAS.luisavatar.rotacion, 0);
                         }
 
                         if (luisAnimations.length > 0) {
