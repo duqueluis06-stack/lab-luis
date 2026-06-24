@@ -188,21 +188,12 @@
         let currentSpeaker = null; 
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
-let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
+        let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
-let actualTargetAgente = new BABYLON.Vector3(
-    COORDENADAS.luisavatar.x,
-    COORDENADAS.agente.y,
-    COORDENADAS.luisavatar.z
-);
+        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.agente.y, COORDENADAS.luisavatar.z);
+        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
 
-let actualTargetLuis = new BABYLON.Vector3(
-    COORDENADAS.agente.x,
-    COORDENADAS.luisavatar.y,
-    COORDENADAS.agente.z
-);
-
-let proximoCambioGaze = Date.now() + 6000;
+        let proximoCambioGaze = Date.now() + 6000;
 
         const statusText = document.getElementById("status");
         const boxAgente = document.getElementById("bubble-agente");
@@ -210,7 +201,6 @@ let proximoCambioGaze = Date.now() + 6000;
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
-        // Carga forzada de voces antes de ejecutar cualquier acción
         function precargarVoces() {
             if (typeof speechSynthesis !== 'undefined') {
                 window.speechSynthesis.getVoices();
@@ -257,44 +247,49 @@ let proximoCambioGaze = Date.now() + 6000;
             }
         }
 
-async function generarYReproducirVoz(texto, avatar) {
-    return new Promise((resolve) => {
-        window.speechSynthesis.cancel();
+        async function generarYReproducirVoz(texto, avatar) {
+            return new Promise((resolve) => {
+                window.speechSynthesis.cancel();
 
-        const limpio = texto.replace(/[*#_`]/g, "");
-        const utterance = new SpeechSynthesisUtterance(limpio);
+                const limpio = texto.replace(/[*#_`]/g, "");
+                const utterance = new SpeechSynthesisUtterance(limpio);
+                
+                // Forzar idioma español nativo en la emisión
+                utterance.lang = "es-ES";
 
-        const voces = window.speechSynthesis.getVoices();
+                const voces = window.speechSynthesis.getVoices();
 
-        const es = voces.filter(v =>
-            v.lang && v.lang.toLowerCase().includes("es")
-        );
+                // 1. Filtrar ESTRICTAMENTE solo voces que contengan "es" (Español)
+                const esVoces = voces.filter(v =>
+                    v.lang && v.lang.toLowerCase().includes("es")
+                );
 
-        const vozMasculina =
-            voces.find(v => /david|jorge|diego|manuel|male/i.test((v.name || "").toLowerCase())) ||
-            es[0] || voces[0];
+                // 2. Buscar nombres masculinos tradicionales SOLO dentro del catálogo en español
+                const masculinasHispana = esVoces.filter(v =>
+                    /pablo|raul|jorge|diego|manuel|carlos|javier|male|david|alvaro|enrique/i.test((v.name || "").toLowerCase())
+                );
 
-        const vozFemenina =
-            voces.find(v => /maria|sofia|lucia|female|google/i.test((v.name || "").toLowerCase())) ||
-            es[1] || es[0] || voces[0];
+                // Asignar recursos de voz controlados
+                let vozLuis = masculinasHispana[0] || esVoces[0] || voces[0];
+                let vozAgente = masculinasHispana[1] || masculinasHispana[0] || esVoces[1] || esVoces[0] || voces[0];
 
-        if (avatar === "Luis") {
-            utterance.voice = vozMasculina;
-            utterance.rate = 0.9;
-            utterance.pitch = 0.7;
-        } else {
-            utterance.voice = vozFemenina;
-            utterance.rate = 1.05;
-            utterance.pitch = 1.1;
+                if (avatar === "Luis") {
+                    utterance.voice = vozLuis;
+                    utterance.rate = 0.85; // Modulación más pausada e ingenieril
+                    utterance.pitch = 0.75; // Tono más grave
+                } else {
+                    utterance.voice = vozAgente;
+                    utterance.rate = 1.0;   // Ritmo estándar de IA asistencial
+                    utterance.pitch = 1.05; // Tono sutilmente más alto para generar contraste binaural claro
+                }
+
+                utterance.onstart = () => { currentSpeaker = avatar; };
+                utterance.onend = () => { currentSpeaker = null; setTimeout(resolve, 200); };
+                utterance.onerror = utterance.onend;
+
+                window.speechSynthesis.speak(utterance);
+            });
         }
-
-        utterance.onstart = () => { currentSpeaker = avatar; };
-        utterance.onend = () => { currentSpeaker = null; setTimeout(resolve, 200); };
-        utterance.onerror = utterance.onend;
-
-        window.speechSynthesis.speak(utterance);
-    });
-}
 
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
             if (!rootMesh) return;
@@ -351,7 +346,7 @@ async function generarYReproducirVoz(texto, avatar) {
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
+            scene.clearColor = new BABYLColor4(0.01, 0.01, 0.02, 1);
 
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
@@ -411,21 +406,13 @@ async function generarYReproducirVoz(texto, avatar) {
                         desvioMiradaLuis.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
                     } else {
                         desvioMiradaAgente.set(0, 0, 0);
-desvioMiradaLuis.set(0, 0, 0);
+                        desvioMiradaLuis.set(0, 0, 0);
                     }
                 }
 
                 if (agenteRoot?.position && luisRoot?.position) {
-        let objetivoAgente = new BABYLON.Vector3(
-    luisRoot.position.x || 0,
-    agenteRoot.position.y || 0,
-    luisRoot.position.z || 0
-     ).add(desvioMiradaAgente);
-                    let objetivoLuis = new BABYLON.Vector3(
-    COORDENADAS.agente.x,
-    luisRoot.position.y || 0,
-    COORDENADAS.agente.z
-).add(desvioMiradaLuis);
+                    let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x || 0, agenteRoot.position.y || 0, luisRoot.position.z || 0).add(desvioMiradaAgente);
+                    let objetivoLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luisRoot.position.y || 0, COORDENADAS.agente.z).add(desvioMiradaLuis);
 
                     actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.03);
                     actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.03);
@@ -469,10 +456,10 @@ desvioMiradaLuis.set(0, 0, 0);
         }
 
         engine.runRenderLoop(() => {
-    if (scene && scene.activeCamera) {
-        scene.render();
-    }
-});
+            if (scene && scene.activeCamera) {
+                scene.render();
+            }
+        });
         window.addEventListener("resize", function () { engine.resize(); });
     </script>
 </body>
