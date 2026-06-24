@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>InterAI - Entorno de Pruebas Tácticas</title>
     <style>
         * {
@@ -24,7 +24,7 @@
             touch-action: none;
         }
         
-        /* 🔋 PANTALLA DE INICIO Y DESBLOQUEO DE AUDIO PARA IOS */
+        /* PANTALLA DE INICIO Y DESBLOQUEO DE AUDIO */
         #loading-ui {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -54,7 +54,7 @@
             letter-spacing: 1px;
         }
         
-        /* 📡 CONSOLA HUD DESPLAZADA ABAJO EN MÓVILES PARA NO TAPAR LAS CABEZAS */
+        /* CONSOLA HUD INFERIOR EXCLUSIVA PARA MÓVILES */
         #hud-console {
             position: absolute;
             top: 20px;
@@ -86,7 +86,6 @@
             line-height: 1.5;
         }
         
-        /* 📱 INSTRUCCIONES EN EL BORDE SUPERIOR EXTERIOR */
         #instructions-ui {
             position: absolute;
             top: 15px;
@@ -132,7 +131,6 @@
             box-shadow: 0 4px 12px rgba(217, 4, 41, 0.3);
         }
 
-        /* 📱 MEDIA QUERIES REDISEÑADAS TÁCTICAMENTE PARA TU IPHONE */
         @media (max-width: 768px) {
             #instructions-ui {
                 top: 12px;
@@ -145,14 +143,13 @@
                 padding: 8px;
                 white-space: normal;
             }
-            /* Consola enviada abajo, despejando la visual de los Avatares */
             #hud-console {
                 top: auto;
                 bottom: 75px; 
                 left: 12px;
                 right: 12px;
                 width: auto;
-                max-height: 115px;
+                max-height: 110px;
                 padding: 10px;
             }
             .desktop-ins { display: none; }
@@ -175,18 +172,18 @@
 
     <div id="loading-ui">
         <h2 id="load-title" style="margin:0 0 10px 0; font-size:16px; letter-spacing:1px; color:#00ffcc;">⚙️ CONECTANDO MATRIZ INTERAI</h2>
-        <p id="status" style="margin:0; font-size:12px; color:#fff;">Sincronizando mallas y geometrías...</p>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">Inicializando hardware gráfico móvil...</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ ENTRAR AL ENTORNO (ACTIVAR VOZ)</button>
     </div>
 
     <div id="hud-console">
         <div class="hud-header">📡 MONITOR DE AUDIO (DOS CANALES MASCULINOS)</div>
-        <div id="hud-log">Esperando inicialización de hardware...</div>
+        <div id="hud-log">Esperando transceptores...</div>
     </div>
 
     <div id="instructions-ui">
-        <span class="desktop-ins">💾 <b>Clic Izquierdo:</b> Rotar | 🎡 <b>Zoom</b> | 🖱️ <b>Clic Derecho:</b> Desplazamiento</span>
-        <span class="mobile-ins">📱 <b>1 Dedo:</b> Rotar | 🤏 <b>Pellizco:</b> Zoom | ✋ <b>2 Dedos:</b> Ajustar Cámara</span>
+        <span class="desktop-ins">💾 <b>Clic Izquierdo:</b> Rotar | 🎡 <b>Zoom</b></span>
+        <span class="mobile-ins">📱 <b>1 Dedo:</b> Rotar | 🤏 <b>Pellizco:</b> Zoom (Cabezas despejadas)</span>
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 ENFOCAR AVATARES</button>
@@ -215,7 +212,9 @@
         let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
         let proximoCambioGaze = Date.now() + 8000; 
 
+        const statusText = document.getElementById("status");
         const hudLog = document.getElementById("hud-log");
+
         function reportHUD(avatar, msg, color = "#fff") {
             const div = document.createElement("div");
             div.style.color = color;
@@ -225,11 +224,9 @@
             document.getElementById("hud-console").scrollTop = document.getElementById("hud-console").scrollHeight;
         }
 
-        // Ejecución tras el toque del usuario en iPhone para romper las restricciones de Apple
         function desbloquearAudioYComenzar() {
             if (typeof window.speechSynthesis !== 'undefined') {
                 window.speechSynthesis.cancel();
-                // Inyección de fonema vacío para abrir compuertas de audio nativas
                 let desbloqueo = new SpeechSynthesisUtterance("");
                 window.speechSynthesis.speak(desbloqueo);
             }
@@ -242,17 +239,12 @@
                 const response = await fetch(WORKER_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message: promptText,
-                        context: historialDialogo,
-                        lang: "es-ES"
-                    })
+                    body: JSON.stringify({ message: promptText, context: historialDialogo, lang: "es-ES" })
                 });
                 const data = await response.json();
                 return data.reply || "...";
             } catch (error) {
-                console.error("Error en enlace Worker-Groq:", error);
-                return "Sincronizando canales alternativos de telemetría...";
+                return "Sincronizando canales de telemetría de respaldo...";
             }
         }
 
@@ -271,54 +263,49 @@
 
                     return new Promise((resolve) => {
                         audio.onplay = () => { currentSpeaker = avatar; };
-                        const endHandler = () => {
-                            currentSpeaker = null;
-                            URL.revokeObjectURL(audioUrl);
-                            resolve();
-                        };
-                        audio.onended = endHandler;
-                        audio.onerror = endHandler;
+                        const endHandler = () => { currentSpeaker = null; URL.revokeObjectURL(audioUrl); resolve(); };
+                        audio.onended = endHandler; audio.onerror = endHandler;
                         audio.play().catch(() => { currentSpeaker = null; resolve(); });
                     });
                 } else {
+                    // Fallback estricto de iOS - Exclusión de voces femeninas Apple
                     return new Promise((resolve) => {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
                         const voices = window.speechSynthesis.getVoices();
                         const esVoices = voices.filter(v => v.lang.startsWith("es"));
                         
-                        const filtrosMasculinos = ["raul", "david", "jorge", "juan", "pablo", "mateo", "carlos", "enrique", "male"];
+                        // Lista negra explícita para evitar que iOS asigne una mujer por defecto
+                        const nombresFemeninos = ["monica", "marisol", "helena", "paula", "sara", "siri", "female", "mujer", "carmen", "lucia"];
                         const maleVoices = esVoices.filter(v => 
-                            filtrosMasculinos.some(firma => v.name.toLowerCase().includes(firma))
+                            !nombresFemeninos.some(femenino => v.name.toLowerCase().includes(femenino))
                         );
 
+                        // Asignación segura
                         if (avatar === "Luis") {
-                            utterance.voice = maleVoices[0] || esVoices[1] || esVoices[0];
+                            utterance.voice = maleVoices[0] || esVoices.find(v => v.name.toLowerCase().includes("jorge")) || esVoices[0];
                             utterance.pitch = 0.60; 
                             utterance.rate = 0.90;
                         } else {
                             utterance.voice = maleVoices[1] || maleVoices[0] || esVoices[0];
-                            utterance.pitch = 0.85; 
+                            utterance.pitch = 0.82; 
                             utterance.rate = 1.02;
                         }
 
                         utterance.onstart = () => { currentSpeaker = avatar; };
                         const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 400); };
-                        utterance.onend = endHandler;
-                        utterance.onerror = endHandler;
+                        utterance.onend = endHandler; utterance.onerror = endHandler;
                         window.speechSynthesis.speak(utterance);
                     });
                 }
             } catch (error) {
-                console.error("Error en procesador de voz:", error);
+                console.error("Fallo de audio:", error);
             }
         }
 
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
             if (!rootMesh) return;
-            const childMeshes = rootMesh.getChildMeshes();
-            
-            childMeshes.forEach(mesh => {
+            rootMesh.getChildMeshes().forEach(mesh => {
                 const name = (mesh.name || "").toLowerCase();
                 if (mesh.morphTargetManager) {
                     const manager = mesh.morphTargetManager;
@@ -340,34 +327,25 @@
         async function iniciarInteraccionAvatares() {
             hudLog.innerText = "";
             let hablanteActual = "Agente";
-            let ultimoMensaje = "Hola Luis. Sistemas móviles e interfaz cinemática sincronizados perfectamente. El canal de voz masculino está abierto. ¿Qué pruebas iniciamos?";
+            let ultimoMensaje = "Hola Luis. Canal gráfico y de audio sincronizados en iPhone sin oclusión visual. ¿Iniciamos el protocolo de pruebas?";
             
             reportHUD(hablanteActual, ultimoMensaje, "#00ffcc");
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
-            
             await generarYReproducirVoz(ultimoMensaje, hablanteActual);
 
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
-                
-                let contextoPrompt = "";
-                if (hablanteActual === "Luis") {
-                    contextoPrompt = `[Eres Luis, ingeniero senior de pruebas físicas electrónicas. Responde con un enfoque innovador, directo y conciso de 2 a 4 frases técnicas realistas]: ${ultimoMensaje}`;
-                } else {
-                    contextoPrompt = `[Eres el Agente, una IA analítica avanzada masculina. Da soporte y datos breves a Luis]: ${ultimoMensaje}`;
-                }
+                let contextoPrompt = (hablanteActual === "Luis") 
+                    ? `[Eres Luis, ingeniero de pruebas físicas electrónicas. Responde innovador y conciso en 2 frases]: ${ultimoMensaje}`
+                    : `[Eres el Agente, una IA analítica masculina. Da soporte breve a Luis]: ${ultimoMensaje}`;
 
                 let respuesta = await consultarGroqWorker(contextoPrompt);
-
                 if (respuesta) {
                     ultimoMensaje = respuesta;
                     let colorHUD = (hablanteActual === "Luis") ? "#00a2ff" : "#00ffcc";
-                    
                     reportHUD(hablanteActual, ultimoMensaje, colorHUD);
                     historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
-                    
-                    if (historialDialogo.length > 14) historialDialogo.splice(0, 2);
-                    
+                    if (historialDialogo.length > 10) historialDialogo.splice(0, 2);
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
                 await new Promise(resolve => setTimeout(resolve, 1400));
@@ -375,7 +353,8 @@
         }
 
         const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
+        // 🚨 CONFIGURACIÓN ANTIALIAS EN FALSE: Clave absoluta para evitar pantallas negras en iOS por falta de RAM
+        const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
         let camera; 
         let agenteRoot, luisRoot;
 
@@ -385,27 +364,28 @@
 
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 4.5, new BABYLON.Vector3(0, 1.2, 3), scene);
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 1.0; 
-            camera.upperRadiusLimit = 80; 
-            camera.panningSensibility = 1500; 
+            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 40;
+            camera.panningSensibility = 1800; 
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.9;
+
+            // CONTROLADOR GLOBAL DE ERRORES DE CARGA GLB
+            const errorHandler = (meshName) => (scene, msg, exc) => {
+                statusText.style.color = "#ff3366";
+                statusText.innerText = `⚠️ Fallo en hardware: No se encontró o falló ${meshName}`;
+                console.error(msg, exc);
+            };
+
+            statusText.innerText = "Cargando mapa urbano base...";
             
-            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
-            dirLight.position = new BABYLON.Vector3(5, 12, 5);
-            dirLight.intensity = 0.7;
-
-            const statusText = document.getElementById("status");
-
-            // 1. Entorno Ciudad
+            // 1. Ciudad
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Ciudad en línea. Acoplando Agente...";
+                statusText.innerText = "Mapa acoplado. Descargando Agente...";
 
-                // 2. Modelo Agente
-                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
-                    statusText.innerText = "Agente listo. Cargando Avatar de Luis...";
-                    
+                // 2. Agente
+                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
+                    statusText.innerText = "Agente en memoria. Descargando LuisAvatar4...";
                     agenteRoot = agentMeshes[0];
                     agentAnimations = animationGroups;
 
@@ -414,13 +394,10 @@
                         agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
                         setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
                     }
-
-                    if (agentAnimations.length > 0) {
-                        agentAnimations.forEach(group => group.start(true));
-                    }
+                    if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
 
                     // 3. Tu Avatar Luis
-                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, animationGroups) {
+                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, rp, rs, animationGroups) {
                         luisRoot = luisMeshes[0];
                         luisAnimations = animationGroups;
 
@@ -429,52 +406,36 @@
                             luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
                             setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
                         }
+                        if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        if (luisAnimations.length > 0) {
-                            luisAnimations.forEach(anim => anim.start(true));
-                        }
-
-                        // Cambio de estado para habilitar el botón de desbloqueo táctil
-                        document.getElementById("load-title").innerText = "⚙️ SISTEMA INTERAI COMPLETO";
-                        statusText.innerText = "Listo para iniciar transmisiones de laboratorio.";
+                        document.getElementById("load-title").innerText = "⚙️ SISTEMA SESS-MÓVIL ONLINE";
+                        statusText.innerText = "Memoria gráfica optimizada. Listo para iniciar.";
                         document.getElementById("start-btn").style.display = "block";
-                    });
-                });
-            }, null, function (scene, message, exception) {
-                statusText.innerText = "Error de inicialización de entornos.";
-                console.error(message, exception);
-            });
+                    }, null, errorHandler("luisavatar4.glb"));
+                }, null, errorHandler("agent.glb"));
+            }, null, errorHandler("city2.glb"));
 
-            // --- BUCLE CINEMÁTICO ADAPTADO ---
+            // BUCLE DE SIMULACIÓN INTEGRAL SUAVIZADA
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // Freno cinemático en extremidades para evitar braceos mecánicos continuos
                 if (luisAnimations.length > 0) {
-                    luisAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.30 : 0.03;
-                    });
+                    luisAnimations.forEach(anim => { anim.speedRatio = (currentSpeaker === "Luis") ? 0.30 : 0.03; });
                 }
                 if (agentAnimations.length > 0) {
-                    agentAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.30 : 0.03;
-                    });
+                    agentAnimations.forEach(anim => { anim.speedRatio = (currentSpeaker === "Agente") ? 0.30 : 0.03; });
                 }
 
-                // Cabeceo procedural amortiguado de ~30 segundos
                 if (ahora > proximoCambioGaze) {
                     proximoCambioGaze = ahora + 25000 + Math.random() * 10000;
-                    
                     if (Math.random() > 0.35) {
-                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.25, (Math.random() - 0.4) * 0.12, (Math.random() - 0.5) * 0.15);
-                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.25, (Math.random() - 0.4) * 0.12, (Math.random() - 0.5) * 0.15);
+                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.23, (Math.random() - 0.4) * 0.11, (Math.random() - 0.5) * 0.13);
+                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.23, (Math.random() - 0.4) * 0.11, (Math.random() - 0.5) * 0.13);
                     } else {
-                        desvioMiradaAgente.setAll(0);
-                        desvioMiradaLuis.setAll(0);
+                        desvioMiradaAgente.setAll(0); desvioMiradaLuis.setAll(0);
                     }
                 }
 
-                // Interpolación fluida de mirada (Lerp) para erradicar tirones
                 if (agenteRoot && luisRoot) {
                     let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z).add(desvioMiradaAgente);
                     let objetivoLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luisRoot.position.y, COORDENADAS.agente.z).add(desvioMiradaLuis);
@@ -482,24 +443,16 @@
                     actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.025);
                     actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.025);
 
-                    agenteRoot.lookAt(actualTargetAgente);
-                    agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
-
-                    luisRoot.lookAt(actualTargetLuis);
-                    luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                    agenteRoot.lookAt(actualTargetAgente); agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                    luisRoot.lookAt(actualTargetLuis); luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
                 }
 
-                // Ondas senoidales estables para modulación de labios
                 if (currentSpeaker) {
                     let targets = (currentSpeaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
                     let wave = Math.abs(Math.sin(ahora * 0.015) * 0.6 + Math.sin(ahora * 0.035) * 0.4);
-
                     targets.forEach(t => {
-                        if (t.type === "morph") {
-                            t.target.influence = wave;
-                        } else if (t.type === "mesh") {
-                            t.mesh.scaling.y = t.originalScaleY - (wave * 0.05);
-                        }
+                        if (t.type === "morph") t.target.influence = wave;
+                        else if (t.type === "mesh") t.mesh.scaling.y = t.originalScaleY - (wave * 0.05);
                     });
                 } else {
                     [mouthTargetsAgente, mouthTargetsLuis].forEach(targets => {
@@ -518,9 +471,7 @@
 
         function resetCamaraOrigen() {
             if(camera) {
-                camera.alpha = -Math.PI / 2;
-                camera.beta = Math.PI / 2.3;
-                camera.radius = 4.5;
+                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.3; camera.radius = 4.5;
                 camera.target = new BABYLON.Vector3(0, 1.2, 3);
             }
         }
@@ -530,9 +481,8 @@
             window.location.href = "index.html"; 
         }
 
-        window.addEventListener("resize", function () {
-            engine.resize();
-        });
+        engine.runRenderLoop(function () { scene.render(); });
+        window.addEventListener("resize", function () { engine.resize(); });
 
         if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
