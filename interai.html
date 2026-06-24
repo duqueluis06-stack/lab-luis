@@ -187,6 +187,9 @@
         let luisAnimations = [];
         let currentSpeaker = null; 
 
+        // ANCLAJE GLOBAL: Protege el objeto de voz del Garbage Collector de Android/iOS
+        let activeUtterance = null; 
+
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
@@ -249,55 +252,55 @@
 
         async function generarYReproducirVoz(texto, avatar) {
             return new Promise((resolve) => {
-                window.speechSynthesis.cancel();
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
 
                 const limpio = texto.replace(/[*#_`]/g, "");
-                const utterance = new SpeechSynthesisUtterance(limpio);
                 
-                // Forzar la lectura de síntesis en español
-                utterance.lang = "es-ES";
+                // Asignamos a la variable global para que el móvil no borre el objeto de la memoria
+                activeUtterance = new SpeechSynthesisUtterance(limpio);
+                
+                // es-MX (Español Latinoamericano) es el sintetizador móvil más estable y fluido en procesadores ARM
+                activeUtterance.lang = "es-MX"; 
 
                 let voces = window.speechSynthesis.getVoices();
-
-                // 1. Filtrar estrictamente códigos de lenguaje que comiencen con "es" (Evita arrastrar pt, en, etc.)
                 let esVoces = voces.filter(v => v.lang && /^es/i.test(v.lang));
 
-                // Si la lista de español está vacía por delay del navegador, usamos el catálogo general de emergencia
-                if (esVoces.length === 0) {
-                    esVoces = voces.length > 0 ? voces : [null];
-                }
-
-                // 2. Localizar coincidencias de nombres masculinos en el set disponible
-                const rxMasculino = /david|jorge|diego|manuel|carlos|javier|pablo|raul|alvaro|enrique|male|hombre/i;
-                let masculinas = esVoces.filter(v => v && rxMasculino.test(v.name || ""));
-
-                let vozAsignada;
+                const rxMasculino = /david|jorge|diego|manuel|carlos|javier|pablo|raul|alvaro|enrique|male|hombre|sabina/i;
+                let masculinas = esVoces.filter(v => rxMasculino.test(v.name || ""));
 
                 if (avatar === "Luis") {
-                    vozAsignada = masculinas[0] || esVoces[0];
-                    if (vozAsignada) utterance.voice = vozAsignada;
-                    
-                    utterance.rate = 0.82; // Ritmo pausado humano
-                    
-                    // Si no es una voz masculina nativa identificada, forzamos distorsión ultra grave
-                    const esMasculinoReal = vozAsignada && rxMasculino.test(vozAsignada.name || "");
-                    utterance.pitch = esMasculinoReal ? 0.7 : 0.45; 
+                    if (masculinas.length > 0) {
+                        activeUtterance.voice = masculinas[0];
+                        activeUtterance.pitch = 0.82; // Umbral seguro para evitar distorsión metálica en teléfonos
+                    } else if (esVoces.length > 0) {
+                        activeUtterance.voice = esVoces[0]; 
+                        activeUtterance.pitch = 0.80; 
+                    } else {
+                        // BLINDAJE MÓVIL: Si el array falla, NO asignamos un objeto voice erróneo. 
+                        // Dejamos que el teléfono use su motor de idioma nativo por defecto.
+                        activeUtterance.pitch = 0.85;
+                    }
+                    activeUtterance.rate = 0.85; 
                 } else {
-                    // Configuración para el Agente IA
-                    vozAsignada = masculinas[1] || masculinas[0] || esVoces[1] || esVoces[0];
-                    if (vozAsignada) utterance.voice = vozAsignada;
-                    
-                    utterance.rate = 0.96; // Ritmo ligeramente superior para simular procesamiento IA
-                    
-                    const esMasculinoReal = vozAsignada && rxMasculino.test(vozAsignada.name || "");
-                    utterance.pitch = esMasculinoReal ? 0.95 : 0.62; // Contraste de modulación
+                    if (masculinas.length > 1) {
+                        activeUtterance.voice = masculinas[1];
+                        activeUtterance.pitch = 1.05;
+                    } else if (esVoces.length > 1) {
+                        activeUtterance.voice = esVoces[1];
+                        activeUtterance.pitch = 1.0;
+                    } else {
+                        activeUtterance.pitch = 1.0;
+                    }
+                    activeUtterance.rate = 0.96; 
                 }
 
-                utterance.onstart = () => { currentSpeaker = avatar; };
-                utterance.onend = () => { currentSpeaker = null; setTimeout(resolve, 200); };
-                utterance.onerror = utterance.onend;
+                activeUtterance.onstart = () => { currentSpeaker = avatar; };
+                activeUtterance.onend = () => { currentSpeaker = null; setTimeout(resolve, 200); };
+                activeUtterance.onerror = () => { currentSpeaker = null; setTimeout(resolve, 200); };
 
-                window.speechSynthesis.speak(utterance);
+                window.speechSynthesis.speak(activeUtterance);
             });
         }
 
@@ -345,7 +348,7 @@
                     if (historialDialogo.length > 8) historialDialogo.splice(0, 2);
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
-                await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
+                await new Promise(resolve => setTimeout(resolve, 1400 + Math.random() * 600));
             }
         }
 
