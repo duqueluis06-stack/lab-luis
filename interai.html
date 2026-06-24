@@ -151,7 +151,7 @@
 
     <div id="loading-ui">
         <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ ANALIZANDO CANALES DE AUDIO LOCALES</h2>
-        <p id="status" style="margin:0; font-size:12px; color:#fff;">Buscando registros de voz en tu iPhone...</p>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">SISTEMA EN LÍNEA - ENLACE DE AUDIO INICIALIZADO</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
@@ -199,17 +199,8 @@
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
-        function auditarVocesDisponibles() {
-            if (typeof speechSynthesis === 'undefined') return;
-            const lista = speechSynthesis.getVoices();
-            const esVoces = lista.filter(v => v.lang.toLowerCase().startsWith("es")).map(v => v.name);
-            if (esVoces.length > 0 && document.getElementById("loading-ui").style.display !== "none") {
-                statusText.innerText = "Voces en Español detectadas: " + esVoces.join(" | ");
-            }
-        }
-
         if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); auditarVocesDisponibles(); };
+            speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
         }
 
         function actualizarViñetasUI(hablante, texto) {
@@ -276,15 +267,27 @@
                         const allVoices = window.speechSynthesis.getVoices();
                         const esVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith("es"));
                         
-                        let vozJorge = esVoices.find(v => v.name.toLowerCase().includes("jorge"));
-                        let vozDiego = esVoices.find(v => v.name.toLowerCase().includes("diego"));
-                        let vozSiri = esVoices.find(v => v.name.toLowerCase().includes("siri"));
+                        // FILTRO TOTAL: Exclusión absoluta de registros femeninos del sistema
+                        const maleEsVoices = esVoices.filter(v => {
+                            const n = v.name.toLowerCase();
+                            return !n.includes("monica") && !n.includes("paulina") && !n.includes("marisol") && 
+                                   !n.includes("soledad") && !n.includes("lucia") && !n.includes("sara") && 
+                                   !n.includes("laura") && !n.includes("angelica") && !n.includes("angela") &&
+                                   !n.includes("carmela") && !n.includes("valeria") && !n.includes("helen") &&
+                                   !n.includes("marta") && !n.includes("sandra");
+                        });
+
+                        let vozJorge = maleEsVoices.find(v => v.name.toLowerCase().includes("jorge"));
+                        let vozDiego = maleEsVoices.find(v => v.name.toLowerCase().includes("diego"));
+                        let vozSiri = maleEsVoices.find(v => v.name.toLowerCase().includes("siri"));
 
                         if (avatar === "Luis") {
-                            utterance.voice = vozJorge || esVoices.find(v => v.lang.includes("ES")) || esVoices[0] || allVoices[0];
+                            // Intenta Jorge -> Luego cualquier masculino ES -> Luego el primer masculino limpio disponible
+                            utterance.voice = vozJorge || maleEsVoices.find(v => v.lang.includes("ES")) || maleEsVoices[0] || esVoices[0];
                             utterance.rate = 0.88; 
                         } else {
-                            utterance.voice = vozDiego || vozSiri || esVoices.find(v => v.lang.includes("MX")) || esVoices[1] || esVoices[0] || allVoices[0];
+                            // Intenta Diego -> Luego Siri -> Luego cualquier masculino MX -> Luego el segundo masculino limpio disponible
+                            utterance.voice = vozDiego || vozSiri || maleEsVoices.find(v => v.lang.includes("MX")) || maleEsVoices[1] || maleEsVoices[0] || esVoices[0];
                             utterance.rate = 1.12; 
                         }
 
@@ -333,7 +336,6 @@
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 
-                // AJUSTE: Forzado explícito de rol e inflexión gramatical masculina para evitar respuestas neutras o femeninas.
                 let contextoPrompt = (hablanteActual === "Luis") 
                     ? `[Eres Luis, ingeniero de pruebas electrónicas. Responde SIEMPRE hablando en masculino y de forma muy concisa en 2 frases fluidas al siguiente mensaje]: ${ultimoMensaje}`
                     : `[Eres el Agente, una IA de soporte. Responde SIEMPRE hablando en masculino y de manera natural y fluida en 2 frases al siguiente mensaje]: ${ultimoMensaje}`;
@@ -367,8 +369,6 @@
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
-            auditarVocesDisponibles();
-            
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
                     agenteRoot = agentMeshes[0];
@@ -393,7 +393,6 @@
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
                         document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO PREPARADA";
-                        auditarVocesDisponibles();
                         document.getElementById("start-btn").style.display = "block";
                     });
                 });
