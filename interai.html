@@ -254,33 +254,43 @@
                 const limpio = texto.replace(/[*#_`]/g, "");
                 const utterance = new SpeechSynthesisUtterance(limpio);
                 
-                // Forzar idioma español nativo en la emisión
+                // Forzar la lectura de síntesis en español
                 utterance.lang = "es-ES";
 
-                const voces = window.speechSynthesis.getVoices();
+                let voces = window.speechSynthesis.getVoices();
 
-                // 1. Filtrar ESTRICTAMENTE solo voces que contengan "es" (Español)
-                const esVoces = voces.filter(v =>
-                    v.lang && v.lang.toLowerCase().includes("es")
-                );
+                // 1. Filtrar estrictamente códigos de lenguaje que comiencen con "es" (Evita arrastrar pt, en, etc.)
+                let esVoces = voces.filter(v => v.lang && /^es/i.test(v.lang));
 
-                // 2. Buscar nombres masculinos tradicionales SOLO dentro del catálogo en español
-                const masculinasHispana = esVoces.filter(v =>
-                    /pablo|raul|jorge|diego|manuel|carlos|javier|male|david|alvaro|enrique/i.test((v.name || "").toLowerCase())
-                );
+                // Si la lista de español está vacía por delay del navegador, usamos el catálogo general de emergencia
+                if (esVoces.length === 0) {
+                    esVoces = voces.length > 0 ? voces : [null];
+                }
 
-                // Asignar recursos de voz controlados
-                let vozLuis = masculinasHispana[0] || esVoces[0] || voces[0];
-                let vozAgente = masculinasHispana[1] || masculinasHispana[0] || esVoces[1] || esVoces[0] || voces[0];
+                // 2. Localizar coincidencias de nombres masculinos en el set disponible
+                const rxMasculino = /david|jorge|diego|manuel|carlos|javier|pablo|raul|alvaro|enrique|male|hombre/i;
+                let masculinas = esVoces.filter(v => v && rxMasculino.test(v.name || ""));
+
+                let vozAsignada;
 
                 if (avatar === "Luis") {
-                    utterance.voice = vozLuis;
-                    utterance.rate = 0.85; // Modulación más pausada e ingenieril
-                    utterance.pitch = 0.75; // Tono más grave
+                    vozAsignada = masculinas[0] || esVoces[0];
+                    if (vozAsignada) utterance.voice = vozAsignada;
+                    
+                    utterance.rate = 0.82; // Ritmo pausado humano
+                    
+                    // Si no es una voz masculina nativa identificada, forzamos distorsión ultra grave
+                    const esMasculinoReal = vozAsignada && rxMasculino.test(vozAsignada.name || "");
+                    utterance.pitch = esMasculinoReal ? 0.7 : 0.45; 
                 } else {
-                    utterance.voice = vozAgente;
-                    utterance.rate = 1.0;   // Ritmo estándar de IA asistencial
-                    utterance.pitch = 1.05; // Tono sutilmente más alto para generar contraste binaural claro
+                    // Configuración para el Agente IA
+                    vozAsignada = masculinas[1] || masculinas[0] || esVoces[1] || esVoces[0];
+                    if (vozAsignada) utterance.voice = vozAsignada;
+                    
+                    utterance.rate = 0.96; // Ritmo ligeramente superior para simular procesamiento IA
+                    
+                    const esMasculinoReal = vozAsignada && rxMasculino.test(vozAsignada.name || "");
+                    utterance.pitch = esMasculinoReal ? 0.95 : 0.62; // Contraste de modulación
                 }
 
                 utterance.onstart = () => { currentSpeaker = avatar; };
@@ -346,7 +356,7 @@
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLColor4(0.01, 0.01, 0.02, 1);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
