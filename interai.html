@@ -190,7 +190,7 @@
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
         let actualTargetAgente = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.agente.y, COORDENADAS.luisavatar.z);
-        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
+        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luiavatar.y, COORDENADAS.agente.z);
         let proximoCambioGaze = Date.now() + 6000; 
 
         const statusText = document.getElementById("status");
@@ -199,9 +199,16 @@
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
-        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+        // Carga forzada de voces antes de ejecutar cualquier acción
+        function precargarVoces() {
+            if (typeof speechSynthesis !== 'undefined') {
+                window.speechSynthesis.getVoices();
+                if (speechSynthesis.onvoiceschanged !== undefined) {
+                    speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+                }
+            }
         }
+        precargarVoces();
 
         function actualizarViñetasUI(hablante, texto) {
             if (hablante === "Agente") {
@@ -220,7 +227,6 @@
                 window.speechSynthesis.cancel();
                 let desbloqueo = new SpeechSynthesisUtterance("");
                 window.speechSynthesis.speak(desbloqueo);
-                window.speechSynthesis.getVoices(); 
             }
             document.getElementById("loading-ui").style.display = "none";
             iniciarInteraccionAvatares();
@@ -241,59 +247,39 @@
         }
 
         async function generarYReproducirVoz(texto, avatar) {
-            try {
-                // Forzar el uso del Worker que generaba el audio correcto originalmente
-                const response = await fetch(WORKER_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: texto, voice: "male", speaker: avatar })
+            return new Promise((resolve) => {
+                window.speechSynthesis.cancel();
+                
+                const textoLimpio = texto.replace(/[*#_`]/g, "");
+                const utterance = new SpeechSynthesisUtterance(textoLimpio);
+                
+                // Forzar obtención limpia de voces disponibles en el sistema operativo real
+                const todasLasVoces = window.speechSynthesis.getVoices();
+                const vocesEs = todasLasVoces.filter(v => v.lang.toLowerCase().startsWith("es"));
+                
+                // Filtrado estricto para perfiles masculinos de Windows, Mac, Android o Google Chrome
+                const vocesMasculinas = vocesEs.filter(v => {
+                    const n = v.name.toLowerCase();
+                    return n.includes("jorge") || n.includes("diego") || n.includes("siri") || n.includes("google") || n.includes("male") || n.includes("david");
                 });
 
-                if (response.ok && response.headers.get("content-type")?.includes("audio")) {
-                    const audioBlob = await response.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    const audio = new Audio(audioUrl);
-
-                    return new Promise((resolve) => {
-                        audio.onplay = () => { currentSpeaker = avatar; };
-                        const endHandler = () => { currentSpeaker = null; URL.revokeObjectURL(audioUrl); resolve(); };
-                        audio.onended = endHandler; audio.onerror = endHandler;
-                        audio.play().catch(() => { currentSpeaker = null; resolve(); });
-                    });
+                // Asignación de voces diferenciadas si existen; si no, forzar variaciones físicas reales en el motor
+                if (avatar === "Luis") {
+                    utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("jorge") || v.name.toLowerCase().includes("david")) || vocesMasculinas[0] || vocesEs[0];
+                    utterance.rate = 0.85; 
+                    utterance.pitch = 0.8; // Baja el tono drásticamente para masculinar la voz por defecto
                 } else {
-                    // Fallback nativo estricto si el Worker falla en retornar el archivo binario
-                    return new Promise((resolve) => {
-                        window.speechSynthesis.cancel();
-                        const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
-                        
-                        const allVoices = window.speechSynthesis.getVoices();
-                        const esVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith("es"));
-                        
-                        // Selección estricta de perfiles masculinos nativos conocidos
-                        const vocesMasculinas = esVoices.filter(v => {
-                            const n = v.name.toLowerCase();
-                            return n.includes("jorge") || n.includes("diego") || n.includes("siri") || n.includes("google español") || n.includes("male");
-                        });
-
-                        if (avatar === "Luis") {
-                            utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("jorge")) || vocesMasculinas[0] || esVoices[0];
-                            utterance.rate = 0.88; 
-                        } else {
-                            utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("diego")) || vocesMasculinas[1] || vocesMasculinas[0] || esVoices[0];
-                            utterance.rate = 1.05; 
-                        }
-
-                        utterance.pitch = 0.9; // Forzar tono ligeramente más grave para evitar agudos femeninos
-
-                        utterance.onstart = () => { currentSpeaker = avatar; };
-                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 250); };
-                        utterance.onend = endHandler; utterance.onerror = endHandler;
-                        window.speechSynthesis.speak(utterance);
-                    });
+                    utterance.voice = vocesMasculinas.find(v => v.name.toLowerCase().includes("diego") || v.name.toLowerCase().includes("google")) || vocesMasculinas[1] || vocesMasculinas[0] || vocesEs[0];
+                    utterance.rate = 1.05; 
+                    utterance.pitch = 1.0; // Mantiene tono estándar o neutral
                 }
-            } catch (error) {
-                console.error("Error en generación de voz, aplicando rescate nativo:", error);
-            }
+
+                utterance.onstart = () => { currentSpeaker = avatar; };
+                const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 200); };
+                utterance.onend = endHandler; utterance.onerror = endHandler;
+                
+                window.speechSynthesis.speak(utterance);
+            });
         }
 
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
