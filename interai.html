@@ -199,7 +199,6 @@
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
 
-        // Rastreador visual en pantalla para auditar las voces reales que Safari detecta
         function auditarVocesDisponibles() {
             if (typeof speechSynthesis === 'undefined') return;
             const lista = speechSynthesis.getVoices();
@@ -277,25 +276,18 @@
                         const allVoices = window.speechSynthesis.getVoices();
                         const esVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith("es"));
                         
-                        // Buscamos explícitamente registros masculinos nativos de Apple
                         let vozJorge = esVoices.find(v => v.name.toLowerCase().includes("jorge"));
                         let vozDiego = esVoices.find(v => v.name.toLowerCase().includes("diego"));
                         let vozSiri = esVoices.find(v => v.name.toLowerCase().includes("siri"));
 
-                        // ASIGNACIÓN LOGÍSTICA INTELIGENTE
                         if (avatar === "Luis") {
-                            // Prioridad 1: Jorge (España - Masculino de fábrica)
-                            // Prioridad 2: Si no existe, una variante regional distinta a la del agente
                             utterance.voice = vozJorge || esVoices.find(v => v.lang.includes("ES")) || esVoices[0] || allVoices[0];
-                            utterance.rate = 0.88; // Luis habla con un ritmo pausado, técnico y analítico
+                            utterance.rate = 0.88; 
                         } else {
-                            // Prioridad 1: Diego (México - Masculino) o Siri alternativa
-                            // Prioridad 2: Segunda voz disponible para evitar duplicidad idéntica
                             utterance.voice = vozDiego || vozSiri || esVoices.find(v => v.lang.includes("MX")) || esVoices[1] || esVoices[0] || allVoices[0];
-                            utterance.rate = 1.12; // El Agente habla de forma más ágil y fluida
+                            utterance.rate = 1.12; 
                         }
 
-                        // Eliminamos la alteración del pitch que rompía las voces en iOS
                         utterance.pitch = 1.0; 
 
                         utterance.onstart = () => { currentSpeaker = avatar; };
@@ -340,9 +332,11 @@
 
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
+                
+                // AJUSTE: Forzado explícito de rol e inflexión gramatical masculina para evitar respuestas neutras o femeninas.
                 let contextoPrompt = (hablanteActual === "Luis") 
-                    ? `[Eres Luis, ingeniero de pruebas electrónicas. Responde de forma muy concisa en 2 frases fluidas al siguiente mensaje]: ${ultimoMensaje}`
-                    : `[Eres el Agente, una IA de soporte. Responde de manera natural y fluida en 2 frases]: ${ultimoMensaje}`;
+                    ? `[Eres Luis, ingeniero de pruebas electrónicas. Responde SIEMPRE hablando en masculino y de forma muy concisa en 2 frases fluidas al siguiente mensaje]: ${ultimoMensaje}`
+                    : `[Eres el Agente, una IA de soporte. Responde SIEMPRE hablando en masculino y de manera natural y fluida en 2 frases al siguiente mensaje]: ${ultimoMensaje}`;
 
                 let respuesta = await consultarGroqWorker(contextoPrompt);
                 if (respuesta) {
@@ -365,7 +359,6 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // Mantener elevación de encuadre perfecta para liberar el suelo del calzado
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
