@@ -3,67 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>InterAI - Panel Cinemático Pro</title>
+    <title>InterAI - Reconstrucción Total</title>
     <style>
+        /* ===== UI SYSTEM: STYLES ===== */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { 
             overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; 
-            background-color: #030308; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #030308; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
         }
         #renderCanvas { width: 100%; height: 100%; touch-action: none; display: block; }
-        
-        /* UI DE CARGA MATRICIAL */
+
+        /* Pantalla de Carga */
         #loading-ui {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #0c0c1f 0%, #030308 100%);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000; color: #00ffcc; font-family: 'Courier New', Courier, monospace;
+            z-index: 1000; color: #00ffcc; font-family: 'Courier New', monospace;
         }
-        .loader-box {
-            border: 1px solid #00ffcc; padding: 30px; background: rgba(0, 20, 30, 0.8);
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2); border-radius: 4px; text-align: center;
-            max-width: 450px; width: 90%;
+        .matrix-box {
+            border: 1px solid #00ffcc; padding: 40px; background: rgba(0, 15, 25, 0.9);
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.1); border-radius: 8px; text-align: center;
+            max-width: 500px; width: 85%;
         }
-        #progress-bar { width: 100%; background: #111; height: 4px; margin-top: 15px; border-radius: 2px; }
-        #progress-fill { width: 0%; background: #00ffcc; height: 100%; transition: width 0.3s; }
+        #progress-bar { width: 100%; background: #111; height: 6px; margin-top: 20px; border-radius: 3px; overflow: hidden; }
+        #progress-fill { width: 0%; background: linear-gradient(90deg, #00ffcc, #00a2ff); height: 100%; transition: width 0.4s; }
         
         #start-btn {
-            display: none; margin-top: 25px; padding: 15px 30px;
-            background: #00ffcc; border: none; color: #000; font-weight: bold;
-            cursor: pointer; letter-spacing: 2px; text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+            display: none; margin-top: 30px; padding: 18px 40px;
+            background: transparent; border: 2px solid #00ffcc; color: #00ffcc; font-weight: bold;
+            cursor: pointer; letter-spacing: 3px; text-transform: uppercase;
+            transition: all 0.3s;
         }
+        #start-btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; }
 
-        /* UI CINEMÁTICA (CÓMIC) */
+        /* Comic Bubbles */
         #comic-container {
-            position: absolute; bottom: 30px; left: 5%; width: 90%;
-            display: flex; justify-content: space-between; gap: 20px;
+            position: absolute; bottom: 40px; left: 5%; width: 90%;
+            display: flex; justify-content: space-between; gap: 30px;
             z-index: 100; pointer-events: none;
         }
         .comic-cloud {
-            flex: 1; background: #fff; color: #000; border: 3px solid #000;
-            border-radius: 20px; padding: 15px; font-size: 14px; font-weight: 800;
-            box-shadow: 8px 8px 0px #000; opacity: 0; transform: translateY(20px);
+            flex: 1; background: #fff; color: #000; border: 4px solid #000;
+            border-radius: 25px; padding: 20px; font-size: 15px; font-weight: 800;
+            box-shadow: 10px 10px 0px #000; opacity: 0; transform: scale(0.8);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .comic-cloud.active { opacity: 1; transform: translateY(0); }
-        .speaker-tag { font-size: 10px; text-transform: uppercase; margin-bottom: 5px; font-family: monospace; }
-        #bubble-agente .speaker-tag { color: #00a372; }
-        #bubble-luis .speaker-tag { color: #df7300; }
+        .comic-cloud.active { opacity: 1; transform: scale(1); }
+        .speaker-tag { font-size: 11px; text-transform: uppercase; margin-bottom: 8px; font-family: monospace; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        #bubble-agente .speaker-tag { color: #008f63; }
+        #bubble-luis .speaker-tag { color: #c46a00; }
 
-        /* BOTONES DE CONTROL */
+        /* HUD & Controls */
         .control-btn {
-            position: absolute; top: 20px; padding: 12px 20px;
-            font-size: 11px; font-weight: bold; border: 2px solid #000;
-            cursor: pointer; z-index: 500; box-shadow: 4px 4px 0px #000;
-            text-transform: uppercase; font-family: monospace;
+            position: absolute; top: 25px; padding: 12px 22px;
+            font-size: 12px; font-weight: bold; border: 3px solid #000;
+            cursor: pointer; z-index: 500; box-shadow: 5px 5px 0px #000;
+            text-transform: uppercase; font-family: monospace; transition: 0.2s;
         }
-        #reset-cam-btn { left: 20px; background: #00ffcc; color: #000; }
-        #exit-btn { right: 20px; background: #ff3e3e; color: #fff; }
+        .control-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0px #000; }
+        #reset-cam-btn { left: 25px; background: #00ffcc; color: #000; }
+        #exit-btn { right: 25px; background: #ff3e3e; color: #fff; }
+
+        #hud-data {
+            position: absolute; top: 90px; left: 25px; color: #00ffcc;
+            font-family: monospace; font-size: 10px; pointer-events: none; opacity: 0.7;
+        }
 
         @media (max-width: 768px) {
-            #comic-container { flex-direction: column; bottom: 20px; }
-            .comic-cloud { font-size: 12px; padding: 10px; }
+            #comic-container { flex-direction: column; bottom: 20px; gap: 15px; }
+            .comic-cloud { font-size: 13px; padding: 15px; }
+            .control-btn { top: 15px; padding: 8px 15px; font-size: 10px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -72,25 +81,30 @@
 <body>
 
     <div id="loading-ui">
-        <div class="loader-box">
-            <h2 style="margin:0 0 10px 0; font-size:16px;">CONEXIÓN NEURAL</h2>
-            <p id="status-text" style="font-size:11px; color:#fff; opacity:0.7;">INICIALIZANDO ENTIDADES 3D...</p>
+        <div class="matrix-box">
+            <h2 style="margin:0 0 10px 0; letter-spacing: 5px;">INTER-AI v4.0</h2>
+            <p id="status-text" style="font-size:12px; color:#fff; opacity:0.8;">SINCRO DE ENTIDADES...</p>
             <div id="progress-bar"><div id="progress-fill"></div></div>
             <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN</button>
         </div>
     </div>
 
-    <button id="reset-cam-btn" class="control-btn" onclick="resetCamara()">🎥 CENTRAR</button>
+    <button id="reset-cam-btn" class="control-btn" onclick="resetCamara()">🎥 RE-ENFOCAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresar()">🚪 SALIR</button>
+    <div id="hud-data">
+        LINK: ESTABLE <br>
+        VOZ: WEB_SPEECH_API <br>
+        SCENE: PROCEDURAL_CITY
+    </div>
 
     <div id="comic-container">
         <div id="bubble-agente" class="comic-cloud">
-            <div class="speaker-tag">● AGENTE IA</div>
-            <div id="text-agente">...</div>
+            <div class="speaker-tag">● AGENTE IA [SUP_CONEX]</div>
+            <div id="text-agente">Iniciando sistema...</div>
         </div>
         <div id="bubble-luis" class="comic-cloud">
-            <div class="speaker-tag">● LUIS AVATAR</div>
-            <div id="text-luis">...</div>
+            <div class="speaker-tag">● LUIS AVATAR [ING_SIST]</div>
+            <div id="text-luis">Conexión lista...</div>
         </div>
     </div>
 
@@ -98,253 +112,291 @@
 
     <script>
         // ================================================================
-        // ===== CONFIGURACIÓN Y CONSTANTES =====
-        // ================================================================
-        const CONFIG = {
-            WORKER_URL: "https://little-salad-1611.duqueluis06.workers.dev",
-            COORD_AGENTE: { x: -1, y: 0, z: 3.5 },
-            COORD_LUIS: { x: 1, y: 0, z: 3.5 },
-            FALLBACK_LUIS: ["La presión en el reactor es nominal.", "He ajustado los sensores de la red."],
-            FALLBACK_AGENTE: ["Excelente, Luis. Procedo con el escaneo.", "Entendido, mantendré la vigilancia."]
-        };
-
-        let engine, scene, camera, glowLayer;
-        let agenteModel = null, luisModel = null;
-        let mouthTargetsAgente = [], mouthTargetsLuis = [];
-        let isSpeaking = null;
-        let currentVol = 0;
-        let history = [];
-
-        // ================================================================
-        // ===== INIT ENGINE & SCENE SETUP =====
+        // ===== 1. INIT ENGINE & CONFIG =====
         // ================================================================
         const canvas = document.getElementById("renderCanvas");
-        
-        function initEngine() {
-            engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
-            scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.03, 1);
+        let engine, scene, camera;
+        let agenteModel = null, luisModel = null;
+        let mouthTargetsAgente = [], mouthTargetsLuis = [];
+        let speaker = null; // Quien habla actualmente
+        let voiceVolume = 0;
+        let dialogueHistory = [];
+
+        const COORDS = {
+            agente: { x: -1.2, y: 0, z: 4 },
+            luis: { x: 1.2, y: 0, z: 4 }
+        };
+
+        const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
+
+        // Inicialización de Babylon
+        function initApp() {
+            engine = new BABYLON.Engine(canvas, true, { 
+                preserveDrawingBuffer: true, 
+                stencil: true,
+                disableWebGL2Support: false 
+            });
             
-            // Niebla nocturna
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
+            
+            // Efectos de ambiente
             scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
-            scene.fogColor = new BABYLON.Color3(0, 0, 0.05);
-            scene.fogDensity = 0.02;
+            scene.fogColor = new BABYLON.Color3(0.01, 0.01, 0.04);
+            scene.fogDensity = 0.015;
 
-            // ===== CAMERA SYSTEM =====
-            camera = new BABYLON.ArcRotateCamera("cinematicCam", -Math.PI / 2, Math.PI / 2.2, 4.5, new BABYLON.Vector3(0, 1.5, 3.5), scene);
-            camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 2;
-            camera.upperRadiusLimit = 10;
-            camera.panningSensibility = 0;
-
-            // ===== LIGHTING SYSTEM =====
-            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
-            hemi.intensity = 0.3;
-
-            const spot1 = new BABYLON.SpotLight("spot1", new BABYLON.Vector3(-2, 4, 6), new BABYLON.Vector3(0.5, -0.5, -1), Math.PI/3, 2, scene);
-            spot1.diffuse = new BABYLON.Color3(0, 1, 0.8);
-            spot1.intensity = 2;
-
-            const spot2 = new BABYLON.SpotLight("spot2", new BABYLON.Vector3(2, 4, 6), new BABYLON.Vector3(-0.5, -0.5, -1), Math.PI/3, 2, scene);
-            spot2.diffuse = new BABYLON.Color3(1, 0.5, 0);
-            spot2.intensity = 2;
-
-            glowLayer = new BABYLON.GlowLayer("glow", scene);
-            glowLayer.intensity = 0.8;
-
-            // Suelo reflectante
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
-            const groundMat = new BABYLON.StandardMaterial("gMat", scene);
-            groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
-            groundMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-            ground.material = groundMat;
-
-            crearCiudadNeon();
-            cargarModelos();
+            setupCamera();
+            setupLights();
+            crearCiudadProcedural();
+            cargarEntidades();
+            
+            engine.runRenderLoop(() => { scene.render(); });
+            window.addEventListener("resize", () => { engine.resize(); });
         }
 
-        function crearCiudadNeon() {
-            for(let i=0; i<40; i++) {
-                let h = Math.random() * 10 + 5;
-                let box = BABYLON.MeshBuilder.CreateBox("b"+i, {height: h, width: 3, depth: 3}, scene);
-                box.position.x = (Math.random()-0.5) * 40;
-                box.position.z = Math.random() * 20 + 10;
-                box.position.y = h/2;
+        // ================================================================
+        // ===== 2. SCENE SETUP (LIGHTS, CAM, CITY) =====
+        // ================================================================
+        function setupCamera() {
+            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2, Math.PI / 2.2, 5, new BABYLON.Vector3(0, 1.5, 4), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 2;
+            camera.upperRadiusLimit = 15;
+            camera.panningSensibility = 0; // Bloquear paneo para mantener enfoque
+            camera.wheelPrecision = 50;
+        }
+
+        function setupLights() {
+            const ambient = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambient.intensity = 0.4;
+
+            // Luz de Agente (Cian)
+            const lAgente = new BABYLON.PointLight("lAgente", new BABYLON.Vector3(-2, 3, 5), scene);
+            lAgente.diffuse = new BABYLON.Color3(0, 1, 1);
+            lAgente.intensity = 1.5;
+
+            // Luz de Luis (Ámbar)
+            const lLuis = new BABYLON.PointLight("lLuis", new BABYLON.Vector3(2, 3, 5), scene);
+            lLuis.diffuse = new BABYLON.Color3(1, 0.6, 0);
+            lLuis.intensity = 1.5;
+
+            const glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 1.0;
+        }
+
+        function crearCiudadProcedural() {
+            // Suelo reflectante
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            const gMat = new BABYLON.StandardMaterial("gMat", scene);
+            gMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+            gMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+            ground.material = gMat;
+
+            // Edificios Neon
+            for(let i=0; i<60; i++) {
+                let h = Math.random() * 15 + 5;
+                let building = BABYLON.MeshBuilder.CreateBox("build"+i, {height: h, width: 4, depth: 4}, scene);
+                building.position.x = (Math.random()-0.5) * 60;
+                building.position.z = Math.random() * 40 + 15;
+                building.position.y = h/2;
                 
-                let mat = new BABYLON.StandardMaterial("bm"+i, scene);
-                mat.diffuseColor = new BABYLON.Color3(0,0,0);
-                mat.emissiveColor = new BABYLON.Color3(Math.random(), Math.random(), 1);
-                mat.emissiveColor.scaleInPlace(0.2);
-                box.material = mat;
+                let bMat = new BABYLON.StandardMaterial("bMat"+i, scene);
+                bMat.diffuseColor = new BABYLON.Color3(0.01, 0.01, 0.02);
+                
+                // Bordes Neon
+                let color = (Math.random() > 0.5) ? new BABYLON.Color3(0, 1, 0.8) : new BABYLON.Color3(0.2, 0.5, 1);
+                bMat.emissiveColor = color.scale(0.3);
+                building.material = bMat;
             }
         }
 
         // ================================================================
-        // ===== AVATAR LOADING & CONTINGENCIA =====
+        // ===== 3. AVATAR LOADING (CON FALLBACK TOTAL) =====
         // ================================================================
-        function cargarModelos() {
+        function cargarEntidades() {
             const fill = document.getElementById("progress-fill");
             const status = document.getElementById("status-text");
 
-            status.innerText = "CARGANDO AGENTE...";
-            fill.style.width = "20%";
+            // Función para avanzar barra
+            const updateProgress = (p, text) => {
+                fill.style.width = p + "%";
+                status.innerText = text;
+            };
 
-            BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, 
-                (meshes) => {
-                    agenteModel = meshes[0];
-                    agenteModel.position = new BABYLON.Vector3(CONFIG.COORD_AGENTE.x, 0, CONFIG.COORD_AGENTE.z);
-                    detectarBoca(agenteModel, mouthTargetsAgente);
-                    cargarLuis();
-                }, 
-                null, 
-                () => {
-                    console.warn("Agente GLB no encontrado, usando contingencia.");
-                    agenteModel = crearAvatarDummy("AgenteIA", new BABYLON.Color3(0, 1, 0.7), CONFIG.COORD_AGENTE, mouthTargetsAgente);
-                    cargarLuis();
+            updateProgress(20, "ESCANEANDO AGENTE.GLB...");
+
+            // Timeout de carga: si en 4 segundos no hay respuesta, forzar fallback
+            let timeoutCarga = setTimeout(() => {
+                if (!agenteModel) {
+                    console.warn("Carga lenta: Activando contingencia Agente.");
+                    agenteModel = crearAvatarDigital("AgenteIA", new BABYLON.Color3(0, 1, 0.8), COORDS.agente, mouthTargetsAgente);
                 }
-            );
+                if (!luisModel) {
+                    console.warn("Carga lenta: Activando contingencia Luis.");
+                    luisModel = crearAvatarDigital("LuisIng", new BABYLON.Color3(1, 0.5, 0), COORDS.luis, mouthTargetsLuis);
+                }
+                completarCarga();
+            }, 4000);
 
-            function cargarLuis() {
-                fill.style.width = "60%";
-                status.innerText = "CARGANDO LUIS...";
-                BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, 
-                    (meshes) => {
-                        luisModel = meshes[0];
-                        luisModel.position = new BABYLON.Vector3(CONFIG.COORD_LUIS.x, 0, CONFIG.COORD_LUIS.z);
-                        detectarBoca(luisModel, mouthTargetsLuis);
-                        finalizar();
-                    }, 
-                    null, 
-                    () => {
-                        console.warn("Luis GLB no encontrado, usando contingencia.");
-                        luisModel = crearAvatarDummy("Luis", new BABYLON.Color3(1, 0.5, 0), CONFIG.COORD_LUIS, mouthTargetsLuis);
-                        finalizar();
-                    }
-                );
+            // Intentar Agente
+            BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, (meshes) => {
+                agenteModel = meshes[0];
+                agenteModel.position.set(COORDS.agente.x, 0, COORDS.agente.z);
+                scanFacial(agenteModel, mouthTargetsAgente);
+                
+                updateProgress(50, "ESCANEANDO LUISAVATAR4.GLB...");
+                
+                // Intentar Luis
+                BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, (m) => {
+                    luisModel = m[0];
+                    luisModel.position.set(COORDS.luis.x, 0, COORDS.luis.z);
+                    scanFacial(luisModel, mouthTargetsLuis);
+                    completarCarga();
+                }, null, (s, e) => { fallLuis(); });
+
+            }, null, (s, e) => { fallAgente(); fallLuis(); });
+
+            function fallAgente() {
+                if(!agenteModel) agenteModel = crearAvatarDigital("AgenteIA", new BABYLON.Color3(0, 1, 0.8), COORDS.agente, mouthTargetsAgente);
+            }
+            function fallLuis() {
+                if(!luisModel) luisModel = crearAvatarDigital("LuisIng", new BABYLON.Color3(1, 0.5, 0), COORDS.luis, mouthTargetsLuis);
             }
 
-            function finalizar() {
-                fill.style.width = "100%";
-                status.innerText = "SISTEMA LISTO";
+            function completarCarga() {
+                clearTimeout(timeoutCarga);
+                updateProgress(100, "SISTEMA INTEGRAL LISTO");
                 document.getElementById("start-btn").style.display = "block";
             }
         }
 
-        function crearAvatarDummy(nombre, color, pos, targetArr) {
-            const root = new BABYLON.TransformNode(nombre, scene);
-            const body = BABYLON.MeshBuilder.CreateCylinder(nombre+"_body", {height: 1.6, diameterTop: 0.2, diameterBottom: 0.5}, scene);
-            body.position.y = 0.8;
+        // Crea un avatar geométrico si no hay GLB
+        function crearAvatarDigital(name, color, pos, mTargets) {
+            const root = new BABYLON.TransformNode(name, scene);
+            
+            // Cuerpo
+            const body = BABYLON.MeshBuilder.CreateCylinder(name+"_body", {height: 1.7, diameterTop: 0.2, diameterBottom: 0.6}, scene);
+            body.position.y = 0.85;
             body.parent = root;
-            const bMat = new BABYLON.StandardMaterial(nombre+"_mat", scene);
-            bMat.diffuseColor = color;
-            body.material = bMat;
+            const mat = new BABYLON.StandardMaterial(name+"_mat", scene);
+            mat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+            mat.emissiveColor = color.scale(0.2);
+            body.material = mat;
 
-            const head = BABYLON.MeshBuilder.CreateSphere(nombre+"_head", {diameter: 0.4}, scene);
-            head.position.y = 1.7;
+            // Cabeza
+            const head = BABYLON.MeshBuilder.CreateSphere(name+"_head", {diameter: 0.45}, scene);
+            head.position.y = 1.85;
             head.parent = root;
 
-            const jaw = BABYLON.MeshBuilder.CreateBox(nombre+"_jaw", {width: 0.2, height: 0.05, depth: 0.1}, scene);
-            jaw.position.set(0, 1.55, 0.15);
+            // Mandíbula (Para Lip Sync Fallback)
+            const jaw = BABYLON.MeshBuilder.CreateBox(name+"_jaw", {width: 0.25, height: 0.1, depth: 0.15}, scene);
+            jaw.position.set(0, 1.7, 0.15);
             jaw.parent = root;
-            targetArr.push({type: "mesh", mesh: jaw, originalY: 1.55});
+            mTargets.push({type: "dummy", mesh: jaw, originalY: 1.7});
 
             root.position.set(pos.x, pos.y, pos.z);
             return root;
         }
 
-        function detectarBoca(root, array) {
-            root.getChildMeshes().forEach(m => {
-                if (m.morphTargetManager) {
-                    for (let i=0; i<m.morphTargetManager.numTargets; i++) {
-                        let t = m.morphTargetManager.getTarget(i);
-                        if (t.name.toLowerCase().includes("mouth") || t.name.toLowerCase().includes("jaw")) {
+        function scanFacial(root, array) {
+            root.getChildMeshes().forEach(mesh => {
+                if (mesh.morphTargetManager) {
+                    for (let i=0; i < mesh.morphTargetManager.numTargets; i++) {
+                        let t = mesh.morphTargetManager.getTarget(i);
+                        if (t.name.toLowerCase().includes("mouth") || t.name.toLowerCase().includes("jaw") || t.name.toLowerCase().includes("viseme")) {
                             array.push({type: "morph", target: t});
                         }
                     }
-                }
-                if (m.name.toLowerCase().includes("mouth") || m.name.toLowerCase().includes("jaw")) {
-                    array.push({type: "scale", mesh: m, originalS: m.scaling.y});
                 }
             });
         }
 
         // ================================================================
-        // ===== ANIMATION & LIP SYNC ENGINE =====
+        // ===== 4. LIP SYNC & ANIMATION SYSTEM =====
         // ================================================================
-        let desvioAgente = new BABYLON.Vector3(0,0,0);
-        let desvioLuis = new BABYLON.Vector3(0,0,0);
-
         scene.registerBeforeRender(() => {
-            const t = Date.now();
-            
-            // Lip Sync basado en amplitud simulada
-            if (isSpeaking) {
-                currentVol = Math.abs(Math.sin(t * 0.02) * 0.6) + (Math.random() * 0.4);
-                let targets = (isSpeaking === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
-                targets.forEach(o => {
-                    if (o.type === "morph") o.target.influence = currentVol;
-                    if (o.type === "mesh") o.mesh.position.y = o.originalY - (currentVol * 0.05);
-                    if (o.type === "scale") o.mesh.scaling.y = o.originalS + (currentVol * 0.2);
+            const time = Date.now();
+
+            // Lip Sync
+            if (speaker) {
+                // Generar volumen simulado basado en el habla
+                voiceVolume = Math.abs(Math.sin(time * 0.02) * 0.7) + (Math.random() * 0.3);
+                let currentTargets = (speaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
+                
+                currentTargets.forEach(o => {
+                    if (o.type === "morph") o.target.influence = voiceVolume;
+                    if (o.type === "dummy") o.mesh.position.y = o.originalY - (voiceVolume * 0.08);
                 });
             } else {
+                // Reset bocas
                 [mouthTargetsAgente, mouthTargetsLuis].forEach(arr => {
                     arr.forEach(o => {
                         if (o.type === "morph") o.target.influence = 0;
-                        if (o.type === "mesh") o.mesh.position.y = o.originalY;
+                        if (o.type === "dummy") o.mesh.position.y = o.originalY;
                     });
                 });
             }
 
-            // Look At suave
+            // Look At (Mirada natural)
             if (agenteModel && luisModel) {
-                // El agente mira a Luis (con un poco de ruido idle)
-                let lookAgente = luisModel.position.add(new BABYLON.Vector3(0, 1.6, 0));
-                agenteModel.lookAt(lookAgente);
+                let agentePos = agenteModel.position;
+                let luisPos = luisModel.position;
+
+                // El agente mira a Luis
+                agenteModel.lookAt(new BABYLON.Vector3(luisPos.x, 1.6, luisPos.z));
                 agenteModel.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
 
-                let lookLuis = agenteModel.position.add(new BABYLON.Vector3(0, 1.6, 0));
-                luisModel.lookAt(lookLuis);
+                // Luis mira al agente
+                luisModel.lookAt(new BABYLON.Vector3(agentePos.x, 1.6, agentePos.z));
                 luisModel.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
             }
         });
 
         // ================================================================
-        // ===== VOICE & DIALOGUE SYSTEM =====
+        // ===== 5. VOICE & DIALOGUE SYSTEM (WEB SPEECH API) =====
         // ================================================================
         function desbloquearAudioYComenzar() {
             document.getElementById("loading-ui").style.display = "none";
+            
+            // Requisito de iOS/Chrome: hablar algo vacío para activar
             window.speechSynthesis.cancel();
-            let u = new SpeechSynthesisUtterance("");
-            window.speechSynthesis.speak(u);
-            bucleDialogo();
+            let silent = new SpeechSynthesisUtterance("");
+            window.speechSynthesis.speak(silent);
+
+            iniciarBucleConversacion();
         }
 
-        async function bucleDialogo() {
+        async function iniciarBucleConversacion() {
             let turno = "Agente";
-            let msg = "Hola Luis, ¿reporte de sistemas?";
+            let primerMensaje = "Luis, los sistemas de iluminación de la ciudad están operando al 85%. ¿Has terminado la calibración de los sensores?";
+            
+            await procesarMensaje(turno, primerMensaje);
 
             while (true) {
-                actualizarUI(turno, msg);
-                await hablar(msg, turno);
-                
                 turno = (turno === "Agente") ? "Luis" : "Agente";
                 
-                // Intentar Worker, si no, Fallback
-                let prompt = `Eres ${turno}. Responde brevemente a: ${msg}`;
-                let respuesta = await fetchWorker(prompt);
+                let contexto = (turno === "Luis") ? "Luis responde técnico y breve" : "Agente IA responde como soporte";
+                let respuesta = await fetchDeRespuesta(ultimoMensaje, turno);
                 
-                if (!respuesta) {
-                    respuesta = (turno === "Luis") ? CONFIG.FALLBACK_LUIS[Math.floor(Math.random()*2)] : CONFIG.FALLBACK_AGENTE[Math.floor(Math.random()*2)];
+                if(!respuesta) {
+                    // Fallback local si el worker falla
+                    respuesta = (turno === "Luis") ? "Recibido. He ajustado los parámetros del sensor secundario." : "Entendido Luis. Monitorizando flujos de datos.";
                 }
-                msg = respuesta;
-                await new Promise(r => setTimeout(r, 1000));
+
+                await procesarMensaje(turno, respuesta);
+                await new Promise(r => setTimeout(r, 1200)); // Pausa entre réplicas
             }
         }
 
-        function actualizarUI(hablante, texto) {
+        let ultimoMensaje = "";
+        async function procesarMensaje(quien, texto) {
+            ultimoMensaje = texto;
+            
+            // Actualizar UI
             const bAgente = document.getElementById("bubble-agente");
             const bLuis = document.getElementById("bubble-luis");
-            if (hablante === "Agente") {
+            
+            if (quien === "Agente") {
                 bAgente.classList.add("active");
                 bLuis.classList.remove("active");
                 document.getElementById("text-agente").innerText = texto;
@@ -353,52 +405,59 @@
                 bAgente.classList.remove("active");
                 document.getElementById("text-luis").innerText = texto;
             }
+
+            await reproducirVoz(texto, quien);
         }
 
-        async function hablar(texto, avatar) {
-            return new Promise(resolve => {
-                const utter = new SpeechSynthesisUtterance(texto);
+        function reproducirVoz(texto, rol) {
+            return new Promise((resolve) => {
+                const utterance = new SpeechSynthesisUtterance(texto);
                 const voices = window.speechSynthesis.getVoices();
-                
+
                 // Selección inteligente de voces
-                if (avatar === "Luis") {
-                    utter.voice = voices.find(v => v.name.toLowerCase().includes("male") || v.name.includes("David") || v.name.includes("Mexico")) || voices[0];
-                    utter.pitch = 0.8;
-                    utter.rate = 0.9;
+                if (rol === "Luis") {
+                    // Voz masculina
+                    utterance.voice = voices.find(v => v.name.includes("David") || v.name.includes("Mexico") || v.name.includes("Male")) || voices[0];
+                    utterance.pitch = 0.85;
+                    utterance.rate = 0.95;
                 } else {
-                    utter.voice = voices.find(v => v.name.toLowerCase().includes("female") || v.name.includes("Helena") || v.name.includes("Spain")) || voices[1] || voices[0];
-                    utter.pitch = 1.2;
-                    utter.rate = 1.0;
+                    // Voz femenina / Agente
+                    utterance.voice = voices.find(v => v.name.includes("Helena") || v.name.includes("Spain") || v.name.includes("Female") || v.name.includes("Google español")) || voices[1] || voices[0];
+                    utterance.pitch = 1.1;
+                    utterance.rate = 1.05;
                 }
 
-                utter.onstart = () => isSpeaking = avatar;
-                utter.onend = () => { isSpeaking = null; resolve(); };
-                window.speechSynthesis.speak(utter);
-                
-                // Fallback si no hay voces (ej. algunos móviles)
-                if (voices.length === 0) setTimeout(() => { isSpeaking = null; resolve(); }, 3000);
+                utterance.onstart = () => { speaker = rol; };
+                utterance.onend = () => { speaker = null; resolve(); };
+                utterance.onerror = () => { speaker = null; resolve(); };
+
+                window.speechSynthesis.speak(utterance);
             });
         }
 
-        async function fetchWorker(p) {
+        async function fetchDeRespuesta(msg, persona) {
             try {
-                const res = await fetch(CONFIG.WORKER_URL, {
+                const response = await fetch(WORKER_URL, {
                     method: "POST",
-                    body: JSON.stringify({ message: p, context: history })
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ message: msg, role: persona, history: dialogueHistory })
                 });
-                const data = await res.json();
+                const data = await response.json();
                 return data.reply;
-            } catch (e) { return null; }
+            } catch (e) {
+                console.error("Error en Worker:", e);
+                return null;
+            }
         }
 
         // ================================================================
-        // ===== UI CONTROLS =====
+        // ===== 6. UI CONTROLS & UTILS =====
         // ================================================================
         function resetCamara() {
             camera.alpha = -Math.PI / 2;
             camera.beta = Math.PI / 2.2;
-            camera.radius = 4.5;
-            camera.setTarget(new BABYLON.Vector3(0, 1.5, 3.5));
+            camera.radius = 5;
+            camera.setTarget(new BABYLON.Vector3(0, 1.5, 4));
         }
 
         function regresar() {
@@ -406,9 +465,8 @@
             window.location.href = "index.html";
         }
 
-        // Inicialización
-        window.addEventListener("DOMContentLoaded", initEngine);
-        window.addEventListener("resize", () => engine.resize());
+        // Iniciar
+        window.onload = initApp;
 
     </script>
 </body>
