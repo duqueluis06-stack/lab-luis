@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InterAI - Entorno de Pruebas</title>
+    <title>InterAI - Entorno de Pruebas Tácticas</title>
     <style>
         html, body {
             overflow: hidden;
@@ -33,13 +33,11 @@
             z-index: 10;
             width: 260px;
         }
-        
-        /* 📡 HUD TÁCTICO DE DIÁLOGO (Estilo Laboratorio) */
         #hud-console {
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 320px;
+            width: 340px;
             max-height: 280px;
             background: rgba(5, 5, 12, 0.95);
             border: 1px solid #00a2ff;
@@ -66,7 +64,6 @@
             white-space: pre-wrap;
             line-height: 1.5;
         }
-
         #instructions-ui {
             position: absolute;
             bottom: 20px;
@@ -112,12 +109,12 @@
 
     <div id="loading-ui">
         <h3 style="margin:0 0 8px 0; font-size:14px; letter-spacing:1px;">⚙️ NEUROLAB COGNITIVE</h3>
-        <p id="status" style="margin:0; font-size:11px; color:#fff;">Sincronizando mallas de simulación...</p>
+        <p id="status" style="margin:0; font-size:11px; color:#fff;">Sincronizando orientaciones y mallas...</p>
     </div>
 
     <div id="hud-console">
-        <div class="hud-header">📡 MONITOR DE FRECUENCIAS DE DIÁLOGO</div>
-        <div id="hud-log">Esperando acoplamiento de avatares...</div>
+        <div class="hud-header">📡 MONITOR DE FRECUENCIAS (DOS CANALES MASCULINOS)</div>
+        <div id="hud-log">Esperando acoplamiento de telemetría...</div>
     </div>
 
     <div id="instructions-ui">
@@ -130,22 +127,26 @@
 
     <script>
         // =======================================================================
-        // 🛠️ PANEL DE CONTROL DE POSICIONES
+        // 🛠️ PANEL DE CONTROL DE POSICIONES (Frente a frente corregido)
         // =======================================================================
         const COORDENADAS = {
-            agente: { x: -0.75, y: 0.05, z: 3.0, rotacion: -Math.PI / 2 },
-            luisavatar: { x: 0.75, y: 0.05, z: 3.0, rotacion: Math.PI / 2 }
+            agente: { x: -0.8, y: 0.05, z: 3.0 },
+            luisavatar: { x: 0.8, y: 0.05, z: 3.0 }
         };
 
-        // =======================================================================
-        // 🔑 CONFIGURACIÓN INTEGRADA (SEGURIDAD DE CAPA WORKER)
-        // =======================================================================
         const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
 
         let historialDialogo = [];
         let mouthTargetsAgente = [];
         let mouthTargetsLuis = [];
+        let agentAnimations = [];
+        let luisAnimations = [];
         let currentSpeaker = null; 
+
+        // Variables de control de mirada procedural (Evita rigidez de cuello)
+        let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
+        let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
+        let proximoCambioGaze = 0;
 
         const hudLog = document.getElementById("hud-log");
         function reportHUD(avatar, msg, color = "#fff") {
@@ -157,7 +158,6 @@
             document.getElementById("hud-console").scrollTop = document.getElementById("hud-console").scrollHeight;
         }
 
-        // Consulta de texto segura delegada a tu Cloudflare Worker
         async function consultarGroqWorker(promptText) {
             try {
                 const response = await fetch(WORKER_URL, {
@@ -173,18 +173,17 @@
                 return data.reply || "...";
             } catch (error) {
                 console.error("Error en enlace Worker-Groq:", error);
-                return "Fluctuación en la línea de transmisión. Reajustando telemetría...";
+                return "Fluctuación menor en el enlace de datos de laboratorio. Reajustando receptores...";
             }
         }
 
-        // Conversor de Audio con bloqueo y desbloqueo síncrono para el ciclo labial
         async function generarYReproducirVoz(texto, avatar) {
             try {
-                // Opción A: Tu Worker genera audio directamente (Blob)
+                // Configuración de envío: Ambos marcados como masculinos
                 const response = await fetch(WORKER_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: texto, voice: avatar === "Luis" ? "male" : "female" })
+                    body: JSON.stringify({ text: texto, voice: "male", speaker: avatar })
                 });
 
                 if (response.ok && response.headers.get("content-type")?.includes("audio")) {
@@ -204,35 +203,37 @@
                         audio.play().catch(() => { currentSpeaker = null; resolve(); });
                     });
                 } else {
-                    // Opción B: Fallback nativo ultra-limpio si tu worker solo devuelve texto
+                    // Fallback nativo diferenciado para dos hombres (Grave e Ingeniería vs Analítico y Rápido)
                     return new Promise((resolve) => {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(texto.replace(/[*#_`]/g, ""));
-                        
-                        // Configuración adaptativa de tonos de voz nativos
                         const voices = window.speechSynthesis.getVoices();
                         const esVoices = voices.filter(v => v.lang.startsWith("es"));
+                        const maleVoices = esVoices.filter(v => v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("google"));
+
                         if (avatar === "Luis") {
-                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("male")) || esVoices[0];
-                            utterance.pitch = 0.85;
+                            utterance.voice = maleVoices[0] || esVoices[0];
+                            utterance.pitch = 0.80; // Voz grave de Luis
+                            utterance.rate = 0.92;
                         } else {
-                            utterance.voice = esVoices.find(v => v.name.toLowerCase().includes("female")) || esVoices[1] || esVoices[0];
-                            utterance.pitch = 1.1;
+                            utterance.voice = maleVoices[1] || maleVoices[0] || esVoices[0];
+                            utterance.pitch = 1.05; // Voz analítica del Agente
+                            utterance.rate = 1.05;
                         }
 
                         utterance.onstart = () => { currentSpeaker = avatar; };
-                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 500); };
+                        const endHandler = () => { currentSpeaker = null; setTimeout(resolve, 400); };
                         utterance.onend = endHandler;
                         utterance.onerror = endHandler;
                         window.speechSynthesis.speak(utterance);
                     });
                 }
             } catch (error) {
-                console.error("Error en el procesador de fonemas de voz:", error);
+                console.error("Error en procesador de fonemas de voz:", error);
             }
         }
 
-        // Rastreador Kinetofonético Facial para mallas en Babylon.js
+        // Rastreador Kinetofonético Facial Extendido
         function setupMouthTrackingBabylon(rootMesh, targetArray) {
             if (!rootMesh) return;
             const childMeshes = rootMesh.getChildMeshes();
@@ -240,7 +241,6 @@
             childMeshes.forEach(mesh => {
                 const name = (mesh.name || "").toLowerCase();
                 
-                // Trackeo por Morph Targets (Sistemas ReadyPlayerMe / Blender estándar)
                 if (mesh.morphTargetManager) {
                     const manager = mesh.morphTargetManager;
                     for (let i = 0; i < manager.numTargets; i++) {
@@ -250,8 +250,7 @@
                         }
                     }
                 }
-                // Trackeo mecánico de respaldo por alteración posicional de malla (Mandíbula/Boca)
-                if (name.includes("mouth") || name.includes("jaw") || name.includes("head")) {
+                if (name.includes("mouth") || name.includes("jaw") || name.includes("head") || name.includes("lip")) {
                     if (!targetArray.some(t => t.mesh === mesh)) {
                         targetArray.push({ type: "mesh", mesh: mesh, originalScaleY: mesh.scaling.y });
                     }
@@ -259,12 +258,10 @@
             });
         }
 
-        // Bucle General de Interacción Cruzada (Pruebas físicas y astrofísica)
         async function iniciarInteraccionAvatares() {
-            hudLog.innerText = ""; // Limpiar consola HUD
-            
+            hudLog.innerText = "";
             let hablanteActual = "Agente";
-            let ultimoMensaje = "Hola Luis. El entorno InterAI está estable y las cámaras de vacío calibradas. ¿Monitorizamos hoy las fluctuaciones de presión electrónica o revisamos lecturas meteorológicas?";
+            let ultimoMensaje = "Hola Luis. Sistemas calibrados, el entorno de pruebas electrónicas y monitorización astrofísica está en línea. ¿Qué vector de análisis abrimos hoy?";
             
             reportHUD(hablanteActual, ultimoMensaje, "#00ffcc");
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
@@ -276,9 +273,9 @@
                 
                 let contextoPrompt = "";
                 if (hablanteActual === "Luis") {
-                    contextoPrompt = `[Eres Luis, un brillante ingeniero experto en pruebas físicas electrónicas, instrumentación avanzada y astrofísica. Responde de manera sumamente innovadora, técnica y realista al planteamiento del Agente. Usa de 2 a 4 frases directas sin rodeos corporativos ni repeticiones]: ${ultimoMensaje}`;
+                    contextoPrompt = `[Eres Luis, ingeniero senior de pruebas físicas electrónicas y astrofísica. Responde con un enfoque innovador, directo y técnico usando de 2 a 4 frases realistas]: ${ultimoMensaje}`;
                 } else {
-                    contextoPrompt = `[Eres el Agente de IA del laboratorio. Analiza los datos de Luis con profundidad analítica y computacional. Responde de forma futurista, sugiriendo optimizaciones en los sensores cuánticos o la simulación]: ${ultimoMensaje}`;
+                    contextoPrompt = `[Eres el Agente, una IA de laboratorio avanzada. Aporta datos analíticos computacionales de soporte al planteamiento de Luis, corto y preciso]: ${ultimoMensaje}`;
                 }
 
                 let respuesta = await consultarGroqWorker(contextoPrompt);
@@ -290,15 +287,14 @@
                     reportHUD(hablanteActual, ultimoMensaje, colorHUD);
                     historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
                     
-                    if (historialDialogo.length > 14) historialDialogo.splice(0, 2); // Ventana de memoria móvil
+                    if (historialDialogo.length > 14) historialDialogo.splice(0, 2);
                     
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 1200)); // Latencia de análisis humano artificial
+                await new Promise(resolve => setTimeout(resolve, 1400));
             }
         }
-        // =======================================================================
 
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
@@ -309,10 +305,10 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.03, 1);
 
-            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 5, new BABYLON.Vector3(0, 1.2, 3), scene);
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 4.5, new BABYLON.Vector3(0, 1.2, 3), scene);
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 1.0; 
-            camera.upperRadiusLimit = 100; 
+            camera.upperRadiusLimit = 80; 
             camera.panningSensibility = 1200; 
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
@@ -324,78 +320,118 @@
 
             const statusText = document.getElementById("status");
 
-            // 1. Carga del Entorno Urbano
+            // 1. Ciudad
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                statusText.innerText = "Infraestructura urbana acoplada. Cargando Agente...";
+                statusText.innerText = "Ciudad acoplada. Configurando Agente Masculino...";
 
-                // 2. Carga y Configuración del Agente
+                // 2. Agente
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, particleSystems, skeletons, animationGroups) {
-                    statusText.innerText = "Entidad Agente en posición. Cargando perfil LuisAvatar...";
+                    statusText.innerText = "Agente en línea. Cargando perfil LuisAvatar...";
                     
                     agenteRoot = agentMeshes[0];
+                    agentAnimations = animationGroups;
+
                     if(agenteRoot) {
                         agenteRoot.rotationQuaternion = null; 
                         agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
-                        agenteRoot.rotation = new BABYLON.Vector3(0, COORDENADAS.agente.rotacion, 0);
                         setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
                     }
 
-                    if (animationGroups.length > 0) {
-                        animationGroups.forEach(group => group.start(true));
+                    if (agentAnimations.length > 0) {
+                        agentAnimations.forEach(group => group.start(true));
                     }
 
-                    // 3. Carga e Inyección de tu Avatar
-                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, luisAnimations) {
-                        statusText.innerText = "Sincronización neuronal completa. Inicializando sistemas...";
+                    // 3. Tu Avatar
+                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, readyParticles, readySkeletons, animationGroups) {
+                        statusText.innerText = "Simulación neuronal lista. Rompiendo monotonía de bucles...";
                         
                         luisRoot = luisMeshes[0];
+                        luisAnimations = animationGroups;
+
                         if(luisRoot) {
                             luisRoot.rotationQuaternion = null; 
                             luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
-                            luisRoot.rotation = new BABYLON.Vector3(0, COORDENADAS.luisavatar.rotacion, 0);
                             setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
                         }
 
                         if (luisAnimations.length > 0) {
-                            luisAnimations.forEach(anim => {
-                                anim.start(true);
-                                anim.speedRatio = 0.75; 
-                            });
+                            luisAnimations.forEach(anim => anim.start(true));
                         }
 
                         setTimeout(() => {
                             document.getElementById("loading-ui").style.display = "none";
                             iniciarInteraccionAvatares();
-                        }, 1500);
+                        }, 1200);
                     });
                 });
             }, null, function (scene, message, exception) {
-                statusText.innerText = "Fallo crítico en carga de mallas asset.";
+                statusText.innerText = "Error crítico de inicialización de entornos.";
                 console.error(message, exception);
             });
 
-            // --- Bucle Interno de Renderizado y Modulación de Labios Animados ---
+            // --- BUCLE DINÁMICO DE CONTROL: ROTACIÓN, MIRADAS Y ANIMACIÓN INTELIGENTE ---
             scene.registerBeforeRender(() => {
-                // Forzar fijación ocular cara a cara ininterrumpida
-                if (agenteRoot && luisRoot) {
-                    agenteRoot.lookAt(new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z));
-                    luisRoot.lookAt(new BABYLON.Vector3(agenteRoot.position.x, luisRoot.position.y, agenteRoot.position.z));
+                let ahora = Date.now();
+
+                // 🧠 CONTROL DE VELOCIDAD DE BRAZOS (Rompe repetición de Luis y Agente)
+                if (luisAnimations.length > 0) {
+                    luisAnimations.forEach(anim => {
+                        // Si Luis habla, se mueve normal; si calla, se ralentiza al 15% simulando respiración estática
+                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.15;
+                    });
+                }
+                if (agentAnimations.length > 0) {
+                    agentAnimations.forEach(anim => {
+                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.15;
+                    });
                 }
 
-                // Simulación matemática de espectro de audio en bocas
+                // 👀 GENERADOR DE MIRADAS NATURALES (Mirar a los lados esporádicamente)
+                if (ahora > proximoCambioGaze) {
+                    proximoCambioGaze = ahora + 3000 + Math.random() * 4000; // Cada 3-7 seg cambia el foco
+                    
+                    if (Math.random() > 0.65) {
+                        // Desvía la mirada a los lados temporalmente
+                        desvioMiradaAgente = new BABYLON.Vector3((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.3);
+                        desvioMiradaLuis = new BABYLON.Vector3((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.3);
+                    } else {
+                        // Mirada directa fija face-to-face
+                        desvioMiradaAgente.setAll(0);
+                        desvioMiradaLuis.setAll(0);
+                    }
+                }
+
+                // 🔄 ORIENTACIÓN CARA A CARA REAL (Ajuste compensatorio de espaldas con Math.PI)
+                if (agenteRoot && luisRoot) {
+                    let baseTargetAgente = new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z);
+                    let baseTargetLuis = new BABYLON.Vector3(agenteRoot.position.x, luisRoot.position.y, agenteRoot.position.z);
+
+                    // Inyectar desvíos sutiles en la mirada/cabeza
+                    baseTargetAgente.addInPlace(desvioMiradaAgente);
+                    baseTargetLuis.addInPlace(desvioMiradaLuis);
+
+                    // lookAt orienta el eje +Z, añadimos rotación local de 180 grados para ponerlos de frente
+                    agenteRoot.lookAt(baseTargetAgente);
+                    agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+
+                    luisRoot.lookAt(baseTargetLuis);
+                    luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                }
+
+                // 👄 MODULACIÓN DINÁMICA DE LABIOS (LIP-SYNC SIMULADO)
                 if (currentSpeaker) {
-                    let targets = currentSpeaker === "Agente" ? mouthTargetsAgente : mouthTargetsLuis;
-                    let wave = Math.abs(Math.sin(Date.now() * 0.025)) * 0.65 + Math.random() * 0.25;
+                    let targets = (currentSpeaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
+                    let wave = Math.abs(Math.sin(ahora * 0.022)) * 0.7 + Math.random() * 0.25;
 
                     targets.forEach(t => {
                         if (t.type === "morph") {
                             t.target.influence = wave;
                         } else if (t.type === "mesh") {
-                            t.mesh.scaling.y = t.originalScaleY - (wave * 0.04);
+                            t.mesh.scaling.y = t.originalScaleY - (wave * 0.05); // Movimiento mecánico alternativo
                         }
                     });
                 } else {
-                    // Estado de reposo absoluto de fonemas
+                    // Cierre total en reposo
                     [mouthTargetsAgente, mouthTargetsLuis].forEach(targets => {
                         targets.forEach(t => {
                             if (t.type === "morph") t.target.influence = 0;
@@ -414,7 +450,7 @@
             if(camera) {
                 camera.alpha = -Math.PI / 2;
                 camera.beta = Math.PI / 2.3;
-                camera.radius = 5;
+                camera.radius = 4.5;
                 camera.target = new BABYLON.Vector3(0, 1.2, 3);
             }
         }
