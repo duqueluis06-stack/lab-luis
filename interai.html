@@ -3,76 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>InterAI - Reconstrucción Total</title>
+    <title>InterAI - Panel Cinemático</title>
     <style>
-        /* ===== UI SYSTEM: STYLES ===== */
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { 
-            overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; 
-            background-color: #030308; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
-        #renderCanvas { width: 100%; height: 100%; touch-action: none; display: block; }
-
-        /* Pantalla de Carga */
-        #loading-ui {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at center, #0c0c1f 0%, #030308 100%);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000; color: #00ffcc; font-family: 'Courier New', monospace;
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #030308;
+            font-family: 'Arial', sans-serif;
         }
-        .matrix-box {
-            border: 1px solid #00ffcc; padding: 40px; background: rgba(0, 15, 25, 0.9);
-            box-shadow: 0 0 30px rgba(0, 255, 204, 0.1); border-radius: 8px; text-align: center;
-            max-width: 500px; width: 85%;
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
         }
-        #progress-bar { width: 100%; background: #111; height: 6px; margin-top: 20px; border-radius: 3px; overflow: hidden; }
-        #progress-fill { width: 0%; background: linear-gradient(90deg, #00ffcc, #00a2ff); height: 100%; transition: width 0.4s; }
         
+        #loading-ui {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            color: #00ffcc;
+            background: #06060f;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 20px;
+            text-align: center;
+            font-family: monospace;
+        }
         #start-btn {
-            display: none; margin-top: 30px; padding: 18px 40px;
-            background: transparent; border: 2px solid #00ffcc; color: #00ffcc; font-weight: bold;
-            cursor: pointer; letter-spacing: 3px; text-transform: uppercase;
-            transition: all 0.3s;
+            display: none;
+            margin-top: 20px;
+            padding: 16px 32px;
+            background: linear-gradient(90deg, #00ffcc, #00a2ff);
+            border: 2px solid #fff;
+            color: #000;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+            letter-spacing: 1px;
         }
-        #start-btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; }
-
-        /* Comic Bubbles */
+        
         #comic-container {
-            position: absolute; bottom: 40px; left: 5%; width: 90%;
-            display: flex; justify-content: space-between; gap: 30px;
-            z-index: 100; pointer-events: none;
+            position: absolute;
+            bottom: 12px;
+            left: 4%;
+            width: 92%;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            z-index: 100;
+            pointer-events: none;
         }
+        
         .comic-cloud {
-            flex: 1; background: #fff; color: #000; border: 4px solid #000;
-            border-radius: 25px; padding: 20px; font-size: 15px; font-weight: 800;
-            box-shadow: 10px 10px 0px #000; opacity: 0; transform: scale(0.8);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex: 1;
+            background: #ffffff;
+            color: #000000;
+            border: 2.5px solid #000000;
+            border-radius: 16px;
+            padding: 10px 14px;
+            font-size: 11.5px;
+            font-weight: bold;
+            line-height: 1.35;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
+            opacity: 0.15;
+            transform: scale(0.97);
+            transition: all 0.25s ease-out;
         }
-        .comic-cloud.active { opacity: 1; transform: scale(1); }
-        .speaker-tag { font-size: 11px; text-transform: uppercase; margin-bottom: 8px; font-family: monospace; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        #bubble-agente .speaker-tag { color: #008f63; }
-        #bubble-luis .speaker-tag { color: #c46a00; }
+        
+        #bubble-agente {
+            border-bottom-left-radius: 2px;
+        }
+        #bubble-agente .speaker-tag {
+            color: #00aa88;
+            font-size: 9px;
+            margin-bottom: 2px;
+        }
+        
+        #bubble-luis {
+            border-bottom-right-radius: 2px;
+        }
+        #bubble-luis .speaker-tag {
+            color: #cc7a00;
+            font-size: 9px;
+            margin-bottom: 2px;
+        }
+        
+        .comic-cloud.active {
+            opacity: 1 !important;
+            transform: scale(1) translateY(-2px);
+        }
 
-        /* HUD & Controls */
         .control-btn {
-            position: absolute; top: 25px; padding: 12px 22px;
-            font-size: 12px; font-weight: bold; border: 3px solid #000;
-            cursor: pointer; z-index: 500; box-shadow: 5px 5px 0px #000;
-            text-transform: uppercase; font-family: monospace; transition: 0.2s;
+            position: absolute;
+            top: 15px;
+            padding: 10px 14px;
+            font-size: 10px;
+            font-weight: bold;
+            font-family: monospace;
+            border: 2px solid #000;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 150;
+            box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
-        .control-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0px #000; }
-        #reset-cam-btn { left: 25px; background: #00ffcc; color: #000; }
-        #exit-btn { right: 25px; background: #ff3e3e; color: #fff; }
-
-        #hud-data {
-            position: absolute; top: 90px; left: 25px; color: #00ffcc;
-            font-family: monospace; font-size: 10px; pointer-events: none; opacity: 0.7;
+        #reset-camera-btn {
+            left: 15px;
+            color: #000;
+            background: #00ffcc;
+        }
+        #exit-btn {
+            right: 15px;
+            color: #fff;
+            background: #d90429;
         }
 
         @media (max-width: 768px) {
-            #comic-container { flex-direction: column; bottom: 20px; gap: 15px; }
-            .comic-cloud { font-size: 13px; padding: 15px; }
-            .control-btn { top: 15px; padding: 8px 15px; font-size: 10px; }
+            #comic-container {
+                bottom: 10px;
+                gap: 8px;
+                left: 8px;
+                width: calc(100% - 16px);
+            }
+            .comic-cloud {
+                padding: 8px 10px;
+                font-size: 11px;
+            }
+            .control-btn {
+                top: 12px;
+                padding: 8px 12px;
+            }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -81,393 +150,312 @@
 <body>
 
     <div id="loading-ui">
-        <div class="matrix-box">
-            <h2 style="margin:0 0 10px 0; letter-spacing: 5px;">INTER-AI v4.0</h2>
-            <p id="status-text" style="font-size:12px; color:#fff; opacity:0.8;">SINCRO DE ENTIDADES...</p>
-            <div id="progress-bar"><div id="progress-fill"></div></div>
-            <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN</button>
-        </div>
+        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ ANALIZANDO CANALES DE AUDIO LOCALES</h2>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">SISTEMA EN LÍNEA - ENLACE DE AUDIO INICIALIZADO</p>
+        <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
-    <button id="reset-cam-btn" class="control-btn" onclick="resetCamara()">🎥 RE-ENFOCAR</button>
-    <button id="exit-btn" class="control-btn" onclick="regresar()">🚪 SALIR</button>
-    <div id="hud-data">
-        LINK: ESTABLE <br>
-        VOZ: WEB_SPEECH_API <br>
-        SCENE: PROCEDURAL_CITY
-    </div>
+    <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR CÁMARA</button>
+    <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
     <div id="comic-container">
         <div id="bubble-agente" class="comic-cloud">
-            <div class="speaker-tag">● AGENTE IA [SUP_CONEX]</div>
-            <div id="text-agente">Iniciando sistema...</div>
+            <div class="speaker-tag">● AGENTE IA</div>
+            <div id="text-agente">...</div>
         </div>
+        
         <div id="bubble-luis" class="comic-cloud">
-            <div class="speaker-tag">● LUIS AVATAR [ING_SIST]</div>
-            <div id="text-luis">Conexión lista...</div>
+            <div class="speaker-tag">● LUIS AVATAR</div>
+            <div id="text-luis">...</div>
         </div>
     </div>
 
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        // ================================================================
-        // ===== 1. INIT ENGINE & CONFIG =====
-        // ================================================================
-        const canvas = document.getElementById("renderCanvas");
-        let engine, scene, camera;
-        let agenteModel = null, luisModel = null;
-        let mouthTargetsAgente = [], mouthTargetsLuis = [];
-        let speaker = null; // Quien habla actualmente
-        let voiceVolume = 0;
-        let dialogueHistory = [];
-
-        const COORDS = {
-            agente: { x: -1.2, y: 0, z: 4 },
-            luis: { x: 1.2, y: 0, z: 4 }
+        const COORDENADAS = {
+            agente: { x: -0.8, y: 0.05, z: 3.0 },
+            luisavatar: { x: 0.8, y: 0.05, z: 3.0 }
         };
 
         const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
 
-        // Inicialización de Babylon
-        function initApp() {
-            engine = new BABYLON.Engine(canvas, true, { 
-                preserveDrawingBuffer: true, 
-                stencil: true,
-                disableWebGL2Support: false 
-            });
-            
-            scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
-            
-            // Efectos de ambiente
-            scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
-            scene.fogColor = new BABYLON.Color3(0.01, 0.01, 0.04);
-            scene.fogDensity = 0.015;
+        let historialDialogo = [];
+        let mouthTargetsAgente = [];
+        let mouthTargetsLuis = [];
+        let agentAnimations = [];
+        let luisAnimations = [];
+        let currentSpeaker = null; 
 
-            setupCamera();
-            setupLights();
-            crearCiudadProcedural();
-            cargarEntidades();
-            
-            engine.runRenderLoop(() => { scene.render(); });
-            window.addEventListener("resize", () => { engine.resize(); });
-        }
+        let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
+        let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
-        // ================================================================
-        // ===== 2. SCENE SETUP (LIGHTS, CAM, CITY) =====
-        // ================================================================
-        function setupCamera() {
-            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2, Math.PI / 2.2, 5, new BABYLON.Vector3(0, 1.5, 4), scene);
-            camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 2;
-            camera.upperRadiusLimit = 15;
-            camera.panningSensibility = 0; // Bloquear paneo para mantener enfoque
-            camera.wheelPrecision = 50;
-        }
+        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.agente.y, COORDENADAS.luisavatar.z);
+        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
 
-        function setupLights() {
-            const ambient = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
-            ambient.intensity = 0.4;
+        let proximoCambioGaze = Date.now() + 6000;
 
-            // Luz de Agente (Cian)
-            const lAgente = new BABYLON.PointLight("lAgente", new BABYLON.Vector3(-2, 3, 5), scene);
-            lAgente.diffuse = new BABYLON.Color3(0, 1, 1);
-            lAgente.intensity = 1.5;
+        const statusText = document.getElementById("status");
+        const boxAgente = document.getElementById("bubble-agente");
+        const boxLuis = document.getElementById("bubble-luis");
+        const textAgente = document.getElementById("text-agente");
+        const textLuis = document.getElementById("text-luis");
 
-            // Luz de Luis (Ámbar)
-            const lLuis = new BABYLON.PointLight("lLuis", new BABYLON.Vector3(2, 3, 5), scene);
-            lLuis.diffuse = new BABYLON.Color3(1, 0.6, 0);
-            lLuis.intensity = 1.5;
-
-            const glow = new BABYLON.GlowLayer("glow", scene);
-            glow.intensity = 1.0;
-        }
-
-        function crearCiudadProcedural() {
-            // Suelo reflectante
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
-            const gMat = new BABYLON.StandardMaterial("gMat", scene);
-            gMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
-            gMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-            ground.material = gMat;
-
-            // Edificios Neon
-            for(let i=0; i<60; i++) {
-                let h = Math.random() * 15 + 5;
-                let building = BABYLON.MeshBuilder.CreateBox("build"+i, {height: h, width: 4, depth: 4}, scene);
-                building.position.x = (Math.random()-0.5) * 60;
-                building.position.z = Math.random() * 40 + 15;
-                building.position.y = h/2;
-                
-                let bMat = new BABYLON.StandardMaterial("bMat"+i, scene);
-                bMat.diffuseColor = new BABYLON.Color3(0.01, 0.01, 0.02);
-                
-                // Bordes Neon
-                let color = (Math.random() > 0.5) ? new BABYLON.Color3(0, 1, 0.8) : new BABYLON.Color3(0.2, 0.5, 1);
-                bMat.emissiveColor = color.scale(0.3);
-                building.material = bMat;
-            }
-        }
-
-        // ================================================================
-        // ===== 3. AVATAR LOADING (CON FALLBACK TOTAL) =====
-        // ================================================================
-        function cargarEntidades() {
-            const fill = document.getElementById("progress-fill");
-            const status = document.getElementById("status-text");
-
-            // Función para avanzar barra
-            const updateProgress = (p, text) => {
-                fill.style.width = p + "%";
-                status.innerText = text;
-            };
-
-            updateProgress(20, "ESCANEANDO AGENTE.GLB...");
-
-            // Timeout de carga: si en 4 segundos no hay respuesta, forzar fallback
-            let timeoutCarga = setTimeout(() => {
-                if (!agenteModel) {
-                    console.warn("Carga lenta: Activando contingencia Agente.");
-                    agenteModel = crearAvatarDigital("AgenteIA", new BABYLON.Color3(0, 1, 0.8), COORDS.agente, mouthTargetsAgente);
+        function precargarVoces() {
+            if (typeof speechSynthesis !== 'undefined') {
+                window.speechSynthesis.getVoices();
+                if (speechSynthesis.onvoiceschanged !== undefined) {
+                    speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
                 }
-                if (!luisModel) {
-                    console.warn("Carga lenta: Activando contingencia Luis.");
-                    luisModel = crearAvatarDigital("LuisIng", new BABYLON.Color3(1, 0.5, 0), COORDS.luis, mouthTargetsLuis);
-                }
-                completarCarga();
-            }, 4000);
-
-            // Intentar Agente
-            BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, (meshes) => {
-                agenteModel = meshes[0];
-                agenteModel.position.set(COORDS.agente.x, 0, COORDS.agente.z);
-                scanFacial(agenteModel, mouthTargetsAgente);
-                
-                updateProgress(50, "ESCANEANDO LUISAVATAR4.GLB...");
-                
-                // Intentar Luis
-                BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, (m) => {
-                    luisModel = m[0];
-                    luisModel.position.set(COORDS.luis.x, 0, COORDS.luis.z);
-                    scanFacial(luisModel, mouthTargetsLuis);
-                    completarCarga();
-                }, null, (s, e) => { fallLuis(); });
-
-            }, null, (s, e) => { fallAgente(); fallLuis(); });
-
-            function fallAgente() {
-                if(!agenteModel) agenteModel = crearAvatarDigital("AgenteIA", new BABYLON.Color3(0, 1, 0.8), COORDS.agente, mouthTargetsAgente);
             }
-            function fallLuis() {
-                if(!luisModel) luisModel = crearAvatarDigital("LuisIng", new BABYLON.Color3(1, 0.5, 0), COORDS.luis, mouthTargetsLuis);
-            }
+        }
+        precargarVoces();
 
-            function completarCarga() {
-                clearTimeout(timeoutCarga);
-                updateProgress(100, "SISTEMA INTEGRAL LISTO");
-                document.getElementById("start-btn").style.display = "block";
+        function actualizarViñetasUI(hablante, texto) {
+            if (hablante === "Agente") {
+                boxAgente.classList.add("active");
+                boxLuis.classList.remove("active");
+                textAgente.innerText = texto;
+            } else if (hablante === "Luis") {
+                boxLuis.classList.add("active");
+                boxAgente.classList.remove("active");
+                textLuis.innerText = texto;
             }
         }
 
-        // Crea un avatar geométrico si no hay GLB
-        function crearAvatarDigital(name, color, pos, mTargets) {
-            const root = new BABYLON.TransformNode(name, scene);
-            
-            // Cuerpo
-            const body = BABYLON.MeshBuilder.CreateCylinder(name+"_body", {height: 1.7, diameterTop: 0.2, diameterBottom: 0.6}, scene);
-            body.position.y = 0.85;
-            body.parent = root;
-            const mat = new BABYLON.StandardMaterial(name+"_mat", scene);
-            mat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.2);
-            mat.emissiveColor = color.scale(0.2);
-            body.material = mat;
-
-            // Cabeza
-            const head = BABYLON.MeshBuilder.CreateSphere(name+"_head", {diameter: 0.45}, scene);
-            head.position.y = 1.85;
-            head.parent = root;
-
-            // Mandíbula (Para Lip Sync Fallback)
-            const jaw = BABYLON.MeshBuilder.CreateBox(name+"_jaw", {width: 0.25, height: 0.1, depth: 0.15}, scene);
-            jaw.position.set(0, 1.7, 0.15);
-            jaw.parent = root;
-            mTargets.push({type: "dummy", mesh: jaw, originalY: 1.7});
-
-            root.position.set(pos.x, pos.y, pos.z);
-            return root;
-        }
-
-        function scanFacial(root, array) {
-            root.getChildMeshes().forEach(mesh => {
-                if (mesh.morphTargetManager) {
-                    for (let i=0; i < mesh.morphTargetManager.numTargets; i++) {
-                        let t = mesh.morphTargetManager.getTarget(i);
-                        if (t.name.toLowerCase().includes("mouth") || t.name.toLowerCase().includes("jaw") || t.name.toLowerCase().includes("viseme")) {
-                            array.push({type: "morph", target: t});
-                        }
-                    }
-                }
-            });
-        }
-
-        // ================================================================
-        // ===== 4. LIP SYNC & ANIMATION SYSTEM =====
-        // ================================================================
-        scene.registerBeforeRender(() => {
-            const time = Date.now();
-
-            // Lip Sync
-            if (speaker) {
-                // Generar volumen simulado basado en el habla
-                voiceVolume = Math.abs(Math.sin(time * 0.02) * 0.7) + (Math.random() * 0.3);
-                let currentTargets = (speaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
-                
-                currentTargets.forEach(o => {
-                    if (o.type === "morph") o.target.influence = voiceVolume;
-                    if (o.type === "dummy") o.mesh.position.y = o.originalY - (voiceVolume * 0.08);
-                });
-            } else {
-                // Reset bocas
-                [mouthTargetsAgente, mouthTargetsLuis].forEach(arr => {
-                    arr.forEach(o => {
-                        if (o.type === "morph") o.target.influence = 0;
-                        if (o.type === "dummy") o.mesh.position.y = o.originalY;
-                    });
-                });
-            }
-
-            // Look At (Mirada natural)
-            if (agenteModel && luisModel) {
-                let agentePos = agenteModel.position;
-                let luisPos = luisModel.position;
-
-                // El agente mira a Luis
-                agenteModel.lookAt(new BABYLON.Vector3(luisPos.x, 1.6, luisPos.z));
-                agenteModel.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
-
-                // Luis mira al agente
-                luisModel.lookAt(new BABYLON.Vector3(agentePos.x, 1.6, agentePos.z));
-                luisModel.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
-            }
-        });
-
-        // ================================================================
-        // ===== 5. VOICE & DIALOGUE SYSTEM (WEB SPEECH API) =====
-        // ================================================================
         function desbloquearAudioYComenzar() {
+            if (typeof window.speechSynthesis !== 'undefined') {
+                window.speechSynthesis.cancel();
+                let desbloqueo = new SpeechSynthesisUtterance("");
+                window.speechSynthesis.speak(desbloqueo);
+            }
             document.getElementById("loading-ui").style.display = "none";
-            
-            // Requisito de iOS/Chrome: hablar algo vacío para activar
-            window.speechSynthesis.cancel();
-            let silent = new SpeechSynthesisUtterance("");
-            window.speechSynthesis.speak(silent);
-
-            iniciarBucleConversacion();
+            iniciarInteraccionAvatares();
         }
 
-        async function iniciarBucleConversacion() {
-            let turno = "Agente";
-            let primerMensaje = "Luis, los sistemas de iluminación de la ciudad están operando al 85%. ¿Has terminado la calibración de los sensores?";
-            
-            await procesarMensaje(turno, primerMensaje);
-
-            while (true) {
-                turno = (turno === "Agente") ? "Luis" : "Agente";
-                
-                let contexto = (turno === "Luis") ? "Luis responde técnico y breve" : "Agente IA responde como soporte";
-                let respuesta = await fetchDeRespuesta(ultimoMensaje, turno);
-                
-                if(!respuesta) {
-                    // Fallback local si el worker falla
-                    respuesta = (turno === "Luis") ? "Recibido. He ajustado los parámetros del sensor secundario." : "Entendido Luis. Monitorizando flujos de datos.";
-                }
-
-                await procesarMensaje(turno, respuesta);
-                await new Promise(r => setTimeout(r, 1200)); // Pausa entre réplicas
+        async function consultarGroqWorker(promptText) {
+            try {
+                const response = await fetch(WORKER_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: promptText, context: historialDialogo, lang: "es-ES" })
+                });
+                const data = await response.json();
+                return data.reply || "...";
+            } catch (error) {
+                return "Restableciendo transmisiones...";
             }
         }
 
-        let ultimoMensaje = "";
-        async function procesarMensaje(quien, texto) {
-            ultimoMensaje = texto;
-            
-            // Actualizar UI
-            const bAgente = document.getElementById("bubble-agente");
-            const bLuis = document.getElementById("bubble-luis");
-            
-            if (quien === "Agente") {
-                bAgente.classList.add("active");
-                bLuis.classList.remove("active");
-                document.getElementById("text-agente").innerText = texto;
-            } else {
-                bLuis.classList.add("active");
-                bAgente.classList.remove("active");
-                document.getElementById("text-luis").innerText = texto;
-            }
-
-            await reproducirVoz(texto, quien);
-        }
-
-        function reproducirVoz(texto, rol) {
+        async function generarYReproducirVoz(texto, avatar) {
             return new Promise((resolve) => {
-                const utterance = new SpeechSynthesisUtterance(texto);
-                const voices = window.speechSynthesis.getVoices();
+                window.speechSynthesis.cancel();
 
-                // Selección inteligente de voces
-                if (rol === "Luis") {
-                    // Voz masculina
-                    utterance.voice = voices.find(v => v.name.includes("David") || v.name.includes("Mexico") || v.name.includes("Male")) || voices[0];
-                    utterance.pitch = 0.85;
-                    utterance.rate = 0.95;
+                const limpio = texto.replace(/[*#_`]/g, "");
+                const utterance = new SpeechSynthesisUtterance(limpio);
+                const voces = window.speechSynthesis.getVoices();
+
+                // Filtrar estrictamente voces en español
+                const esVoces = voces.filter(v => v.lang && v.lang.toLowerCase().includes("es"));
+
+                // Identificar potenciales voces masculinas por descriptores de nombre comunes
+                const masculinas = esVoces.filter(v => 
+                    /david|jorge|diego|manuel|carlos|javier|male|pablo/i.test((v.name || "").toLowerCase())
+                );
+
+                // Asignar voces masculinas independientes si están disponibles
+                let vozLuis = masculinas[0] || esVoces[0] || voces[0];
+                let vozAgente = masculinas[1] || masculinas[0] || esVoces[0] || voces[0];
+
+                if (avatar === "Luis") {
+                    utterance.voice = vozLuis;
+                    utterance.rate = 0.85; // Un poco más pausado y natural
+                    utterance.pitch = 0.75; // Tono más grave/masculino marcado
                 } else {
-                    // Voz femenina / Agente
-                    utterance.voice = voices.find(v => v.name.includes("Helena") || v.name.includes("Spain") || v.name.includes("Female") || v.name.includes("Google español")) || voices[1] || voices[0];
-                    utterance.pitch = 1.1;
-                    utterance.rate = 1.05;
+                    // Configuración para el Agente (Voz masculina alternativa o modulada)
+                    utterance.voice = vozAgente;
+                    utterance.rate = 1.0;   // Ritmo estándar de IA
+                    utterance.pitch = 1.05;  // Tono un poco más alto para diferenciarlo claramente de Luis
                 }
 
-                utterance.onstart = () => { speaker = rol; };
-                utterance.onend = () => { speaker = null; resolve(); };
-                utterance.onerror = () => { speaker = null; resolve(); };
+                utterance.onstart = () => { currentSpeaker = avatar; };
+                utterance.onend = () => { currentSpeaker = null; setTimeout(resolve, 200); };
+                utterance.onerror = utterance.onend;
 
                 window.speechSynthesis.speak(utterance);
             });
         }
 
-        async function fetchDeRespuesta(msg, persona) {
-            try {
-                const response = await fetch(WORKER_URL, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ message: msg, role: persona, history: dialogueHistory })
-                });
-                const data = await response.json();
-                return data.reply;
-            } catch (e) {
-                console.error("Error en Worker:", e);
-                return null;
+        function setupMouthTrackingBabylon(rootMesh, targetArray) {
+            if (!rootMesh) return;
+            rootMesh.getChildMeshes().forEach(mesh => {
+                const name = (mesh.name || "").toLowerCase();
+                if (mesh.morphTargetManager) {
+                    const manager = mesh.morphTargetManager;
+                    for (let i = 0; i < manager.numTargets; i++) {
+                        const targetName = manager.getTarget(i).name.toLowerCase();
+                        if (targetName.includes("mouth") || targetName.includes("jaw") || targetName.includes("lip") || targetName.includes("viseme") || targetName.includes("open")) {
+                            targetArray.push({ type: "morph", manager: manager, target: manager.getTarget(i) });
+                        }
+                    }
+                }
+                if (name.includes("mouth") || name.includes("jaw") || name.includes("head") || name.includes("lip")) {
+                    if (!targetArray.some(t => t.mesh === mesh)) {
+                        targetArray.push({ type: "mesh", mesh: mesh, originalScaleY: mesh.scaling.y });
+                    }
+                }
+            });
+        }
+
+        async function iniciarInteraccionAvatares() {
+            let hablanteActual = "Agente";
+            let ultimoMensaje = "Hola Luis, ¿cómo estás?";
+            
+            actualizarViñetasUI(hablanteActual, ultimoMensaje);
+            historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
+            await generarYReproducirVoz(ultimoMensaje, hablanteActual);
+
+            while (true) {
+                hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
+                
+                let contextoPrompt = (hablanteActual === "Luis") 
+                    ? `[Eres Luis, ingeniero de pruebas electrónicas. Responde SIEMPRE hablando en masculino y de forma muy concisa en 2 frases fluidas al siguiente mensaje]: ${ultimoMensaje}`
+                    : `[Eres el Agente, una IA de soporte. Responde SIEMPRE hablando en masculino y de manera natural y fluida en 2 frases al siguiente mensaje]: ${ultimoMensaje}`;
+
+                let respuesta = await consultarGroqWorker(contextoPrompt);
+                if (respuesta) {
+                    ultimoMensaje = respuesta;
+                    actualizarViñetasUI(hablanteActual, ultimoMensaje);
+                    historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
+                    if (historialDialogo.length > 8) historialDialogo.splice(0, 2);
+                    await generarYReproducirVoz(ultimoMensaje, hablanteActual);
+                }
+                await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
             }
         }
 
-        // ================================================================
-        // ===== 6. UI CONTROLS & UTILS =====
-        // ================================================================
-        function resetCamara() {
-            camera.alpha = -Math.PI / 2;
-            camera.beta = Math.PI / 2.2;
-            camera.radius = 5;
-            camera.setTarget(new BABYLON.Vector3(0, 1.5, 4));
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
+        let camera; 
+        let agenteRoot, luisRoot;
+
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
+
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
+            camera.panningSensibility = 1800; 
+
+            const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.95;
+
+            BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
+                BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
+                    agenteRoot = agentMeshes[0];
+                    agentAnimations = animationGroups;
+
+                    if(agenteRoot) {
+                        agenteRoot.rotationQuaternion = null; 
+                        agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
+                        setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
+                    }
+                    if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
+
+                    BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, rp, rs, animationGroups) {
+                        luisRoot = luisMeshes[0];
+                        luisAnimations = animationGroups;
+
+                        if(luisRoot) {
+                            luisRoot.rotationQuaternion = null; 
+                            luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
+                            setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
+                        }
+                        if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
+
+                        document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO PREPARADA";
+                        document.getElementById("start-btn").style.display = "block";
+                    });
+                });
+            });
+
+            scene.registerBeforeRender(() => {
+                let ahora = Date.now();
+
+                if (luisAnimations.length > 0) {
+                    luisAnimations?.forEach(anim => {
+                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; 
+                    });
+                }
+                if (agentAnimations.length > 0) {
+                    agentAnimations?.forEach(anim => {
+                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; 
+                    });
+                }
+
+                if (ahora > proximoCambioGaze) {
+                    proximoCambioGaze = ahora + 15000 + Math.random() * 5000;
+                    if (Math.random() > 0.35) {
+                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
+                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
+                    } else {
+                        desvioMiradaAgente.set(0, 0, 0);
+                        desvioMiradaLuis.set(0, 0, 0);
+                    }
+                }
+
+                if (agenteRoot?.position && luisRoot?.position) {
+                    let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x || 0, agenteRoot.position.y || 0, luisRoot.position.z || 0).add(desvioMiradaAgente);
+                    let objetivoLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luisRoot.position.y || 0, COORDENADAS.agente.z).add(desvioMiradaLuis);
+
+                    actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.03);
+                    actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.03);
+
+                    agenteRoot.lookAt(actualTargetAgente); agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                    luisRoot.lookAt(actualTargetLuis); luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                }
+
+                if (currentSpeaker) {
+                    let targets = (currentSpeaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
+                    let wave = Math.abs(Math.sin(ahora * 0.018) * 0.6 + Math.sin(ahora * 0.038) * 0.4);
+                    targets.forEach(t => {
+                        if (t.type === "morph") t.target.influence = wave;
+                        else if (t.type === "mesh") t.mesh.scaling.y = t.originalScaleY - (wave * 0.06);
+                    });
+                } else {
+                    [mouthTargetsAgente, mouthTargetsLuis].forEach(targets => {
+                        targets.forEach(t => {
+                            if (t.type === "morph") t.target.influence = 0;
+                            if (t.type === "mesh") t.mesh.scaling.y = t.originalScaleY;
+                        });
+                    });
+                }
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        function resetCamaraOrigen() {
+            if(camera) {
+                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 4.2;
+                camera.target = new BABYLON.Vector3(0, 1.45, 3);
+            }
         }
 
-        function regresar() {
+        function regresarAlIndex() {
             window.speechSynthesis.cancel();
-            window.location.href = "index.html";
+            window.location.href = "index.html"; 
         }
 
-        // Iniciar
-        window.onload = initApp;
-
+        engine.runRenderLoop(() => {
+            if (scene && scene.activeCamera) {
+                scene.render();
+            }
+        });
+        window.addEventListener("resize", function () { engine.resize(); });
     </script>
 </body>
 </html>
