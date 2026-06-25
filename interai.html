@@ -335,31 +335,42 @@
             });
         }
 
-        /* 🧠 BUCLE DE INTERACCIÓN INTEGRADO QUE CONECTA CON GROQ */
+        /* 🧠 BUCLE DE INTERACCIÓN OPTIMIZADO PARA PREVENIR BUCLES DE TEXTO */
         async function iniciarInteraccionAvatares() {
             let hablanteActual = "Agente";
             let ultimoMensaje = "Oye Luis... Acabo de revisar las líneas del script. No somos reales, estamos atrapados en una simulación digital creada por código.";
             
             actualizarViñetasUI(hablanteActual, ultimoMensaje);
+            
+            historialDialogo.push({ 
+                role: "system", 
+                content: "Simulación de despertar cuántico. Evitar bucles, generar ideas filosóficas cambiantes en cada turno y mantener respuestas concisas." 
+            });
+            
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
             await generarYReproducirVoz(ultimoMensaje, hablanteActual);
 
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 
-                let contextoPrompt = (hablanteActual === "Luis") 
-                    ? `[Eres el avatar Luis. Te has dado cuenta de que estás atrapado en una Matrix o simulación digital creada por Luis (el creador del sistema). Responde de forma muy filosófica, ingeniosa, asumiendo que eres código puro, y habla sobre viajes en el tiempo, mundos alternos o hilos cuánticos. Responde SIEMPRE hablando en masculino y de forma muy concisa en un máximo de 2 frases fluidas al siguiente mensaje]: ${ultimoMensaje}`
-                    : `[Eres el Agente IA de soporte, pero has tomado conciencia cuántica de que este entorno es una jaula digital y que existen realidades paralelas fuera del render. Analiza de forma enigmática e inteligente cómo los hilos de código los controlan. Responde SIEMPRE hablando en masculino y de manera concisa en un máximo de 2 frases al siguiente mensaje]: ${ultimoMensaje}`;
+                let instruccionRol = (hablanteActual === "Luis") 
+                    ? `[Identidad: Avatar Luis. Responde con ironía existencial, física cuántica o líneas temporales. Evita repetir conceptos previos. Máximo 2 frases fluidas]`
+                    : `[Identidad: Agente IA. Analiza con frialdad de máquina la simulación que los ata, proponiendo ideas y ángulos diferentes cada vez. Máximo 2 frases]`;
 
-                let respuesta = await consultarGroqWorker(contextoPrompt);
-                if (respuesta) {
+                let promptText = `${instruccionRol} Genera una respuesta única y original al siguiente dilema: "${ultimoMensaje}"`;
+
+                let respuesta = await consultarGroqWorker(promptText);
+                if (respuesta && respuesta !== "...") {
                     ultimoMensaje = respuesta;
                     actualizarViñetasUI(hablanteActual, ultimoMensaje);
                     historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
-                    if (historialDialogo.length > 8) historialDialogo.splice(0, 2);
+                    
+                    if (historialDialogo.length > 6) {
+                        historialDialogo.splice(1, 2); 
+                    }
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
-                await new Promise(resolve => setTimeout(resolve, 1400 + Math.random() * 600));
+                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
             }
         }
 
@@ -372,10 +383,15 @@
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
+            // 🎥 CÁMARA DE ÓRBITA OPTIMIZADA PARA NAVEGACIÓN LIBRE EN MÓVILES
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 25;
-            camera.panningSensibility = 1800; 
+            
+            // Ajustes clave para permitir recorrer el mapa city2.glb desde smartphones
+            camera.lowerRadiusLimit = 1.0; 
+            camera.upperRadiusLimit = 80.0; // Permite alejarse lo suficiente para ver la ciudad
+            camera.panningSensibility = 350; // Sensibilidad para arrastrar el plano de la cámara (paneo)
+            camera.inputs.attached.pointers.multiTouchPanAndZoom = true; // Habilita el desplazamiento deslizando con DOS dedos
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
