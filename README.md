@@ -1,104 +1,101 @@
-# 🪐 ⚡ LAB LUIS — Física Experimental & Electrónica Aplicada
+# 🪐 ⚡ LAB LUIS — Física Experimental, Electrónica Aplicada & Entornos Virtuales
 
-## 🌐 Plataforma principal
+## 🌐 Plataforma Principal
 👉 [duquemartini.com](https://duquemartini.com/)
 
 ---
 
 ## 🧪 🧠 Sobre el proyecto
-**Lab Luis** es un entorno experimental vivo donde se combinan:
+**Lab Luis** es un entorno experimental e innovador de simulación y telemetría en tiempo real donde convergen la ingeniería de software avanzada, la física y los entornos inmersivos multiusuario:
 
-* ⚡ **Simulación de circuitos electrónicos** en tiempo real (SPICE visual).
-* 🔬 **Investigación en física aplicada** y fenómenos eléctricos.
-* 🪐 **Astronomía observacional**, astrofísica y simulación de cuerpos celestes.
-* 📡 **Sistemas de transmisión láser** y comunicación óptica.
-* 🔊 **Experimentos con audio**, señales y frecuencias.
-* 🧲 **Ultrasonido aplicado** y control de ondas estacionarias.
-* 🔋 **Electrónica avanzada** con Arduino y ESP32.
-* 🌡️ **Energía alternativa** y sistemas de conversión.
+* ⚡ **Simulación de circuitos electrónicos** en tiempo real (SPICE visual y análisis nodal MNA).
+* 🌐 **Entornos Virtuales y Avatares 3D:** Integración con la plataforma **Viverse** para reuniones colaborativas y mundos persistentes interactivos.
+* 🌤️ **Sistema Wendy:** Panel de telemetría meteorológica (seguimiento de viento y temperatura) y rastreo de actividad tectónica.
+* 🤖 **Interfaces Holográficas IA:** Asistentes conversacionales integrados a través del ecosistema `interai.html`.
+* 🔬 **Investigación en física aplicada:** Fenómenos electromagnéticos, cámaras de vacío, láseres y propagación ultrasónica.
+* 🪐 **Astrofísica y Astronomía:** Modelos observacionales y simulaciones dinámicas en la web.
+* 🔊 **Audio Lab & Cyber RGB UI:** Diseño de sonido espectro-sintético sincronizado con vúmetros RGB avanzados y osciloscopios basados en Canvas.
 
 ---
 
-## 🧩 🔬 Nuevo sistema: TRUE-SPICE Interactive Lab
-El proyecto incluye un simulador electrónico avanzado en HTML/JS con las siguientes características:
+## 🌐 Ecosistema de Mundos Virtuales 3D (Viverse Integration)
+Despliegue de entornos virtuales inmersivos interactivos y cooperativos en tiempo real, optimizados mediante arquitecturas híbridas independientes para PC y dispositivos móviles:
+
+### 🏝️ Entornos Activos
+* **Isla del Cielo:** Consola central de telemetría y espacio virtual persistente de alta fidelidad optimizado para navegación en PC.
+* **Isla de la Nostalgia 🎵:** Escena de inmersión total con un reproductor de audio envolvente y espectro dinámico.
+* **NuftSRV (Reuniones Virtuales):** Hub de interacción social y salas cooperativas optimizado al 100% para smartphones.
+* **Vista al Mar 🌊:** Espacio de relajación y pruebas de renderizado ambiental para entornos móviles.
+
+### 👥 Capacidades Multijugador y Simulación de Avatares
+* **Audio Espacial e Interacción:** Chat de texto directo en pantalla y activación automática de micrófono para voz en vivo basado en proximidad y distancia entre avatares (requiere dos o más usuarios en la instancia).
+* **Optimización de Assets 3D:** Implementación de modelos biométricos (`luis-avatar3.glb`) con texturas avanzadas de alta resolución configuradas bajo WebGL y `<model-viewer>` para un renderizado fiel sin pérdida de rendimiento.
+
+---
+
+## 🌤️ Panel de Telemetría: Sistema Wendy
+Consola de monitorización meteorológica y geofísica avanzada que unifica el análisis de datos ambientales y el control multimedia en una única pantalla de comando:
+* **Módulos de Rastreo Atmosférico:** Lectura en tiempo real de la velocidad/dirección del viento y gradientes térmicos.
+* **Mapeo Tectónico:** Registro y seguimiento de vibraciones superficiales y eventos sísmicos.
+* **Sincronización de Audio:** Integración del reproductor de espectro sonoro directamente en el flujo de monitorización climática para un entorno de laboratorio inmersivo.
+
+---
+
+## 🤖 Interfaz Inteligente: InterAI
+Integración del módulo `interai.html`, un asistente holográfico basado en inteligencia artificial diseñado para actuar como el núcleo de asistencia del laboratorio. Cuenta con una estética basada en consolas militares y de submarinos, dotada de menús táctiles rápidos y transiciones RGB de neón adaptativas.
+
+---
+
+## 🧩 🔬 Simulador Técnico: TRUE-SPICE Interactive Lab
+Simulador electrónico en web de respuesta inmediata que ejecuta cálculos matemáticos sobre mallas circuitales:
 
 ### ⚡ Capacidades principales
-* **Malla de nodos eléctricos dinámica** (MNA simplificado).
-* **Componentes interactivos:**
-  * Resistencias 🟫
-  * Capacitores ⚡
-  * LEDs 🟢
-  * Motores DC 🌀
-  * Interruptores 🎛️
-  * Fuentes DC 🔋
-* **Cables con visualización de corriente** en tiempo real.
-* **Osciloscopio digital integrado** 📟.
-* **Lectura de voltajes** por nodo.
-
-### 🧠 Características técnicas
-* Resolución de circuitos mediante análisis nodal (**MNA simplificado**).
-* Simulación de estado dinámico (capacitores y motores).
-* Representación visual de energía y flujo de corriente.
-* Interfaz táctil optimizada para dispositivos móviles 📱.
+* **Análisis de Malla de Nodos:** Motor de cálculo basado en el método **MNA simplificado** (Modified Nodal Analysis).
+* **Componentes Interactivos Dinámicos:** Resistencias 🟫, Capacitores (con carga/descarga dinámica) ⚡, LEDs 🟢, Motores DC con inercia visual 🌀, Interruptores 🎛️ y Fuentes DC 🔋.
+* **Instrumentación Gráfica:** Cables con trazado de flujo de corriente animado y **Osciloscopio digital integrado** 📟 con medición de Hz, amplitud y voltajes por nodo.
 
 ---
 
-## 🎧 Audio Lab (creación propia)
-Colección de audio experimental generado y diseñado de forma original para exploración sonora, pruebas de percepción y experimentación técnica.
-
-### Sets disponibles
-* 🎵 Composiciones sonoras experimentales propias.
-* 📡 Señales y patrones de audio diseñados para pruebas.
-* 🎚️ Exploración creativa de frecuencias y texturas sonoras.
+## 🎧 Audio Lab & Frecuencias
+Colección de audio experimental generado y diseñado de forma original para exploración sonora, pruebas de percepción acústica y estimulación técnica de componentes físicos.
+* **Vúmetros Digitales Activos:** Barras de espectro dinámico que responden de manera precisa a frecuencias bajas, medias y agudas empleando la Web Audio API.
+* **Vórtice Disco 80s:** Renderizado matemático por Canvas de ondas cíclicas cuya velocidad de rotación se altera proporcionalmente al estado de reproducción de piezas clave como `espectro-sintetico.mp3`.
 
 ---
 
-## 🔬 Áreas de investigación
-* Análisis de datos y observación **astronómica**.
-* Propagación de **ondas ultrasónicas**.
-* Interacción **láser–material**.
-* **Electromagnetismo** aplicado.
-* Dinámica de fluidos en **sistemas de enfriamiento**.
-* **Sensores físicos** y medición electrónica.
-* Análisis de **señales en tiempo real**.
+## ⚙️ Tecnologías y Frameworks Utilizados
+* **Frontend Core:** HTML5 (Canvas 2D/WebGL), CSS3 Avanzado (Filtros de cristal/Backdrop Blur), JavaScript (ES6+).
+* **Motores 3D e Interactividad:** Babylon.js, `<model-viewer>` y manipulación nativa de archivos `.glb`.
+* **Hardware de Laboratorio:** Microcontroladores Arduino, ESP32 y Raspberry Pi Pico para pruebas físicas coordinadas.
+* **Procesamiento de Señal:** Algoritmos matemáticos MNA para electrónica y Web Audio API para análisis de frecuencias en tiempo real.
 
 ---
 
-## ⚙️ Tecnologías utilizadas
-* **HTML / CSS / JavaScript** (Motor de simulación web).
-* **Arduino / ESP32 / Raspberry Pi Pico** (Hardware y firmware).
-* **Generadores de señal** y osciloscopía.
-* Procesamiento de **audio digital**.
-* Modelado físico simplificado (**MNA**).
-* Sistemas experimentales híbridos **hardware–software**.
-
----
-
-## 🧪 Nivel del proyecto
-Este sistema es un entorno experimental de simulación electrónica y física aplicada. Los modelos utilizados son aproximaciones computacionales diseñadas para visualización y experimentación; **no sustituyen simuladores SPICE industriales.**
+## 🔬 Áreas de Investigación Activas
+* Análisis de datos y simulación **astronómica/astrofísica**.
+* Propagación de **ondas ultrasónicas** y control de ondas estacionarias en presión de cámaras de vacío.
+* Interacción de **láseres con materiales** y comunicación óptica-atmosférica.
+* **Electrónica de pruebas físicas** y diagnóstico de fallas en arquitecturas integradas.
 
 ---
 
 ## 👨‍🔬 Autor
-**Luis F. Duque Martini** Investigador en electrónica experimental, física aplicada, astronomía y sistemas de energía alternativa.
+**Luis Duque Martini** — Investigador en electrónica de pruebas físicas, desarrollador de entornos virtuales/avatares, astrofísica computacional y sistemas de energía alternativa.
 
 ---
 
-## 🚀 Estado del proyecto
-Este laboratorio está en evolución continua, integrando:
-* Nuevos modelos físicos y astrofísicos.
-* Simulación electrónica avanzada.
-* Experimentos reales conectados a software.
+## 🚀 Estado del Proyecto
+Este laboratorio digital y físico se encuentra bajo innovación incremental constante. Las prioridades actuales de la hoja de ruta se centran en el perfeccionamiento del mapeo sísmico del *Sistema Wendy*, la expansión de capacidades lógicas del asistente *InterAI*, y la interconexión de sensores físicos reales con gemelos digitales dentro del entorno *Viverse*.
 
 ---
 
-## ☕ Apoyo al proyecto
-Si quieres apoyar la investigación y el desarrollo de nuevos sistemas experimentales, puedes contribuir a través de las siguientes plataformas:
+## ☕ Apoyo a la Investigación
+Si deseas impulsar el desarrollo de nuevos sistemas experimentales y la implementación de tecnologías de simulación abiertas, puedes contribuir a través de:
 
 * ☕ **Ko-fi:** [ko-fi.com/luisduque](https://ko-fi.com/luisduque)
 * 🧡 **Patreon:** [patreon.com/duque_art](https://patreon.com/duque_art)
 
 ---
 
-## 📌 Nota
-Este no es un proyecto estático. Es un **entorno de investigación vivo**, donde el software evoluciona al mismo ritmo que los experimentos en el laboratorio.
+## 📌 Declaración de Enfoque
+Este repositorio no representa un producto de software comercial estático. Es el **espejo digital de un laboratorio de física vivo**, donde el código se reescribe al ritmo del descubrimiento, persiguiendo siempre soluciones originales y orientadas al futuro.
