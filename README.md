@@ -42,7 +42,7 @@ Consola de monitorización meteorológica y geofísica avanzada que unifica el a
 ---
 
 ## 🤖 Interfaz Inteligente: InterAI
-Integración del módulo `interai.html`, un asistente holográfico basado en inteligencia artificial diseñado para actuar como el núcleo de asistencia del laboratorio. Cuenta con una estética basada en consolas militares y de submarinos, dotada de menús táctiles rápidos y transiciones RGB de neón adaptativas.
+Integración del módulo `interai.html`, un asistente holográfico basado en inteligencia artificial diseñado para actuar como el núcleo de asistencia del laboratorio. Cuenta con una estética basada en análisis del comportamiento IA en entornos, dotada de menús táctiles rápidos y transiciones RGB de neón adaptativas.
 
 ---
 
@@ -76,7 +76,7 @@ Colección de audio experimental generado y diseñado de forma original para exp
 * Propagación de **ondas ultrasónicas** y control de ondas estacionarias en presión de cámaras de vacío.
 * Interacción de **láseres con materiales** y comunicación óptica-atmosférica.
 * **Electrónica de pruebas físicas** y diagnóstico de fallas en arquitecturas integradas.
-
+* 3D
 ---
 
 ## 👨‍🔬 Autor
