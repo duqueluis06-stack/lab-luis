@@ -8,6 +8,11 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            /* 🚫 Evita que el navegador seleccione texto o elementos al arrastrar */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         html, body {
             overflow: hidden;
@@ -56,7 +61,7 @@
             position: absolute;
             bottom: 12px;
             left: 4%;
-            width: 70%; /* Reducido para dar espacio al joystick en móviles */
+            width: 70%;
             display: flex;
             justify-content: space-between;
             gap: 12px;
@@ -107,7 +112,7 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        /* 🕹️ INTERFAZ DEL JOYSTICK VIRTUAL HOLOGRÁFICO */
+        /* 🕹️ JOYSTICK OPTIMIZADO */
         #joystick-zone {
             position: absolute;
             bottom: 20px;
@@ -122,7 +127,7 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
-            touch-action: none;
+            touch-action: none; /* Bloquea gestos nativos del navegador */
         }
         #joystick-knob {
             width: 34px;
@@ -205,7 +210,6 @@
         let luisAnimations = [];
         let currentSpeaker = null; 
         let activeUtterance = null; 
-
         let caspitaRoot = null;
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
@@ -216,7 +220,6 @@
 
         let proximoCambioGaze = Date.now() + 6000;
 
-        // Variables de telemetría del Joystick
         let joystickInput = { x: 0, y: 0 };
         let joystickActivo = false;
 
@@ -473,13 +476,10 @@
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // ─── CÓDIGO DEL JOYSTICK EN EL BUCLE DE RENDERIZADO ───
                 if (joystickActivo && camera) {
-                    // Ajustamos la sensibilidad de rotación orbital mediante el joystick
                     camera.alpha += joystickInput.x * 0.03;
                     camera.beta += joystickInput.y * 0.02;
                     
-                    // Límites de seguridad para evitar que la cámara se invierta verticalmente
                     if (camera.beta < 0.05) camera.beta = 0.05;
                     if (camera.beta > Math.PI / 2.1) camera.beta = Math.PI / 2.1;
                 }
@@ -532,10 +532,10 @@
 
         createScene();
 
-        // ─── CONTROLADORES FÍSICOS DEL JOYSTICK (EVENTOS DE TOQUE) ───
+        // ─── CONTROLADORES FÍSICOS DEL JOYSTICK REPARADOS ───
         const zone = document.getElementById("joystick-zone");
         const knob = document.getElementById("joystick-knob");
-        const maxLimit = 30; // Rango máximo de movimiento del pomo en píxeles
+        const maxLimit = 30; 
 
         function handleJoystickStart(e) {
             joystickActivo = true;
@@ -559,7 +559,7 @@
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             
-            const touch = e.touches ? e.touches[0] : e;
+            const touch = e.touches && e.touches.length > 0 ? e.touches[0] : e;
             let deltaX = touch.clientX - centerX;
             let deltaY = touch.clientY - centerY;
             
@@ -573,15 +573,25 @@
             
             knob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
             
-            // Normalizar valores entre -1 y 1 para el cálculo de la cámara
             joystickInput.x = deltaX / maxLimit;
             joystickInput.y = deltaY / maxLimit;
         }
 
-        zone.addEventListener("touchstart", handleJoystickStart, { passive: true });
-        window.addEventListener("touchmove", handleJoystickMove, { passive: false });
-        window.addEventListener("touchend", handleJoystickEnd, { passive: true });
+        // Interceptores de eventos para anular comportamientos del sistema móvil
+        zone.addEventListener("touchstart", (e) => {
+            if (e.cancelable) e.preventDefault(); // Detiene selección táctil nativa
+            handleJoystickStart(e);
+        }, { passive: false });
 
+        window.addEventListener("touchmove", (e) => {
+            if (joystickActivo && e.cancelable) e.preventDefault(); // Detiene scroll de pantalla al arrastrar
+            handleJoystickMove(e);
+        }, { passive: false });
+
+        window.addEventListener("touchend", handleJoystickEnd, { passive: true });
+        window.addEventListener("touchcancel", handleJoystickEnd, { passive: true }); // Resetea si pierdes foco
+
+        // Compatibilidad para Escritorio (Mouse)
         zone.addEventListener("mousedown", handleJoystickStart);
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
