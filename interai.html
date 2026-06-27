@@ -104,13 +104,60 @@
             z-index: 150;
             box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
-        #reset-camera-btn { left: 15px; color: #000; background: #00ffcc; }
+        #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
+
+        /* 🛠️ NUEVO PANEL DE CALIBRACIÓN EN VIVO */
+        #debug-panel {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(5, 5, 15, 0.9);
+            border: 2px solid #00ffcc;
+            border-radius: 6px;
+            padding: 10px;
+            z-index: 180;
+            font-family: monospace;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(0,255,204,0.3);
+        }
+        #coord-display {
+            color: #00ffcc;
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .pad-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 3px;
+        }
+        .pad-btn {
+            width: 32px;
+            height: 32px;
+            background: #222;
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pad-btn:active {
+            background: #00ffcc;
+            color: #000;
+        }
 
         @media (max-width: 768px) {
             #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
-            .control-btn { top: 12px; padding: 8px 12px; }
+            #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
+            #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -124,7 +171,20 @@
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
-    <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR CÁMARA</button>
+    <!-- PANEL DE CONTROL MANUAL -->
+    <div id="debug-panel">
+        <div id="coord-display">X: 4.50 | Z: -5.50</div>
+        <div class="pad-row">
+            <button class="pad-btn" onclick="ajustarPosicion(0, 0.2)">▲</button>
+        </div>
+        <div class="pad-row">
+            <button class="pad-btn" onclick="ajustarPosicion(-0.2, 0)">◀</button>
+            <button class="pad-btn" onclick="ajustarPosicion(0, -0.2)">▼</button>
+            <button class="pad-btn" onclick="ajustarPosicion(0.2, 0)">▶</button>
+        </div>
+    </div>
+
+    <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
     <div id="comic-container">
@@ -148,8 +208,8 @@
             luisavatar: { x: -2.66, y: 0.01, z: 3.0 }
         };
 
-        /* 🌆 CALIBRACIÓN EVASIVA: Rompemos el edificio moviéndolos al espacio abierto de la calle */
-        const CALIBRACION_FIJA = {
+        /* 🌆 VALORES INICIALES DINÁMICOS */
+        let CALIBRACION_FIJA = {
             x: 4.5, 
             y: 0.0,
             z: -5.5,  
@@ -178,6 +238,26 @@
         const boxLuis = document.getElementById("bubble-luis");
         const textAgente = document.getElementById("text-agente");
         const textLuis = document.getElementById("text-luis");
+
+        /* 🕹️ FUNCIÓN PARA MOVER EN TIEMPO REAL DESDE LA PANTALLA O TECLADO */
+        function ajustarPosicion(dx, dz) {
+            CALIBRACION_FIJA.x += dx;
+            CALIBRACION_FIJA.z += dz;
+            
+            // Actualizar texto en pantalla
+            document.getElementById("coord-display").innerText = `X: ${CALIBRACION_FIJA.x.toFixed(2)} | Z: ${CALIBRACION_FIJA.z.toFixed(2)}`;
+            
+            // Forzar actualización inmediata de los avatares en la escena
+            aplicarPosicionesFijas();
+        }
+
+        // Soporte para mover con las flechas del teclado físico
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp") ajustarPosicion(0, 0.1);
+            if (e.key === "ArrowDown") ajustarPosicion(0, -0.1);
+            if (e.key === "ArrowLeft") ajustarPosicion(-0.1, 0);
+            if (e.key === "ArrowRight") ajustarPosicion(0.1, 0);
+        });
 
         function precargarVoces() {
             if (typeof speechSynthesis !== 'undefined') {
