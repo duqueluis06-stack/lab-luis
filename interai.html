@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>InterAI - Normalización Geométrica</title>
+    <title>InterAI - Escena Final Operativa</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; background-color: #030308; font-family: 'Arial', sans-serif; }
@@ -37,8 +37,8 @@
 <body>
 
     <div id="loading-ui">
-        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ FORZADO DE MATRICES GEOMÉTRICAS</h2>
-        <p id="status" style="margin:0; font-size:12px; color:#fff;">ANALIZANDO ESTRUCTURA DE COMPONENTES...</p>
+        <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚡ ENTORNO VIVERSE TRIDIMENSIONAL</h2>
+        <p id="status" style="margin:0; font-size:12px; color:#fff;">INTEGRANDO COMPONENTES Y ALINEANDO AVATARES...</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ ENTRAR A LA SIMULACIÓN</button>
     </div>
 
@@ -57,6 +57,14 @@
     <canvas id="renderCanvas" tabindex="0"></canvas>
 
     <script>
+        // Decodificador Draco WASM Activo de forma permanente
+        BABYLON.DracoCompression.Configuration = {
+            decoder: {
+                wasmUrl: "https://preview.babylonjs.com/draco_wasm_wrapper.js",
+                wasmBinaryUrl: "https://preview.babylonjs.com/draco_decoder.wasm"
+            }
+        };
+
         const COORDENADAS_BASE = {
             agente: { x: -2.84, y: 0.01, z: 3.0 },
             luisavatar: { x: -2.66, y: 0.01, z: 3.0 }
@@ -71,13 +79,8 @@
         let currentSpeaker = null, activeUtterance = null; 
 
         let dodgeRoot = null, caspitaRoot = null;
-        let desvioMiradaAgente = new BABYLON.Vector3(0,0,0), desvioMiradaLuis = new BABYLON.Vector3(0,0,0);
-        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS_BASE.luisavatar.x, COORDENADAS_BASE.agente.y, COORDENADAS_BASE.luisavatar.z);
-        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS_BASE.agente.x, COORDENADAS_BASE.luisavatar.y, COORDENADAS_BASE.agente.z);
-        let proximoCambioGaze = Date.now() + 6000;
-
-        const boxAgente = document.getElementById("bubble-agente"), boxLuis = document.getElementById("bubble-luis");
-        const textAgente = document.getElementById("text-agente"), textLuis = document.getElementById("text-luis");
+        let boxAgente = document.getElementById("bubble-agente"), boxLuis = document.getElementById("bubble-luis");
+        let textAgente = document.getElementById("text-agente"), textLuis = document.getElementById("text-luis");
 
         function precargarVoces() {
             if (typeof speechSynthesis !== 'undefined') {
@@ -154,18 +157,18 @@
 
         async function iniciarInteraccionAvatares() {
             let hablanteActual = "Agente";
-            let ultimoMensaje = "El cubo de calibración responde bien, Luis. El problema del Dodge parece ser un colapso de escala molecular en su archivo de origen.";
+            let ultimoMensaje = "Simulación estabilizada con éxito, Luis. Los vehículos y avatares están perfectamente posicionados en sus coordenadas óptimas.";
             actualizarViñetasUI(hablanteActual, ultimoMensaje);
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
-                let promptText = `Genera una continuación muy breve sobre reparar la simulación para: "${ultimoMensaje}"`;
+                let promptText = `Genera una frase corta de conversación casual o técnica para un entorno virtual basado en: "${ultimoMensaje}"`;
                 let respuesta = await consultarGroqWorker(promptText);
                 if (respuesta && respuesta !== "...") {
                     ultimoMensaje = respuesta;
                     actualizarViñetasUI(hablanteActual, ultimoMensaje);
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
-                await new Promise(r => setTimeout(r, 2800));
+                await new Promise(r => setTimeout(r, 2600));
             }
         }
 
@@ -183,20 +186,15 @@
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
-            // 🟩 CUBO DE DIAGNÓSTICO
-            let debugBox = BABYLON.MeshBuilder.CreateBox("debugBox", {size: 0.3}, scene);
-            debugBox.position.set(-1.7, 0.15, 0.2); 
-            let debugMat = new BABYLON.StandardMaterial("debugMat", scene);
-            debugMat.emissiveColor = new BABYLON.Color3(0, 1, 0); 
-            debugMat.wireframe = true;
-            debugBox.material = debugMat;
-
+            // Carga de la Ciudad Inteligente
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function () {
+                // Carga del Agente
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
                     agenteRoot = agentMeshes[0]; agentAnimations = animationGroups;
                     if(agenteRoot) { agenteRoot.rotationQuaternion = null; setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente); }
                     if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
 
+                    // Carga de Luis Avatar
                     BABYLON.SceneLoader.ImportMesh("", "./", "luisavatar4.glb", scene, function (luisMeshes, rp, rs, anims) {
                         luisRoot = luisMeshes[0]; luisAnimations = anims;
                         if(luisRoot) { luisRoot.rotationQuaternion = null; setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis); }
@@ -206,13 +204,13 @@
                         const verificarCargaCompleta = () => {
                             modelosRestantes--;
                             if (modelosRestantes === 0) {
-                                document.getElementById("status").innerText = "SISTEMA OPERATIVO - NORMALIZACIÓN INTEGRADA";
+                                document.getElementById("status").innerText = "DATOS DESCOMPRIMIDOS - ENTORNO LISTO";
                                 document.getElementById("start-btn").style.display = "block";
                                 aplicarPosicionesFijas();
                             }
                         };
 
-                        // 1. Cáspita
+                        // Renderizado de Cáspita
                         BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
                             caspitaRoot = cMeshes[0];
                             caspitaRoot.position.set(-1.7, 0.0, 1.45); 
@@ -220,40 +218,34 @@
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 2. Dodge con Reparador de Jerarquías y Escalas en Caliente
+                        // Renderizado del Dodge con descompresión Draco nativa activa
                         BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes) {
                             dodgeRoot = dMeshes[0];
                             
-                            // Asegurar visibilidad absoluta de todas las sub-mallas nativas
                             dMeshes.forEach(mesh => {
                                 mesh.setEnabled(true);
                                 mesh.isVisible = true;
-                                if (mesh.material) mesh.material.backFaceCulling = false; // Evita normales invertidas invisibles
+                                if (mesh.material) mesh.material.backFaceCulling = false;
                             });
 
-                            // ⚡ ALGORITMO DE NORMALIZACIÓN DINÁMICA:
-                            // Forzamos a Babylon a calcular la caja de impacto real de todo el objeto combinado
+                            // Normalización dinámica para asegurar que conserve escala simétrica con Cáspita
                             dodgeRoot.refreshBoundingInfo(true);
                             let hierarchyBounds = dodgeRoot.getHierarchyBoundingVectors(true);
                             let size = hierarchyBounds.max.subtract(hierarchyBounds.min);
                             let maxDimension = Math.max(size.x, size.y, size.z);
                             
-                            // Si el tamaño detectado es coherente, recalculamos la escala para que encaje con el entorno (objetivo ~0.3 unidades)
                             if (maxDimension > 0) {
                                 let factorEscalaDeseado = 0.3 / maxDimension;
                                 dodgeRoot.scaling.set(factorEscalaDeseado, factorEscalaDeseado, factorEscalaDeseado);
                             } else {
-                                // Fallback por si la jerarquía root rompe el cálculo
                                 dodgeRoot.scaling.set(0.12, 0.12, 0.12);
                             }
 
-                            // Posicionar exactamente dentro de las coordenadas del cubo verde
-                            dodgeRoot.position.set(-1.7, 0.15, 0.2); 
-                            
-                            console.log("📐 Telemetría Dodge - Escala calculada:", dodgeRoot.scaling.toString());
+                            // Posicionamiento final ajustado en la calle (Y=0 para que apoye en el suelo)
+                            dodgeRoot.position.set(-1.7, 0.0, 0.2); 
                             verificarCargaCompleta();
                         }, null, function(s, msg) {
-                            document.getElementById("status").innerHTML = `<span style="color:#ff4444;">⚠️ ERROR CRÍTICO FILE: ${msg}</span>`;
+                            document.getElementById("status").innerHTML = `<span style="color:#ff4444;">⚠️ CONTROLADOR: ${msg}</span>`;
                             verificarCargaCompleta();
                         });
                     });
