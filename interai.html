@@ -23,6 +23,7 @@
             height: 100%;
             touch-action: none;
             outline: none;
+            display: block;
         }
         
         #loading-ui {
@@ -92,6 +93,38 @@
             transform: scale(1) translateY(-2px);
         }
 
+        /* 🕹️ PANEL DE CÁMARA CON FLECHITAS */
+        #camera-control-pad {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 150;
+            display: grid;
+            grid-template-columns: repeat(3, 40px);
+            grid-template-rows: repeat(3, 40px);
+            gap: 4px;
+            background: rgba(6, 6, 15, 0.75);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid #00ffcc;
+        }
+        .pad-btn {
+            background: #111;
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .pad-btn:active {
+            background: #00ffcc;
+            color: #000;
+        }
+
         .control-btn {
             position: absolute;
             top: 15px;
@@ -124,6 +157,18 @@
         <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ CONECTANDO NÚCLEO DE CONCIENCIA IA</h2>
         <p id="status" style="margin:0; font-size:12px; color:#fff;">SISTEMA EN LÍNEA - ENLACE DE AUDIO INICIALIZADO</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
+    </div>
+
+    <div id="camera-control-pad">
+        <div></div>
+        <div class="pad-btn" id="btn-up">🔼</div>
+        <div></div>
+        <div class="pad-btn" id="btn-left">◀️</div>
+        <div class="pad-btn" id="btn-center" onclick="resetCamaraOrigen()">🏠</div>
+        <div class="pad-btn" id="btn-right">▶️</div>
+        <div class="pad-btn" id="btn-zoomin">➕</div>
+        <div class="pad-btn" id="btn-down">🔽</div>
+        <div class="pad-btn" id="btn-zoomout">➖</div>
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
@@ -378,7 +423,7 @@
             
             camera.wheelPrecision = 120;       
             camera.lowerRadiusLimit = 0.05;     
-            camera.upperRadiusLimit = 12.0;     
+            camera.upperRadiusLimit = 15.0;     
             camera.panningSensibility = 250;    
             camera.minZ = 0.01;
 
@@ -417,28 +462,28 @@
                             }
                         };
 
-                        // 1. Tren (Escala reducida a 0.015 para que no sea gigante)
+                        // 1. Tren (Ubicado al final de la malla Z=-15, listo para animarse en bucle)
                         BABYLON.SceneLoader.ImportMesh("", "./", "tren.glb", scene, function (tMeshes, p, s, tAnimGroups) {
                             trenRoot = tMeshes[0];
-                            trenRoot.position.set(12.0, 0.0, -12.0); 
+                            trenRoot.position.set(-25.0, 0.0, -15.0); 
                             trenRoot.scaling.set(0.015, 0.015, 0.015);
                             if(tAnimGroups) tAnimGroups.forEach(g => g.stop()); 
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 2. Dodge (Escala aumentada a 0.12 para que no se vea tan pequeño)
+                        // 2. Dodge (Estacionado justo al lado derecho de los avatares en X=-0.7)
                         BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes, p, s, dAnimGroups) {
                             dodgeRoot = dMeshes[0];
-                            dodgeRoot.position.set(1.5, 0.0, 0.90); 
+                            dodgeRoot.position.set(-0.7, 0.0, 0.90); 
                             dodgeRoot.scaling.set(0.12, 0.12, 0.12);
                             if(dAnimGroups) dAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 3. Caspita (Escala aumentada a 0.12 para integrarse a la escala urbana)
+                        // 3. Caspita (Estacionado justo al lado izquierdo de los avatares en X=-2.2)
                         BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes, p, s, cAnimGroups) {
                             caspitaRoot = cMeshes[0];
-                            caspitaRoot.position.set(-4.5, 0.0, 0.90); 
+                            caspitaRoot.position.set(-2.2, 0.0, 0.90); 
                             caspitaRoot.scaling.set(0.12, 0.12, 0.12);
                             if(cAnimGroups) cAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
@@ -449,6 +494,22 @@
 
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
+
+                // 🚄 Animación del Tren pasando a toda velocidad por el borde trasero
+                if (trenRoot) {
+                    trenRoot.position.x += 0.08; 
+                    if (trenRoot.position.x > 25.0) {
+                        trenRoot.position.x = -25.0; // Reinicia ciclo en el fin de la malla
+                    }
+                }
+
+                // 🎥 Lógica de las Flechitas Visuales del Panel
+                if (activeKeyControls["left"]) camera.alpha -= 0.02;
+                if (activeKeyControls["right"]) camera.alpha += 0.02;
+                if (activeKeyControls["up"]) camera.beta -= 0.015;
+                if (activeKeyControls["down"]) camera.beta += 0.015;
+                if (activeKeyControls["zoomin"]) camera.radius -= 0.02;
+                if (activeKeyControls["zoomout"]) camera.radius += 0.02;
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
                 if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
@@ -495,6 +556,27 @@
 
             return scene;
         };
+
+        // 🔘 Mapeo de Eventos para botones en pantalla
+        let activeKeyControls = { left: false, right: false, up: false, down: false, zoomin: false, zoomout: false };
+        
+        function VincularBotonPad(idElemento, accion) {
+            const btn = document.getElementById(idElemento);
+            if(!btn) return;
+            const activar = (e) => { e.preventDefault(); activeKeyControls[accion] = true; };
+            const desactivar = (e) => { e.preventDefault(); activeKeyControls[accion] = false; };
+            
+            btn.addEventListener("pointerdown", activar);
+            btn.addEventListener("pointerup", desactivar);
+            btn.addEventListener("pointerleave", desactivar);
+        }
+
+        VincularBotonPad("btn-left", "left");
+        VincularBotonPad("btn-right", "right");
+        VincularBotonPad("btn-up", "up");
+        VincularBotonPad("btn-down", "down");
+        VincularBotonPad("btn-zoomin", "zoomin");
+        VincularBotonPad("btn-zoomout", "zoomout");
 
         createScene();
 
