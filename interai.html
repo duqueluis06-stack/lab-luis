@@ -56,7 +56,7 @@
             position: absolute;
             bottom: 12px;
             left: 4%;
-            width: 92%;
+            width: 70%; /* Reducido para dar espacio al joystick en móviles */
             display: flex;
             justify-content: space-between;
             gap: 12px;
@@ -107,11 +107,41 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
+        /* 🕹️ INTERFAZ DEL JOYSTICK VIRTUAL HOLOGRÁFICO */
+        #joystick-zone {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 90px;
+            height: 90px;
+            background: rgba(0, 255, 204, 0.04);
+            border: 2px dashed #00ffcc;
+            border-radius: 50%;
+            z-index: 180;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
+            touch-action: none;
+        }
+        #joystick-knob {
+            width: 34px;
+            height: 34px;
+            background: #00ffcc;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 12px #00ffcc;
+            cursor: pointer;
+            transition: transform 0.05s ease-out;
+        }
+
         @media (max-width: 768px) {
-            #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
+            #comic-container { bottom: 120px; gap: 8px; left: 8px; width: calc(100% - 16px); }
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
             #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
             #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
+            #joystick-zone { bottom: 15px; right: 15px; width: 85px; height: 85px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -128,6 +158,10 @@
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
+    <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+    </div>
+
     <div id="comic-container">
         <div id="bubble-agente" class="comic-cloud">
             <div class="speaker-tag">● AGENTE IA</div>
@@ -143,7 +177,6 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        // Decodificador Draco WASM permanente obligatorio para la descompresión del Dodge
         BABYLON.DracoCompression.Configuration = {
             decoder: {
                 wasmUrl: "https://preview.babylonjs.com/draco_wasm_wrapper.js",
@@ -151,13 +184,11 @@
             }
         };
 
-        /* 📍 COORDENADAS BASE INTERNAS */
         const COORDENADAS_BASE = {
             agente: { x: -2.84, y: 0.01, z: 3.0 },
             luisavatar: { x: -2.66, y: 0.01, z: 3.0 }
         };
 
-        /* 🌆 POSICIÓN VERIFICADA EN CALLE POR LUIS */
         const CALIBRACION_FIJA = {
             x: 1.30, 
             y: 0.0,
@@ -176,7 +207,6 @@
         let activeUtterance = null; 
 
         let caspitaRoot = null;
-        let dodgeRoot = null;
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
@@ -185,6 +215,10 @@
         let actualTargetLuis = new BABYLON.Vector3(COORDENADAS_BASE.agente.x, COORDENADAS_BASE.luisavatar.y, COORDENADAS_BASE.agente.z);
 
         let proximoCambioGaze = Date.now() + 6000;
+
+        // Variables de telemetría del Joystick
+        let joystickInput = { x: 0, y: 0 };
+        let joystickActivo = false;
 
         const boxAgente = document.getElementById("bubble-agente");
         const boxLuis = document.getElementById("bubble-luis");
@@ -413,8 +447,7 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        // ─── CARGA INTEGRADA DE MODELOS DE VEHÍCULOS ───
-                        let modelosRestantes = 2;
+                        let modelosRestantes = 1;
                         const verificarCargaCompleta = () => {
                             modelosRestantes--;
                             if (modelosRestantes === 0) {
@@ -424,30 +457,11 @@
                             }
                         };
 
-                        // 1. Renderizado Seguro de Cáspita
                         BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
                             caspitaRoot = cMeshes[0];
                             if (caspitaRoot) {
                                 caspitaRoot.position.set(-1.7, 0.0, 1.45); 
                                 caspitaRoot.scaling.set(0.12, 0.12, 0.12);
-                            }
-                            verificarCargaCompleta();
-                        }, null, function() { verificarCargaCompleta(); });
-
-                        // 2. Renderizado del Dodge Corregido (Sin romper transformaciones nativas GLTF)
-                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes) {
-                            dodgeRoot = dMeshes[0];
-                            if (dodgeRoot) {
-                                dMeshes.forEach(m => { m.setEnabled(true); m.isVisible = true; });
-                                
-                                // Mantenemos la línea X=-1.7 donde era 100% visible, pero avanzamos un poco de Z=0.2 a Z=0.7
-                                dodgeRoot.position.set(-1.7, 0.0, 0.7); 
-                                
-                                // Escala corregida y aumentada para que sea totalmente proporcional al Cáspita
-                                dodgeRoot.scaling.set(0.18, 0.18, 0.18); 
-                                
-                                // Giro a la izquierda ejecutado de forma no destructiva con el método espacial nativo
-                                dodgeRoot.rotate(BABYLON.Axis.Y, Math.PI / 2, BABYLON.Space.LOCAL);
                             }
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
@@ -458,6 +472,17 @@
 
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
+
+                // ─── CÓDIGO DEL JOYSTICK EN EL BUCLE DE RENDERIZADO ───
+                if (joystickActivo && camera) {
+                    // Ajustamos la sensibilidad de rotación orbital mediante el joystick
+                    camera.alpha += joystickInput.x * 0.03;
+                    camera.beta += joystickInput.y * 0.02;
+                    
+                    // Límites de seguridad para evitar que la cámara se invierta verticalmente
+                    if (camera.beta < 0.05) camera.beta = 0.05;
+                    if (camera.beta > Math.PI / 2.1) camera.beta = Math.PI / 2.1;
+                }
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
                 if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
@@ -506,6 +531,61 @@
         };
 
         createScene();
+
+        // ─── CONTROLADORES FÍSICOS DEL JOYSTICK (EVENTOS DE TOQUE) ───
+        const zone = document.getElementById("joystick-zone");
+        const knob = document.getElementById("joystick-knob");
+        const maxLimit = 30; // Rango máximo de movimiento del pomo en píxeles
+
+        function handleJoystickStart(e) {
+            joystickActivo = true;
+            processJoystickMove(e);
+        }
+
+        function handleJoystickMove(e) {
+            if (!joystickActivo) return;
+            processJoystickMove(e);
+        }
+
+        function handleJoystickEnd() {
+            joystickActivo = false;
+            joystickInput.x = 0;
+            joystickInput.y = 0;
+            knob.style.transform = "translate(0px, 0px)";
+        }
+
+        function processJoystickMove(e) {
+            const rect = zone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const touch = e.touches ? e.touches[0] : e;
+            let deltaX = touch.clientX - centerX;
+            let deltaY = touch.clientY - centerY;
+            
+            let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (distance > maxLimit) {
+                deltaX = (deltaX / distance) * maxLimit;
+                deltaY = (deltaY / distance) * maxLimit;
+                distance = maxLimit;
+            }
+            
+            knob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            
+            // Normalizar valores entre -1 y 1 para el cálculo de la cámara
+            joystickInput.x = deltaX / maxLimit;
+            joystickInput.y = deltaY / maxLimit;
+        }
+
+        zone.addEventListener("touchstart", handleJoystickStart, { passive: true });
+        window.addEventListener("touchmove", handleJoystickMove, { passive: false });
+        window.addEventListener("touchend", handleJoystickEnd, { passive: true });
+
+        zone.addEventListener("mousedown", handleJoystickStart);
+        window.addEventListener("mousemove", handleJoystickMove);
+        window.addEventListener("mouseup", handleJoystickEnd);
+
 
         function resetCamaraOrigen() {
             if(camera && agenteRoot && luisRoot) {
