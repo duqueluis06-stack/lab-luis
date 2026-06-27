@@ -167,6 +167,11 @@
         let currentSpeaker = null; 
         let activeUtterance = null; 
 
+        /* Componentes de Entorno Adicionales */
+        let trenRoot = null;
+        let dodgeRoot = null;
+        let caspitaRoot = null;
+
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
@@ -357,7 +362,6 @@
             scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            /* 🎥 AJUSTE DE CÁMARA: El radio inicial pasó de 0.55 a 1.20 para alejar la toma por defecto */
             camera = new BABYLON.ArcRotateCamera(
                 "camera", 
                 -Math.PI / 2, 
@@ -376,9 +380,6 @@
             camera.lowerRadiusLimit = 0.05;     
             camera.upperRadiusLimit = 12.0;     
             camera.panningSensibility = 250;    
-
-            // 🛠️ PARCHE INTEGRADO AQUÍ: 
-            // Al bajar minZ a 0.01, evitamos que la lente corte la geometría de la calle cuando haces zoom muy cerca.
             camera.minZ = 0.01;
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
@@ -406,10 +407,41 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO QUANTUM PREPARADA";
-                        document.getElementById("start-btn").style.display = "block";
-                        
-                        aplicarPosicionesFijas();
+                        /* ─── NÚCLEO DE CARGA PARA TREN, DODGE Y CASPITA ─── */
+                        let modelosRestantes = 3;
+                        const verificarCargaCompleta = () => {
+                            modelosRestantes--;
+                            if (modelosRestantes === 0) {
+                                document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO QUANTUM PREPARADA";
+                                document.getElementById("start-btn").style.display = "block";
+                                aplicarPosicionesFijas();
+                            }
+                        };
+
+                        // 1. Tren
+                        BABYLON.SceneLoader.ImportMesh("", "./", "tren.glb", scene, function (tMeshes) {
+                            trenRoot = tMeshes[0];
+                            // Valores espaciales modificables según escala real del glb
+                            trenRoot.position.set(-1.5, 0.0, 2.5); 
+                            trenRoot.scaling.set(0.05, 0.05, 0.05);
+                            verificarCargaCompleta();
+                        }, null, function() { verificarCargaCompleta(); });
+
+                        // 2. Dodge
+                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes) {
+                            dodgeRoot = dMeshes[0];
+                            dodgeRoot.position.set(0.5, 0.0, 0.5);
+                            dodgeRoot.scaling.set(0.05, 0.05, 0.05);
+                            verificarCargaCompleta();
+                        }, null, function() { verificarCargaCompleta(); });
+
+                        // 3. Caspita
+                        BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
+                            caspitaRoot = cMeshes[0];
+                            caspitaRoot.position.set(-3.5, 0.0, 0.5);
+                            caspitaRoot.scaling.set(0.05, 0.05, 0.05);
+                            verificarCargaCompleta();
+                        }, null, function() { verificarCargaCompleta(); });
                     });
                 });
             });
@@ -467,7 +499,6 @@
 
         function resetCamaraOrigen() {
             if(camera && agenteRoot && luisRoot) {
-                /* 🎥 AJUSTE EN EL BOTÓN CENTRAR: mantiene la misma distancia cómoda de 1.20 */
                 camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 1.20;
                 camera.target.set(
                     (agenteRoot.position.x + luisRoot.position.x) / 2, 
