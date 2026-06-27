@@ -22,6 +22,7 @@
             width: 100%;
             height: 100%;
             touch-action: none;
+            outline: none;
         }
         
         #loading-ui {
@@ -140,16 +141,14 @@
         </div>
     </div>
 
-    <canvas id="renderCanvas"></canvas>
+    <canvas id="renderCanvas" tabindex="0"></canvas>
 
     <script>
-        /* 📍 COORDENADAS BASE INTERNAS */
         const COORDENADAS_BASE = {
             agente: { x: -2.84, y: 0.01, z: 3.0 },
             luisavatar: { x: -2.66, y: 0.01, z: 3.0 }
         };
 
-        /* 🌆 POSICIÓN VERIFICADA EN CALLE POR LUIS */
         const CALIBRACION_FIJA = {
             x: 1.30, 
             y: 0.0,
@@ -167,7 +166,6 @@
         let currentSpeaker = null; 
         let activeUtterance = null; 
 
-        /* Componentes de Entorno Adicionales */
         let trenRoot = null;
         let dodgeRoot = null;
         let caspitaRoot = null;
@@ -327,9 +325,11 @@
         }
 
         const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
+        const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
         let camera, scene; 
         let agenteRoot, luisRoot;
+
+        canvas.addEventListener("click", () => { canvas.focus(); });
 
         function aplicarPosicionesFijas() {
             if (agenteRoot) {
@@ -407,7 +407,6 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        /* ─── NÚCLEO DE CARGA PARA TREN, DODGE Y CASPITA ─── */
                         let modelosRestantes = 3;
                         const verificarCargaCompleta = () => {
                             modelosRestantes--;
@@ -418,28 +417,30 @@
                             }
                         };
 
-                        // 1. Tren
-                        BABYLON.SceneLoader.ImportMesh("", "./", "tren.glb", scene, function (tMeshes) {
+                        // 1. Tren (Escala reducida a 0.015 para que no sea gigante)
+                        BABYLON.SceneLoader.ImportMesh("", "./", "tren.glb", scene, function (tMeshes, p, s, tAnimGroups) {
                             trenRoot = tMeshes[0];
-                            // Valores espaciales modificables según escala real del glb
-                            trenRoot.position.set(-1.5, 0.0, 2.5); 
-                            trenRoot.scaling.set(0.05, 0.05, 0.05);
+                            trenRoot.position.set(12.0, 0.0, -12.0); 
+                            trenRoot.scaling.set(0.015, 0.015, 0.015);
+                            if(tAnimGroups) tAnimGroups.forEach(g => g.stop()); 
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 2. Dodge
-                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes) {
+                        // 2. Dodge (Escala aumentada a 0.12 para que no se vea tan pequeño)
+                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes, p, s, dAnimGroups) {
                             dodgeRoot = dMeshes[0];
-                            dodgeRoot.position.set(0.5, 0.0, 0.5);
-                            dodgeRoot.scaling.set(0.05, 0.05, 0.05);
+                            dodgeRoot.position.set(1.5, 0.0, 0.90); 
+                            dodgeRoot.scaling.set(0.12, 0.12, 0.12);
+                            if(dAnimGroups) dAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 3. Caspita
-                        BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
+                        // 3. Caspita (Escala aumentada a 0.12 para integrarse a la escala urbana)
+                        BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes, p, s, cAnimGroups) {
                             caspitaRoot = cMeshes[0];
-                            caspitaRoot.position.set(-3.5, 0.0, 0.5);
-                            caspitaRoot.scaling.set(0.05, 0.05, 0.05);
+                            caspitaRoot.position.set(-4.5, 0.0, 0.90); 
+                            caspitaRoot.scaling.set(0.12, 0.12, 0.12);
+                            if(cAnimGroups) cAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
                     });
