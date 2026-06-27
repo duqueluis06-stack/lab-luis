@@ -105,14 +105,12 @@
             box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
         #reset-camera-btn { left: 15px; color: #000; background: #00ffcc; }
-        #toggle-city-btn { left: 145px; color: #fff; background: #9d4edd; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
         @media (max-width: 768px) {
             #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
             .control-btn { top: 12px; padding: 8px 12px; }
-            #toggle-city-btn { left: 130px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -127,7 +125,6 @@
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR CÁMARA</button>
-    <button id="toggle-city-btn" class="control-btn" onclick="toggleVisibilidadCiudad()">🌆 OCULTAR CIUDAD</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
     <div id="comic-container">
@@ -145,13 +142,12 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        /* 📍 MATRIZ DE COORDENADAS ACERCADAS (0.25 unidades de separación en el eje X) */
+        /* 📍 COORDENADAS: Avatares más juntos (0.18 de delta) y bajados al nivel del suelo (y: 0.01) */
         const COORDENADAS_BASE = {
-            agente: { x: -2.875, y: 0.05, z: 3.0 },
-            luisavatar: { x: -2.625, y: 0.05, z: 3.0 }
+            agente: { x: -2.84, y: 0.01, z: 3.0 },
+            luisavatar: { x: -2.66, y: 0.01, z: 3.0 }
         };
 
-        /* 🔬 CONFIGURACIÓN DE TELEMETRÍA PRECISADA POR LUIS (SLIDERS EXTIRPADOS) */
         const CALIBRACION_FIJA = {
             x: -5.4,
             y: 0.0,
@@ -166,8 +162,6 @@
         let mouthTargetsLuis = [];
         let agentAnimations = [];
         let luisAnimations = [];
-        let cityMeshes = [];
-        let ciudadVisible = true;
         let currentSpeaker = null; 
         let activeUtterance = null; 
 
@@ -330,12 +324,6 @@
         let camera, scene; 
         let agenteRoot, luisRoot;
 
-        function toggleVisibilidadCiudad() {
-            ciudadVisible = !ciudadVisible;
-            cityMeshes.forEach(mesh => { if (mesh && mesh.setEnabled) mesh.setEnabled(ciudadVisible); });
-            document.getElementById("toggle-city-btn").innerText = ciudadVisible ? "🌆 OCULTAR CIUDAD" : "🏙️ MOSTRAR CIUDAD";
-        }
-
         function aplicarPosicionesFijas() {
             if (agenteRoot) {
                 agenteRoot.position.set(
@@ -354,11 +342,10 @@
                 luisRoot.scaling.set(CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala);
             }
 
-            // Enfocar la cámara al punto intermedio exacto entre los dos mini avatares
             if (camera && agenteRoot && luisRoot) {
                 camera.target.set(
                     (agenteRoot.position.x + luisRoot.position.x) / 2, 
-                    agenteRoot.position.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    agenteRoot.position.y + (1.1 * CALIBRACION_FIJA.escala), 
                     (agenteRoot.position.z + luisRoot.position.z) / 2
                 );
             }
@@ -368,27 +355,30 @@
             scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // Inicialización de cámara acoplada al punto medio conversacional
             camera = new BABYLON.ArcRotateCamera(
                 "camera", 
                 -Math.PI / 2, 
                 Math.PI / 2.2, 
-                0.35, 
+                0.32, 
                 new BABYLON.Vector3(
                     ((COORDENADAS_BASE.agente.x + COORDENADAS_BASE.luisavatar.x) / 2) + CALIBRACION_FIJA.x, 
-                    CALIBRACION_FIJA.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    CALIBRACION_FIJA.y + (1.1 * CALIBRACION_FIJA.escala), 
                     COORDENADAS_BASE.agente.z + CALIBRACION_FIJA.z
                 ), 
                 scene
             );
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 0.02; camera.upperRadiusLimit = 30.0; camera.panningSensibility = 900;
+            
+            /* 🔬 OPTIMIZACIÓN DE SENSIBILIDAD Y LÍMITES SOLICITADOS POR LUIS */
+            camera.wheelPrecision = 2200;       // Reduce drásticamente la velocidad de zoom del scroll mouse
+            camera.lowerRadiusLimit = 0.14;     // Evita que la cámara traspase los avatares o entre a las mallas
+            camera.upperRadiusLimit = 0.65;     // Bloquea el alejamiento para no salirse de la calle/edificios
+            camera.panningSensibility = 1200;   // Suaviza el paneo de cámara
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
-                cityMeshes = meshes; 
                 
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
                     agenteRoot = agentMeshes[0];
@@ -441,7 +431,6 @@
                     actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.03);
                     actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.03);
 
-                    // Mirada directa corregida uno frente al otro (eliminados giros artificiales de 180 grados)
                     agenteRoot.lookAt(actualTargetAgente);
                     luisRoot.lookAt(actualTargetLuis);
                 }
@@ -470,10 +459,10 @@
 
         function resetCamaraOrigen() {
             if(camera && agenteRoot && luisRoot) {
-                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 0.35;
+                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 0.32;
                 camera.target.set(
                     (agenteRoot.position.x + luisRoot.position.x) / 2, 
-                    agenteRoot.position.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    agenteRoot.position.y + (1.1 * CALIBRACION_FIJA.escala), 
                     (agenteRoot.position.z + luisRoot.position.z) / 2
                 );
             }
