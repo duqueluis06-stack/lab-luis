@@ -111,45 +111,80 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        #joystick-zone {
+        /* 🕹️ CONTENEDOR DE MANDOS (Joystick + Flechas) */
+        #pad-control-container {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 90px;
-            height: 90px;
-            background: rgba(0, 255, 204, 0.08);
-            border: 2px solid #00ffcc;
-            border-radius: 50%;
+            bottom: 25px;
+            right: 25px;
+            width: 170px;
+            height: 170px;
             z-index: 180;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+        }
+
+        #joystick-zone {
+            width: 90px;
+            height: 90px;
+            background: rgba(0, 255, 204, 0.12);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
             touch-action: none;
+            z-index: 2;
         }
         #joystick-knob {
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             background: #00ffcc;
             border: 2px solid #fff;
             border-radius: 50%;
             position: absolute;
             box-shadow: 0 0 12px #00ffcc;
             cursor: pointer;
-            transition: transform 0.05s ease-out;
         }
+
+        /* 📐 FLECHAS DE DIRECCIÓN EXTERIORES */
+        .pad-arrow {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: #111122;
+            border: 2px solid #00a2ff;
+            color: #00a2ff;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px #000;
+            z-index: 1;
+        }
+        .pad-arrow:active {
+            background: #00a2ff;
+            color: #000;
+        }
+        #arrow-up    { top: 0; left: 69px; }
+        #arrow-down  { bottom: 0; left: 69px; }
+        #arrow-left  { left: 0; top: 69px; }
+        #arrow-right { right: 0; top: 69px; }
 
         @media (max-width: 768px) {
             #comic-container { 
                 bottom: 15px; 
                 left: 15px; 
-                width: calc(100% - 125px); 
+                width: calc(100% - 210px); 
                 max-width: none;
             }
             .comic-cloud { padding: 8px 12px; font-size: 11px; }
             #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
             #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
-            #joystick-zone { bottom: 15px; right: 15px; width: 85px; height: 85px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -166,8 +201,16 @@
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
-    <div id="joystick-zone">
-        <div id="joystick-knob"></div>
+    <!-- MANDOS UNIFICADOS DE NAVEGACIÓN -->
+    <div id="pad-control-container">
+        <div id="arrow-up" class="pad-arrow">▲</div>
+        <div id="arrow-down" class="pad-arrow">▼</div>
+        <div id="arrow-left" class="pad-arrow">◀</div>
+        <div id="arrow-right" class="pad-arrow">▶</div>
+        
+        <div id="joystick-zone">
+            <div id="joystick-knob"></div>
+        </div>
     </div>
 
     <div id="comic-container">
@@ -224,8 +267,10 @@
 
         let proximoCambioGaze = Date.now() + 6000;
 
+        // Mandos de control activos
         let joystickInput = { x: 0, y: 0 };
         let joystickActivo = false;
+        let arrowState = { up: false, down: false, left: false, right: false };
 
         const boxAgente = document.getElementById("bubble-agente");
         const boxLuis = document.getElementById("bubble-luis");
@@ -257,7 +302,7 @@
         function desbloquearAudioYComenzar() {
             document.getElementById("loading-ui").style.display = "none";
             if (tvVideoTexture && tvVideoTexture.video) {
-                tvVideoTexture.video.play().catch(e => console.log("Video retenido:", e));
+                tvVideoTexture.video.play().catch(e => console.log("Video local retenido:", e));
             }
             iniciarInteraccionAvatares();
         }
@@ -424,18 +469,13 @@
                 ), 
                 scene
             );
-            camera.attachControl(canvas, true);
             
-            // 🔒 ¡REPARACIÓN DE LA CÁMARA AQUÍ!
-            // Eliminamos el control táctil/puntero predeterminado de la pantalla
-            // para que no cause conflicto con los arrastres del joystick móvil.
-            if(camera.inputs && camera.inputs.attached && camera.inputs.attached.pointers) {
-                camera.inputs.removeByType("ArcRotateCameraPointersInput");
-            }
+            // 🔓 RESTAURADO TOTALMENTE: El táctil del teléfono funciona al 100% en la pantalla
+            camera.attachControl(canvas, true);
 
             camera.wheelPrecision = 120;       
             camera.lowerRadiusLimit = 0.05;     
-            camera.upperRadiusLimit = 12.0;     
+            camera.upperRadiusLimit = 25.0; // Extendida para permitir ir bien lejos     
             camera.panningSensibility = 250;    
             camera.minZ = 0.01;
 
@@ -444,15 +484,14 @@
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
-                // 📺 PANTALLA TV MINI (Alineada según tus últimas indicaciones)
+                // 📺 PANTALLA TV ADELANTE DEL CARRO CON TU ARCHIVO PROPIO 'tv.mp4'
                 const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
                 tvPlane.position.set(-3.30, 0.125, 3.20);
                 tvPlane.rotation.y = Math.PI; 
 
                 const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
                 
-                // 🔄 VIDEO DE RESPALDO (Usa un stream público estable en caso de perder el local)
-                tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
+                tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
                     autoPlay: true,
                     autoUpdateTexture: true,
                     muted: true, 
@@ -510,13 +549,30 @@
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // 🕹️ MOVIMIENTO SUAVE EXCLUSIVO CON EL JOYSTICK
+                // 🕹️ JOYSTICK DE MOVILIZACIÓN SUAVE EN 360 GRADOS
                 if (joystickActivo && camera) {
-                    camera.alpha += joystickInput.x * 0.03;
-                    camera.beta += joystickInput.y * 0.02;
+                    camera.alpha += joystickInput.x * 0.04;
+                    camera.beta += joystickInput.y * 0.03;
                     
                     if (camera.beta < 0.05) camera.beta = 0.05;
-                    if (camera.beta > Math.PI / 2.1) camera.beta = Math.PI / 2.1;
+                    if (camera.beta > Math.PI / 1.5) camera.beta = Math.PI / 1.5;
+                }
+
+                // 📐 ACCIÓN DE LAS FLECHAS TÁCTILES EXTERIORES
+                if (camera) {
+                    let speed = 0.02;
+                    if (arrowState.up) camera.target.y += speed;     // Subir verticalmente
+                    if (arrowState.down) camera.target.y -= speed;   // Bajar verticalmente
+                    
+                    if (arrowState.left || arrowState.right) {
+                        let viewDir = camera.getTarget().subtract(camera.position);
+                        viewDir.y = 0; 
+                        viewDir.normalize();
+                        let leftDir = BABYLON.Vector3.Cross(BABYLON.Axis.Y, viewDir).normalize();
+                        
+                        if (arrowState.left) camera.target.addInPlace(leftDir.scale(speed));
+                        if (arrowState.right) camera.target.addInPlace(leftDir.scale(-speed));
+                    }
                 }
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
@@ -567,6 +623,7 @@
 
         createScene();
 
+        // 🛠️ LÓGICA DEL JOYSTICK (360 GRADOS)
         const zone = document.getElementById("joystick-zone");
         const knob = document.getElementById("joystick-knob");
         const maxLimit = 30; 
@@ -611,22 +668,31 @@
             joystickInput.y = deltaY / maxLimit;
         }
 
-        zone.addEventListener("touchstart", (e) => {
-            if (e.cancelable) e.preventDefault(); 
-            handleJoystickStart(e);
-        }, { passive: false });
-
-        window.addEventListener("touchmove", (e) => {
-            if (joystickActivo && e.cancelable) e.preventDefault(); 
-            handleJoystickMove(e);
-        }, { passive: false });
-
+        zone.addEventListener("touchstart", (e) => { handleJoystickStart(e); }, { passive: true });
+        window.addEventListener("touchmove", (e) => { if (joystickActivo) handleJoystickMove(e); }, { passive: true });
         window.addEventListener("touchend", handleJoystickEnd, { passive: true });
-        window.addEventListener("touchcancel", handleJoystickEnd, { passive: true }); 
 
         zone.addEventListener("mousedown", handleJoystickStart);
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
+
+        // 🛠️ CONFIGURACIÓN DE ESCUCHAS PARA LAS FLECHAS
+        function VincularFlecha(id, property) {
+            const el = document.getElementById(id);
+            const start = (e) => { if (e.cancelable) e.preventDefault(); arrowState[property] = true; };
+            const end = () => { arrowState[property] = false; };
+            
+            el.addEventListener("touchstart", start, { passive: false });
+            el.addEventListener("touchend", end, { passive: true });
+            el.addEventListener("mousedown", start);
+            el.addEventListener("mouseup", end);
+            el.addEventListener("mouseleave", end);
+        }
+
+        VincularFlecha("arrow-up", "up");
+        VincularFlecha("arrow-down", "down");
+        VincularFlecha("arrow-left", "left");
+        VincularFlecha("arrow-right", "right");
 
         function resetCamaraOrigen() {
             if(camera && agenteRoot && luisRoot) {
