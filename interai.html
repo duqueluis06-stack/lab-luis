@@ -214,7 +214,7 @@
         let currentSpeaker = null; 
         let activeUtterance = null; 
         let caspitaRoot = null;
-        let tvVideoTexture = null; // Instancia global para controlar el video
+        let tvVideoTexture = null; 
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
@@ -256,12 +256,9 @@
 
         function desbloquearAudioYComenzar() {
             document.getElementById("loading-ui").style.display = "none";
-            
-            // 📺 Forzar reproducción del video tras interactuar con la UI
             if (tvVideoTexture && tvVideoTexture.video) {
-                tvVideoTexture.video.play().catch(e => console.log("Autoplay de video retenido:", e));
+                tvVideoTexture.video.play().catch(e => console.log("Video retenido:", e));
             }
-            
             iniciarInteraccionAvatares();
         }
 
@@ -438,30 +435,31 @@
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
-            // ─── CARGA DE ENTORNO URBANO Y PANTALLA TV MURAL ───
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
-                // 📺 CREACIÓN DE LA PANTALLA DE VIDEO (tv.mp4) EN LA PARED DE ENFRENTE
-                // Dimensiones del plano (Ancho: 2.8, Alto: 1.6)
-                const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 2.8, height: 1.6 }, scene);
+                // 📺 PANTALLA TV INCRUSTADA ENTRE EDIFICIOS (Al otro lado de la calle)
+                const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 2.4, height: 1.4 }, scene);
                 
-                // Posición exacta: Al fondo de la calle (z: 6.5), centrado en x (-1.45) 
-                // Su altura y: 0.8 garantiza que la base del plano toque exactamente el suelo (y = 0)
-                tvPlane.position.set(-1.45, 0.8, 6.5);
-                tvPlane.rotation.y = Math.PI; // Girado 180° para que apunte directamente hacia la cámara y los avatares
+                // 🛠️ COORDENADAS DE AJUSTE MANUAL:
+                // X: Mueve de izq a der (-1.80 suele caer en huecos de manzana estándar)
+                // Y: Altura desde el suelo (1.1 significa que está ligeramente elevada en la pared)
+                // Z: Profundidad. Al subirlo a 7.2 se empotra y mete hacia adentro entre los edificios de enfrente.
+                tvPlane.position.set(-1.80, 1.10, 7.20);
+                
+                // Rotación: Mantener Math.PI para mirar de frente hacia la cámara/calle
+                // (Si la pared del callejón está de lado, cámbialo a Math.PI / 2 o -Math.PI / 2)
+                tvPlane.rotation.y = Math.PI; 
 
                 const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
                 
-                // Configuración de la textura de video
                 tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
                     autoPlay: true,
                     autoUpdateTexture: true,
-                    muted: true, // Requerido para saltarse bloqueos de reproducción del navegador
+                    muted: true, 
                     loop: true
                 });
 
                 tvMaterial.diffuseTexture = tvVideoTexture;
-                // Emisivo al máximo para que actúe como una pantalla LED iluminada por la noche
                 tvMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); 
                 tvPlane.material = tvMaterial;
 
