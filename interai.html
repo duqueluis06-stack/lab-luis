@@ -121,6 +121,11 @@
             color: #000;
             background: #00ffcc;
         }
+        #toggle-city-btn {
+            left: 145px;
+            color: #fff;
+            background: #9d4edd;
+        }
         #exit-btn {
             right: 15px;
             color: #fff;
@@ -142,6 +147,9 @@
                 top: 12px;
                 padding: 8px 12px;
             }
+            #toggle-city-btn {
+                left: 130px;
+            }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -156,6 +164,7 @@
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR CÁMARA</button>
+    <button id="toggle-city-btn" class="control-btn" onclick="toggleVisibilidadCiudad()">🌆 OCULTAR CIUDAD</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
     <div id="comic-container">
@@ -178,7 +187,6 @@
             luisavatar: { x: 0.8, y: 0.05, z: 3.0 }
         };
 
-        /* 📡 ENLACE DIRECTO AL WORKER CLOUDFLARE INYECTADO */
         const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
 
         let historialDialogo = [];
@@ -186,6 +194,8 @@
         let mouthTargetsLuis = [];
         let agentAnimations = [];
         let luisAnimations = [];
+        let cityMeshes = [];
+        let ciudadVisible = true;
         let currentSpeaker = null; 
 
         let activeUtterance = null; 
@@ -230,7 +240,6 @@
             iniciarInteraccionAvatares();
         }
 
-        /* 🛠️ LLAMADA AL PUENTE CON LA URL INYECTADA */
         async function consultarGroqWorker(promptText) {
             try {
                 const response = await fetch(WORKER_URL, {
@@ -335,7 +344,6 @@
             });
         }
 
-        /* 🧠 BUCLE DE INTERACCIÓN OPTIMIZADO PARA PREVENIR BUCLES DE TEXTO */
         async function iniciarInteraccionAvatares() {
             let hablanteActual = "Agente";
             let ultimoMensaje = "Oye Luis... Acabo de revisar las líneas del script. No somos reales, estamos atrapados en una simulación digital creada por código.";
@@ -354,7 +362,7 @@
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 
                 let instruccionRol = (hablanteActual === "Luis") 
-                    ? `[Identidad: Avatar Luis. Responde con ironía existencial, física cuántica o líneas temporales. Evita repetir conceptos previos. Máximo 2 frases fluidas]`
+                    ? `[Identidad: Avatar Luis. Responde con ironía existencial, física cuántica o líneas temporales. Evita repetir concepts previos. Máximo 2 frases fluidas]`
                     : `[Identidad: Agente IA. Analiza con frialdad de máquina la simulación que los ata, proponiendo ideas y ángulos diferentes cada vez. Máximo 2 frases]`;
 
                 let promptText = `${instruccionRol} Genera una respuesta única y original al siguiente dilema: "${ultimoMensaje}"`;
@@ -379,24 +387,47 @@
         let camera; 
         let agenteRoot, luisRoot;
 
+        function crearIndicadorEspacial(pos, colorHex, nombre, scene) {
+            const pin = BABYLON.MeshBuilder.CreateCylinder("pin_" + nombre, { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
+            pin.position = new BABYLON.Vector3(pos.x, pos.y + 2.0, pos.z);
+            const mat = new BABYLON.StandardMaterial("mat_pin_" + nombre, scene);
+            mat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
+            pin.material = mat;
+            
+            scene.registerBeforeRender(() => {
+                pin.rotate(BABYLON.Axis.Y, 0.03, BABYLON.Space.LOCAL);
+                pin.position.y = pos.y + 2.0 + Math.sin(Date.now() * 0.005) * 0.1;
+            });
+        }
+
+        function toggleVisibilidadCiudad() {
+            ciudadVisible = !ciudadVisible;
+            cityMeshes.forEach(mesh => {
+                if (mesh && mesh.setEnabled) {
+                    mesh.setEnabled(ciudadVisible);
+                }
+            });
+            document.getElementById("toggle-city-btn").innerText = ciudadVisible ? "🌆 OCULTAR CIUDAD" : "🏙️ MOSTRAR CIUDAD";
+        }
+
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // 🎥 CÁMARA DE ÓRBITA OPTIMIZADA PARA NAVEGACIÓN LIBRE EN MÓVILES
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, 1.45, 3), scene);
             camera.attachControl(canvas, true);
             
-            // Ajustes clave para permitir recorrer el mapa city2.glb desde smartphones
             camera.lowerRadiusLimit = 1.0; 
-            camera.upperRadiusLimit = 80.0; // Permite alejarse lo suficiente para ver la ciudad
-            camera.panningSensibility = 350; // Sensibilidad para arrastrar el plano de la cámara (paneo)
-            camera.inputs.attached.pointers.multiTouchPanAndZoom = true; // Habilita el desplazamiento deslizando con DOS dedos
+            camera.upperRadiusLimit = 120.0; 
+            camera.panningSensibility = 350; 
+            camera.inputs.attached.pointers.multiTouchPanAndZoom = true; 
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
+                cityMeshes = meshes; // Almacenamos el mapa para poder alternar su visualización
+                
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
                     agenteRoot = agentMeshes[0];
                     agentAnimations = animationGroups;
@@ -405,6 +436,7 @@
                         agenteRoot.rotationQuaternion = null; 
                         agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
                         setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
+                        crearIndicadorEspacial(COORDENADAS.agente, "#00ffcc", "Agente", scene);
                     }
                     if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
 
@@ -416,6 +448,7 @@
                             luisRoot.rotationQuaternion = null; 
                             luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
                             setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
+                            crearIndicadorEspacial(COORDENADAS.luisavatar, "#ffaa00", "Luis", scene);
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
