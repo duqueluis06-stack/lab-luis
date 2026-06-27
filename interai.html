@@ -117,19 +117,19 @@
             right: 20px;
             width: 90px;
             height: 90px;
-            background: rgba(0, 255, 204, 0.04);
-            border: 2px dashed #00ffcc;
+            background: rgba(0, 255, 204, 0.08);
+            border: 2px solid #00ffcc;
             border-radius: 50%;
             z-index: 180;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
             touch-action: none;
         }
         #joystick-knob {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             background: #00ffcc;
             border: 2px solid #fff;
             border-radius: 50%;
@@ -426,6 +426,13 @@
             );
             camera.attachControl(canvas, true);
             
+            // 🔒 ¡REPARACIÓN DE LA CÁMARA AQUÍ!
+            // Eliminamos el control táctil/puntero predeterminado de la pantalla
+            // para que no cause conflicto con los arrastres del joystick móvil.
+            if(camera.inputs && camera.inputs.attached && camera.inputs.attached.pointers) {
+                camera.inputs.removeByType("ArcRotateCameraPointersInput");
+            }
+
             camera.wheelPrecision = 120;       
             camera.lowerRadiusLimit = 0.05;     
             camera.upperRadiusLimit = 12.0;     
@@ -437,34 +444,24 @@
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
-    // 📺 PANTALLA TV MINI (Escalada a proporción real del carro)
-// Reducimos las dimensiones drásticamente (Ancho: 0.4, Alto: 0.25) para que no sea gigante al lado del auto
-const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
+                // 📺 PANTALLA TV MINI (Alineada según tus últimas indicaciones)
+                const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
+                tvPlane.position.set(-3.30, 0.125, 3.20);
+                tvPlane.rotation.y = Math.PI; 
 
-// 🛠️ COORDENADAS: ATRAVESANDO LA CALLE Y CORRIENDO A LA IZQUIERDA
-// X: -3.30 (Lo corremos bastante más a la izquierda)
-// Y: 0.125 (Al medir 0.25 de alto, su centro en 0.125 lo clava justo al ras del suelo)
-// Z: 3.20  (Estaba en 0.90; al subirlo a 3.20 cruza la calle por completo, alejándose del auto hacia la acera de enfrente)
-tvPlane.position.set(-3.30, 0.125, 3.20);
+                const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
+                
+                // 🔄 VIDEO DE RESPALDO (Usa un stream público estable en caso de perder el local)
+                tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
+                    autoPlay: true,
+                    autoUpdateTexture: true,
+                    muted: true, 
+                    loop: true
+                });
 
-// Rotación para que mire de frente hacia la calle
-tvPlane.rotation.y = Math.PI; 
-
-const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
-
-tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
-    autoPlay: true,
-    autoUpdateTexture: true,
-    muted: true, 
-    loop: true
-});
-
-tvMaterial.diffuseTexture = tvVideoTexture;
-tvMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); 
-tvPlane.material = tvMaterial;
-
-
-
+                tvMaterial.diffuseTexture = tvVideoTexture;
+                tvMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); 
+                tvPlane.material = tvMaterial;
 
                 // Carga de personajes
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
@@ -513,6 +510,7 @@ tvPlane.material = tvMaterial;
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
+                // 🕹️ MOVIMIENTO SUAVE EXCLUSIVO CON EL JOYSTICK
                 if (joystickActivo && camera) {
                     camera.alpha += joystickInput.x * 0.03;
                     camera.beta += joystickInput.y * 0.02;
