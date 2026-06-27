@@ -22,7 +22,6 @@
             width: 100%;
             height: 100%;
             touch-action: none;
-            outline: none;
         }
         
         #loading-ui {
@@ -92,34 +91,6 @@
             transform: scale(1) translateY(-2px);
         }
 
-        /* 🕹️ JOYSTICK DE NAVEGACIÓN URBANA */
-        #joystick-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 150;
-            width: 76px;
-            height: 76px;
-            background: rgba(6, 6, 15, 0.65);
-            border: 2px solid #00ffcc;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            touch-action: none;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
-        }
-        #joystick-knob {
-            width: 28px;
-            height: 28px;
-            background: #00ffcc;
-            border-radius: 50%;
-            position: relative;
-            pointer-events: none;
-            box-shadow: 0 0 12px #00ffcc;
-            transform: translate(0px, 0px);
-        }
-
         .control-btn {
             position: absolute;
             top: 15px;
@@ -141,8 +112,6 @@
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
             #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
             #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
-            #joystick-container { width: 70px; height: 70px; top: 12px; left: 12px; }
-            #joystick-knob { width: 24px; height: 24px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -154,10 +123,6 @@
         <h2 id="load-title" style="margin:0 0 10px 0; font-size:15px; color:#00ffcc;">⚙️ CONECTANDO NÚCLEO DE CONCIENCIA IA</h2>
         <p id="status" style="margin:0; font-size:12px; color:#fff;">SISTEMA EN LÍNEA - ENLACE DE AUDIO INICIALIZADO</p>
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
-    </div>
-
-    <div id="joystick-container">
-        <div id="joystick-knob"></div>
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
@@ -175,10 +140,10 @@
         </div>
     </div>
 
-    <canvas id="renderCanvas" tabindex="0"></canvas>
+    <canvas id="renderCanvas"></canvas>
 
     <script>
-        // Configuración global del desempaquetador Draco WASM (Google extension)
+        // Decodificador Draco WASM permanente obligatorio para la descompresión del Dodge
         BABYLON.DracoCompression.Configuration = {
             decoder: {
                 wasmUrl: "https://preview.babylonjs.com/draco_wasm_wrapper.js",
@@ -368,12 +333,9 @@
         }
 
         const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true, { adaptToDeviceRatio: true });
+        const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
         let camera, scene; 
         let agenteRoot, luisRoot;
-
-        // Foco automático del canvas para control de periféricos
-        canvas.addEventListener("click", () => { canvas.focus(); });
 
         function aplicarPosicionesFijas() {
             if (agenteRoot) {
@@ -451,7 +413,7 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        // Carga paralela de los dos vehículos independientes
+                        // ─── CARGA INTEGRADA DE MODELOS DE VEHÍCULOS ───
                         let modelosRestantes = 2;
                         const verificarCargaCompleta = () => {
                             modelosRestantes--;
@@ -462,44 +424,40 @@
                             }
                         };
 
-                        // 1. Cáspita (Estacionado de forma idónea en la calzada lateral)
-                        BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes, p, s, cAnimGroups) {
+                        // 1. Renderizado Seguro de Cáspita
+                        BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
                             caspitaRoot = cMeshes[0];
-                            caspitaRoot.position.set(-1.7, 0.0, 1.45); 
-                            caspitaRoot.scaling.set(0.12, 0.12, 0.12);
-                            if(cAnimGroups) cAnimGroups.forEach(g => g.stop());
+                            if (caspitaRoot) {
+                                caspitaRoot.position.set(-1.7, 0.0, 1.45); 
+                                caspitaRoot.scaling.set(0.12, 0.12, 0.12);
+                            }
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
 
-                        // 2. Dodge (Corregida rotación a la izquierda y avanzado a posición óptima)
-                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes, p, s, dAnimGroups) {
+                        // 2. Renderizado del Dodge Corregido (Sin romper transformaciones nativas GLTF)
+                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes) {
                             dodgeRoot = dMeshes[0];
-                            if(dodgeRoot) {
-                                dodgeRoot.rotationQuaternion = null;
+                            if (dodgeRoot) {
+                                dMeshes.forEach(m => { m.setEnabled(true); m.isVisible = true; });
+                                
+                                // Mantenemos la línea X=-1.7 donde era 100% visible, pero avanzamos un poco de Z=0.2 a Z=0.7
+                                dodgeRoot.position.set(-1.7, 0.0, 0.7); 
+                                
+                                // Escala corregida y aumentada para que sea totalmente proporcional al Cáspita
+                                dodgeRoot.scaling.set(0.18, 0.18, 0.18); 
+                                
+                                // Giro a la izquierda ejecutado de forma no destructiva con el método espacial nativo
+                                dodgeRoot.rotate(BABYLON.Axis.Y, Math.PI / 2, BABYLON.Space.LOCAL);
                             }
-                            // Aseguramos visibilidad interna completa de submallas Draco
-                            dMeshes.forEach(m => { m.setEnabled(true); m.isVisible = true; });
-                            
-                            // Posicionado en el carril libre de forma coordinada con el Cáspita
-                            dodgeRoot.position.set(-0.5, 0.0, 1.45); 
-                            dodgeRoot.scaling.set(0.16, 0.16, 0.16); // Escala ampliada realista
-                            dodgeRoot.rotation.set(0, Math.PI / 2, 0); // Giro a la izquierda ejecutado
-                            
-                            if(dAnimGroups) dAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
+
                     });
                 });
             });
 
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
-
-                // Entrada analógica del Joystick para el control fluido de órbita
-                if (joystickActive) {
-                    camera.alpha += joystickMoveX * 0.025;
-                    camera.beta += joystickMoveY * 0.018;
-                }
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
                 if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
@@ -546,49 +504,6 @@
 
             return scene;
         };
-
-        // 🕹️ CAPTURA DE EVENTOS DE PUNTERO PARA EL JOYSTICK VIRTUAL
-        let joystickContainer = document.getElementById("joystick-container");
-        let joystickKnob = document.getElementById("joystick-knob");
-        let joystickActive = false;
-        let joystickStartX = 0, joystickStartY = 0;
-        let joystickMoveX = 0, joystickMoveY = 0;
-
-        joystickContainer.addEventListener("pointerdown", (e) => {
-            joystickActive = true;
-            joystickStartX = e.clientX;
-            joystickStartY = e.clientY;
-            joystickContainer.setPointerCapture(e.pointerId);
-        });
-
-        joystickContainer.addEventListener("pointermove", (e) => {
-            if (!joystickActive) return;
-            let dx = e.clientX - joystickStartX;
-            let dy = e.clientY - joystickStartY;
-            
-            let dist = Math.sqrt(dx * dx + dy * dy);
-            let maxRadius = 22; 
-            if (dist > maxRadius) {
-                dx = (dx / dist) * maxRadius;
-                dy = (dy / dist) * maxRadius;
-            }
-            
-            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-            
-            joystickMoveX = dx / maxRadius;
-            joystickMoveY = dy / maxRadius;
-        });
-
-        const detenerJoystick = (e) => {
-            if (!joystickActive) return;
-            joystickActive = false;
-            joystickKnob.style.transform = "translate(0px, 0px)";
-            joystickMoveX = 0;
-            joystickMoveY = 0;
-        };
-
-        joystickContainer.addEventListener("pointerup", detenerJoystick);
-        joystickContainer.addEventListener("pointercancel", detenerJoystick);
 
         createScene();
 
