@@ -270,13 +270,20 @@
 
 <body>
 
+<!-- OVERLAY DE INICIO GLASSMORPHISM PARA EVITAR EL BLOQUEO DE AUTOPLAY -->
+<div id="overlay-inicio" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: white; transition: opacity 0.5s ease;">
+  <h1 style="color: #00f0ff; font-family: monospace; text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff007f; margin: 0; text-align: center; font-size: 26px; letter-spacing: 2px;">LA ISLA DE LA NOSTALGIA</h1>
+  <p style="font-family: monospace; font-size: 11px; color: #94a3b8; margin: 0; text-align: center; letter-spacing: 1px; max-width: 80%;">ENTORNO 3D INTERACTIVO & METAVERSO DE LUIS</p>
+  <button id="btn-entrar" style="padding: 14px 28px; background: rgba(0, 240, 255, 0.1); border: 2px solid #00f0ff; color: #00f0ff; font-family: monospace; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s;" onmouseover="this.style.background='rgba(0,240,255,0.25)'; this.style.boxShadow='0 0 25px #00f0ff'" onmouseout="this.style.background='rgba(0,240,255,0.1)'; this.style.boxShadow='0 0 15px rgba(0,240,255,0.3)'">ENTRAR Y ACTIVAR AUDIO 🎵</button>
+</div>
+
 <button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
-      <div class="track-title" id="track-display">TAP EN LA PANTALLA PARA PLAY</div>
+      <div class="track-title" id="track-display">CARGANDO SONIDO...</div>
     </div>
     <canvas id="vumeter-canvas"></canvas>
   </div>
@@ -338,7 +345,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO ---
+// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO CORREGIDO ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -408,8 +415,13 @@ function loadTrack(index, startPlaying = false) {
 
     if (startPlaying || userInteracted) {
       executePlay();
-    } else {
-      document.getElementById('track-display').innerText = "TAP EN LA PANTALLA PARA PLAY";
+    }
+    
+    // Si sigue sin reproducirse debido al bloqueo estricto, avisamos al display
+    if (!soundSource.isPlaying && !userInteracted) {
+      document.getElementById('track-display').innerText = "PULSA EN ENTRAR";
+    } else if (!soundSource.isPlaying && userInteracted) {
+      document.getElementById('track-display').innerText = "TOCA LA PANTALLA PARA PLAY";
     }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
@@ -423,18 +435,22 @@ function executePlay() {
     audioContext.resume();
   }
   if (soundSource.buffer && !soundSource.isPlaying) {
-    soundSource.play();
-    updateConsoleUI(playlist[currentTrackIndex], 'playing');
-    
-    if (window.laraAction) {
-      window.laraAction.paused = false; 
-      window.laraAction.play();        
-    }
-    
-    if (soundSource.source) {
-      soundSource.source.onended = () => {
-        nextTrack();
-      };
+    try {
+      soundSource.play();
+      updateConsoleUI(playlist[currentTrackIndex], 'playing');
+      
+      if (window.laraAction) {
+        window.laraAction.paused = false; 
+        window.laraAction.play();        
+      }
+      
+      if (soundSource.source) {
+        soundSource.source.onended = () => {
+          nextTrack();
+        };
+      }
+    } catch (e) {
+      console.warn("Reproducción en espera de interacción síncrona directa:", e);
     }
   }
 }
@@ -446,10 +462,22 @@ function nextTrack() {
 
 loadTrack(0, false);
 
+// Evento de clic en el botón del Overlay
+document.getElementById('btn-entrar').addEventListener('click', (e) => {
+  e.stopPropagation();
+  userInteracted = true;
+  executePlay();
+  
+  const overlay = document.getElementById('overlay-inicio');
+  overlay.style.opacity = '0';
+  setTimeout(() => overlay.remove(), 500);
+});
+
+// Listener resiliente global (solo se remueve si el sonido se está ejecutando con éxito)
 function pantallaTouchAutoplay() {
-  if (!userInteracted) {
-    userInteracted = true;
-    executePlay();
+  userInteracted = true;
+  executePlay();
+  if (soundSource.isPlaying) {
     window.removeEventListener('click', pantallaTouchAutoplay);
     window.removeEventListener('pointerdown', pantallaTouchAutoplay);
   }
@@ -671,6 +699,79 @@ function crearBandada() {
 crearBandada();
 
 
+// --- DELFÍN PROCEDIMENTAL (SALTO EN EL AGUA) ---
+let delfin = null;
+const datosDelfin = {
+  radio: 19,              // Radio amplio alrededor de la playa
+  velocidad: 0.5,         // Velocidad de nado orbital
+  angulo: Math.PI / 3,    // Ángulo inicial
+  alturaBase: -0.3,       // Nivel base del agua
+  maxAlturaSalto: 2.8,    // Altura del salto en el aire
+  frecuenciaSalto: 1.8    // Multiplicador de velocidad del ciclo de salto
+};
+
+function crearDelfin() {
+  const grupoDelfin = new THREE.Group();
+  
+  // Materiales suaves y brillantes para efecto acuático mojado
+  const matDelfin = new THREE.MeshStandardMaterial({ color: 0x3a6b8c, roughness: 0.15, metalness: 0.1 });
+  const matPanza = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2 });
+
+  // Cuerpo aerodinámico (Esfera estirada en Z)
+  const cuerpoGeo = new THREE.SphereGeometry(0.35, 32, 16);
+  const cuerpo = new THREE.Mesh(cuerpoGeo, matDelfin);
+  cuerpo.scale.set(1, 0.8, 2.6);
+  grupoDelfin.add(cuerpo);
+
+  // Panza inferior clara
+  const panzaGeo = new THREE.SphereGeometry(0.26, 16, 16);
+  const panza = new THREE.Mesh(panzaGeo, matPanza);
+  panza.scale.set(0.9, 0.6, 2.0);
+  panza.position.set(0, -0.12, 0.1);
+  grupoDelfin.add(panza);
+
+  // Hocico característico (Hacia el frente +Z)
+  const hocicoGeo = new THREE.ConeGeometry(0.08, 0.4, 12);
+  hocicoGeo.rotateX(Math.PI / 2);
+  const hocico = new THREE.Mesh(hocicoGeo, matDelfin);
+  hocico.position.set(0, -0.05, 1.4);
+  grupoDelfin.add(hocico);
+
+  // Aleta Dorsal curva (Arriba)
+  const aletaDorsalGeo = new THREE.ConeGeometry(0.07, 0.35, 8);
+  aletaDorsalGeo.rotateX(-Math.PI / 3);
+  const aletaDorsal = new THREE.Mesh(aletaDorsalGeo, matDelfin);
+  aletaDorsal.position.set(0, 0.32, -0.2);
+  grupoDelfin.add(aletaDorsal);
+
+  // Aleta Lateral Izquierda
+  const aletaIzqGeo = new THREE.BoxGeometry(0.3, 0.02, 0.15);
+  const aletaIzq = new THREE.Mesh(aletaIzqGeo, matDelfin);
+  aletaIzq.position.set(-0.38, -0.1, 0.3);
+  aletaIzq.rotation.set(0, Math.PI / 6, -Math.PI / 6);
+  grupoDelfin.add(aletaIzq);
+
+  // Aleta Lateral Derecha
+  const aletaDerGeo = new THREE.BoxGeometry(0.3, 0.02, 0.15);
+  const aletaDer = new THREE.Mesh(aletaDerGeo, matDelfin);
+  aletaDer.position.set(0.4, -0.1, 0.3);
+  aletaDer.rotation.set(0, -Math.PI / 6, Math.PI / 6);
+  grupoDelfin.add(aletaDer);
+
+  // Cola trasera (Hacia -Z, aletas planas horizontales)
+  const aletaColaGeo = new THREE.ConeGeometry(0.12, 0.35, 4);
+  aletaColaGeo.rotateX(Math.PI / 2);
+  aletaColaGeo.scale(2.2, 0.08, 1);
+  const aletaCola = new THREE.Mesh(aletaColaGeo, matDelfin);
+  aletaCola.position.set(0, 0, -1.35);
+  grupoDelfin.add(aletaCola);
+
+  scene.add(grupoDelfin);
+  delfin = grupoDelfin;
+}
+crearDelfin();
+
+
 // --- JOYSTICK INTERACTIVO ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
@@ -729,6 +830,7 @@ function animate() {
 
   drawVuMeter();
 
+  // Animación Gaviotas
   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
@@ -741,6 +843,35 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
+  // Animación Dinámica del Delfín (Salto realista)
+  if (delfin) {
+    datosDelfin.angulo += datosDelfin.velocidad * delta;
+    
+    // Posicionamiento XZ orbital continuo
+    delfin.position.x = Math.cos(datosDelfin.angulo) * datosDelfin.radio;
+    delfin.position.z = Math.sin(datosDelfin.angulo) * datosDelfin.radio;
+    
+    // Girar hacia la tangente de nado para avanzar con gracia
+    delfin.rotation.y = -datosDelfin.angulo;
+
+    // Onda del salto basada en el tiempo transcurrido
+    const avanceSalto = (tiempoTotal * datosDelfin.frecuenciaSalto) % (Math.PI * 2);
+    const senoSalto = Math.sin(avanceSalto);
+    
+    if (senoSalto > 0) {
+      // Fase aérea: se eleva describiendo un arco parabólico
+      delfin.position.y = datosDelfin.alturaBase + senoSalto * datosDelfin.maxAlturaSalto;
+      
+      // Cabeceo dinámico: el hocico apunta arriba al emerger y abajo al entrar al agua
+      delfin.rotation.x = Math.cos(avanceSalto) * 0.5;
+    } else {
+      // Fase submarina: nado sutil ondulado sumergido bajo el agua
+      delfin.position.y = datosDelfin.alturaBase + senoSalto * 0.15;
+      delfin.rotation.x = Math.cos(avanceSalto) * 0.1;
+    }
+  }
+
+  // Movimiento del Avatar Luis
   if (avatar) {
     const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
     if (isMoving) {
