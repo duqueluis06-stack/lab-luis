@@ -108,56 +108,11 @@
         #toggle-city-btn { left: 145px; color: #fff; background: #9d4edd; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        /* 📊 PANEL DE TELEMETRÍA DE COORDENADAS + ESCALA */
-        #telemetry-hud {
-            position: absolute;
-            top: 75px;
-            right: 15px;
-            background: rgba(6, 6, 15, 0.9);
-            border: 2px solid #00ffcc;
-            color: #00ffcc;
-            font-family: monospace;
-            padding: 12px;
-            font-size: 11px;
-            z-index: 180;
-            box-shadow: 0 0 15px rgba(0,255,204,0.2);
-            border-radius: 6px;
-            width: 250px;
-        }
-        .hud-title {
-            font-weight: bold;
-            border-bottom: 1px dashed #00ffcc;
-            padding-bottom: 4px;
-            margin-bottom: 8px;
-            color: #fff;
-            text-shadow: 0 0 4px #00ffcc;
-        }
-        .hud-row {
-            margin: 8px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        .hud-row label {
-            display: flex;
-            justify-content: space-between;
-        }
-        .hud-row input {
-            width: 100%;
-            accent-color: #00ffcc;
-            cursor: pointer;
-        }
-        .hud-value {
-            color: #fff;
-            font-weight: bold;
-        }
-
         @media (max-width: 768px) {
             #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
             .control-btn { top: 12px; padding: 8px 12px; }
             #toggle-city-btn { left: 130px; }
-            #telemetry-hud { top: auto; bottom: 120px; right: 10px; width: 220px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -175,27 +130,6 @@
     <button id="toggle-city-btn" class="control-btn" onclick="toggleVisibilidadCiudad()">🌆 OCULTAR CIUDAD</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
-    <!-- 🛠️ INTERFAZ DE MONITOREO Y CALIBRACIÓN EN VIVO (CON ESCALA DETECTADA) -->
-    <div id="telemetry-hud">
-        <div class="hud-title">📡 CALIBRACIÓN GLOBAL XYZ</div>
-        <div class="hud-row">
-            <label>DESPLAZAMIENTO X: <span id="lbl-x" class="hud-value">-4.8</span></label>
-            <input type="range" id="slide-x" min="-40" max="40" step="0.2" value="-4.8" oninput="calibrarPosicionesEntorno()">
-        </div>
-        <div class="hud-row">
-            <label>ALTURA Y: <span id="lbl-y" class="hud-value">0.0</span></label>
-            <input type="range" id="slide-y" min="-40" max="20" step="0.2" value="0.0" oninput="calibrarPosicionesEntorno()">
-        </div>
-        <div class="hud-row">
-            <label>PROFUNDIDAD Z: <span id="lbl-z" class="hud-value">-2.8</span></label>
-            <input type="range" id="slide-z" min="-40" max="40" step="0.2" value="-2.8" oninput="calibrarPosicionesEntorno()">
-        </div>
-        <div class="hud-row" style="border-top: 1px dashed #333; padding-top: 5px; margin-top: 5px;">
-            <label style="color: #ffaa00;">📐 ESCALA AVATARES: <span id="lbl-scale" class="hud-value">1.0</span></label>
-            <input type="range" id="slide-scale" min="0.01" max="1.5" step="0.01" value="1.0" oninput="calibrarPosicionesEntorno()">
-        </div>
-    </div>
-
     <div id="comic-container">
         <div id="bubble-agente" class="comic-cloud">
             <div class="speaker-tag">● AGENTE IA</div>
@@ -211,10 +145,18 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        /* 📍 VALORES BASE RE-CALIBRADOS POR LUIS COPIADOS DIRECTAMENTE */
+        /* 📍 MATRIZ DE COORDENADAS ACERCADAS (0.25 unidades de separación en el eje X) */
         const COORDENADAS_BASE = {
-            agente: { x: -3.5, y: 0.05, z: 3.0 },
-            luisavatar: { x: -2.0, y: 0.05, z: 3.0 }
+            agente: { x: -2.875, y: 0.05, z: 3.0 },
+            luisavatar: { x: -2.625, y: 0.05, z: 3.0 }
+        };
+
+        /* 🔬 CONFIGURACIÓN DE TELEMETRÍA PRECISADA POR LUIS (SLIDERS EXTIRPADOS) */
+        const CALIBRACION_FIJA = {
+            x: -5.4,
+            y: 0.0,
+            z: -2.4,
+            escala: 0.08
         };
 
         const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
@@ -387,7 +329,6 @@
         const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
         let camera, scene; 
         let agenteRoot, luisRoot;
-        let pinAgente, pinLuis;
 
         function toggleVisibilidadCiudad() {
             ciudadVisible = !ciudadVisible;
@@ -395,35 +336,31 @@
             document.getElementById("toggle-city-btn").innerText = ciudadVisible ? "🌆 OCULTAR CIUDAD" : "🏙️ MOSTRAR CIUDAD";
         }
 
-        /* 🔬 FUNCIÓN DE AJUSTE EN VIVO (CONECTADA A LOS SLIDERS - INCLUYE ESCALA) */
-        function calibrarPosicionesEntorno() {
-            let dx = parseFloat(document.getElementById("slide-x").value);
-            let dy = parseFloat(document.getElementById("slide-y").value);
-            let dz = parseFloat(document.getElementById("slide-z").value);
-            let scale = parseFloat(document.getElementById("slide-scale").value);
-
-            document.getElementById("lbl-x").innerText = dx.toFixed(1);
-            document.getElementById("lbl-y").innerText = dy.toFixed(1);
-            document.getElementById("lbl-z").innerText = dz.toFixed(1);
-            document.getElementById("lbl-scale").innerText = scale.toFixed(2);
-
-            // Ajustar Posiciones Calculadas
+        function aplicarPosicionesFijas() {
             if (agenteRoot) {
-                agenteRoot.position.set(COORDENADAS_BASE.agente.x + dx, COORDENADAS_BASE.agente.y + dy, COORDENADAS_BASE.agente.z + dz);
-                agenteRoot.scaling.set(scale, scale, scale);
+                agenteRoot.position.set(
+                    COORDENADAS_BASE.agente.x + CALIBRACION_FIJA.x, 
+                    COORDENADAS_BASE.agente.y + CALIBRACION_FIJA.y, 
+                    COORDENADAS_BASE.agente.z + CALIBRACION_FIJA.z
+                );
+                agenteRoot.scaling.set(CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala);
             }
             if (luisRoot) {
-                luisRoot.position.set(COORDENADAS_BASE.luisavatar.x + dx, COORDENADAS_BASE.luisavatar.y + dy, COORDENADAS_BASE.luisavatar.z + dz);
-                luisRoot.scaling.set(scale, scale, scale);
+                luisRoot.position.set(
+                    COORDENADAS_BASE.luisavatar.x + CALIBRACION_FIJA.x, 
+                    COORDENADAS_BASE.luisavatar.y + CALIBRACION_FIJA.y, 
+                    COORDENADAS_BASE.luisavatar.z + CALIBRACION_FIJA.z
+                );
+                luisRoot.scaling.set(CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala, CALIBRACION_FIJA.escala);
             }
 
-            // Mover los pins de luz de prueba con ellos
-            if (pinAgente) pinAgente.position.set(COORDENADAS_BASE.agente.x + dx, COORDENADAS_BASE.agente.y + dy + (2.0 * scale), COORDENADAS_BASE.agente.z + dz);
-            if (pinLuis) pinLuis.position.set(COORDENADAS_BASE.luisavatar.x + dx, COORDENADAS_BASE.luisavatar.y + dy + (2.0 * scale), COORDENADAS_BASE.luisavatar.z + dz);
-
-            // Re-centrar la mirada y foco de la cámara dinámicamente adaptándose a la escala
-            if (camera && agenteRoot) {
-                camera.target.set(agenteRoot.position.x + (0.75 * scale), agenteRoot.position.y + (1.45 * scale), agenteRoot.position.z);
+            // Enfocar la cámara al punto intermedio exacto entre los dos mini avatares
+            if (camera && agenteRoot && luisRoot) {
+                camera.target.set(
+                    (agenteRoot.position.x + luisRoot.position.x) / 2, 
+                    agenteRoot.position.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    (agenteRoot.position.z + luisRoot.position.z) / 2
+                );
             }
         }
 
@@ -431,12 +368,21 @@
             scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // Iniciar directamente con los valores estables de Luis
-            let initX = -4.8; let initY = 0.0; let initZ = -2.8;
-
-            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(COORDENADAS_BASE.agente.x + initX, COORDENADAS_BASE.agente.y + initY + 1.45, COORDENADAS_BASE.agente.z + initZ), scene);
+            // Inicialización de cámara acoplada al punto medio conversacional
+            camera = new BABYLON.ArcRotateCamera(
+                "camera", 
+                -Math.PI / 2, 
+                Math.PI / 2.2, 
+                0.35, 
+                new BABYLON.Vector3(
+                    ((COORDENADAS_BASE.agente.x + COORDENADAS_BASE.luisavatar.x) / 2) + CALIBRACION_FIJA.x, 
+                    CALIBRACION_FIJA.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    COORDENADAS_BASE.agente.z + CALIBRACION_FIJA.z
+                ), 
+                scene
+            );
             camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 0.5; camera.upperRadiusLimit = 150.0; camera.panningSensibility = 350;
+            camera.lowerRadiusLimit = 0.02; camera.upperRadiusLimit = 30.0; camera.panningSensibility = 900;
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
@@ -451,10 +397,6 @@
                     if(agenteRoot) {
                         agenteRoot.rotationQuaternion = null; 
                         setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
-                        
-                        pinAgente = BABYLON.MeshBuilder.CreateCylinder("pin_A", { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
-                        let matA = new BABYLON.StandardMaterial("mat_pA", scene); matA.emissiveColor = BABYLON.Color3.FromHexString("#00ffcc");
-                        pinAgente.material = matA;
                     }
                     if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
 
@@ -465,18 +407,13 @@
                         if(luisRoot) {
                             luisRoot.rotationQuaternion = null; 
                             setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
-
-                            pinLuis = BABYLON.MeshBuilder.CreateCylinder("pin_L", { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
-                            let matL = new BABYLON.StandardMaterial("mat_pL", scene); matL.emissiveColor = BABYLON.Color3.FromHexString("#ffaa00");
-                            pinLuis.material = matL;
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
                         document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO QUANTUM PREPARADA";
                         document.getElementById("start-btn").style.display = "block";
                         
-                        // Forzar ejecución inicial usando tus coordenadas
-                        calibrarPosicionesEntorno();
+                        aplicarPosicionesFijas();
                     });
                 });
             });
@@ -490,8 +427,8 @@
                 if (ahora > proximoCambioGaze) {
                     proximoCambioGaze = ahora + 15000 + Math.random() * 5000;
                     if (Math.random() > 0.35) {
-                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
-                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
+                        desvioMiradaAgente.set((Math.random() - 0.5) * 0.18 * CALIBRACION_FIJA.escala, (Math.random() - 0.4) * 0.08 * CALIBRACION_FIJA.escala, (Math.random() - 0.5) * 0.10 * CALIBRACION_FIJA.escala);
+                        desvioMiradaLuis.set((Math.random() - 0.5) * 0.18 * CALIBRACION_FIJA.escala, (Math.random() - 0.4) * 0.08 * CALIBRACION_FIJA.escala, (Math.random() - 0.5) * 0.10 * CALIBRACION_FIJA.escala);
                     } else {
                         desvioMiradaAgente.set(0, 0, 0); desvioMiradaLuis.set(0, 0, 0);
                     }
@@ -504,8 +441,9 @@
                     actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.03);
                     actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.03);
 
-                    agenteRoot.lookAt(actualTargetAgente); agenteRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
-                    luisRoot.lookAt(actualTargetLuis); luisRoot.rotate(BABYLON.Axis.Y, Math.PI, BABYLON.Space.LOCAL);
+                    // Mirada directa corregida uno frente al otro (eliminados giros artificiales de 180 grados)
+                    agenteRoot.lookAt(actualTargetAgente);
+                    luisRoot.lookAt(actualTargetLuis);
                 }
 
                 if (currentSpeaker) {
@@ -531,10 +469,13 @@
         createScene();
 
         function resetCamaraOrigen() {
-            if(camera && agenteRoot) {
-                let scale = parseFloat(document.getElementById("slide-scale").value);
-                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 4.2 * scale;
-                camera.target.set(agenteRoot.position.x + (0.75 * scale), agenteRoot.position.y + (1.45 * scale), agenteRoot.position.z);
+            if(camera && agenteRoot && luisRoot) {
+                camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 0.35;
+                camera.target.set(
+                    (agenteRoot.position.x + luisRoot.position.x) / 2, 
+                    agenteRoot.position.y + (1.2 * CALIBRACION_FIJA.escala), 
+                    (agenteRoot.position.z + luisRoot.position.z) / 2
+                );
             }
         }
 
