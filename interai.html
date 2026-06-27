@@ -93,41 +93,37 @@
             transform: scale(1) translateY(-2px);
         }
 
-        /* 🕹️ PANEL DE CÁMARA CON FLECHITAS */
-        #camera-control-pad {
+        /* 🕹️ CONTROLLER JOYSTICK DIGITAL ANTIMANCHAS */
+        #joystick-container {
             position: absolute;
-            top: 15px;
-            left: 15px;
+            top: 20px;
+            left: 20px;
             z-index: 150;
-            display: grid;
-            grid-template-columns: repeat(3, 40px);
-            grid-template-rows: repeat(3, 40px);
-            gap: 4px;
-            background: rgba(6, 6, 15, 0.75);
-            padding: 6px;
-            border-radius: 8px;
-            border: 1px solid #00ffcc;
-        }
-        .pad-btn {
-            background: #111;
-            border: 1px solid #00ffcc;
-            color: #00ffcc;
-            font-size: 14px;
+            width: 76px;
+            height: 76px;
+            background: rgba(6, 6, 15, 0.65);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
-            border-radius: 4px;
-            user-select: none;
+            touch-action: none;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
         }
-        .pad-btn:active {
+        #joystick-knob {
+            width: 28px;
+            height: 28px;
             background: #00ffcc;
-            color: #000;
+            border-radius: 50%;
+            position: relative;
+            pointer-events: none;
+            box-shadow: 0 0 12px #00ffcc;
+            transform: translate(0px, 0px);
         }
 
         .control-btn {
             position: absolute;
-            top: 15px;
+            top: 20px;
             padding: 10px 14px;
             font-size: 10px;
             font-weight: bold;
@@ -144,8 +140,10 @@
         @media (max-width: 768px) {
             #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
             .comic-cloud { padding: 8px 10px; font-size: 11px; }
-            #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
-            #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
+            #reset-camera-btn { right: 85px; top: 15px; padding: 8px 10px; }
+            #exit-btn { right: 12px; top: 15px; padding: 8px 10px; }
+            #joystick-container { width: 70px; height: 70px; top: 15px; left: 15px; }
+            #joystick-knob { width: 24px; height: 24px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -159,16 +157,8 @@
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
-    <div id="camera-control-pad">
-        <div></div>
-        <div class="pad-btn" id="btn-up">🔼</div>
-        <div></div>
-        <div class="pad-btn" id="btn-left">◀️</div>
-        <div class="pad-btn" id="btn-center" onclick="resetCamaraOrigen()">🏠</div>
-        <div class="pad-btn" id="btn-right">▶️</div>
-        <div class="pad-btn" id="btn-zoomin">➕</div>
-        <div class="pad-btn" id="btn-down">🔽</div>
-        <div class="pad-btn" id="btn-zoomout">➖</div>
+    <div id="joystick-container">
+        <div id="joystick-knob"></div>
     </div>
 
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
@@ -211,7 +201,6 @@
         let currentSpeaker = null; 
         let activeUtterance = null; 
 
-        let trenRoot = null;
         let dodgeRoot = null;
         let caspitaRoot = null;
 
@@ -452,7 +441,7 @@
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
-                        let modelosRestantes = 3;
+                        let modelosRestantes = 2;
                         const verificarCargaCompleta = () => {
                             modelosRestantes--;
                             if (modelosRestantes === 0) {
@@ -462,30 +451,21 @@
                             }
                         };
 
-                        // 1. Tren (Ubicado al final de la malla Z=-15, listo para animarse en bucle)
-                        BABYLON.SceneLoader.ImportMesh("", "./", "tren.glb", scene, function (tMeshes, p, s, tAnimGroups) {
-                            trenRoot = tMeshes[0];
-                            trenRoot.position.set(-25.0, 0.0, -15.0); 
-                            trenRoot.scaling.set(0.015, 0.015, 0.015);
-                            if(tAnimGroups) tAnimGroups.forEach(g => g.stop()); 
-                            verificarCargaCompleta();
-                        }, null, function() { verificarCargaCompleta(); });
-
-                        // 2. Dodge (Estacionado justo al lado derecho de los avatares en X=-0.7)
-                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes, p, s, dAnimGroups) {
-                            dodgeRoot = dMeshes[0];
-                            dodgeRoot.position.set(-0.7, 0.0, 0.90); 
-                            dodgeRoot.scaling.set(0.12, 0.12, 0.12);
-                            if(dAnimGroups) dAnimGroups.forEach(g => g.stop());
-                            verificarCargaCompleta();
-                        }, null, function() { verificarCargaCompleta(); });
-
-                        // 3. Caspita (Estacionado justo al lado izquierdo de los avatares en X=-2.2)
+                        // 1. Cáspita (Estacionado adelante a la izquierda de la escena)
                         BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes, p, s, cAnimGroups) {
                             caspitaRoot = cMeshes[0];
-                            caspitaRoot.position.set(-2.2, 0.0, 0.90); 
+                            caspitaRoot.position.set(-2.5, 0.0, 0.90); 
                             caspitaRoot.scaling.set(0.12, 0.12, 0.12);
                             if(cAnimGroups) cAnimGroups.forEach(g => g.stop());
+                            verificarCargaCompleta();
+                        }, null, function() { verificarCargaCompleta(); });
+
+                        // 2. Dodge (Estacionado en línea perfectamente DETRÁS del Cáspita)
+                        BABYLON.SceneLoader.ImportMesh("", "./", "dodge.glb", scene, function (dMeshes, p, s, dAnimGroups) {
+                            dodgeRoot = dMeshes[0];
+                            dodgeRoot.position.set(-3.8, 0.0, 0.90); 
+                            dodgeRoot.scaling.set(0.12, 0.12, 0.12);
+                            if(dAnimGroups) dAnimGroups.forEach(g => g.stop());
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
                     });
@@ -495,21 +475,11 @@
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // 🚄 Animación del Tren pasando a toda velocidad por el borde trasero
-                if (trenRoot) {
-                    trenRoot.position.x += 0.08; 
-                    if (trenRoot.position.x > 25.0) {
-                        trenRoot.position.x = -25.0; // Reinicia ciclo en el fin de la malla
-                    }
+                // 🎥 Procesamiento de movimiento continuo del Joystick Virtual
+                if (joystickActive) {
+                    camera.alpha += joystickMoveX * 0.025;
+                    camera.beta += joystickMoveY * 0.018;
                 }
-
-                // 🎥 Lógica de las Flechitas Visuales del Panel
-                if (activeKeyControls["left"]) camera.alpha -= 0.02;
-                if (activeKeyControls["right"]) camera.alpha += 0.02;
-                if (activeKeyControls["up"]) camera.beta -= 0.015;
-                if (activeKeyControls["down"]) camera.beta += 0.015;
-                if (activeKeyControls["zoomin"]) camera.radius -= 0.02;
-                if (activeKeyControls["zoomout"]) camera.radius += 0.02;
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
                 if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
@@ -557,26 +527,48 @@
             return scene;
         };
 
-        // 🔘 Mapeo de Eventos para botones en pantalla
-        let activeKeyControls = { left: false, right: false, up: false, down: false, zoomin: false, zoomout: false };
-        
-        function VincularBotonPad(idElemento, accion) {
-            const btn = document.getElementById(idElemento);
-            if(!btn) return;
-            const activar = (e) => { e.preventDefault(); activeKeyControls[accion] = true; };
-            const desactivar = (e) => { e.preventDefault(); activeKeyControls[accion] = false; };
-            
-            btn.addEventListener("pointerdown", activar);
-            btn.addEventListener("pointerup", desactivar);
-            btn.addEventListener("pointerleave", desactivar);
-        }
+        // 🕹️ LÓGICA DE CAPTURA DEL JOYSTICK (Soporta touch y mouse sin quedarse trabado)
+        let joystickContainer = document.getElementById("joystick-container");
+        let joystickKnob = document.getElementById("joystick-knob");
+        let joystickActive = false;
+        let joystickStartX = 0, joystickStartY = 0;
+        let joystickMoveX = 0, joystickMoveY = 0;
 
-        VincularBotonPad("btn-left", "left");
-        VincularBotonPad("btn-right", "right");
-        VincularBotonPad("btn-up", "up");
-        VincularBotonPad("btn-down", "down");
-        VincularBotonPad("btn-zoomin", "zoomin");
-        VincularBotonPad("btn-zoomout", "zoomout");
+        joystickContainer.addEventListener("pointerdown", (e) => {
+            joystickActive = true;
+            joystickStartX = e.clientX;
+            joystickStartY = e.clientY;
+            joystickContainer.setPointerCapture(e.pointerId);
+        });
+
+        joystickContainer.addEventListener("pointermove", (e) => {
+            if (!joystickActive) return;
+            let dx = e.clientX - joystickStartX;
+            let dy = e.clientY - joystickStartY;
+            
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            let maxRadius = 22; 
+            if (dist > maxRadius) {
+                dx = (dx / dist) * maxRadius;
+                dy = (dy / dist) * maxRadius;
+            }
+            
+            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            joystickMoveX = dx / maxRadius;
+            joystickMoveY = dy / maxRadius;
+        });
+
+        const detenerJoystick = (e) => {
+            if (!joystickActive) return;
+            joystickActive = false;
+            joystickKnob.style.transform = "translate(0px, 0px)";
+            joystickMoveX = 0;
+            joystickMoveY = 0;
+        };
+
+        joystickContainer.addEventListener("pointerup", detenerJoystick);
+        joystickContainer.addEventListener("pointercancel", detenerJoystick);
 
         createScene();
 
