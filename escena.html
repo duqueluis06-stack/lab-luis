@@ -41,6 +41,15 @@
   </script>
 
   <style>
+    /* BLOQUEO ABSOLUTO DE SELECCIÓN Y MENÚS EMERGENTES TÁLTILES */
+    * {
+      -webkit-user-select: none;   /* Safari / iOS Chrome */
+      -moz-user-select: none;      /* Firefox */
+      -ms-user-select: none;       /* IE / Edge */
+      user-select: none;           /* Estándar */
+      -webkit-touch-callout: none; /* Bloquea menú contextual de guardar imagen/enlace en iOS */
+    }
+
     html, body {
       margin: 0;
       overflow: hidden;
@@ -48,11 +57,16 @@
       height: 100%;
       background: #0f172a;
       font-family: 'Segoe UI', Arial, sans-serif;
-      user-select: none;
     }
 
     canvas {
       display: block;
+    }
+
+    /* Evita destellos azules al pulsar botones en móviles */
+    canvas, button, .track-pill, .dj-btn, #joystick-container, #joystick-knob {
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
 
     #volver {
@@ -232,7 +246,7 @@
       #creditos-link { bottom: 8px; font-size: 9px; }
     }
 
-    /* JOYSTICK */
+    /* JOYSTICK TÁCTIL REFORZADO */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -255,6 +269,7 @@
       background: rgba(0, 240, 255, 0.4);
       border: 2px solid #00f0ff;
       border-radius: 50%;
+      pointer-events: none;
     }
   </style>
 
@@ -270,7 +285,7 @@
 
 <body>
 
-<!-- OVERLAY DE INICIO GLASSMORPHISM PARA EVITAR EL BLOQUEO DE AUTOPLAY -->
+<!-- OVERLAY DE INICIO PARA EVITAR BLOQUEOS DE AUDIO -->
 <div id="overlay-inicio" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: white; transition: opacity 0.5s ease;">
   <h1 style="color: #00f0ff; font-family: monospace; text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff007f; margin: 0; text-align: center; font-size: 26px; letter-spacing: 2px;">LA ISLA DE LA NOSTALGIA</h1>
   <p style="font-family: monospace; font-size: 11px; color: #94a3b8; margin: 0; text-align: center; letter-spacing: 1px; max-width: 80%;">ENTORNO 3D INTERACTIVO & METAVERSO DE LUIS</p>
@@ -280,6 +295,7 @@
 <button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
+<!-- CONSOLA DJ CON SUS BOTONES TÁLTILES NATIVOS -->
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
@@ -323,7 +339,6 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
-// Mapeos de color estándar para respetar texturas PBR nativas de Babylon
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
@@ -335,17 +350,16 @@ const clock = new THREE.Clock();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 2;
-controls.maxDistance = 40;
+controls.maxDistance = 60;
 controls.target.set(0, 1, 0);
 
-// Iluminación global neutra rica para que no ensombrezca los modelos nativos
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON AUTOPLAY SEGURO CORREGIDO ---
+// --- ENGINE DE AUDIO DJ CON LOGICA RESILIENTE ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -416,13 +430,6 @@ function loadTrack(index, startPlaying = false) {
     if (startPlaying || userInteracted) {
       executePlay();
     }
-    
-    // Si sigue sin reproducirse debido al bloqueo estricto, avisamos al display
-    if (!soundSource.isPlaying && !userInteracted) {
-      document.getElementById('track-display').innerText = "PULSA EN ENTRAR";
-    } else if (!soundSource.isPlaying && userInteracted) {
-      document.getElementById('track-display').innerText = "TOCA LA PANTALLA PARA PLAY";
-    }
   }, undefined, (err) => {
     document.getElementById('track-display').innerText = "ERROR 404";
     console.error(err);
@@ -450,7 +457,7 @@ function executePlay() {
         };
       }
     } catch (e) {
-      console.warn("Reproducción en espera de interacción síncrona directa:", e);
+      console.warn(e);
     }
   }
 }
@@ -462,7 +469,6 @@ function nextTrack() {
 
 loadTrack(0, false);
 
-// Evento de clic en el botón del Overlay
 document.getElementById('btn-entrar').addEventListener('click', (e) => {
   e.stopPropagation();
   userInteracted = true;
@@ -473,22 +479,10 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
   setTimeout(() => overlay.remove(), 500);
 });
 
-// Listener resiliente global (solo se remueve si el sonido se está ejecutando con éxito)
-function pantallaTouchAutoplay() {
-  userInteracted = true;
-  executePlay();
-  if (soundSource.isPlaying) {
-    window.removeEventListener('click', pantallaTouchAutoplay);
-    window.removeEventListener('pointerdown', pantallaTouchAutoplay);
-  }
-}
-window.addEventListener('click', pantallaTouchAutoplay);
-window.addEventListener('pointerdown', pantallaTouchAutoplay);
 
-
-// --- EVENTOS DE LA CONSOLA ---
+// --- HANDLERS TÁCTILES CONSOLE ---
 document.querySelectorAll('.track-pill').forEach(pill => {
-  pill.addEventListener('click', (e) => {
+  pill.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
     userInteracted = true;
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
@@ -496,13 +490,13 @@ document.querySelectorAll('.track-pill').forEach(pill => {
   });
 });
 
-document.getElementById("btn-play").addEventListener("click", (e) => {
+document.getElementById("btn-play").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
   userInteracted = true;
   executePlay();
 });
 
-document.getElementById("btn-pause").addEventListener("click", (e) => {
+document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
   if (soundSource.isPlaying) {
     if (soundSource.source) soundSource.source.onended = null;
@@ -512,14 +506,14 @@ document.getElementById("btn-pause").addEventListener("click", (e) => {
   }
 });
 
-document.getElementById("btn-next").addEventListener("click", (e) => {
+document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
   userInteracted = true;
   nextTrack();
 });
 
 
-// --- VÚMETRO ---
+// --- DIBUJO DEL VÚMETRO ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
   vuCtx.fillStyle = "rgba(10, 15, 30, 0.4)";
@@ -561,7 +555,7 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA DIRECTA DE ARCHIVOS 3D NATIVOS ---
+// --- CARGA DE ARCHIVOS 3D (GLB) NATIVOS ---
 const loader = new GLTFLoader();
 let avatar = null;
 let michigris = null;
@@ -579,7 +573,7 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// AVATAR A RAS DE ARENA (y = 0)
+// AVATAR GLB DE LUIS (La cámara lo seguirá en todo momento)
 loader.load("luis-acostado.glb", (gltf) => {
   avatar = gltf.scene;
   avatar.position.set(0, 0, 0); 
@@ -593,7 +587,6 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// MICHIGRIS.GLB OPTIMIZADO: Ajuste dinámico de mapas PBR y texturas nativas
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -606,7 +599,6 @@ loader.load("michigris.glb", (gltf) => {
           child.material.map.colorSpace = THREE.SRGBColorSpace;
           child.material.map.needsUpdate = true;
         }
-        
         if (child.material.metalness > 0.4) {
           child.material.metalness = 0.1; 
           child.material.roughness = 0.7; 
@@ -621,10 +613,7 @@ loader.load("michigris.glb", (gltf) => {
     michigrisMixer = new THREE.AnimationMixer(michigris);
     michigrisMixer.clipAction(gltf.animations[0]).play();
   }
-}, undefined, (error) => {
-  console.error("Error cargando michigris.glb:", error);
 });
-
 
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
@@ -699,7 +688,7 @@ function crearBandada() {
 crearBandada();
 
 
-// --- MANADA DE DELFINES PROCEDIMENTALES (ALTA MAR - SILUETAS LEJANAS) ---
+// --- MANADA DE DELFINES PROCEDIMENTALES (DISTANCIA Y TAMAÑO CORREGIDOS) ---
 const delfines = [];
 const numDelfines = 3;
 
@@ -710,48 +699,42 @@ function crearManadaDelfines() {
   for (let i = 0; i < numDelfines; i++) {
     const grupoDelfin = new THREE.Group();
 
-    // Cuerpo estilizado (proporciones mucho más delgadas y largas para simular agilidad marina)
+    // Cuerpo base estilizado
     const cuerpoGeo = new THREE.SphereGeometry(0.35, 16, 12);
     const cuerpo = new THREE.Mesh(cuerpoGeo, matDelfin);
     cuerpo.scale.set(0.6, 0.45, 3.5); 
     grupoDelfin.add(cuerpo);
 
-    // Panza estilizada
     const panzaGeo = new THREE.SphereGeometry(0.26, 12, 12);
     const panza = new THREE.Mesh(panzaGeo, matPanza);
     panza.scale.set(0.5, 0.35, 2.6);
     panza.position.set(0, -0.1, 0.1);
     grupoDelfin.add(panza);
 
-    // Hocico fino
     const hocicoGeo = new THREE.ConeGeometry(0.06, 0.5, 8);
     hocicoGeo.rotateX(Math.PI / 2);
     const hocico = new THREE.Mesh(hocicoGeo, matDelfin);
     hocico.position.set(0, -0.04, 1.7);
     grupoDelfin.add(hocico);
 
-    // Aleta Dorsal elegante
     const aletaDorsalGeo = new THREE.ConeGeometry(0.06, 0.4, 6);
     aletaDorsalGeo.rotateX(-Math.PI / 2.5);
     const aletaDorsal = new THREE.Mesh(aletaDorsalGeo, matDelfin);
     aletaDorsal.position.set(0, 0.3, -0.3);
     grupoDelfin.add(aletaDorsal);
 
-    // Aleta Lateral Izquierda
     const aletaIzqGeo = new THREE.BoxGeometry(0.25, 0.02, 0.12);
     const aletaIzq = new THREE.Mesh(aletaIzqGeo, matDelfin);
     aletaIzq.position.set(-0.35, -0.08, 0.3);
     aletaIzq.rotation.set(0, Math.PI / 6, -Math.PI / 6);
     grupoDelfin.add(aletaIzq);
 
-    // Aleta Lateral Derecha
     const aletaDerGeo = new THREE.BoxGeometry(0.25, 0.02, 0.12);
     const aletaDer = new THREE.Mesh(aletaDerGeo, matDelfin);
     aletaDer.position.set(0.35, -0.08, 0.3);
     aletaDer.rotation.set(0, -Math.PI / 6, Math.PI / 6);
     grupoDelfin.add(aletaDer);
 
-    // Cola trasera
     const aletaColaGeo = new THREE.ConeGeometry(0.1, 0.35, 4);
     aletaColaGeo.rotateX(Math.PI / 2);
     aletaColaGeo.scale(2.0, 0.06, 1);
@@ -759,17 +742,17 @@ function crearManadaDelfines() {
     aletaCola.position.set(0, 0, -1.6);
     grupoDelfin.add(aletaCola);
 
-    // Escalado general mini para ocultar detalles estructurales e integrarse en el horizonte
-    grupoDelfin.scale.set(0.35, 0.35, 0.35);
+    // ESCALA INTERMEDIA PERFECTA: No son globos masivos ni moscas invisibles
+    grupoDelfin.scale.set(0.65, 0.65, 0.65);
 
     const datosDelfin = {
       malla: grupoDelfin,
-      radio: 65 + (i * 7),                      // Distancia masiva del centro (65, 72, 79 unidades) en el horizonte profundo
-      velocidad: 0.35 + (i * 0.06),             
+      radio: 42 + (i * 6),                      // Ubicación en rango intermedio prudente lejos de la costa (42, 48, 54)
+      velocidad: 0.38 + (i * 0.05),             
       angulo: (Math.PI / 4) + (i * 1.5),         
       alturaBase: -0.25,                        
-      maxAlturaSalto: 1.2 + (i * 0.2),          // Arcos de salto más cortos y sutiles adecuados a la escala miniatura
-      frecuenciaSalto: 1.5 - (i * 0.12),        
+      maxAlturaSalto: 1.8 + (i * 0.3),          // Parámetro de salto adaptado proporcionalmente a su nueva escala
+      frecuenciaSalto: 1.4 - (i * 0.1),        
       desfaseTiempo: i * 3.1                    
     };
 
@@ -780,7 +763,7 @@ function crearManadaDelfines() {
 crearManadaDelfines();
 
 
-// --- JOYSTICK INTERACTIVO ---
+// --- SISTEMA INTERACTIVO DE JOYSTICK ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
@@ -825,7 +808,7 @@ function evaluarTeclado() {
 }
 
 
-// --- LOOP RENDER PRINCIPAL ---
+// --- LOOP RENDER PRINCIPAL DE ANIMACIÓN ---
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
@@ -838,7 +821,7 @@ function animate() {
 
   drawVuMeter();
 
-  // Animación Gaviotas
+  // Movimiento de Gaviotas
   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
@@ -851,31 +834,26 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // Animación Colectiva de Delfines Lejanos
+  // Movimiento Parabólico de Delfines Intermedios
   delfines.forEach((d) => {
     d.angulo += d.velocidad * delta;
-    
-    // Posicionamiento XZ orbital profundo
     d.malla.position.x = Math.cos(d.angulo) * d.radio;
     d.malla.position.z = Math.sin(d.angulo) * d.radio;
-    
-    // Giro tangencial preciso
     d.malla.rotation.y = -d.angulo;
 
-    // Movimiento vertical parabólico desfasado
     const avanceSalto = ((tiempoTotal + d.desfaseTiempo) * d.frecuenciaSalto) % (Math.PI * 2);
     const senoSalto = Math.sin(avanceSalto);
     
     if (senoSalto > 0) {
       d.malla.position.y = d.alturaBase + (senoSalto * d.maxAlturaSalto);
-      d.malla.rotation.x = Math.cos(avanceSalto) * 0.6; // Inclinación fluida de salto
+      d.malla.rotation.x = Math.cos(avanceSalto) * 0.6; 
     } else {
       d.malla.position.y = d.alturaBase + (senoSalto * 0.1);
       d.malla.rotation.x = Math.cos(avanceSalto) * 0.08;
     }
   });
 
-  // Movimiento del Avatar Luis
+  // SEGUIMIENTO DE LA CÁMARA AL AVATAR GLB DE LUIS
   if (avatar) {
     const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
     if (isMoving) {
@@ -898,6 +876,7 @@ function animate() {
       const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
       avatar.rotation.y = targetAngle;
 
+      // Anclaje dinámico de la cámara al centro del GLB en movimiento
       controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1, 0));
     }
   }
