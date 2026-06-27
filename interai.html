@@ -8,7 +8,6 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            /* 🚫 Evita que el navegador seleccione texto o elementos al arrastrar */
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
@@ -57,32 +56,28 @@
             letter-spacing: 1px;
         }
         
+        /* 💬 CONTENEDOR DE DIÁLOGOS UBICADO ABAJO A LA IZQUIERDA */
         #comic-container {
             position: absolute;
-            bottom: 12px;
-            left: 4%;
-            width: 70%;
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
+            bottom: 20px;
+            left: 20px;
+            width: auto;
+            max-width: 450px;
             z-index: 100;
             pointer-events: none;
         }
         
         .comic-cloud {
-            flex: 1;
             background: #ffffff;
             color: #000000;
             border: 2.5px solid #000000;
-            border-radius: 16px;
+            border-radius: 14px;
             padding: 10px 14px;
             font-size: 11.5px;
             font-weight: bold;
             line-height: 1.35;
             box-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
-            opacity: 0.15;
-            transform: scale(0.97);
-            transition: all 0.25s ease-out;
+            display: none; /* Oculto por defecto para no robar espacio */
         }
         
         #bubble-agente { border-bottom-left-radius: 2px; }
@@ -91,9 +86,15 @@
         #bubble-luis { border-bottom-right-radius: 2px; }
         #bubble-luis .speaker-tag { color: #cc7a00; font-size: 9px; margin-bottom: 2px; }
         
+        /* Solo se despliega y anima el globo que está hablando */
         .comic-cloud.active {
-            opacity: 1 !important;
-            transform: scale(1) translateY(-2px);
+            display: block;
+            animation: popIn 0.2s ease-out;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.96) translateY(4px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .control-btn {
@@ -112,7 +113,7 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        /* 🕹️ JOYSTICK OPTIMIZADO */
+        /* 🕹️ JOYSTICK DE LA CÁMARA ABAJO A LA DERECHA */
         #joystick-zone {
             position: absolute;
             bottom: 20px;
@@ -127,7 +128,7 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
-            touch-action: none; /* Bloquea gestos nativos del navegador */
+            touch-action: none;
         }
         #joystick-knob {
             width: 34px;
@@ -142,8 +143,13 @@
         }
 
         @media (max-width: 768px) {
-            #comic-container { bottom: 120px; gap: 8px; left: 8px; width: calc(100% - 16px); }
-            .comic-cloud { padding: 8px 10px; font-size: 11px; }
+            #comic-container { 
+                bottom: 15px; 
+                left: 15px; 
+                width: calc(100% - 125px); /* Evita por completo colisionar con el área del joystick */
+                max-width: none;
+            }
+            .comic-cloud { padding: 8px 12px; font-size: 11px; }
             #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
             #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
             #joystick-zone { bottom: 15px; right: 15px; width: 85px; height: 85px; }
@@ -532,7 +538,6 @@
 
         createScene();
 
-        // ─── CONTROLADORES FÍSICOS DEL JOYSTICK REPARADOS ───
         const zone = document.getElementById("joystick-zone");
         const knob = document.getElementById("joystick-knob");
         const maxLimit = 30; 
@@ -577,21 +582,19 @@
             joystickInput.y = deltaY / maxLimit;
         }
 
-        // Interceptores de eventos para anular comportamientos del sistema móvil
         zone.addEventListener("touchstart", (e) => {
-            if (e.cancelable) e.preventDefault(); // Detiene selección táctil nativa
+            if (e.cancelable) e.preventDefault(); 
             handleJoystickStart(e);
         }, { passive: false });
 
         window.addEventListener("touchmove", (e) => {
-            if (joystickActivo && e.cancelable) e.preventDefault(); // Detiene scroll de pantalla al arrastrar
+            if (joystickActivo && e.cancelable) e.preventDefault(); 
             handleJoystickMove(e);
         }, { passive: false });
 
         window.addEventListener("touchend", handleJoystickEnd, { passive: true });
-        window.addEventListener("touchcancel", handleJoystickEnd, { passive: true }); // Resetea si pierdes foco
+        window.addEventListener("touchcancel", handleJoystickEnd, { passive: true }); 
 
-        // Compatibilidad para Escritorio (Mouse)
         zone.addEventListener("mousedown", handleJoystickStart);
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
