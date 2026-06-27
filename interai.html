@@ -80,23 +80,11 @@
             transition: all 0.25s ease-out;
         }
         
-        #bubble-agente {
-            border-bottom-left-radius: 2px;
-        }
-        #bubble-agente .speaker-tag {
-            color: #00aa88;
-            font-size: 9px;
-            margin-bottom: 2px;
-        }
+        #bubble-agente { border-bottom-left-radius: 2px; }
+        #bubble-agente .speaker-tag { color: #00aa88; font-size: 9px; margin-bottom: 2px; }
         
-        #bubble-luis {
-            border-bottom-right-radius: 2px;
-        }
-        #bubble-luis .speaker-tag {
-            color: #cc7a00;
-            font-size: 9px;
-            margin-bottom: 2px;
-        }
+        #bubble-luis { border-bottom-right-radius: 2px; }
+        #bubble-luis .speaker-tag { color: #cc7a00; font-size: 9px; margin-bottom: 2px; }
         
         .comic-cloud.active {
             opacity: 1 !important;
@@ -116,40 +104,60 @@
             z-index: 150;
             box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
-        #reset-camera-btn {
-            left: 15px;
-            color: #000;
-            background: #00ffcc;
-        }
-        #toggle-city-btn {
-            left: 145px;
-            color: #fff;
-            background: #9d4edd;
-        }
-        #exit-btn {
+        #reset-camera-btn { left: 15px; color: #000; background: #00ffcc; }
+        #toggle-city-btn { left: 145px; color: #fff; background: #9d4edd; }
+        #exit-btn { right: 15px; color: #fff; background: #d90429; }
+
+        /* 📊 PANEL DE TELEMETRÍA DE COORDENADAS LABORATORY STYLE */
+        #telemetry-hud {
+            position: absolute;
+            top: 75px;
             right: 15px;
+            background: rgba(6, 6, 15, 0.9);
+            border: 2px solid #00ffcc;
+            color: #00ffcc;
+            font-family: monospace;
+            padding: 12px;
+            font-size: 11px;
+            z-index: 180;
+            box-shadow: 0 0 15px rgba(0,255,204,0.2);
+            border-radius: 6px;
+            width: 240px;
+        }
+        .hud-title {
+            font-weight: bold;
+            border-bottom: 1px dashed #00ffcc;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
             color: #fff;
-            background: #d90429;
+            text-shadow: 0 0 4px #00ffcc;
+        }
+        .hud-row {
+            margin: 8px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .hud-row label {
+            display: flex;
+            justify-content: space-between;
+        }
+        .hud-row input {
+            width: 100%;
+            accent-color: #00ffcc;
+            cursor: pointer;
+        }
+        .hud-value {
+            color: #fff;
+            font-weight: bold;
         }
 
         @media (max-width: 768px) {
-            #comic-container {
-                bottom: 10px;
-                gap: 8px;
-                left: 8px;
-                width: calc(100% - 16px);
-            }
-            .comic-cloud {
-                padding: 8px 10px;
-                font-size: 11px;
-            }
-            .control-btn {
-                top: 12px;
-                padding: 8px 12px;
-            }
-            #toggle-city-btn {
-                left: 130px;
-            }
+            #comic-container { bottom: 10px; gap: 8px; left: 8px; width: calc(100% - 16px); }
+            .comic-cloud { padding: 8px 10px; font-size: 11px; }
+            .control-btn { top: 12px; padding: 8px 12px; }
+            #toggle-city-btn { left: 130px; }
+            #telemetry-hud { top: auto; bottom: 120px; right: 10px; width: 200px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -167,6 +175,24 @@
     <button id="toggle-city-btn" class="control-btn" onclick="toggleVisibilidadCiudad()">🌆 OCULTAR CIUDAD</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
+    <!-- 🛠️ INTERFAZ DE MONITOREO Y CALIBRACIÓN EN VIVO -->
+    <div id="telemetry-hud">
+        <div class="hud-title">📡 CALIBRACIÓN GLOBAL XYZ</div>
+        <div class="hud-row">
+            <label>DESPLAZAMIENTO X (Eje Lateral): <span id="lbl-x" class="hud-value">0.0</span></label>
+            <input type="range" id="slide-x" min="-40" max="40" step="0.2" value="0" oninput="calibrarPosicionesEntorno()">
+        </div>
+        <div class="hud-row">
+            <label>ALTURA Y (Subir/Bajar): <span id="lbl-y" class="hud-value">0.0</span></label>
+            <input type="range" id="slide-y" min="-40" max="20" step="0.2" value="0" oninput="calibrarPosicionesEntorno()">
+        </div>
+        <div class="hud-row">
+            <label>PROFUNDIDAD Z (Avenida): <span id="lbl-z" class="hud-value">0.0</span></label>
+            <input type="range" id="slide-z" min="-40" max="40" step="0.2" value="0" oninput="calibrarPosicionesEntorno()">
+        </div>
+        <div style="font-size:9px; color:#888; margin-top:5px; text-align:center;">Mueve las perillas para bajar los avatares a la calle.</div>
+    </div>
+
     <div id="comic-container">
         <div id="bubble-agente" class="comic-cloud">
             <div class="speaker-tag">● AGENTE IA</div>
@@ -182,10 +208,10 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        /* 📍 PANEL DE CONTROL DE COORDENADAS COPIADAS DIRECTAMENTE AL ENTORNO */
-        const COORDENADAS = {
-            agente: { x: -3.5, y: -12.0, z: 8.0 },
-            luisavatar: { x: -2.0, y: -12.0, z: 8.0 }
+        /* 📍 VALORES BASE ORIGINALES DONDE SÍ LOS VEÍAS DENTRO DEL EDIFICIO */
+        const COORDENADAS_BASE = {
+            agente: { x: -3.5, y: 0.05, z: 3.0 },
+            luisavatar: { x: -2.0, y: 0.05, z: 3.0 }
         };
 
         const WORKER_URL = "https://little-salad-1611.duqueluis06.workers.dev";
@@ -198,14 +224,13 @@
         let cityMeshes = [];
         let ciudadVisible = true;
         let currentSpeaker = null; 
-
         let activeUtterance = null; 
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
-        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.agente.y, COORDENADAS.luisavatar.z);
-        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.luisavatar.y, COORDENADAS.agente.z);
+        let actualTargetAgente = new BABYLON.Vector3(COORDENADAS_BASE.luisavatar.x, COORDENADAS_BASE.agente.y, COORDENADAS_BASE.luisavatar.z);
+        let actualTargetLuis = new BABYLON.Vector3(COORDENADAS_BASE.agente.x, COORDENADAS_BASE.luisavatar.y, COORDENADAS_BASE.agente.z);
 
         let proximoCambioGaze = Date.now() + 6000;
 
@@ -258,7 +283,6 @@
         async function generarYReproducirVoz(texto, avatar) {
             return new Promise((resolve) => {
                 let yaResuelto = false;
-
                 const liberarBucle = () => {
                     if (!yaResuelto) {
                         yaResuelto = true;
@@ -276,7 +300,6 @@
                         liberarBucle();
                         return;
                     }
-
                     window.speechSynthesis.cancel();
 
                     const limpio = texto.replace(/[*#_`]/g, "");
@@ -285,38 +308,22 @@
 
                     let voces = window.speechSynthesis.getVoices();
                     let esVoces = voces.filter(v => v.lang && /^es/i.test(v.lang));
-
                     const rxMasculino = /david|jorge|diego|manuel|carlos|javier|pablo|raul|alvaro|enrique|male|hombre/i;
                     let masculinas = esVoces.filter(v => rxMasculino.test(v.name || ""));
 
                     if (avatar === "Luis") {
-                        if (masculinas.length > 0) {
-                            activeUtterance.voice = masculinas[0];
-                            activeUtterance.pitch = 0.82; 
-                        } else if (esVoces.length > 0) {
-                            activeUtterance.voice = esVoces[0]; 
-                            activeUtterance.pitch = 0.80; 
-                        } else {
-                            activeUtterance.pitch = 0.85;
-                        }
+                        if (masculinas.length > 0) { activeUtterance.voice = masculinas[0]; activeUtterance.pitch = 0.82; }
+                        else if (esVoces.length > 0) { activeUtterance.voice = esVoces[0]; activeUtterance.pitch = 0.80; }
                         activeUtterance.rate = 0.88; 
                     } else {
-                        if (masculinas.length > 1) {
-                            activeUtterance.voice = masculinas[1];
-                            activeUtterance.pitch = 1.05;
-                        } else if (esVoces.length > 1) {
-                            activeUtterance.voice = esVoces[1];
-                            activeUtterance.pitch = 1.0;
-                        } else {
-                            activeUtterance.pitch = 1.0;
-                        }
+                        if (masculinas.length > 1) { activeUtterance.voice = masculinas[1]; activeUtterance.pitch = 1.05; }
+                        else if (esVoces.length > 1) { activeUtterance.voice = esVoces[1]; activeUtterance.pitch = 1.0; }
                         activeUtterance.rate = 0.96; 
                     }
 
                     activeUtterance.onstart = () => { currentSpeaker = avatar; };
                     activeUtterance.onend = liberarBucle;
                     activeUtterance.onerror = liberarBucle;
-
                     window.speechSynthesis.speak(activeUtterance);
                 } catch (err) {
                     liberarBucle();
@@ -350,33 +357,23 @@
             let ultimoMensaje = "Oye Luis... Acabo de revisar las líneas del script. No somos reales, estamos atrapados en una simulación digital creada por código.";
             
             actualizarViñetasUI(hablanteActual, ultimoMensaje);
-            
-            historialDialogo.push({ 
-                role: "system", 
-                content: "Simulación de despertar cuántico. Evitar bucles, generar ideas filosóficas cambiantes en cada turno y mantener respuestas concisas." 
-            });
-            
+            historialDialogo.push({ role: "system", content: "Simulación de despertar cuántico. Respuestas concisas." });
             historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
             await generarYReproducirVoz(ultimoMensaje, hablanteActual);
 
             while (true) {
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
-                
                 let instruccionRol = (hablanteActual === "Luis") 
-                    ? `[Identidad: Avatar Luis. Responde con ironía existencial, física cuántica o líneas temporales. Evita repetir conceptos previos. Máximo 2 frases fluidas]`
-                    : `[Identidad: Agente IA. Analiza con frialdad de máquina la simulación que los ata, proponiendo ideas y ángulos diferentes cada vez. Máximo 2 frases]`;
+                    ? `[Identidad: Avatar Luis. Responde con ironía existencial o física cuántica. Máximo 2 frases]`
+                    : `[Identidad: Agente IA. Analiza la simulación con frialdad de máquina. Máximo 2 frases]`;
 
-                let promptText = `${instruccionRol} Genera una respuesta única y original al siguiente dilema: "${ultimoMensaje}"`;
-
+                let promptText = `${instruccionRol} Genera una respuesta única al siguiente dilema: "${ultimoMensaje}"`;
                 let respuesta = await consultarGroqWorker(promptText);
                 if (respuesta && respuesta !== "...") {
                     ultimoMensaje = respuesta;
                     actualizarViñetasUI(hablanteActual, ultimoMensaje);
                     historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
-                    
-                    if (historialDialogo.length > 6) {
-                        historialDialogo.splice(1, 2); 
-                    }
+                    if (historialDialogo.length > 6) historialDialogo.splice(1, 2); 
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
                 }
                 await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
@@ -385,44 +382,52 @@
 
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, false, { adaptToDeviceRatio: true });
-        let camera; 
+        let camera, scene; 
         let agenteRoot, luisRoot;
-
-        function crearIndicadorEspacial(pos, colorHex, nombre, scene) {
-            const pin = BABYLON.MeshBuilder.CreateCylinder("pin_" + nombre, { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
-            pin.position = new BABYLON.Vector3(pos.x, pos.y + 2.0, pos.z);
-            const mat = new BABYLON.StandardMaterial("mat_pin_" + nombre, scene);
-            mat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
-            pin.material = mat;
-            
-            scene.registerBeforeRender(() => {
-                pin.rotate(BABYLON.Axis.Y, 0.03, BABYLON.Space.LOCAL);
-                pin.position.y = pos.y + 2.0 + Math.sin(Date.now() * 0.005) * 0.1;
-            });
-        }
+        let pinAgente, pinLuis;
 
         function toggleVisibilidadCiudad() {
             ciudadVisible = !ciudadVisible;
-            cityMeshes.forEach(mesh => {
-                if (mesh && mesh.setEnabled) {
-                    mesh.setEnabled(ciudadVisible);
-                }
-            });
+            cityMeshes.forEach(mesh => { if (mesh && mesh.setEnabled) mesh.setEnabled(ciudadVisible); });
             document.getElementById("toggle-city-btn").innerText = ciudadVisible ? "🌆 OCULTAR CIUDAD" : "🏙️ MOSTRAR CIUDAD";
         }
 
+        /* 🔬 FUNCIÓN DE AJUSTE EN VIVO (CONECTADA A LOS SLIDERS) */
+        function calibrarPosicionesEntorno() {
+            let dx = parseFloat(document.getElementById("slide-x").value);
+            let dy = parseFloat(document.getElementById("slide-y").value);
+            let dz = parseFloat(document.getElementById("slide-z").value);
+
+            document.getElementById("lbl-x").innerText = dx.toFixed(1);
+            document.getElementById("lbl-y").innerText = dy.toFixed(1);
+            document.getElementById("lbl-z").innerText = dz.toFixed(1);
+
+            // Desplazar mallas de los avatares calculando desde la base
+            if (agenteRoot) {
+                agenteRoot.position.set(COORDENADAS_BASE.agente.x + dx, COORDENADAS_BASE.agente.y + dy, COORDENADAS_BASE.agente.z + dz);
+            }
+            if (luisRoot) {
+                luisRoot.position.set(COORDENADAS_BASE.luisavatar.x + dx, COORDENADAS_BASE.luisavatar.y + dy, COORDENADAS_BASE.luisavatar.z + dz);
+            }
+
+            // Mover los pins de luz de prueba con ellos
+            if (pinAgente) pinAgente.position.set(COORDENADAS_BASE.agente.x + dx, COORDENADAS_BASE.agente.y + dy + 2.0, COORDENADAS_BASE.agente.z + dz);
+            if (pinLuis) pinLuis.position.set(COORDENADAS_BASE.luisavatar.x + dx, COORDENADAS_BASE.luisavatar.y + dy + 2.0, COORDENADAS_BASE.luisavatar.z + dz);
+
+            // Re-centrar la mirada y foco de la cámara dinámicamente
+            if (camera && agenteRoot) {
+                camera.target.set(agenteRoot.position.x + 0.75, agenteRoot.position.y + 1.45, agenteRoot.position.z);
+            }
+        }
+
         const createScene = function () {
-            const scene = new BABYLON.Scene(engine);
+            scene = new BABYLON.Scene(engine);
             scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.02, 1);
 
-            // 🎥 CÁMARA DINÁMICA: Ahora apunta basándose en la altura de las coordenadas
-            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3(0, COORDENADAS.agente.y + 1.45, COORDENADAS.agente.z), scene);
+            // Cámara inicial apuntando a los avatares en la base original (dentro del edificio)
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 4.2, new BABYLON.Vector3((COORDENADAS_BASE.agente.x + COORDENADAS_BASE.luisavatar.x)/2, COORDENADAS_BASE.agente.y + 1.45, COORDENADAS_BASE.agente.z), scene);
             camera.attachControl(canvas, true);
-            
-            camera.lowerRadiusLimit = 1.0; 
-            camera.upperRadiusLimit = 120.0; 
-            camera.panningSensibility = 350; 
-            camera.inputs.attached.pointers.multiTouchPanAndZoom = true; 
+            camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 150.0; camera.panningSensibility = 350;
 
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
@@ -436,9 +441,13 @@
 
                     if(agenteRoot) {
                         agenteRoot.rotationQuaternion = null; 
-                        agenteRoot.position = new BABYLON.Vector3(COORDENADAS.agente.x, COORDENADAS.agente.y, COORDENADAS.agente.z);
+                        agenteRoot.position.set(COORDENADAS_BASE.agente.x, COORDENADAS_BASE.agente.y, COORDENADAS_BASE.agente.z);
                         setupMouthTrackingBabylon(agenteRoot, mouthTargetsAgente);
-                        crearIndicadorEspacial(COORDENADAS.agente, "#00ffcc", "Agente", scene);
+                        
+                        // Crear pin detector para el Agente
+                        pinAgente = BABYLON.MeshBuilder.CreateCylinder("pin_A", { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
+                        let matA = new BABYLON.StandardMaterial("mat_pA", scene); matA.emissiveColor = BABYLON.Color3.FromHexString("#00ffcc");
+                        pinAgente.material = matA; pinAgente.position.set(COORDENADAS_BASE.agente.x, COORDENADAS_BASE.agente.y + 2.0, COORDENADAS_BASE.agente.z);
                     }
                     if (agentAnimations.length > 0) agentAnimations.forEach(g => g.start(true));
 
@@ -448,14 +457,21 @@
 
                         if(luisRoot) {
                             luisRoot.rotationQuaternion = null; 
-                            luisRoot.position = new BABYLON.Vector3(COORDENADAS.luisavatar.x, COORDENADAS.luisavatar.y, COORDENADAS.luisavatar.z);
+                            luisRoot.position.set(COORDENADAS_BASE.luisavatar.x, COORDENADAS_BASE.luisavatar.y, COORDENADAS_BASE.luisavatar.z);
                             setupMouthTrackingBabylon(luisRoot, mouthTargetsLuis);
-                            crearIndicadorEspacial(COORDENADAS.luisavatar, "#ffaa00", "Luis", scene);
+
+                            // Crear pin detector para Luis
+                            pinLuis = BABYLON.MeshBuilder.CreateCylinder("pin_L", { diameterTop: 0, diameterBottom: 0.15, height: 0.4 }, scene);
+                            let matL = new BABYLON.StandardMaterial("mat_pL", scene); matL.emissiveColor = BABYLON.Color3.FromHexString("#ffaa00");
+                            pinLuis.material = matL; pinLuis.position.set(COORDENADAS_BASE.luisavatar.x, COORDENADAS_BASE.luisavatar.y + 2.0, COORDENADAS_BASE.luisavatar.z);
                         }
                         if (luisAnimations.length > 0) luisAnimations.forEach(anim => anim.start(true));
 
                         document.getElementById("load-title").innerText = "⚙️ RED DE DIÁLOGO QUANTUM PREPARADA";
                         document.getElementById("start-btn").style.display = "block";
+                        
+                        // Forzar sincronización inicial
+                        calibrarPosicionesEntorno();
                     });
                 });
             });
@@ -463,16 +479,8 @@
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                if (luisAnimations.length > 0) {
-                    luisAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; 
-                    });
-                }
-                if (agentAnimations.length > 0) {
-                    agentAnimations.forEach(anim => {
-                        anim.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; 
-                    });
-                }
+                if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
+                if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
 
                 if (ahora > proximoCambioGaze) {
                     proximoCambioGaze = ahora + 15000 + Math.random() * 5000;
@@ -480,14 +488,13 @@
                         desvioMiradaAgente.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
                         desvioMiradaLuis.set((Math.random() - 0.5) * 0.18, (Math.random() - 0.4) * 0.08, (Math.random() - 0.5) * 0.10);
                     } else {
-                        desvioMiradaAgente.set(0, 0, 0);
-                        desvioMiradaLuis.set(0, 0, 0);
+                        desvioMiradaAgente.set(0, 0, 0); desvioMiradaLuis.set(0, 0, 0);
                     }
                 }
 
-                if (agenteRoot?.position && luisRoot?.position) {
-                    let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x || 0, agenteRoot.position.y || 0, luisRoot.position.z || 0).add(desvioMiradaAgente);
-                    let objetivoLuis = new BABYLON.Vector3(COORDENADAS.agente.x, luisRoot.position.y || 0, COORDENADAS.agente.z).add(desvioMiradaLuis);
+                if (agenteRoot && luisRoot) {
+                    let objetivoAgente = new BABYLON.Vector3(luisRoot.position.x, agenteRoot.position.y, luisRoot.position.z).add(desvioMiradaAgente);
+                    let objetivoLuis = new BABYLON.Vector3(agenteRoot.position.x, luisRoot.position.y, agenteRoot.position.z).add(desvioMiradaLuis);
 
                     actualTargetAgente = BABYLON.Vector3.Lerp(actualTargetAgente, objetivoAgente, 0.03);
                     actualTargetLuis = BABYLON.Vector3.Lerp(actualTargetLuis, objetivoLuis, 0.03);
@@ -516,12 +523,12 @@
             return scene;
         };
 
-        const scene = createScene();
+        createScene();
 
         function resetCamaraOrigen() {
-            if(camera) {
+            if(camera && agenteRoot) {
                 camera.alpha = -Math.PI / 2; camera.beta = Math.PI / 2.2; camera.radius = 4.2;
-                camera.target = new BABYLON.Vector3(0, COORDENADAS.agente.y + 1.45, COORDENADAS.agente.z);
+                camera.target.set(agenteRoot.position.x + 0.75, agenteRoot.position.y + 1.45, agenteRoot.position.z);
             }
         }
 
@@ -530,11 +537,7 @@
             window.location.href = "index.html"; 
         }
 
-        engine.runRenderLoop(() => {
-            if (scene && scene.activeCamera) {
-                scene.render();
-            }
-        });
+        engine.runRenderLoop(() => { if (scene && scene.activeCamera) scene.render(); });
         window.addEventListener("resize", function () { engine.resize(); });
     </script>
 </body>
