@@ -56,7 +56,6 @@
             letter-spacing: 1px;
         }
         
-        /* 💬 CONTENEDOR DE DIÁLOGOS UBICADO ABAJO A LA IZQUIERDA */
         #comic-container {
             position: absolute;
             bottom: 20px;
@@ -77,7 +76,7 @@
             font-weight: bold;
             line-height: 1.35;
             box-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
-            display: none; /* Oculto por defecto para no robar espacio */
+            display: none;
         }
         
         #bubble-agente { border-bottom-left-radius: 2px; }
@@ -86,7 +85,6 @@
         #bubble-luis { border-bottom-right-radius: 2px; }
         #bubble-luis .speaker-tag { color: #cc7a00; font-size: 9px; margin-bottom: 2px; }
         
-        /* Solo se despliega y anima el globo que está hablando */
         .comic-cloud.active {
             display: block;
             animation: popIn 0.2s ease-out;
@@ -113,7 +111,6 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        /* 🕹️ JOYSTICK DE LA CÁMARA ABAJO A LA DERECHA */
         #joystick-zone {
             position: absolute;
             bottom: 20px;
@@ -146,7 +143,7 @@
             #comic-container { 
                 bottom: 15px; 
                 left: 15px; 
-                width: calc(100% - 125px); /* Evita por completo colisionar con el área del joystick */
+                width: calc(100% - 125px); 
                 max-width: none;
             }
             .comic-cloud { padding: 8px 12px; font-size: 11px; }
@@ -217,6 +214,7 @@
         let currentSpeaker = null; 
         let activeUtterance = null; 
         let caspitaRoot = null;
+        let tvVideoTexture = null; // Instancia global para controlar el video
 
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
@@ -258,6 +256,12 @@
 
         function desbloquearAudioYComenzar() {
             document.getElementById("loading-ui").style.display = "none";
+            
+            // 📺 Forzar reproducción del video tras interactuar con la UI
+            if (tvVideoTexture && tvVideoTexture.video) {
+                tvVideoTexture.video.play().catch(e => console.log("Autoplay de video retenido:", e));
+            }
+            
             iniciarInteraccionAvatares();
         }
 
@@ -434,8 +438,34 @@
             const ambientLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             ambientLight.intensity = 0.95;
 
+            // ─── CARGA DE ENTORNO URBANO Y PANTALLA TV MURAL ───
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
+                // 📺 CREACIÓN DE LA PANTALLA DE VIDEO (tv.mp4) EN LA PARED DE ENFRENTE
+                // Dimensiones del plano (Ancho: 2.8, Alto: 1.6)
+                const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 2.8, height: 1.6 }, scene);
+                
+                // Posición exacta: Al fondo de la calle (z: 6.5), centrado en x (-1.45) 
+                // Su altura y: 0.8 garantiza que la base del plano toque exactamente el suelo (y = 0)
+                tvPlane.position.set(-1.45, 0.8, 6.5);
+                tvPlane.rotation.y = Math.PI; // Girado 180° para que apunte directamente hacia la cámara y los avatares
+
+                const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
+                
+                // Configuración de la textura de video
+                tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
+                    autoPlay: true,
+                    autoUpdateTexture: true,
+                    muted: true, // Requerido para saltarse bloqueos de reproducción del navegador
+                    loop: true
+                });
+
+                tvMaterial.diffuseTexture = tvVideoTexture;
+                // Emisivo al máximo para que actúe como una pantalla LED iluminada por la noche
+                tvMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); 
+                tvPlane.material = tvMaterial;
+
+                // Carga de personajes
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
                     agenteRoot = agentMeshes[0];
                     agentAnimations = animationGroups;
@@ -598,7 +628,6 @@
         zone.addEventListener("mousedown", handleJoystickStart);
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
-
 
         function resetCamaraOrigen() {
             if(camera && agenteRoot && luisRoot) {
