@@ -468,7 +468,6 @@
                 scene
             );
             
-            // Táctil nativo optimizado para zoom fluido e indicaciones finas
             camera.attachControl(canvas, true);
             camera.wheelPrecision = 120;       
             camera.lowerRadiusLimit = 0.05;     
@@ -481,27 +480,23 @@
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
-     // 📺 PANTALLA TV - REUBICADA (Atravesando el auto, la calle y hacia la izquierda)
-const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
+                // 📺 PANTALLA TV - REUBICADA
+                const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
+                tvPlane.position.set(-0.00, 0.85, -1.06); 
+                tvPlane.rotation.y = Math.PI; 
 
-// Cambiamos las coordenadas para moverlo en el espacio de la maqueta:
-tvPlane.position.set(-0.00, 0.85, -1.06); 
+                const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
+                tvMaterial.diffuseColor = new BABYLON.Color3(0, 0.6, 1); 
+                tvMaterial.emissiveColor = new BABYLON.Color3(0, 0.6, 1); 
 
-tvPlane.rotation.y = Math.PI; 
-
-const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
-tvMaterial.diffuseColor = new BABYLON.Color3(0, 0.6, 1); // Respaldo azul neón si no encuentra el mp4
-tvMaterial.emissiveColor = new BABYLON.Color3(0, 0.6, 1); 
-
-tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
-    autoPlay: true,
-    autoUpdateTexture: true,
-    muted: true, 
-    loop: true
-});
-tvMaterial.diffuseTexture = tvVideoTexture;
-tvPlane.material = tvMaterial;
-
+                tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
+                    autoPlay: true,
+                    autoUpdateTexture: true,
+                    muted: true, 
+                    loop: true
+                });
+                tvMaterial.diffuseTexture = tvVideoTexture;
+                tvPlane.material = tvMaterial;
 
                 // Carga de personajes
                 BABYLON.SceneLoader.ImportMesh("", "./", "agent.glb", scene, function (agentMeshes, p, s, animationGroups) {
@@ -534,11 +529,37 @@ tvPlane.material = tvMaterial;
                             }
                         };
 
+                        // 🚘 CARGA Y CONFIGURACIÓN DE COLOR PARA CASPITA.GLB
                         BABYLON.SceneLoader.ImportMesh("", "./", "caspita.glb", scene, function (cMeshes) {
                             caspitaRoot = cMeshes[0];
                             if (caspitaRoot) {
                                 caspitaRoot.position.set(-1.7, 0.0, 1.45); 
                                 caspitaRoot.scaling.set(0.12, 0.12, 0.12);
+
+                                // Definimos un color futurista (puedes cambiar los valores RGB)
+                                // Formato: BABYLON.Color3(R, G, B) de 0.0 a 1.0
+                                const colorAuto = new BABYLON.Color3(0.0, 0.65, 1.0); // Cyan / Azul eléctrico
+
+                                cMeshes.forEach(mesh => {
+                                    if (mesh.material) {
+                                        const nombreMesh = mesh.name.toLowerCase();
+                                        
+                                        // Filtro inteligente para no pintar ruedas ni cristales si están nombrados de forma estándar
+                                        if (!nombreMesh.includes("wheel") && !nombreMesh.includes("tire") && !nombreMesh.includes("glass") && !nombreMesh.includes("llanta") && !nombreMesh.includes("vidrio")) {
+                                            
+                                            // Si usa el sistema PBR por defecto de GLB
+                                            if (mesh.material.albedoColor !== undefined) {
+                                                mesh.material.albedoColor = colorAuto;
+                                                mesh.material.metallic = 0.85;  // Aspecto metálico pulido
+                                                mesh.material.roughness = 0.15; // Reflejo nítido y brillante
+                                            } 
+                                            // En caso alternativo de usar materiales estándar
+                                            else if (mesh.material.diffuseColor !== undefined) {
+                                                mesh.material.diffuseColor = colorAuto;
+                                            }
+                                        }
+                                    }
+                                });
                             }
                             verificarCargaCompleta();
                         }, null, function() { verificarCargaCompleta(); });
@@ -550,38 +571,30 @@ tvPlane.material = tvMaterial;
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // 🕹️ JOYSTICK DE CONTROL EXACTO (Y = Avance/Retroceso | X = Rotación 360°)
+                // 🕹️ JOYSTICK DE CONTROL EXACTO
                 if (joystickActivo && camera) {
-                    // Control de rotación horizontal de cámara (Mirar alrededor)
                     camera.alpha += joystickInput.x * 0.04;
-                    
-                    // Control de Avance y Retroceso lineal basado en la dirección de la cámara
                     let forward = camera.getForwardRay().direction;
                     forward.y = 0; 
                     forward.normalize();
-                    
                     let moveSpeed = 0.04;
                     camera.target.addInPlace(forward.scale(joystickInput.y * -moveSpeed));
                 }
 
-                // 📐 ACCIÓN DE LAS FLECHAS / CURSORES (Inversión Aplicada)
+                // 📐 ACCIÓN DE LAS FLECHAS
                 if (camera) {
                     let verticalSpeed = 0.03;
                     let lateralSpeed = 0.03;
                     
-                    // Eje Vertical Puro (Arriba / Abajo)
                     if (arrowState.up) camera.target.y += verticalSpeed;     
                     if (arrowState.down) camera.target.y -= verticalSpeed;   
                     
-                    // Desplazamiento Lateral Invertido según tus especificaciones exactas
                     let forwardDir = camera.getForwardRay().direction;
                     forwardDir.y = 0;
                     forwardDir.normalize();
                     let leftDir = BABYLON.Vector3.Cross(BABYLON.Axis.Y, forwardDir).normalize();
                     
-                    // Flecha Izquierda se desplaza hacia la DERECHA del mundo (-leftDir)
                     if (arrowState.left) camera.target.addInPlace(leftDir.scale(-lateralSpeed));
-                    // Flecha Derecha se desplaza hacia la IZQUIERDA del mundo (+leftDir)
                     if (arrowState.right) camera.target.addInPlace(leftDir.scale(lateralSpeed));
                 }
 
@@ -685,7 +698,6 @@ tvPlane.material = tvMaterial;
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
 
-        // CONFIGURACIÓN DE ESCUCHAS PARA LAS FLECHAS
         function VincularFlecha(id, property) {
             const el = document.getElementById(id);
             const start = (e) => { if (e.cancelable) e.preventDefault(); arrowState[property] = true; };
