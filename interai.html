@@ -58,8 +58,8 @@
         
         #comic-container {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 25px;
+            left: 25px;
             width: auto;
             max-width: 450px;
             z-index: 100;
@@ -111,7 +111,7 @@
         #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
-        /* 🕹️ CONTENEDOR DE MANDOS (Joystick + Flechas) */
+        /* 🕹️ CONTENEDOR DE MANDOS AJUSTADO */
         #pad-control-container {
             position: absolute;
             bottom: 25px;
@@ -148,7 +148,7 @@
             cursor: pointer;
         }
 
-        /* 📐 FLECHAS DE DIRECCIÓN EXTERIORES */
+        /* 📐 CURSORES EXTERIORES */
         .pad-arrow {
             position: absolute;
             width: 32px;
@@ -201,7 +201,6 @@
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
-    <!-- MANDOS UNIFICADOS DE NAVEGACIÓN -->
     <div id="pad-control-container">
         <div id="arrow-up" class="pad-arrow">▲</div>
         <div id="arrow-down" class="pad-arrow">▼</div>
@@ -267,7 +266,6 @@
 
         let proximoCambioGaze = Date.now() + 6000;
 
-        // Mandos de control activos
         let joystickInput = { x: 0, y: 0 };
         let joystickActivo = false;
         let arrowState = { up: false, down: false, left: false, right: false };
@@ -302,7 +300,7 @@
         function desbloquearAudioYComenzar() {
             document.getElementById("loading-ui").style.display = "none";
             if (tvVideoTexture && tvVideoTexture.video) {
-                tvVideoTexture.video.play().catch(e => console.log("Video local retenido:", e));
+                tvVideoTexture.video.play().catch(e => console.log("Video retenido o ausente. Mostrando respaldo sólido."));
             }
             iniciarInteraccionAvatares();
         }
@@ -470,12 +468,11 @@
                 scene
             );
             
-            // 🔓 RESTAURADO TOTALMENTE: El táctil del teléfono funciona al 100% en la pantalla
+            // Táctil nativo optimizado para zoom fluido e indicaciones finas
             camera.attachControl(canvas, true);
-
             camera.wheelPrecision = 120;       
             camera.lowerRadiusLimit = 0.05;     
-            camera.upperRadiusLimit = 25.0; // Extendida para permitir ir bien lejos     
+            camera.upperRadiusLimit = 25.0;    
             camera.panningSensibility = 250;    
             camera.minZ = 0.01;
 
@@ -484,12 +481,17 @@
 
             BABYLON.SceneLoader.ImportMesh("", "./", "city2.glb", scene, function (meshes) {
                 
-                // 📺 PANTALLA TV ADELANTE DEL CARRO CON TU ARCHIVO PROPIO 'tv.mp4'
+                // 📺 PANTALLA TV FORZADA ADELANTE DEL CARRO
                 const tvPlane = BABYLON.MeshBuilder.CreatePlane("tvScreenWall", { width: 0.4, height: 0.25 }, scene);
-                tvPlane.position.set(-3.30, 0.125, 3.20);
+                // Ubicada exactamente en frente del carro (caspita está en Z: 1.45, X: -1.7)
+                tvPlane.position.set(-1.7, 0.25, 1.95); 
                 tvPlane.rotation.y = Math.PI; 
 
                 const tvMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
+                
+                // COLOR DE RESPALDO INNOVADOR: Si pierdes el mp4 se verá azul neón brillante en lugar de invisible
+                tvMaterial.diffuseColor = new BABYLON.Color3(0, 0.6, 1);
+                tvMaterial.emissiveColor = new BABYLON.Color3(0, 0.6, 1); 
                 
                 tvVideoTexture = new BABYLON.VideoTexture("tvVidTex", "tv.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
                     autoPlay: true,
@@ -499,7 +501,6 @@
                 });
 
                 tvMaterial.diffuseTexture = tvVideoTexture;
-                tvMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); 
                 tvPlane.material = tvMaterial;
 
                 // Carga de personajes
@@ -549,30 +550,39 @@
             scene.registerBeforeRender(() => {
                 let ahora = Date.now();
 
-                // 🕹️ JOYSTICK DE MOVILIZACIÓN SUAVE EN 360 GRADOS
+                // 🕹️ JOYSTICK DE CONTROL EXACTO (Y = Avance/Retroceso | X = Rotación 360°)
                 if (joystickActivo && camera) {
+                    // Control de rotación horizontal de cámara (Mirar alrededor)
                     camera.alpha += joystickInput.x * 0.04;
-                    camera.beta += joystickInput.y * 0.03;
                     
-                    if (camera.beta < 0.05) camera.beta = 0.05;
-                    if (camera.beta > Math.PI / 1.5) camera.beta = Math.PI / 1.5;
+                    // Control de Avance y Retroceso lineal basado en la dirección de la cámara
+                    let forward = camera.getForwardRay().direction;
+                    forward.y = 0; 
+                    forward.normalize();
+                    
+                    let moveSpeed = 0.04;
+                    camera.target.addInPlace(forward.scale(joystickInput.y * -moveSpeed));
                 }
 
-                // 📐 ACCIÓN DE LAS FLECHAS TÁCTILES EXTERIORES
+                // 📐 ACCIÓN DE LAS FLECHAS / CURSORES (Inversión Aplicada)
                 if (camera) {
-                    let speed = 0.02;
-                    if (arrowState.up) camera.target.y += speed;     // Subir verticalmente
-                    if (arrowState.down) camera.target.y -= speed;   // Bajar verticalmente
+                    let verticalSpeed = 0.03;
+                    let lateralSpeed = 0.03;
                     
-                    if (arrowState.left || arrowState.right) {
-                        let viewDir = camera.getTarget().subtract(camera.position);
-                        viewDir.y = 0; 
-                        viewDir.normalize();
-                        let leftDir = BABYLON.Vector3.Cross(BABYLON.Axis.Y, viewDir).normalize();
-                        
-                        if (arrowState.left) camera.target.addInPlace(leftDir.scale(speed));
-                        if (arrowState.right) camera.target.addInPlace(leftDir.scale(-speed));
-                    }
+                    // Eje Vertical Puro (Arriba / Abajo)
+                    if (arrowState.up) camera.target.y += verticalSpeed;     
+                    if (arrowState.down) camera.target.y -= verticalSpeed;   
+                    
+                    // Desplazamiento Lateral Invertido según tus especificaciones exactas
+                    let forwardDir = camera.getForwardRay().direction;
+                    forwardDir.y = 0;
+                    forwardDir.normalize();
+                    let leftDir = BABYLON.Vector3.Cross(BABYLON.Axis.Y, forwardDir).normalize();
+                    
+                    // Flecha Izquierda se desplaza hacia la DERECHA del mundo (-leftDir)
+                    if (arrowState.left) camera.target.addInPlace(leftDir.scale(-lateralSpeed));
+                    // Flecha Derecha se desplaza hacia la IZQUIERDA del mundo (+leftDir)
+                    if (arrowState.right) camera.target.addInPlace(leftDir.scale(lateralSpeed));
                 }
 
                 if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
@@ -623,7 +633,6 @@
 
         createScene();
 
-        // 🛠️ LÓGICA DEL JOYSTICK (360 GRADOS)
         const zone = document.getElementById("joystick-zone");
         const knob = document.getElementById("joystick-knob");
         const maxLimit = 30; 
@@ -676,7 +685,7 @@
         window.addEventListener("mousemove", handleJoystickMove);
         window.addEventListener("mouseup", handleJoystickEnd);
 
-        // 🛠️ CONFIGURACIÓN DE ESCUCHAS PARA LAS FLECHAS
+        // CONFIGURACIÓN DE ESCUCHAS PARA LAS FLECHAS
         function VincularFlecha(id, property) {
             const el = document.getElementById(id);
             const start = (e) => { if (e.cancelable) e.preventDefault(); arrowState[property] = true; };
