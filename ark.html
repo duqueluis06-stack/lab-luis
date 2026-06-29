@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Sistema de Control Total</title>
+    <title>ARK - Control Sincronizado</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,7 +19,7 @@
             -webkit-user-select: none;
         }
 
-        /* CRUCETA DE CÁMARA - ABAJO A LA IZQUIERDA */
+        /* BOTONES CÁMARA - IZQUIERDA */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -29,7 +29,7 @@
             z-index: 999;
         }
 
-        /* JOYSTICK ANALÓGICO - ABAJO A LA DERECHA */
+        /* JOYSTICK - DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -92,6 +92,7 @@
 </head>
 <body>
 
+    <!-- Panel Izquierdo: Cámara -->
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -99,6 +100,7 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
+    <!-- Panel Derecho: Movimiento -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
@@ -115,19 +117,22 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
+        <!-- CONTENEDOR DE AVANCE UNIFICADO (Mueve todo junto para que nada se quede atrás) -->
         <a-entity id="player-rig" position="0 0 0">
             
+            <!-- El avatar se amarra al contenedor rígido para no flotar ni desfasarse -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 -1.0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
-                      gltf-in-place
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
+            <!-- Cámara Orbital atada al mismo contenedor -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
             </a-entity>
@@ -137,42 +142,13 @@
     </a-scene>
 
     <script>
-        // --- COMPONENTE INNOVADOR: ELIMINADOR DE MOVIMIENTO INTERNO DEL GLB ---
-        AFRAME.registerComponent('gltf-in-place', {
-            init: function () {
-                this.el.addEventListener('model-loaded', () => {
-                    const mesh = this.el.getObject3D('mesh');
-                    if (!mesh || !mesh.animations) return;
-                    
-                    // Rastreamos y neutralizamos las pistas de posición (X, Y, Z) que hacen que el avatar vuele o salte solo
-                    mesh.animations.forEach(clip => {
-                        clip.tracks.forEach(track => {
-                            if (track.name.toLowerCase().includes('position')) {
-                                for (let i = 0; i < track.values.length; i++) {
-                                    track.values[i] = 0; // Forzado absoluto a posición cero local
-                                }
-                            }
-                        });
-                    });
-                    
-                    // Forzar reinicio limpio del mezclador de animaciones
-                    setTimeout(() => {
-                        if (this.el.components['animation-mixer']) {
-                            this.el.removeAttribute('animation-mixer');
-                            this.el.setAttribute('animation-mixer', 'clip: *; loop: repeat; timeScale: 0;');
-                        }
-                    }, 50);
-                });
-            }
-        });
-
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
         const mainCamera = document.getElementById('main-camera');
 
-        // Configuración de Entrada y Estados
+        // Estados
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         let joyDragging = false;
@@ -182,27 +158,23 @@
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
-        let camDist = 3.5; // Distancia base de la cámara
+        let camDist = 3.5; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // 1. SISTEMA DE ZOOM SEGURO (PC: Rueda del ratón / Móvil: Pellizco)
+        // ZOOM (Rueda del ratón + Pellizco táctil)
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
-            camDist = Math.max(1.5, Math.min(8.0, camDist)); // Límites de zoom
+            camDist = Math.max(1.5, Math.min(8.0, camDist));
             mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
         }, { passive: true });
 
         let initialTouchDist = 0;
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
-                let dist = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
-                );
-                if (initialTouchDist === 0) {
-                    initialTouchDist = dist;
-                } else {
+                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                if (initialTouchDist === 0) { initialTouchDist = dist; } 
+                else {
                     let delta = initialTouchDist - dist;
                     camDist += delta * 0.01;
                     camDist = Math.max(1.5, Math.min(8.0, camDist));
@@ -212,16 +184,13 @@
             }
         }, { passive: true });
 
-        window.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) initialTouchDist = 0;
-        });
+        window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // 2. CONTROLES DE CÁMARA (FLECHAS IZQUIERDAS)
+        // MANEJO DE CÁMARA (FLECHAS)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
             const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
-            
             btn.addEventListener('mousedown', start);
             btn.addEventListener('touchstart', start, {passive: false});
             btn.addEventListener('mouseup', end);
@@ -233,7 +202,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // 3. JOYSTICK ANALÓGICO DERECHO
+        // JOYSTICK DERECHO
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -244,16 +213,12 @@
         function onJoyMove(e) {
             if (!joyDragging) return;
             const point = e.touches ? e.touches[0] : e;
-            let dx = point.clientX - joyStartX; 
-            let dy = point.clientY - joyStartY;
+            let dx = point.clientX - joyStartX; let dy = point.clientY - joyStartY;
             const maxLen = 35;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            
             if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            
-            moveX = dx / maxLen; 
-            moveY = dy / maxLen;
+            moveX = dx / maxLen; moveY = dy / maxLen;
             e.preventDefault(); e.stopPropagation();
         }
 
@@ -271,11 +236,11 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // 4. TECLADO PC
+        // TECLADO PC
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // 5. ROTACIÓN POR ARRASTRE DIRECTO EN PANTALLA
+        // ARRASTRE PANTALLA CÁMARA
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -302,7 +267,7 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // 6. MOTOR DE EJECUCIÓN CONTINUA
+        // BUCLE DEL MOTOR
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -328,7 +293,7 @@
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.04; 
+                const speed = 0.06; // Ajusta este valor si necesitas que el rig vaya más rápido o despacio
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
