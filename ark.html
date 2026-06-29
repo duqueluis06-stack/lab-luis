@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Diagnóstico Forest7</title>
+    <title>ARK - Conexión Segura Forest7</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -103,8 +103,7 @@
 </head>
 <body>
 
-    <!-- Consola visual para ver qué bloquea el teléfono -->
-    <div id="debug-console">SISTEMA: Inicializando entorno 3D...</div>
+    <div id="debug-console">SISTEMA: Conectando con puente CORS alternativo...</div>
 
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
@@ -124,10 +123,10 @@
              device-orientation-permission-ui="enabled: false"
              loading-screen="enabled: true; dotsColor: #00f3ff; backgroundColor: #020617">
         
-        <a-assets timeout="60000">
-            <!-- SE AÑADE CROSSORIGIN ANONYMOUS PARA EVITAR EL BLOQUEO DE GITHUB RELEASES -->
+        <a-assets timeout="90000">
+            <!-- Pasamos tu URL de la release por el túnel de corsproxy.io para burlar el bloqueo móvil -->
             <a-asset-item id="forest-model" 
-                          src="https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb" 
+                          src="https://corsproxy.io/?https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb" 
                           crossorigin="anonymous"></a-asset-item>
             
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
@@ -159,7 +158,6 @@
     </a-scene>
 
     <script>
-        // Sistema de logs en pantalla
         const consoleDiv = document.getElementById('debug-console');
         function showLog(text, isError = false) {
             const color = isError ? '#ff0055' : '#00f3ff';
@@ -167,25 +165,25 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        // Detectar si el navegador bloquea la carga del archivo
+        // Captura errores de scripts nativos
         window.addEventListener('error', function(e) {
-            showLog('ERROR CRÍTICO: ' + e.message, true);
+            if (e.message) showLog('ERROR SCRIPT: ' + e.message, true);
         }, true);
 
-        document.getElementById('forest-model').addEventListener('gltf-model-error', function() {
-            showLog('ERROR: GitHub rechazó la conexión del mapa (CORS o enlace roto).', true);
-        });
-
         document.querySelector('a-scene').addEventListener('loaded', function () {
-            showLog('SISTEMA: Motor A-Frame listo.');
+            showLog('SISTEMA: Motor de renderizado listo. Descargando mapa...');
         });
 
-        // Capturar cuando el entorno se renderice con éxito
+        // Corregido: El error del mapa se escucha en la entidad '#entorno'
+        document.getElementById('entorno').addEventListener('gltf-model-error', function() {
+            showLog('ERROR: El navegador rechazó el mapa incluso con proxy.', true);
+        });
+
         document.getElementById('entorno').addEventListener('model-loaded', function() {
-            showLog('ÉXITO: ¡El mapa forest7.glb de 50MB cargó correctamente!');
+            showLog('ÉXITO: ¡Mapa Forest7 cargado y renderizado con éxito!');
         });
 
-        // Controladores de Movimiento Nativo
+        // Configuración de controles e inercias de movimiento
         const VELOCIDAD_AVANCE = 0.12;   
         const VELOCIDAD_PIERNAS = 0.65;  
 
@@ -196,7 +194,6 @@
         const mainCamera = document.getElementById('main-camera');
 
         let moveX = 0, moveY = 0;
-        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         let joyDragging = false; let joyStartX, joyStartY;
         let mouseDragging = false; let prevMouseX, prevMouseY;
         let camYaw = 0; let camPitch = -0.25; let camDist = 4.0;
@@ -220,7 +217,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // BOTONES DE CÁMARA
+        // BOTONES DE CÁMARA (IZQUIERDA)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -231,7 +228,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK TÁCTIL
+        // JOYSTICK TÁCTIL (DERECHA)
         knob.addEventListener('touchstart', (e) => {
             joyDragging = true; const touch = e.touches[0];
             joyStartX = touch.clientX; joyStartY = touch.clientY;
@@ -254,7 +251,7 @@
             moveX = 0; moveY = 0;
         });
 
-        // ROTACIÓN DE CÁMARA CON UN DEDO
+        // VISTA ORBITAL (ARRASTRE PANTALLA)
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             const touch = e.touches[0]; mouseDragging = true;
@@ -270,7 +267,6 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE DEL MOTOR
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
