@@ -1,29 +1,194 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Ark Project - Vista Satélite</title>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARK - Entorno Virtual Viverse</title>
+    
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
-  </head>
-  <body style="margin: 0; overflow: hidden;">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #020617;
+        }
 
-    <a-scene>
-      <a-sky color="#ECECEC"></a-sky>
+        /* HUD Interactivo de Estilo Futurista */
+        #ark-hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            pointer-events: none; /* Permite interactuar con la escena a través del contenedor */
+        }
 
-      <!-- El mapa del pueblo original -->
-      <a-gltf-model src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/village.glb?download=true" position="0 0 0" rotation="-90 0 0"></a-gltf-model>
+        .panel-cyber {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #00f3ff;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+            padding: 20px;
+            border-radius: 12px;
+            color: #f8fafc;
+            width: 280px;
+            pointer-events: auto; /* Reactiva eventos para botones */
+            backdrop-filter: blur(8px);
+        }
 
-      <!-- Tu avatar -->
-      <a-gltf-model src="luis-camina.glb" position="0 1.6 19.5" rotation="0 180 0" animation-mixer></a-gltf-model>
+        .hud-header {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #00f3ff;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+            padding-bottom: 6px;
+        }
 
-      <!-- Luces potentes -->
-      <a-light type="ambient" color="#ffffff" intensity="1.2"></a-light>
-      <a-light type="directional" color="#ffffff" intensity="0.8" position="1 5 1"></a-light>
+        .hud-meta {
+            font-size: 12px;
+            margin: 6px 0;
+            color: #94a3b8;
+        }
 
-      <!-- NUEVA CÁMARA: Te sube a 120 metros de altura y te aleja a 250 metros para ver todo el mapa desde arriba -->
-      <a-entity camera look-controls wasd-controls="acceleration: 100; fly: true;" position="0 120 250"></a-entity>
+        .hud-meta span {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .hud-controls {
+            margin-top: 15px;
+        }
+
+        .btn-ark {
+            background: transparent;
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            padding: 10px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-ark:hover {
+            background: #00f3ff;
+            color: #0f2142;
+            box-shadow: 0 0 15px #00f3ff;
+        }
+
+        /* Indicador de controles de movimiento */
+        #instructions {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ark-hud">
+        <div class="panel-cyber">
+            <div class="hud-header">SISTEMA ARK CORE</div>
+            <div class="hud-meta">Entorno: <span>forest2.glb</span></div>
+            <div class="hud-meta">Avatar: <span>luis-camina.glb</span></div>
+            <div class="hud-meta">Plataforma: <span>Viverse Engine</span></div>
+            <div class="hud-controls">
+                <button class="btn-ark" id="toggle-cam">Perspectiva: Libre</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="instructions">
+        Moverse: <strong>WASD / Flechas</strong> | Mirar: <strong>Arrastrar Ratón</strong>
+    </div>
+
+    <a-scene renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;" shadow="type: pcfsoft">
+        
+        <a-assets>
+            <a-asset-item id="bosque-gltf" src="./forest2.glb"></a-asset-item>
+            <a-asset-item id="avatar-gltf" src="./luis-camina.glb"></a-asset-item>
+        </a-assets>
+
+        <a-entity light="type: ambient; intensity: 0.6; color: #cbd5e1"></a-entity>
+        
+        <a-entity light="type: directional; 
+                         intensity: 1.4; 
+                         castShadow: true; 
+                         shadowMapHeight: 2048; 
+                         shadowMapWidth: 2048; 
+                         shadowBias: -0.0005;" 
+                  position="15 30 10">
+        </a-entity>
+
+        <a-entity id="escenario" 
+                  gltf-model="#bosque-gltf" 
+                  position="0 0 0" 
+                  scale="1 1 1" 
+                  shadow="receive: true; cast: false">
+        </a-entity>
+
+        <a-entity id="avatar-luis" 
+                  gltf-model="#avatar-gltf" 
+                  position="0 0 -5" 
+                  rotation="0 180 0" 
+                  scale="1 1 1" 
+                  animation-mixer="clip: *; loop: repeat; timeScale: 1;"
+                  shadow="cast: true; receive: true">
+        </a-entity>
+
+        <a-entity id="rig-cam-libre" position="0 1.6 0">
+            <a-entity id="cam-libre" camera look-controls wasd-controls="acceleration: 40; fly: false;"></a-entity>
+        </a-entity>
+
+        <a-entity id="rig-cam-avatar" position="0 3.5 -1" rotation="-25 180 0">
+            <a-entity id="cam-avatar" camera="active: false" look-controls="enabled: false"></a-entity>
+        </a-entity>
 
     </a-scene>
 
-  </body>
+    <script>
+        const btnCam = document.getElementById('toggle-cam');
+        const camLibre = document.getElementById('cam-libre');
+        const camAvatar = document.getElementById('cam-avatar');
+        let modoCamara = 'libre';
+
+        btnCam.addEventListener('click', () => {
+            if (modoCamara === 'libre') {
+                // Cambiar a enfoque del Avatar (Tercera persona)
+                camAvatar.setAttribute('camera', 'active', true);
+                camLibre.setAttribute('camera', 'active', false);
+                modoCamara = 'avatar';
+                btnCam.innerText = "Perspectiva: Avatar (3ªP)";
+            } else {
+                // Volver a exploración libre (Primera persona)
+                camLibre.setAttribute('camera', 'active', true);
+                camAvatar.setAttribute('camera', 'active', false);
+                modoCamara = 'libre';
+                btnCam.innerText = "Perspectiva: Libre";
+            }
+        });
+    </script>
+</body>
 </html>
