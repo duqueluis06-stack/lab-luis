@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Control Sincronizado Definitivo</title>
+    <title>ARK - Vista Tercera Persona Sincronizada</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,6 +19,7 @@
             -webkit-user-select: none;
         }
 
+        /* BOTONES CÁMARA - IZQUIERDA */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -28,6 +29,7 @@
             z-index: 999;
         }
 
+        /* JOYSTICK - DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -105,7 +107,11 @@
         </div>
     </div>
 
-    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
+    <!-- Sin ventanas de permisos de VR ni de orientación -->
+    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false"
+             loading-screen="enabled: false">
         
         <a-assets>
             <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
@@ -115,24 +121,24 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CENTRAL -->
+        <!-- RIG DE CONTROL UNIFICADO -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Bloqueo cinemático de esqueleto -->
+            <!-- ALTURA DEL AVATAR: Si queda un poco flotando en tu mapa, cambia el -1.0 por -1.3 o -1.5 -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 -1.0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
-                      bloqueo-z
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Pivote corregido a la altura del pecho/vista del avatar -->
-            <a-entity id="camera-orbit" position="0 0.5 0">
-                <a-entity id="main-camera" camera position="0 0 3.5"></a-entity>
+            <!-- CÁMARA ORBITAL EN TERCERA PERSONA (Altura de hombros mirando hacia abajo) -->
+            <a-entity id="camera-orbit" position="0 1.4 0">
+                <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -140,20 +146,12 @@
     </a-scene>
 
     <script>
-        // --- PARCHE DE BAJO NIVEL: ANULA EL REBOTE DE ANIMACIÓN ---
-        AFRAME.registerComponent('bloqueo-z', {
-            tick: function () {
-                const obj = this.el.getObject3D('mesh');
-                if (obj) {
-                    obj.traverse((child) => {
-                        if (child.isBone && (child.name.toLowerCase().includes('root') || child.name.toLowerCase().includes('hips'))) {
-                            child.position.z = 0; 
-                            child.position.x = 0; 
-                        }
-                    });
-                }
-            }
-        });
+        // ==========================================
+        // CALIBRACIÓN DE MOVIMIENTO NATURAL
+        // ==========================================
+        const VELOCIDAD_AVANCE = 0.12;   // Mayor desplazamiento por paso (evita el patinaje lento)
+        const VELOCIDAD_PIERNAS = 0.65;  // Movimiento de piernas más pausado y realista
+        // ==========================================
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -168,21 +166,16 @@
 
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
-        
-        // Valores de cámara calibrados para mirar al frente por defecto
         let camYaw = 0;   
-        let camPitch = 0.2; 
-        let camDist = 3.5; 
+        let camPitch = -0.25; // Ángulo inclinado hacia abajo para ver piernas y pies de forma nativa
+        let camDist = 4.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Control de tiempo para independizar el movimiento de los FPS
-        let lastTime = performance.now();
-
-        // ZOOM Rueda + Táctil
+        // ZOOM (Rueda + Táctil)
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
-            camDist = Math.max(1.5, Math.min(8.0, camDist));
+            camDist = Math.max(2.0, Math.min(8.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
@@ -194,7 +187,7 @@
                 else {
                     let delta = initialTouchDist - dist;
                     camDist += delta * 0.01;
-                    camDist = Math.max(1.5, Math.min(8.0, camDist));
+                    camDist = Math.max(2.0, Math.min(8.0, camDist));
                     mainCamera.setAttribute('position', `0 0 ${camDist}`);
                     initialTouchDist = dist;
                 }
@@ -203,7 +196,7 @@
 
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CÁMARA FLECHAS
+        // CONTROL DE BOTONES CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -219,7 +212,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK DERECHO
+        // JOYSTICK
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -257,7 +250,7 @@
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE RATÓN CÁMARA
+        // ARRASTRE DE PANTALLA (CÁMARA)
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -284,23 +277,15 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        const terrainRaycaster = new THREE.Raycaster();
-        const abajoVector = new THREE.Vector3(0, -1, 0);
-
-        // BUCLE GENERAL
+        // BUCLE PRINCIPAL
         function engineLoop() {
-            const now = performance.now();
-            const delta = (now - lastTime) / 1000; // Delta exacto en segundos
-            lastTime = now;
+            if (arrowCam.left) camYaw += 0.02;
+            if (arrowCam.right) camYaw -= 0.02;
+            if (arrowCam.up) camPitch += 0.01;
+            if (arrowCam.down) camPitch -= 0.01;
 
-            // Rotación suave de cámara por botones
-            if (arrowCam.left) camYaw += 1.8 * delta;
-            if (arrowCam.right) camYaw -= 1.8 * delta;
-            if (arrowCam.up) camPitch += 1.2 * delta;
-            if (arrowCam.down) camPitch -= 1.2 * delta;
-
-            // Límites del pitch para evitar que la cámara dé la vuelta completa
-            camPitch = Math.max(-0.2, Math.min(0.8, camPitch));
+            // Límites para mantener la cámara en tercera persona de forma óptima
+            camPitch = Math.max(-0.6, Math.min(0.0, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
@@ -313,21 +298,18 @@
             let isMoving = (inputX !== 0 || inputY !== 0);
 
             if (isMoving !== wasMoving) {
-                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
+                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
                 wasMoving = isMoving;
             }
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                
-                // VELOCIDAD DE AVANCE AJUSTADA (Sincronizada con el paso del modelo)
-                const moveSpeed = 6.5; 
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                pos.x += (fwdX * -inputY + rgtX * inputX) * moveSpeed * delta;
-                pos.z += (fwdZ * -inputY + rgtZ * inputX) * moveSpeed * delta;
+                pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
                 rig.setAttribute('position', pos);
 
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
@@ -337,25 +319,6 @@
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
             }
-
-            // AJUSTE DINÁMICO DE ALTURA
-            const entornoEl = document.getElementById('entorno');
-            if (entornoEl) {
-                const entornoObj = entornoEl.getObject3D('mesh');
-                if (entornoObj) {
-                    const pos = rig.getAttribute('position');
-                    const origenRayo = new THREE.Vector3(pos.x, pos.y + 15.0, pos.z);
-                    
-                    terrainRaycaster.set(origenRayo, abajoVector);
-                    const intersecciones = terrainRaycaster.intersectObject(entornoObj, true);
-
-                    if (intersecciones.length > 0) {
-                        pos.y = intersecciones[0].point.y + 1.0;
-                        rig.setAttribute('position', pos);
-                    }
-                }
-            }
-
             requestAnimationFrame(engineLoop);
         }
         engineLoop();
