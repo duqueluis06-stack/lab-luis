@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Vista Tercera Persona Sincronizada</title>
+    <title>ARK - Tercera Persona Calibrado</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -17,6 +17,29 @@
             background-color: #020617;
             user-select: none;
             -webkit-user-select: none;
+        }
+
+        /* BOTÓN DE SALIR - ARRIBA A LA DERECHA */
+        #btn-exit {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.8);
+            border: 1px solid #ef4444;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            touch-action: none;
+        }
+
+        #btn-exit:active {
+            background: #ef4444;
         }
 
         /* BOTONES CÁMARA - IZQUIERDA */
@@ -92,6 +115,8 @@
 </head>
 <body>
 
+    <button id="btn-exit">SALIR</button>
+
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -139,8 +164,12 @@
     </a-scene>
 
     <script>
-        const VELOCIDAD_AVANCE = 0.12;   
-        const VELOCIDAD_PIERNAS = 0.65;  
+        // ==========================================
+        // AJUSTES DE SINCRONIZACIÓN REALISTA
+        // ==========================================
+        const VELOCIDAD_AVANCE = 0.11;   
+        const VELOCIDAD_PIERNAS = 0.40;  
+        // ==========================================
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -150,18 +179,21 @@
 
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        let joyDragging = false;
-        let joyStartX, joyStartY;
-
-        let mouseDragging = false;
-        let prevMouseX, prevMouseY;
+        let joyDragging = false; let joyStartX, joyStartY;
+        let mouseDragging = false; let prevMouseX, prevMouseY;
+        
         let camYaw = 0;   
         let camPitch = -0.25; 
         let camDist = 4.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ZOOM (Rueda + Táctil)
+        // ACCIÓN BOTÓN SALIR - REDIRECCIÓN DIRECTA A INDEX.HTML
+        document.getElementById('btn-exit').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        // ZOOM
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(2.0, Math.min(8.0, camDist));
@@ -182,10 +214,9 @@
                 }
             }
         }, { passive: true });
-
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CONTROL DE BOTONES CÁMARA
+        // CONFIGURACIÓN BOTONES CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -235,25 +266,26 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // TECLADO PC
+        // TECLADO
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE DE PANTALLA (CÁMARA)
+        // ARRASTRE DE PANTALLA
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
         window.addEventListener('mousemove', (e) => {
             if (!mouseDragging) return;
             let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
             prevMouseX = e.clientX; prevMouseY = e.clientY;
-            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+            camYaw -= deltaX * 0.003; 
+            camPitch += deltaY * 0.002; 
         });
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
         window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             const touch = e.touches[0];
             mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
         }, {passive: true});
@@ -262,18 +294,18 @@
             const touch = e.touches[0];
             let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
             prevMouseX = touch.clientX; prevMouseY = touch.clientY;
-            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+            camYaw -= deltaX * 0.003; 
+            camPitch += deltaY * 0.002; 
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
         // BUCLE PRINCIPAL
         function engineLoop() {
-            if (arrowCam.left) camYaw += 0.02;
-            if (arrowCam.right) camYaw -= 0.02;
-            if (arrowCam.up) camPitch += 0.01;
-            if (arrowCam.down) camPitch -= 0.01;
+            if (arrowCam.left) camYaw += 0.015;
+            if (arrowCam.right) camYaw -= 0.015;
+            if (arrowCam.up) camPitch -= 0.008;   
+            if (arrowCam.down) camPitch += 0.008; 
 
-            // LIBERAMOS EL LÍMITE SUPERIOR DE 0.0 A 0.5 PARA PERMITIR MIRAR EL CIELO
             camPitch = Math.max(-0.7, Math.min(0.5, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
@@ -293,7 +325,6 @@
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
