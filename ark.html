@@ -107,7 +107,7 @@
         </div>
     </div>
 
-    <!-- Desactivamos UI de VR y permisos de orientación para evitar ventanas emergentes -->
+    <!-- Sin ventanas de permisos de VR ni de orientación -->
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false"
@@ -127,18 +127,18 @@
         <!-- RIG DE CONTROL UNIFICADO -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- AVATAR EN EL SUELO -->
+            <!-- ALTURA DEL AVATAR: Si queda un poco flotando en tu mapa, cambia el -1.0 por -1.3 o -1.5 -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 -1.35 0" 
+                      position="0 -1.0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- CÁMARA CORREGIDA: Pivote bajo y cámara más atrás para ver todo el cuerpo y pies -->
-            <a-entity id="camera-orbit" position="0 -0.2 0">
-                <a-entity id="main-camera" camera position="0 0.9 4.5"></a-entity>
+            <!-- CÁMARA ORBITAL EN TERCERA PERSONA (Altura de hombros mirando hacia abajo) -->
+            <a-entity id="camera-orbit" position="0 1.4 0">
+                <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -147,10 +147,10 @@
 
     <script>
         // ==========================================
-        // AJUSTES DE SINCRONIZACIÓN PERFECTA
+        // CALIBRACIÓN DE MOVIMIENTO NATURAL
         // ==========================================
-        const VELOCIDAD_AVANCE = 0.048;  // Modifica esto si el avatar avanza más rápido/lento que el suelo
-        const VELOCIDAD_PIERNAS = 1.1;   // Ritmo de los pasos de la animación in-place
+        const VELOCIDAD_AVANCE = 0.12;   // Mayor desplazamiento por paso (evita el patinaje lento)
+        const VELOCIDAD_PIERNAS = 0.65;  // Movimiento de piernas más pausado y realista
         // ==========================================
 
         const knob = document.getElementById('joystick-knob');
@@ -167,8 +167,8 @@
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
-        let camPitch = -0.05; // Ángulo inicial mucho más nivelado con el horizonte
-        let camDist = 4.5; 
+        let camPitch = -0.25; // Ángulo inclinado hacia abajo para ver piernas y pies de forma nativa
+        let camDist = 4.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
@@ -176,7 +176,7 @@
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(2.0, Math.min(8.0, camDist));
-            mainCamera.setAttribute('position', `0 0.9 ${camDist}`);
+            mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
         let initialTouchDist = 0;
@@ -188,7 +188,7 @@
                     let delta = initialTouchDist - dist;
                     camDist += delta * 0.01;
                     camDist = Math.max(2.0, Math.min(8.0, camDist));
-                    mainCamera.setAttribute('position', `0 0.9 ${camDist}`);
+                    mainCamera.setAttribute('position', `0 0 ${camDist}`);
                     initialTouchDist = dist;
                 }
             }
@@ -212,7 +212,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK DERECHO
+        // JOYSTICK
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -277,15 +277,15 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE PRINCIPAL DEL MOTOR
+        // BUCLE PRINCIPAL
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch += 0.01;
             if (arrowCam.down) camPitch -= 0.01;
 
-            // Limitamos la inclinación vertical para que no se ponga completamente cenital (máximo mirar levemente abajo)
-            camPitch = Math.max(-0.35, Math.min(0.2, camPitch));
+            // Límites para mantener la cámara en tercera persona de forma óptima
+            camPitch = Math.max(-0.6, Math.min(0.0, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
