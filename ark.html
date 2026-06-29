@@ -2,10 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ARK - Entorno Limpio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ARK - Control Híbrido Profesional</title>
     
-    <!-- Motores Gráficos Nativos -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
@@ -14,18 +13,99 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
+            font-family: system-ui, sans-serif;
             background-color: #020617;
             user-select: none;
+            -webkit-user-select: none;
         }
-        /* Canvas limpio a pantalla completa sin elementos web flotantes */
-        a-scene {
-            display: block;
-            width: 100vw;
-            height: 100vh;
+
+        /* CRUCETA DE CÁMARA - ABAJO A LA IZQUIERDA */
+        #arrows-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
         }
+
+        /* JOYSTICK ANALÓGICO - ABAJO A LA DERECHA (ALTURA ERGONÓMICA) */
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 40px; 
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-container {
+            width: 100px;
+            height: 100px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid #00f3ff;
+            border-radius: 50%;
+            touch-action: none;
+            position: relative;
+            backdrop-filter: blur(4px);
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00f3ff;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        /* Estilo común de botones de la cruceta */
+        .joy-arrow {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            transition: background 0.1s;
+        }
+
+        .joy-arrow:active {
+            background: #00f3ff;
+            color: #020617;
+        }
+
+        .arrow-up { top: 0; left: 34px; }
+        .arrow-down { bottom: 0; left: 34px; }
+        .arrow-left { left: 0; top: 34px; }
+        .arrow-right { right: 0; top: 34px; }
     </style>
 </head>
 <body>
+
+    <div id="arrows-wrapper">
+        <button class="joy-arrow arrow-up" id="btn-up">▲</button>
+        <button class="joy-arrow arrow-down" id="btn-down">▼</button>
+        <button class="joy-arrow arrow-left" id="btn-left">◀</button>
+        <button class="joy-arrow arrow-right" id="btn-right">▶</button>
+    </div>
+
+    <div id="joystick-wrapper">
+        <div id="joystick-container">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
 
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
         
@@ -34,26 +114,21 @@
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Iluminación del Entorno -->
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DEL JUGADOR (Pies pegados al suelo) -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Avatar Humano (Y corregido para eliminar la flotación) -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 -1.0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
-                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0; crossFadeDuration: 0.2">
             </a-entity>
 
-            <!-- Cámara Orbital Seguidora -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
             </a-entity>
@@ -63,63 +138,144 @@
     </a-scene>
 
     <script>
+        const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
 
-        // Estado del Teclado
+        // Estado Entradas de Movimiento (Teclado + Joystick)
+        let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         
-        // Control de Cámara
+        // Estado del Joystick Táctil
+        let joyDragging = false;
+        let joyStartX, joyStartY;
+
+        // Estado de la Cámara (Ratón + Botones Izquierdos)
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
+        let arrowCam = { up: false, down: false, left: false, right: false };
+
         let wasMoving = false;
 
-        // 1. CAPTURA DE TECLADO DIRECTA
+        // 1. CONTROL DE CÁMARA POR ASISTENCIA (FLECHAS IZQUIERDAS)
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
+            const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
+            
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchstart', start, {passive: false});
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('touchend', end, {passive: false});
+            btn.addEventListener('mouseleave', end);
+        };
+
+        setupArrowCamera('btn-up', 'up');
+        setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left');
+        setupArrowCamera('btn-right', 'right');
+
+        // 2. MANDO ANALÓGICO DERECHO (TOUCH / MOUSE)
+        function onJoyStart(e) {
+            joyDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            joyStartX = point.clientX; joyStartY = point.clientY;
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function onJoyMove(e) {
+            if (!joyDragging) return;
+            const point = e.touches ? e.touches[0] : e;
+            let dx = point.clientX - joyStartX; 
+            let dy = point.clientY - joyStartY;
+            const maxLen = 35;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            moveX = dx / maxLen; 
+            moveY = dy / maxLen;
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function onJoyEnd(e) {
+            if(!joyDragging) return;
+            joyDragging = false; 
+            knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0; 
+            moveY = 0;
+            if(e && e.cancelable) e.preventDefault();
+        }
+
+        knob.addEventListener('touchstart', onJoyStart, {passive: false});
+        window.addEventListener('touchmove', onJoyMove, {passive: false});
+        window.addEventListener('touchend', onJoyEnd, {passive: false});
+        knob.addEventListener('mousedown', onJoyStart);
+        window.addEventListener('mousemove', onJoyMove);
+        window.addEventListener('mouseup', onJoyEnd);
+
+        // 3. CAPTURA DE TECLADO (PC)
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // 2. CAPTURA DE RATÓN PARA ROTAR CÁMARA
+        // 4. CONTROL DE CÁMARA POR ARRASTRE DIRECTO EN PANTALLA
         window.addEventListener('mousedown', (e) => {
-            mouseDragging = true;
-            prevMouseX = e.clientX;
-            prevMouseY = e.clientY;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
-
         window.addEventListener('mousemove', (e) => {
             if (!mouseDragging) return;
-            let deltaX = e.clientX - prevMouseX;
-            let deltaY = e.clientY - prevMouseY;
-            prevMouseX = e.clientX;
-            prevMouseY = e.clientY;
-            
-            camYaw -= deltaX * 0.005;
-            camPitch -= deltaY * 0.004;
+            let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
+            prevMouseX = e.clientX; prevMouseY = e.clientY;
+            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
         });
-
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // 3. BUCLE DE PROCESAMIENTO NATIVO
+        // INTERFAZ TÁCTIL DIRECTA DE CÁMARA PARA MÓVIL
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            const touch = e.touches[0];
+            mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+        }, {passive: true});
+        window.addEventListener('touchmove', (e) => {
+            if (!mouseDragging) return;
+            const touch = e.touches[0];
+            let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
+            prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+        }, {passive: true});
+        window.addEventListener('touchend', () => { mouseDragging = false; });
+
+        // 5. NÚCLEO Y PROCESAMIENTO GENERAL
         function engineLoop() {
-            // Calcular direcciones basadas en teclado
-            let moveX = 0;
-            let moveY = 0;
+            // A. Rotación precisa de cámara
+            if (arrowCam.left) camYaw += 0.02;
+            if (arrowCam.right) camYaw -= 0.02;
+            if (arrowCam.up) camPitch += 0.01;
+            if (arrowCam.down) camPitch -= 0.01;
 
-            if (keys.w || keys.ArrowUp) moveY = -1;
-            if (keys.s || keys.ArrowDown) moveY = 1;
-            if (keys.a || keys.ArrowLeft) moveX = -1;
-            if (keys.d || keys.ArrowRight) moveX = 1;
-
-            // Actualizar orientación de la cámara
             camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            let isMoving = (moveX !== 0 || moveY !== 0);
+            // B. Procesamiento de Teclado PC
+            let inputX = moveX;
+            let inputY = moveY;
 
-            // Control de reproducción de animación estable
+            if (keys.w || keys.ArrowUp) inputY = -1;
+            if (keys.s || keys.ArrowDown) inputY = 1;
+            if (keys.a || keys.ArrowLeft) inputX = -1;
+            if (keys.d || keys.ArrowRight) inputX = 1;
+
+            let isMoving = (inputX !== 0 || inputY !== 0);
+
+            // Control nativo de reproducción (Evita saltos bruscos a pose T)
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
                 wasMoving = isMoving;
@@ -129,27 +285,23 @@
                 const pos = rig.getAttribute('position');
                 const speed = 0.05; 
 
-                // Vectores de dirección relativos a la orientación de la cámara
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                pos.x += (fwdX * -moveY + rgtX * moveX) * speed;
-                pos.z += (fwdZ * -moveY + rgtZ * moveX) * speed;
+                pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
                 rig.setAttribute('position', pos);
 
-                // Rotación suavizada del personaje hacia la dirección de avance
-                const targetAngle = camYaw + Math.atan2(moveX, -moveY) + Math.PI;
+                // Interpolación suave del ángulo de giro
+                const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
             }
-
             requestAnimationFrame(engineLoop);
         }
-        
-        // Inicializar el bucle
         engineLoop();
     </script>
 </body>
