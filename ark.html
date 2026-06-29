@@ -154,15 +154,16 @@
         <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CENTRAL (Bajado a nivel 0 para evitar flotación) -->
+        <!-- RIG CENTRAL (Anclado al suelo plano) -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Avatar Humano -->
+            <!-- Avatar Humano (Ajustado a Y = -1 para eliminar la flotación de 1 metro) -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 0 0" 
+                      position="0 -1.0 0" 
                       rotation="0 180 0" 
-                      scale="1 1 1">
+                      scale="1 1 1"
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
             <!-- Sistema de Cámara Orbital Seguidora -->
@@ -185,19 +186,17 @@
         let joyDragging = false;
         let joyStartX, joyStartY;
 
-        // Variables de Cámara (Ratón / Táctil / Flechas)
+        // Variables de Cámara
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
 
-        // Estado de animación
+        // Estado de animación estable
         let wasMoving = false;
-
-        // Estado de botones de rastreo de cámara
         let arrowCam = { up: false, down: false, left: false, right: false };
 
-        // 1. CONFIGURACIÓN DE CRUCETA PARA RASTREO CONTROLADO DE CÁMARA
+        // 1. RASTREO CONTROLADO DE CÁMARA (FLECHAS)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.stopPropagation(); arrowCam[direction] = true; };
@@ -215,7 +214,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // 2. LÓGICA DEL JOYSTICK (MOVIMIENTO AVATAR)
+        // 2. LÓGICA DEL JOYSTICK
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -247,7 +246,7 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // 3. ROTACIÓN DE CÁMARA POR ARRASTRE DIRECTO
+        // 3. ROTACIÓN DE CÁMARA POR ARRASTRE DIRECTO (RATÓN/TACTIL)
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ark-hud')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -262,36 +261,30 @@
 
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // 4. BUCLE GENERAL DEL MOTOR (FÍSICAS, SUAVIZADO Y RASTREO)
+        // 4. BUCLE GENERAL DEL MOTOR
         function engineLoop() {
-            // A. Gestionar rotación de cámara controlada por flechas
+            // A. Rotación de cámara por flechas
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch += 0.01;
             if (arrowCam.down) camPitch -= 0.01;
 
-            // Limitar inclinación vertical de cámara
             camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            // B. Gestionar movimiento y animación del Avatar
+            // B. Movimiento y Animación del Avatar
             let isMoving = (moveX !== 0 || moveY !== 0);
 
+            // Tomanos el control del timeScale de forma nativa sin destruir el componente
             if (isMoving !== wasMoving) {
-                if (isMoving) {
-                    // Activa la caminata
-                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
-                } else {
-                    // Elimina el mixer al frenar para que regrese instantáneamente a la pose recta neutra
-                    avatarMesh.removeAttribute('animation-mixer');
-                }
+                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
                 wasMoving = isMoving;
             }
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.06; // Ajuste de velocidad estable
+                const speed = 0.05; // Velocidad de avance suavizada
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
@@ -300,14 +293,13 @@
                 pos.z += (fwdZ * -moveY + rgtZ * moveX) * speed;
                 rig.setAttribute('position', pos);
 
-                // SISTEMA INTERPOLADO DE ORIENTACIÓN (Evita giros bruscos e incontrolables)
+                // Rotación suavizada del cuerpo hacia el rumbo del Joystick
                 const targetAngle = camYaw + Math.atan2(moveX, -moveY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 
-                // Normalizar ángulo para evitar rotaciones infinitas de 360°
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
-                avatarMesh.object3D.rotation.y += deltaAngle * 0.15; // Factor de amortiguación
+                avatarMesh.object3D.rotation.y += deltaAngle * 0.12; // Amortiguación de giro
             }
             requestAnimationFrame(engineLoop);
         }
