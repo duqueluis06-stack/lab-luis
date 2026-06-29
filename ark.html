@@ -120,7 +120,7 @@
         <!-- RIG CENTRAL -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Forzamos la desactivación de la traslación de esqueleto (bloqueo-z) -->
+            <!-- Bloqueo cinemático de esqueleto -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 -1.0 0" 
@@ -130,8 +130,9 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <a-entity id="camera-orbit" position="0 1.6 0">
-                <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
+            <!-- Pivote corregido a la altura del pecho/vista del avatar -->
+            <a-entity id="camera-orbit" position="0 0.5 0">
+                <a-entity id="main-camera" camera position="0 0 3.5"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -167,21 +168,22 @@
 
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
+        
+        // Valores de cámara calibrados para mirar al frente por defecto
         let camYaw = 0;   
-        let camPitch = -0.1; 
+        let camPitch = 0.2; 
         let camDist = 3.5; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Instancias para el Raycaster de terreno (Evita recrear objetos en cada frame)
-        const terrainRaycaster = new THREE.Raycaster();
-        const abajoVector = new THREE.Vector3(0, -1, 0);
+        // Control de tiempo para independizar el movimiento de los FPS
+        let lastTime = performance.now();
 
         // ZOOM Rueda + Táctil
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(1.5, Math.min(8.0, camDist));
-            mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+            mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
         let initialTouchDist = 0;
@@ -193,7 +195,7 @@
                     let delta = initialTouchDist - dist;
                     camDist += delta * 0.01;
                     camDist = Math.max(1.5, Math.min(8.0, camDist));
-                    mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+                    mainCamera.setAttribute('position', `0 0 ${camDist}`);
                     initialTouchDist = dist;
                 }
             }
@@ -282,14 +284,23 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
+        const terrainRaycaster = new THREE.Raycaster();
+        const abajoVector = new THREE.Vector3(0, -1, 0);
+
         // BUCLE GENERAL
         function engineLoop() {
-            if (arrowCam.left) camYaw += 0.02;
-            if (arrowCam.right) camYaw -= 0.02;
-            if (arrowCam.up) camPitch += 0.01;
-            if (arrowCam.down) camPitch -= 0.01;
+            const now = performance.now();
+            const delta = (now - lastTime) / 1000; // Delta exacto en segundos
+            lastTime = now;
 
-            camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
+            // Rotación suave de cámara por botones
+            if (arrowCam.left) camYaw += 1.8 * delta;
+            if (arrowCam.right) camYaw -= 1.8 * delta;
+            if (arrowCam.up) camPitch += 1.2 * delta;
+            if (arrowCam.down) camPitch -= 1.2 * delta;
+
+            // Límites del pitch para evitar que la cámara dé la vuelta completa
+            camPitch = Math.max(-0.2, Math.min(0.8, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
@@ -308,13 +319,15 @@
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.05; 
+                
+                // VELOCIDAD DE AVANCE AJUSTADA (Sincronizada con el paso del modelo)
+                const moveSpeed = 6.5; 
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
-                pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
+                pos.x += (fwdX * -inputY + rgtX * inputX) * moveSpeed * delta;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * moveSpeed * delta;
                 rig.setAttribute('position', pos);
 
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
@@ -325,21 +338,18 @@
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
             }
 
-            // --- AJUSTE DINÁMICO DE ALTURA SOBRE FOREST2 ---
+            // AJUSTE DINÁMICO DE ALTURA
             const entornoEl = document.getElementById('entorno');
             if (entornoEl) {
                 const entornoObj = entornoEl.getObject3D('mesh');
                 if (entornoObj) {
                     const pos = rig.getAttribute('position');
-                    // Lanzamos el rayo desde un punto elevado de seguridad (+15m) sobre la posición actual
                     const origenRayo = new THREE.Vector3(pos.x, pos.y + 15.0, pos.z);
                     
                     terrainRaycaster.set(origenRayo, abajoVector);
                     const intersecciones = terrainRaycaster.intersectObject(entornoObj, true);
 
                     if (intersecciones.length > 0) {
-                        // Como tu avatar-mesh tiene position="0 -1.0 0", compensamos con +1.0
-                        // para que la base del esqueleto coincida al milímetro con la superficie de la colina.
                         pos.y = intersecciones[0].point.y + 1.0;
                         rig.setAttribute('position', pos);
                     }
