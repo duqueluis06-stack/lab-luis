@@ -19,7 +19,7 @@
             user-select: none;
         }
 
-        /* HUD Limpio de Telemetría */
+        /* HUD Técnico Limpio */
         #ark-hud {
             position: absolute;
             top: 20px;
@@ -31,45 +31,43 @@
         .panel-cyber {
             background: rgba(15, 23, 42, 0.9);
             border: 1px solid #00f3ff;
-            padding: 12px 20px;
+            padding: 10px 16px;
             border-radius: 8px;
             color: #f8fafc;
-            width: 180px;
+            width: 150px;
             backdrop-filter: blur(8px);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
         }
 
         .hud-header {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #00f3ff;
-            border-bottom: 1px solid rgba(0, 243, 255, 0.3);
-            padding-bottom: 4px;
-            margin-bottom: 6px;
         }
 
-        #hud-status {
-            font-size: 11px;
-            color: #00ffcc;
-            font-weight: 600;
-        }
-
-        /* Controles: Joystick y Flechas */
-        #control-wrapper {
+        /* Cruceta de Flechas de Cámara - ABAJO IZQUIERDA */
+        #arrows-wrapper {
             position: absolute;
             bottom: 30px;
             left: 30px;
-            width: 160px;
-            height: 160px;
+            width: 100px;
+            height: 100px;
+            z-index: 110;
+        }
+
+        /* Joystick de Movimiento de Avatar - DERECHA ELEVADO */
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 140px; 
+            right: 40px;
+            width: 90px;
+            height: 90px;
             z-index: 110;
         }
 
         #joystick-container {
-            position: absolute;
-            top: 35px;
-            left: 35px;
             width: 90px;
             height: 90px;
             background: rgba(15, 23, 42, 0.8);
@@ -77,6 +75,7 @@
             border-radius: 50%;
             touch-action: none;
             box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            position: relative;
         }
 
         #joystick-knob {
@@ -89,7 +88,6 @@
             border-radius: 50%;
             box-shadow: 0 0 15px #00f3ff;
             cursor: pointer;
-            z-index: 120;
         }
 
         .joy-arrow {
@@ -98,15 +96,14 @@
             border: 1px solid #00f3ff;
             color: #00f3ff;
             border-radius: 6px;
-            width: 32px;
-            height: 32px;
-            font-size: 14px;
+            width: 30px;
+            height: 30px;
+            font-size: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.1s ease;
-            z-index: 115;
         }
 
         .joy-arrow:active {
@@ -115,29 +112,30 @@
             box-shadow: 0 0 10px #00f3ff;
         }
 
-        .arrow-up { top: 0; left: 64px; }
-        .arrow-down { bottom: 0; left: 64px; }
-        .arrow-left { left: 0; top: 64px; }
-        .arrow-right { right: 0; top: 64px; }
+        .arrow-up { top: 0; left: 35px; }
+        .arrow-down { bottom: 0; left: 35px; }
+        .arrow-left { left: 0; top: 35px; }
+        .arrow-right { right: 0; top: 35px; }
     </style>
 </head>
 <body>
 
-    <!-- Interfaz de Usuario (HUD) -->
     <div id="ark-hud">
         <div class="panel-cyber">
-            <div class="hud-header">MOTOR GRÁFICO</div>
-            <div id="hud-status">ESTADO: ONLINE<br>Control: Listo</div>
+            <div class="hud-header">SISTEMA CONTROL</div>
         </div>
     </div>
 
-    <!-- Mapeo de Controles Visuales -->
-    <div id="control-wrapper">
+    <!-- Controles de Rastreo de Cámara (Izquierda) -->
+    <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
         <button class="joy-arrow arrow-left" id="btn-left">◀</button>
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
-        
+    </div>
+
+    <!-- Mando de Movimiento del Avatar (Derecha) -->
+    <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
         </div>
@@ -153,19 +151,18 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Entorno Fijo -->
+        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CENTRAL DEL JUGADOR (Aro eliminado por completo) -->
-        <a-entity id="player-rig" position="0 0.15 0">
+        <!-- RIG CENTRAL (Bajado a nivel 0 para evitar flotación) -->
+        <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Entidad del Avatar -->
+            <!-- Avatar Humano -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
                       rotation="0 180 0" 
-                      scale="1 1 1"
-                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+                      scale="1 1 1">
             </a-entity>
 
             <!-- Sistema de Cámara Orbital Seguidora -->
@@ -183,36 +180,42 @@
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
 
+        // Variables de Movimiento (Joystick)
         let moveX = 0, moveY = 0;
         let joyDragging = false;
         let joyStartX, joyStartY;
 
+        // Variables de Cámara (Ratón / Táctil / Flechas)
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
 
+        // Estado de animación
         let wasMoving = false;
 
-        // 1. CONTROL POR BOTONES / FLECHAS
-        const arrowConfig = {
-            'btn-up': { x: 0, y: -1 }, 'btn-down': { x: 0, y: 1 },
-            'btn-left': { x: -1, y: 0 }, 'btn-right': { x: 1, y: 0 }
+        // Estado de botones de rastreo de cámara
+        let arrowCam = { up: false, down: false, left: false, right: false };
+
+        // 1. CONFIGURACIÓN DE CRUCETA PARA RASTREO CONTROLADO DE CÁMARA
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            const start = (e) => { e.stopPropagation(); arrowCam[direction] = true; };
+            const end = () => { arrowCam[direction] = false; };
+            
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('touchend', end);
+            btn.addEventListener('mouseleave', end);
         };
 
-        Object.keys(arrowConfig).forEach(id => {
-            const btn = document.getElementById(id);
-            const data = arrowConfig[id];
-            const startPress = (e) => { e.stopPropagation(); moveX = data.x; moveY = data.y; };
-            const endPress = () => { moveX = 0; moveY = 0; };
-            btn.addEventListener('mousedown', startPress);
-            btn.addEventListener('touchstart', startPress);
-            btn.addEventListener('mouseup', endPress);
-            btn.addEventListener('touchend', endPress);
-            btn.addEventListener('mouseleave', endPress);
-        });
+        setupArrowCamera('btn-up', 'up');
+        setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left');
+        setupArrowCamera('btn-right', 'right');
 
-        // 2. CONTROL POR JOYSTICK
+        // 2. LÓGICA DEL JOYSTICK (MOVIMIENTO AVATAR)
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -244,9 +247,9 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // 3. ROTACIÓN DE CÁMARA
+        // 3. ROTACIÓN DE CÁMARA POR ARRASTRE DIRECTO
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#control-wrapper') || e.target.closest('#ark-hud')) return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ark-hud')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
 
@@ -255,25 +258,40 @@
             let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
             prevMouseX = e.clientX; prevMouseY = e.clientY;
             camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
-            camPitch = Math.max(-0.5, Math.min(0.2, camPitch));
-            cameraOrbit.object3D.rotation.y = camYaw;
-            cameraOrbit.object3D.rotation.x = camPitch;
         });
 
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // 4. BUCLE DE FÍSICAS
+        // 4. BUCLE GENERAL DEL MOTOR (FÍSICAS, SUAVIZADO Y RASTREO)
         function engineLoop() {
+            // A. Gestionar rotación de cámara controlada por flechas
+            if (arrowCam.left) camYaw += 0.02;
+            if (arrowCam.right) camYaw -= 0.02;
+            if (arrowCam.up) camPitch += 0.01;
+            if (arrowCam.down) camPitch -= 0.01;
+
+            // Limitar inclinación vertical de cámara
+            camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+
+            // B. Gestionar movimiento y animación del Avatar
             let isMoving = (moveX !== 0 || moveY !== 0);
 
             if (isMoving !== wasMoving) {
-                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
+                if (isMoving) {
+                    // Activa la caminata
+                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+                } else {
+                    // Elimina el mixer al frenar para que regrese instantáneamente a la pose recta neutra
+                    avatarMesh.removeAttribute('animation-mixer');
+                }
                 wasMoving = isMoving;
             }
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.07; 
+                const speed = 0.06; // Ajuste de velocidad estable
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
@@ -282,8 +300,14 @@
                 pos.z += (fwdZ * -moveY + rgtZ * moveX) * speed;
                 rig.setAttribute('position', pos);
 
-                const angle = Math.atan2(moveX, -moveY);
-                avatarMesh.object3D.rotation.y = camYaw + angle + Math.PI;
+                // SISTEMA INTERPOLADO DE ORIENTACIÓN (Evita giros bruscos e incontrolables)
+                const targetAngle = camYaw + Math.atan2(moveX, -moveY) + Math.PI;
+                let currentAngle = avatarMesh.object3D.rotation.y;
+                let deltaAngle = targetAngle - currentAngle;
+                
+                // Normalizar ángulo para evitar rotaciones infinitas de 360°
+                deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
+                avatarMesh.object3D.rotation.y += deltaAngle * 0.15; // Factor de amortiguación
             }
             requestAnimationFrame(engineLoop);
         }
