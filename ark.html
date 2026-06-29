@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Entorno Real Forest7</title>
+    <title>ARK - Diagnóstico Forest7</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,7 +19,26 @@
             -webkit-user-select: none;
         }
 
-        /* BOTONES CÁMARA - IZQUIERDA */
+        /* CONSOLA DE DIAGNÓSTICO EN PANTALLA */
+        #debug-console {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            max-height: 90px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 8px;
+            border-radius: 6px;
+            z-index: 10000;
+            overflow-y: auto;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -29,7 +48,6 @@
             z-index: 999;
         }
 
-        /* JOYSTICK - DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -47,7 +65,6 @@
             border-radius: 50%;
             touch-action: none;
             position: relative;
-            backdrop-filter: blur(4px);
         }
 
         #joystick-knob {
@@ -72,16 +89,10 @@
             width: 32px;
             height: 32px;
             font-size: 14px;
-            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             touch-action: none;
-        }
-
-        .joy-arrow:active {
-            background: #00f3ff;
-            color: #020617;
         }
 
         .arrow-up { top: 0; left: 34px; }
@@ -92,7 +103,9 @@
 </head>
 <body>
 
-    <!-- Panel Izquierdo: Cámara -->
+    <!-- Consola visual para ver qué bloquea el teléfono -->
+    <div id="debug-console">SISTEMA: Inicializando entorno 3D...</div>
+
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -100,37 +113,36 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
-    <!-- Panel Derecho: Movimiento -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
         </div>
     </div>
 
-    <!-- PANTALLA DE CARGA ACTIVADA: Muestra puntitos cian mientras descarga los 53MB -->
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false"
              loading-screen="enabled: true; dotsColor: #00f3ff; backgroundColor: #020617">
         
-        <a-assets>
-            <a-asset-item id="forest-model" src="https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb"></a-asset-item>
+        <a-assets timeout="60000">
+            <!-- SE AÑADE CROSSORIGIN ANONYMOUS PARA EVITAR EL BLOQUEO DE GITHUB RELEASES -->
+            <a-asset-item id="forest-model" 
+                          src="https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb" 
+                          crossorigin="anonymous"></a-asset-item>
+            
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Fondo de cielo provisional para eliminar el vacío negro -->
         <a-sky color="#0f172a"></a-sky>
 
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Escenario Real Fijo -->
+        <!-- Escenario Real -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DE CONTROL UNIFICADO -->
+        <!-- RIG DE CONTROL -->
         <a-entity id="player-rig" position="0 0 0">
-            
-            <!-- AVATAR -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 -1.0 0" 
@@ -139,22 +151,43 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- CÁMARA ORBITAL EN TERCERA PERSONA -->
             <a-entity id="camera-orbit" position="0 1.4 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
-
         </a-entity>
 
     </a-scene>
 
     <script>
-        // ==========================================
-        // CALIBRACIÓN DE MOVIMIENTO NATURAL
-        // ==========================================
+        // Sistema de logs en pantalla
+        const consoleDiv = document.getElementById('debug-console');
+        function showLog(text, isError = false) {
+            const color = isError ? '#ff0055' : '#00f3ff';
+            consoleDiv.innerHTML += `<br><span style="color:${color}">${text}</span>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Detectar si el navegador bloquea la carga del archivo
+        window.addEventListener('error', function(e) {
+            showLog('ERROR CRÍTICO: ' + e.message, true);
+        }, true);
+
+        document.getElementById('forest-model').addEventListener('gltf-model-error', function() {
+            showLog('ERROR: GitHub rechazó la conexión del mapa (CORS o enlace roto).', true);
+        });
+
+        document.querySelector('a-scene').addEventListener('loaded', function () {
+            showLog('SISTEMA: Motor A-Frame listo.');
+        });
+
+        // Capturar cuando el entorno se renderice con éxito
+        document.getElementById('entorno').addEventListener('model-loaded', function() {
+            showLog('ÉXITO: ¡El mapa forest7.glb de 50MB cargó correctamente!');
+        });
+
+        // Controladores de Movimiento Nativo
         const VELOCIDAD_AVANCE = 0.12;   
         const VELOCIDAD_PIERNAS = 0.65;  
-        // ==========================================
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -164,24 +197,13 @@
 
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        let joyDragging = false;
-        let joyStartX, joyStartY;
-
-        let mouseDragging = false;
-        let prevMouseX, prevMouseY;
-        let camYaw = 0;   
-        let camPitch = -0.25; 
-        let camDist = 4.0; 
+        let joyDragging = false; let joyStartX, joyStartY;
+        let mouseDragging = false; let prevMouseX, prevMouseY;
+        let camYaw = 0; let camPitch = -0.25; let camDist = 4.0;
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ZOOM
-        window.addEventListener('wheel', (e) => {
-            camDist += e.deltaY * 0.005;
-            camDist = Math.max(2.0, Math.min(8.0, camDist));
-            mainCamera.setAttribute('position', `0 0 ${camDist}`);
-        }, { passive: true });
-
+        // ZOOM TÁCTIL
         let initialTouchDist = 0;
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
@@ -196,81 +218,49 @@
                 }
             }
         }, { passive: true });
-
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CONTROL DE BOTONES CÁMARA
+        // BOTONES DE CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
             const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
-            btn.addEventListener('mousedown', start);
             btn.addEventListener('touchstart', start, {passive: false});
-            btn.addEventListener('mouseup', end);
             btn.addEventListener('touchend', end, {passive: false});
-            btn.addEventListener('mouseleave', end);
         };
-        setupArrowCamera('btn-up', 'up');
-        setupArrowCamera('btn-down', 'down');
-        setupArrowCamera('btn-left', 'left');
-        setupArrowCamera('btn-right', 'right');
+        setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK
-        function onJoyStart(e) {
-            joyDragging = true;
-            const point = e.touches ? e.touches[0] : e;
-            joyStartX = point.clientX; joyStartY = point.clientY;
-            e.preventDefault(); e.stopPropagation();
-        }
+        // JOYSTICK TÁCTIL
+        knob.addEventListener('touchstart', (e) => {
+            joyDragging = true; const touch = e.touches[0];
+            joyStartX = touch.clientX; joyStartY = touch.clientY;
+            e.preventDefault();
+        }, {passive: false});
 
-        function onJoyMove(e) {
+        window.addEventListener('touchmove', (e) => {
             if (!joyDragging) return;
-            const point = e.touches ? e.touches[0] : e;
-            let dx = point.clientX - joyStartX; let dy = point.clientY - joyStartY;
-            const maxLen = 35;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const touch = e.touches[0];
+            let dx = touch.clientX - joyStartX; let dy = touch.clientY - joyStartY;
+            const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
             moveX = dx / maxLen; moveY = dy / maxLen;
-            e.preventDefault(); e.stopPropagation();
-        }
+            e.preventDefault();
+        }, {passive: false});
 
-        function onJoyEnd(e) {
-            if(!joyDragging) return;
+        window.addEventListener('touchend', () => {
             joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
             moveX = 0; moveY = 0;
-            if(e && e.cancelable) e.preventDefault();
-        }
-
-        knob.addEventListener('touchstart', onJoyStart, {passive: false});
-        window.addEventListener('touchmove', onJoyMove, {passive: false});
-        window.addEventListener('touchend', onJoyEnd, {passive: false});
-        knob.addEventListener('mousedown', onJoyStart);
-        window.addEventListener('mousemove', onJoyMove);
-        window.addEventListener('mouseup', onJoyEnd);
-
-        // TECLADO PC
-        window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
-        window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
-
-        // ARRASTRE DE PANTALLA (CÁMARA)
-        window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
-            mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
-        window.addEventListener('mousemove', (e) => {
-            if (!mouseDragging) return;
-            let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
-            prevMouseX = e.clientX; prevMouseY = e.clientY;
-            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
-        });
-        window.addEventListener('mouseup', () => { mouseDragging = false; });
 
+        // ROTACIÓN DE CÁMARA CON UN DEDO
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
-            const touch = e.touches[0];
-            mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+            const touch = e.touches[0]; mouseDragging = true;
+            prevMouseX = touch.clientX; prevMouseY = touch.clientY;
         }, {passive: true});
+
         window.addEventListener('touchmove', (e) => {
             if (!mouseDragging || e.touches.length > 1) return;
             const touch = e.touches[0];
@@ -280,7 +270,7 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE PRINCIPAL
+        // BUCLE DEL MOTOR
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -292,11 +282,6 @@
             cameraOrbit.object3D.rotation.x = camPitch;
 
             let inputX = moveX; let inputY = moveY;
-            if (keys.w || keys.ArrowUp) inputY = -1;
-            if (keys.s || keys.ArrowDown) inputY = 1;
-            if (keys.a || keys.ArrowLeft) inputX = -1;
-            if (keys.d || keys.ArrowRight) inputX = 1;
-
             let isMoving = (inputX !== 0 || inputY !== 0);
 
             if (isMoving !== wasMoving) {
@@ -306,7 +291,6 @@
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
@@ -317,7 +301,6 @@
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
-                
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
             }
