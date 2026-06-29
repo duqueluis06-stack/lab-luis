@@ -2,76 +2,126 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>ARK - FIX ESTABLE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ARK - Control Sincronizado Definitivo</title>
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; background:#020617; }
-
-#joystick-wrapper, #arrows-wrapper {
-  position:absolute; bottom:40px; z-index:999;
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+    background-color: #020617;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-#joystick-wrapper { right:40px; }
-#arrows-wrapper { left:40px; }
+#arrows-wrapper {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    width: 100px;
+    height: 100px;
+    z-index: 999;
+}
+
+#joystick-wrapper {
+    position: absolute;
+    bottom: 40px; 
+    right: 40px;
+    width: 100px;
+    height: 100px;
+    z-index: 999;
+}
 
 #joystick-container {
-  width:100px;height:100px;border-radius:50%;
-  border:2px solid #00f3ff;background:rgba(15,23,42,0.6);
-  position:relative;
+    width: 100px;
+    height: 100px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 2px solid #00f3ff;
+    border-radius: 50%;
+    touch-action: none;
+    position: relative;
+    backdrop-filter: blur(4px);
 }
 
 #joystick-knob {
-  width:40px;height:40px;border-radius:50%;
-  background:#00f3ff;position:absolute;top:30px;left:30px;
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    width: 40px;
+    height: 40px;
+    background: #00f3ff;
+    border-radius: 50%;
+    box-shadow: 0 0 15px #00f3ff;
 }
+
+.joy-arrow {
+    position: absolute;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid #00f3ff;
+    color: #00f3ff;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arrow-up { top: 0; left: 34px; }
+.arrow-down { bottom: 0; left: 34px; }
+.arrow-left { left: 0; top: 34px; }
+.arrow-right { right: 0; top: 34px; }
 </style>
 </head>
 
 <body>
 
+<!-- CONTROLES -->
 <div id="arrows-wrapper">
-  <button id="btn-up">▲</button>
-  <button id="btn-down">▼</button>
-  <button id="btn-left">◀</button>
-  <button id="btn-right">▶</button>
+    <button class="joy-arrow arrow-up" id="btn-up">▲</button>
+    <button class="joy-arrow arrow-down" id="btn-down">▼</button>
+    <button class="joy-arrow arrow-left" id="btn-left">◀</button>
+    <button class="joy-arrow arrow-right" id="btn-right">▶</button>
 </div>
 
 <div id="joystick-wrapper">
-  <div id="joystick-container">
-    <div id="joystick-knob"></div>
-  </div>
+    <div id="joystick-container">
+        <div id="joystick-knob"></div>
+    </div>
 </div>
 
-<a-scene>
+<a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance">
 
 <a-assets>
-  <a-asset-item id="forest" src="forest2.glb"></a-asset-item>
-  <a-asset-item id="avatar" src="luis-camina.glb"></a-asset-item>
+    <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
+    <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
 </a-assets>
 
-<a-entity light="type:ambient;intensity:1.2"></a-entity>
-<a-entity light="type:directional;intensity:0.8" position="5 20 5"></a-entity>
+<a-entity light="type: ambient; intensity: 1.2"></a-entity>
+<a-entity light="type: directional; intensity: 0.8" position="5 20 5"></a-entity>
 
-<a-entity gltf-model="#forest"></a-entity>
+<a-entity id="entorno" gltf-model="#forest-model"></a-entity>
 
 <!-- PLAYER -->
-<a-entity id="rig" position="0 0 0">
+<a-entity id="player-rig" position="0 0 0">
 
-  <a-entity
-    id="avatarMesh"
-    gltf-model="#avatar"
-    position="0 -1 0"
-    rotation="0 180 0"
-    animation-mixer="clip: *; loop: repeat; timeScale: 1; clampWhenFinished: false;">
-  </a-entity>
+    <a-entity
+        id="avatar-mesh"
+        gltf-model="#avatar-model"
+        position="0 -1 0"
+        rotation="0 180 0"
+        scale="1 1 1"
+        animation-mixer="clip: *; loop: repeat; timeScale: 1;">
+    </a-entity>
 
-  <a-entity position="0 1.6 0">
-    <a-entity camera position="0 0.6 3.5"></a-entity>
-  </a-entity>
+    <a-entity id="camera-orbit" position="0 1.6 0">
+        <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
+    </a-entity>
 
 </a-entity>
 
@@ -79,86 +129,92 @@ body { margin:0; overflow:hidden; background:#020617; }
 
 <script>
 
-const rig = document.getElementById("rig");
-const avatar = document.getElementById("avatarMesh");
+const knob = document.getElementById('joystick-knob');
+const rig = document.getElementById('player-rig');
+const cameraOrbit = document.getElementById('camera-orbit');
+const avatarMesh = document.getElementById('avatar-mesh');
+const mainCamera = document.getElementById('main-camera');
 
-let keys = {};
 let moveX = 0, moveY = 0;
 let camYaw = 0;
+let camPitch = -0.1;
+let camDist = 3.5;
+let arrowCam = { up:false, down:false, left:false, right:false };
 
-window.addEventListener("keydown", e => keys[e.key]=true);
-window.addEventListener("keyup", e => keys[e.key]=false);
+let keys = {};
 
-/* JOYSTICK SIMPLE */
-const knob = document.getElementById("joystick-knob");
+window.addEventListener('keydown', e => keys[e.key]=true);
+window.addEventListener('keyup', e => keys[e.key]=false);
+
+/* JOYSTICK */
 let dragging=false,startX=0,startY=0;
 
-knob.addEventListener("mousedown",e=>{
-  dragging=true;
-  startX=e.clientX;startY=e.clientY;
+knob.addEventListener('mousedown',e=>{
+    dragging=true;
+    startX=e.clientX;
+    startY=e.clientY;
 });
 
-window.addEventListener("mousemove",e=>{
-  if(!dragging)return;
-  let dx=e.clientX-startX;
-  let dy=e.clientY-startY;
+window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
 
-  const max=35;
-  dx=Math.max(-max,Math.min(max,dx));
-  dy=Math.max(-max,Math.min(max,dy));
+    let dx=e.clientX-startX;
+    let dy=e.clientY-startY;
 
-  knob.style.transform=`translate(${dx}px,${dy}px)`;
+    const max=35;
+    dx=Math.max(-max,Math.min(max,dx));
+    dy=Math.max(-max,Math.min(max,dy));
 
-  moveX=dx/max;
-  moveY=dy/max;
+    knob.style.transform=`translate(${dx}px,${dy}px)`;
+
+    moveX=dx/max;
+    moveY=dy/max;
 });
 
-window.addEventListener("mouseup",()=>{
-  dragging=false;
-  knob.style.transform="translate(0,0)";
-  moveX=0;moveY=0;
+window.addEventListener('mouseup',()=>{
+    dragging=false;
+    knob.style.transform="translate(0,0)";
+    moveX=0;moveY=0;
 });
 
-/* LOOP PRINCIPAL */
-function loop(){
+/* LOOP */
+function engineLoop(){
 
-  let inputX = moveX;
-  let inputY = moveY;
+    let inputX = moveX;
+    let inputY = moveY;
 
-  if(keys["w"]||keys["ArrowUp"])inputY=-1;
-  if(keys["s"]||keys["ArrowDown"])inputY=1;
-  if(keys["a"]||keys["ArrowLeft"])inputX=-1;
-  if(keys["d"]||keys["ArrowRight"])inputX=1;
+    if(keys.w||keys.ArrowUp)inputY=-1;
+    if(keys.s||keys.ArrowDown)inputY=1;
+    if(keys.a||keys.ArrowLeft)inputX=-1;
+    if(keys.d||keys.ArrowRight)inputX=1;
 
-  const moving = inputX!==0 || inputY!==0;
+    let isMoving = (inputX!==0 || inputY!==0);
 
-  // 🔥 FIX CLAVE: congelar root motion visualmente SIN romper controles
-  const pos = rig.object3D.position;
+    const pos = rig.object3D.position;
 
-  const speed = 0.05;
+    const speed = 0.05;
 
-  const fwdX = -Math.sin(camYaw);
-  const fwdZ = -Math.cos(camYaw);
-  const rgtX = Math.cos(camYaw);
-  const rgtZ = -Math.sin(camYaw);
+    const fwdX = -Math.sin(camYaw);
+    const fwdZ = -Math.cos(camYaw);
+    const rgtX = Math.cos(camYaw);
+    const rgtZ = -Math.sin(camYaw);
 
-  if(moving){
+    if(isMoving){
 
-    pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
-    pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
+        pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
+        pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
 
-    avatar.setAttribute("animation-mixer","timeScale",1);
+        avatarMesh.setAttribute("animation-mixer","timeScale",1);
 
-  } else {
+    } else {
 
-    avatar.setAttribute("animation-mixer","timeScale",0);
+        avatarMesh.setAttribute("animation-mixer","timeScale",0);
+    }
 
-  }
-
-  requestAnimationFrame(loop);
+    requestAnimationFrame(engineLoop);
 }
 
-loop();
+engineLoop();
 
 </script>
 
