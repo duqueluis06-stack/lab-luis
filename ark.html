@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ARK - Sistema de Control Profesional</title>
     
+    <!-- Motores Gráficos y de Animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
@@ -18,6 +19,7 @@
             user-select: none;
         }
 
+        /* HUD Cyberpunk de Telemetría */
         #ark-hud {
             position: absolute;
             top: 20px;
@@ -32,7 +34,7 @@
             padding: 12px 20px;
             border-radius: 8px;
             color: #f8fafc;
-            width: 220px;
+            width: 200px;
             backdrop-filter: blur(8px);
             box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
@@ -48,12 +50,13 @@
             margin-bottom: 6px;
         }
 
-        #hud-log {
+        #hud-status {
             font-size: 11px;
-            color: #94a3b8;
-            line-height: 1.4;
+            color: #00ffcc;
+            font-weight: 600;
         }
 
+        /* Controles: Joystick y Flechas */
         #control-wrapper {
             position: absolute;
             bottom: 30px;
@@ -120,13 +123,15 @@
 </head>
 <body>
 
+    <!-- Interfaz de Usuario (HUD) -->
     <div id="ark-hud">
         <div class="panel-cyber">
-            <div class="hud-header">RADAR DE AVATAR</div>
-            <div id="hud-log">Iniciando rastreo...</div>
+            <div class="hud-header">SISTEMA VIVERSE</div>
+            <div id="hud-status">SISTEMA ONLINE<br>Avatar: Activo (15MB)<br>Animación: Mixamo Walk</div>
         </div>
     </div>
 
+    <!-- Mapeo de Controles Visuales -->
     <div id="control-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -138,37 +143,37 @@
         </div>
     </div>
 
-    <!-- Se añade dracoDecoderPath para forzar la lectura de compresión de Avaturn -->
-    <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;" 
-             renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
-             loading-screen="enabled: false">
+    <!-- Escena 3D Realidad Virtual -->
+    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
         
         <a-assets>
             <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
+        <!-- Iluminación Global Balanceada -->
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Entorno / Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
+        <!-- RIG CENTRAL DEL JUGADOR (Posición inicial sobre el suelo) -->
         <a-entity id="player-rig" position="0 0.15 0">
             
-            <!-- Indicador Celeste -->
-            <a-ring color="#00f3ff" rotation="-90 0 0" radius-inner="0.4" radius-outer="0.5" position="0 0.02 0" material="shader: flat; transparent: true; opacity: 0.9;"></a-ring>
+            <!-- Indicador Celeste Base Opcional -->
+            <a-ring color="#00f3ff" rotation="-90 0 0" radius-inner="0.4" radius-outer="0.5" position="0 0.02 0" material="shader: flat; transparent: true; opacity: 0.8;"></a-ring>
 
-            <!-- Bloque Rosado Testigo -->
-            <a-box id="test-cube" color="#ff0055" position="0 0.5 0" scale="0.4 0.8 0.4"></a-box>
-
-            <!-- Avatar restablecido a escala 1 para medir su tamaño real con el script -->
+            <!-- Entidad del Avatar con Animación Activada -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
                       rotation="0 180 0" 
-                      scale="1 1 1">
+                      scale="1 1 1"
+                      animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
 
+            <!-- Sistema de Cámara Orbital Seguidora -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
             </a-entity>
@@ -182,64 +187,36 @@
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
-        const testCube = document.getElementById('test-cube');
-        const log = document.getElementById('hud-log');
 
-        // --- SISTEMA DE DIAGNÓSTICO EN PANTALLA ---
-        const avatarAsset = document.getElementById('avatar-model');
-
-        // Detectar si el navegador ni siquiera encuentra el archivo
-        avatarAsset.addEventListener('error', () => {
-            log.innerHTML = "<span style='color:#ff3333;'>ERROR 404:<br>El servidor no encuentra 'luis-camina.glb'. Revisa si está en la raíz de tu GitHub.</span>";
-        });
-
-        // Detectar si el archivo baja pero A-Frame no puede procesarlo
-        avatarMesh.addEventListener('gltf-model-error', (e) => {
-            log.innerHTML = "<span style='color:#ff9900;'>ERROR DE LECTURA:<br>A-Frame no pudo procesar los datos de este GLB. Estructura incompatible.</span>";
-        });
-
-        // Detectar si carga con éxito y medir sus dimensiones en tiempo real
-        avatarMesh.addEventListener('model-loaded', () => {
-            const obj = avatarMesh.getObject3D('mesh');
-            if (obj) {
-                const box = new THREE.Box3().setFromObject(obj);
-                const size = new THREE.Vector3();
-                box.getSize(size);
-                
-                log.innerHTML = `<span style='color:#00ffcc;'>¡AVATAR DETECTADO!<br>
-                                 Alto: ${size.y.toFixed(2)} metros<br>
-                                 Ancho: ${size.x.toFixed(2)} metros<br>
-                                 Malla tridimensional cargada.</span>`;
-                
-                // Si el HUD dice que mide más de 5 metros, sabremos que hay que meterle escala 0.01
-                if (size.y > 5) {
-                    log.innerHTML += "<br><span style='color:#ffff00;'>Aviso: El modelo es gigante. Reduciendo escala automáticamente...</span>";
-                    avatarMesh.setAttribute('scale', '0.01 0.01 0.01');
-                }
-            } else {
-                log.innerHTML = "<span style='color:#ffff00;'>Archivo cargado, pero no se encontró ninguna malla geométrica legible dentro.</span>";
-            }
-        });
-
-        // --- CONTROLES Y BUCLE DE MOVIMIENTO ---
         let moveX = 0, moveY = 0;
         let joyDragging = false;
         let joyStartX, joyStartY;
+
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
 
+        // 1. CONTROL POR BOTONES / FLECHAS (PANTALLAS TÁCTILES O CLICS)
         const arrowConfig = {
-            'btn-up': { x: 0, y: -1 }, 'btn-down': { x: 0, y: 1 },
-            'btn-left': { x: -1, y: 0 }, 'btn-right': { x: 1, y: 0 }
+            'btn-up': { x: 0, y: -1 },
+            'btn-down': { x: 0, y: 1 },
+            'btn-left': { x: -1, y: 0 },
+            'btn-right': { x: 1, y: 0 }
         };
 
         Object.keys(arrowConfig).forEach(id => {
             const btn = document.getElementById(id);
             const data = arrowConfig[id];
-            const startPress = (e) => { e.stopPropagation(); moveX = data.x; moveY = data.y; };
+
+            const startPress = (e) => {
+                e.stopPropagation();
+                moveX = data.x;
+                moveY = data.y;
+            };
+
             const endPress = () => { moveX = 0; moveY = 0; };
+
             btn.addEventListener('mousedown', startPress);
             btn.addEventListener('touchstart', startPress);
             btn.addEventListener('mouseup', endPress);
@@ -247,10 +224,12 @@
             btn.addEventListener('mouseleave', endPress);
         });
 
+        // 2. CONTROL POR JOYSTICK DINÁMICO
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
-            joyStartX = point.clientX; joyStartY = point.clientY;
+            joyStartX = point.clientX;
+            joyStartY = point.clientY;
             e.stopPropagation();
         }
 
@@ -259,18 +238,26 @@
             const point = e.touches ? e.touches[0] : e;
             let dx = point.clientX - joyStartX;
             let dy = point.clientY - joyStartY;
+
             const maxLen = 30;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+
+            if (dist > maxLen) {
+                dx = (dx / dist) * maxLen;
+                dy = (dy / dist) * maxLen;
+            }
+
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            moveX = dx / maxLen; moveY = dy / maxLen;
+            moveX = dx / maxLen;
+            moveY = dy / maxLen;
             e.stopPropagation();
         }
 
         function onJoyEnd() {
             joyDragging = false;
             knob.style.transform = 'translate(0px, 0px)';
-            moveX = 0; moveY = 0;
+            moveX = 0;
+            moveY = 0;
         }
 
         knob.addEventListener('touchstart', onJoyStart);
@@ -280,36 +267,50 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
+        // 3. ROTACIÓN DE CÁMARA (ARRASTRE DE PANTALLA)
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#control-wrapper') || e.target.closest('#ark-hud')) return;
-            mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
+            mouseDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!mouseDragging) return;
-            let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
-            prevMouseX = e.clientX; prevMouseY = e.clientY;
-            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+            let deltaX = e.clientX - prevMouseX;
+            let deltaY = e.clientY - prevMouseY;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+
+            camYaw -= deltaX * 0.005;
+            camPitch -= deltaY * 0.004;
             camPitch = Math.max(-0.5, Math.min(0.2, camPitch));
+
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
         });
 
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
+        // 4. BUCLE DE FÍSICAS Y ORIENTACIÓN LOGÍSTICA
         function engineLoop() {
             if (moveX !== 0 || moveY !== 0) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.08; 
-                const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
-                const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
+                const speed = 0.07; // Velocidad de traslación del avatar por el bosque
+
+                // Calcular vectores directores relativos al ángulo de la cámara
+                const fwdX = -Math.sin(camYaw);
+                const fwdZ = -Math.cos(camYaw);
+                const rgtX = Math.cos(camYaw);
+                const rgtZ = -Math.sin(camYaw);
+
                 pos.x += (fwdX * -moveY + rgtX * moveX) * speed;
                 pos.z += (fwdZ * -moveY + rgtZ * moveX) * speed;
                 rig.setAttribute('position', pos);
+
+                // Orientar el cuerpo del avatar hacia la dirección exacta del movimiento
                 const angle = Math.atan2(moveX, -moveY);
-                const targetRotation = camYaw + angle + Math.PI;
-                avatarMesh.object3D.rotation.y = targetRotation;
-                testCube.object3D.rotation.y = targetRotation;
+                avatarMesh.object3D.rotation.y = camYaw + angle + Math.PI;
             }
             requestAnimationFrame(engineLoop);
         }
