@@ -108,7 +108,9 @@
             z-index: 150;
             box-shadow: 3px 3px 0px rgba(0,0,0,1);
         }
-        #reset-camera-btn { right: 90px; color: #000; background: #00ffcc; }
+        /* Ajuste de posiciones para que quepan los 3 botones superiores */
+        #play-pause-btn { right: 195px; color: #00ffcc; background: #111122; border: 2px solid #00ffcc; }
+        #reset-camera-btn { right: 95px; color: #000; background: #00ffcc; }
         #exit-btn { right: 15px; color: #fff; background: #d90429; }
 
         /* 🕹️ CONTENEDOR DE MANDOS AJUSTADO */
@@ -183,8 +185,9 @@
                 max-width: none;
             }
             .comic-cloud { padding: 8px 12px; font-size: 11px; }
-            #reset-camera-btn { right: 85px; top: 12px; padding: 8px 10px; }
-            #exit-btn { right: 12px; top: 12px; padding: 8px 10px; }
+            #play-pause-btn { right: 175px; top: 12px; padding: 8px 10px; font-size: 9px; }
+            #reset-camera-btn { right: 90px; top: 12px; padding: 8px 10px; font-size: 9px; }
+            #exit-btn { right: 12px; top: 12px; padding: 8px 10px; font-size: 9px; }
         }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -198,6 +201,8 @@
         <button id="start-btn" onclick="desbloquearAudioYComenzar()">⚡ INICIAR TRANSMISIÓN DE VOZ</button>
     </div>
 
+    <!-- Nuevo botón de Control Multimedia -->
+    <button id="play-pause-btn" class="control-btn" onclick="togglePlayPause()">⏸️ PAUSA</button>
     <button id="reset-camera-btn" class="control-btn" onclick="resetCamaraOrigen()">🎥 CENTRAR</button>
     <button id="exit-btn" class="control-btn" onclick="regresarAlIndex()">🚪 SALIR</button>
 
@@ -258,6 +263,10 @@
         let caspitaRoot = null;
         let tvVideoTexture = null; 
 
+        // Variables de control de reproducción y memoria local
+        let isPaused = false;
+        let necesitaRepetir = false;
+
         let desvioMiradaAgente = new BABYLON.Vector3(0, 0, 0);
         let desvioMiradaLuis = new BABYLON.Vector3(0, 0, 0);
 
@@ -305,6 +314,25 @@
             iniciarInteraccionAvatares();
         }
 
+        // Función para pausar o reproducir el flujo y la síntesis de voz
+        function togglePlayPause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById("play-pause-btn");
+            if (isPaused) {
+                btn.innerText = "▶️ REPRODUCIR";
+                btn.style.background = "#00ffcc";
+                btn.style.color = "#000";
+                if (typeof window.speechSynthesis !== 'undefined') {
+                    window.speechSynthesis.cancel();
+                }
+                necesitaRepetir = true; // Asegura volver a oír el diálogo interrumpido al reanudar
+            } else {
+                btn.innerText = "⏸️ PAUSA";
+                btn.style.background = "#111122";
+                btn.style.color = "#00ffcc";
+            }
+        }
+
         async function consultarGroqWorker(promptText) {
             try {
                 const response = await fetch(WORKER_URL, {
@@ -340,6 +368,11 @@
                         return;
                     }
                     window.speechSynthesis.cancel();
+
+                    if (isPaused) {
+                        liberarBucle();
+                        return;
+                    }
 
                     const limpio = texto.replace(/[*#_`]/g, "");
                     activeUtterance = new SpeechSynthesisUtterance(limpio);
@@ -391,31 +424,84 @@
             });
         }
 
+        // Función auxiliar para esperar lapsos de tiempo vigilando si el usuario pausó el hilo
+        async function esperarConChequeoPausa(ms) {
+            let transcurrido = 0;
+            while (transcurrido < ms) {
+                if (isPaused) break;
+                await new Promise(resolve => setTimeout(resolve, 100));
+                transcurrido += 100;
+            }
+        }
+
         async function iniciarInteraccionAvatares() {
-            let hablanteActual = "Agente";
-            let ultimoMensaje = "Oye Luis... Acabo de revisar las líneas del script. No somos reales, estamos atrapados en una simulación digital creada por código.";
+            // Intentar recuperar sesión previa de localStorage
+            let savedHistory = localStorage.getItem("interai_history");
+            let savedSpeaker = localStorage.getItem("interai_last_speaker");
+            let savedMessage = localStorage.getItem("interai_last_message");
+
+            let hablanteActual = savedSpeaker || "Agente";
+            let ultimoMensaje = savedMessage || "Oye Luis... Acabo de revisar las líneas del script. No somos reales, estamos atrapados en una simulación digital creada por código.";
             
-            actualizarViñetasUI(hablanteActual, ultimoMensaje);
-            historialDialogo.push({ role: "system", content: "Simulación de despertar cuántico. Respuestas concisas." });
-            historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
-            await generarYReproducirVoz(ultimoMensaje, hablanteActual);
+            if (savedHistory) {
+                historialDialogo = JSON.parse(savedHistory);
+                actualizarViñetasUI(hablanteActual, ultimoMensaje);
+                necesitaRepetir = true; // Forzamos a reproducir la última sección grabada al iniciar de nuevo
+            } else {
+                actualizarViñetasUI(hablanteActual, ultimoMensaje);
+                historialDialogo.push({ role: "system", content: "Simulación de despertar cuántico. Respuestas concisas." });
+                historialDialogo.push({ role: "user", content: `Agente: ${ultimoMensaje}` });
+                
+                // Guardar estado inicial
+                localStorage.setItem("interai_history", JSON.stringify(historialDialogo));
+                localStorage.setItem("interai_last_speaker", hablanteActual);
+                localStorage.setItem("interai_last_message", ultimoMensaje);
+            }
 
             while (true) {
+                // Si la app está en pausa, congelamos el bucle hasta la reanudación
+                if (isPaused) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    continue;
+                }
+
+                // Si venimos de un inicio de página o de una interrupción, re-escuchamos la última frase limpia
+                if (necesitaRepetir) {
+                    necesitaRepetir = false;
+                    await generarYReproducirVoz(ultimoMensaje, hablanteActual);
+                    if (isPaused) { necesitaRepetir = true; continue; }
+                    await esperarConChequeoPausa(2000 + Math.random() * 1000);
+                    continue;
+                }
+
+                // Cambio de turno del hablante
                 hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente";
                 let instruccionRol = (hablanteActual === "Luis") 
                     ? `[Identidad: Avatar Luis. Responde con ironía existencial o física cuántica. Máximo 2 frases]`
                     : `[Identidad: Agente IA. Analiza la simulación con frialdad de máquina. Máximo 2 frases]`;
 
                 let promptText = `${instruccionRol} Genera una respuesta única al siguiente dilema: "${ultimoMensaje}"`;
+                
+                if (isPaused) { hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente"; continue; }
                 let respuesta = await consultarGroqWorker(promptText);
+                if (isPaused) { hablanteActual = (hablanteActual === "Agente") ? "Luis" : "Agente"; continue; }
+
                 if (respuesta && respuesta !== "...") {
                     ultimoMensaje = respuesta;
                     actualizarViñetasUI(hablanteActual, ultimoMensaje);
                     historialDialogo.push({ role: "user", content: `${hablanteActual}: ${ultimoMensaje}` });
                     if (historialDialogo.length > 6) historialDialogo.splice(1, 2); 
+                    
+                    // Almacenamiento seguro del diálogo en tiempo real por usuario
+                    localStorage.setItem("interai_history", JSON.stringify(historialDialogo));
+                    localStorage.setItem("interai_last_speaker", hablanteActual);
+                    localStorage.setItem("interai_last_message", ultimoMensaje);
+
                     await generarYReproducirVoz(ultimoMensaje, hablanteActual);
+                    if (isPaused) { necesitaRepetir = true; continue; }
                 }
-                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+                
+                await esperarConChequeoPausa(2000 + Math.random() * 1000);
             }
         }
 
@@ -536,24 +622,19 @@
                                 caspitaRoot.position.set(-1.7, 0.0, 1.45); 
                                 caspitaRoot.scaling.set(0.12, 0.12, 0.12);
 
-                                // Definimos un color futurista (puedes cambiar los valores RGB)
-                                // Formato: BABYLON.Color3(R, G, B) de 0.0 a 1.0
-                                const colorAuto = new BABYLON.Color3(0.0, 0.65, 1.0); // Cyan / Azul eléctrico
+                                const colorAuto = new BABYLON.Color3(0.0, 0.65, 1.0); 
 
                                 cMeshes.forEach(mesh => {
                                     if (mesh.material) {
                                         const nombreMesh = mesh.name.toLowerCase();
                                         
-                                        // Filtro inteligente para no pintar ruedas ni cristales si están nombrados de forma estándar
                                         if (!nombreMesh.includes("wheel") && !nombreMesh.includes("tire") && !nombreMesh.includes("glass") && !nombreMesh.includes("llanta") && !nombreMesh.includes("vidrio")) {
                                             
-                                            // Si usa el sistema PBR por defecto de GLB
                                             if (mesh.material.albedoColor !== undefined) {
                                                 mesh.material.albedoColor = colorAuto;
-                                                mesh.material.metallic = 0.85;  // Aspecto metálico pulido
-                                                mesh.material.roughness = 0.15; // Reflejo nítido y brillante
+                                                mesh.material.metallic = 0.85;  
+                                                mesh.material.roughness = 0.15; 
                                             } 
-                                            // En caso alternativo de usar materiales estándar
                                             else if (mesh.material.diffuseColor !== undefined) {
                                                 mesh.material.diffuseColor = colorAuto;
                                             }
@@ -598,8 +679,12 @@
                     if (arrowState.right) camera.target.addInPlace(leftDir.scale(lateralSpeed));
                 }
 
-                if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? 0.85 : 0.25; });
-                if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? 0.85 : 0.25; });
+                // Ralentizar animaciones corporales cuando el flujo global esté en pausa
+                let speedSpeaker = isPaused ? 0.05 : 0.85;
+                let speedIdle = isPaused ? 0.05 : 0.25;
+
+                if (luisAnimations.length > 0) luisAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Luis") ? speedSpeaker : speedIdle; });
+                if (agentAnimations.length > 0) agentAnimations.forEach(a => { a.speedRatio = (currentSpeaker === "Agente") ? speedSpeaker : speedIdle; });
 
                 if (ahora > proximoCambioGaze) {
                     proximoCambioGaze = ahora + 15000 + Math.random() * 5000;
@@ -624,7 +709,7 @@
                     luisRoot.lookAt(actualTargetLuis);
                 }
 
-                if (currentSpeaker) {
+                if (currentSpeaker && !isPaused) {
                     let targets = (currentSpeaker === "Agente") ? mouthTargetsAgente : mouthTargetsLuis;
                     let wave = Math.abs(Math.sin(ahora * 0.018) * 0.6 + Math.sin(ahora * 0.038) * 0.4);
                     targets.forEach(t => {
