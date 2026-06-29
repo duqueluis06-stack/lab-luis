@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Control Híbrido Profesional</title>
+    <title>ARK - Sistema de Control Total</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -29,7 +29,7 @@
             z-index: 999;
         }
 
-        /* JOYSTICK ANALÓGICO - ABAJO A LA DERECHA (ALTURA ERGONÓMICA) */
+        /* JOYSTICK ANALÓGICO - ABAJO A LA DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -63,7 +63,6 @@
             touch-action: none;
         }
 
-        /* Estilo común de botones de la cruceta */
         .joy-arrow {
             position: absolute;
             background: rgba(15, 23, 42, 0.7);
@@ -78,7 +77,6 @@
             align-items: center;
             justify-content: center;
             touch-action: none;
-            transition: background 0.1s;
         }
 
         .joy-arrow:active {
@@ -126,7 +124,8 @@
                       position="0 -1.0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
-                      animation-mixer="clip: *; loop: repeat; timeScale: 0; crossFadeDuration: 0.2">
+                      gltf-in-place
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
             <a-entity id="camera-orbit" position="0 1.6 0">
@@ -138,29 +137,86 @@
     </a-scene>
 
     <script>
+        // --- COMPONENTE INNOVADOR: ELIMINADOR DE MOVIMIENTO INTERNO DEL GLB ---
+        AFRAME.registerComponent('gltf-in-place', {
+            init: function () {
+                this.el.addEventListener('model-loaded', () => {
+                    const mesh = this.el.getObject3D('mesh');
+                    if (!mesh || !mesh.animations) return;
+                    
+                    // Rastreamos y neutralizamos las pistas de posición (X, Y, Z) que hacen que el avatar vuele o salte solo
+                    mesh.animations.forEach(clip => {
+                        clip.tracks.forEach(track => {
+                            if (track.name.toLowerCase().includes('position')) {
+                                for (let i = 0; i < track.values.length; i++) {
+                                    track.values[i] = 0; // Forzado absoluto a posición cero local
+                                }
+                            }
+                        });
+                    });
+                    
+                    // Forzar reinicio limpio del mezclador de animaciones
+                    setTimeout(() => {
+                        if (this.el.components['animation-mixer']) {
+                            this.el.removeAttribute('animation-mixer');
+                            this.el.setAttribute('animation-mixer', 'clip: *; loop: repeat; timeScale: 0;');
+                        }
+                    }, 50);
+                });
+            }
+        });
+
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
+        const mainCamera = document.getElementById('main-camera');
 
-        // Estado Entradas de Movimiento (Teclado + Joystick)
+        // Configuración de Entrada y Estados
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        
-        // Estado del Joystick Táctil
         let joyDragging = false;
         let joyStartX, joyStartY;
 
-        // Estado de la Cámara (Ratón + Botones Izquierdos)
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
+        let camDist = 3.5; // Distancia base de la cámara
         let arrowCam = { up: false, down: false, left: false, right: false };
-
         let wasMoving = false;
 
-        // 1. CONTROL DE CÁMARA POR ASISTENCIA (FLECHAS IZQUIERDAS)
+        // 1. SISTEMA DE ZOOM SEGURO (PC: Rueda del ratón / Móvil: Pellizco)
+        window.addEventListener('wheel', (e) => {
+            camDist += e.deltaY * 0.005;
+            camDist = Math.max(1.5, Math.min(8.0, camDist)); // Límites de zoom
+            mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+        }, { passive: true });
+
+        let initialTouchDist = 0;
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                let dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (initialTouchDist === 0) {
+                    initialTouchDist = dist;
+                } else {
+                    let delta = initialTouchDist - dist;
+                    camDist += delta * 0.01;
+                    camDist = Math.max(1.5, Math.min(8.0, camDist));
+                    mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+                    initialTouchDist = dist;
+                }
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) initialTouchDist = 0;
+        });
+
+        // 2. CONTROLES DE CÁMARA (FLECHAS IZQUIERDAS)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -172,19 +228,17 @@
             btn.addEventListener('touchend', end, {passive: false});
             btn.addEventListener('mouseleave', end);
         };
-
         setupArrowCamera('btn-up', 'up');
         setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // 2. MANDO ANALÓGICO DERECHO (TOUCH / MOUSE)
+        // 3. JOYSTICK ANALÓGICO DERECHO
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
             joyStartX = point.clientX; joyStartY = point.clientY;
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
         }
 
         function onJoyMove(e) {
@@ -200,16 +254,13 @@
             
             moveX = dx / maxLen; 
             moveY = dy / maxLen;
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
         }
 
         function onJoyEnd(e) {
             if(!joyDragging) return;
-            joyDragging = false; 
-            knob.style.transform = 'translate(0px, 0px)';
-            moveX = 0; 
-            moveY = 0;
+            joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0; moveY = 0;
             if(e && e.cancelable) e.preventDefault();
         }
 
@@ -220,11 +271,11 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // 3. CAPTURA DE TECLADO (PC)
+        // 4. TECLADO PC
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // 4. CONTROL DE CÁMARA POR ARRASTRE DIRECTO EN PANTALLA
+        // 5. ROTACIÓN POR ARRASTRE DIRECTO EN PANTALLA
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -237,14 +288,13 @@
         });
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // INTERFAZ TÁCTIL DIRECTA DE CÁMARA PARA MÓVIL
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             const touch = e.touches[0];
             mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
         }, {passive: true});
         window.addEventListener('touchmove', (e) => {
-            if (!mouseDragging) return;
+            if (!mouseDragging || e.touches.length > 1) return;
             const touch = e.touches[0];
             let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
             prevMouseX = touch.clientX; prevMouseY = touch.clientY;
@@ -252,9 +302,8 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // 5. NÚCLEO Y PROCESAMIENTO GENERAL
+        // 6. MOTOR DE EJECUCIÓN CONTINUA
         function engineLoop() {
-            // A. Rotación precisa de cámara
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch += 0.01;
@@ -264,10 +313,7 @@
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            // B. Procesamiento de Teclado PC
-            let inputX = moveX;
-            let inputY = moveY;
-
+            let inputX = moveX; let inputY = moveY;
             if (keys.w || keys.ArrowUp) inputY = -1;
             if (keys.s || keys.ArrowDown) inputY = 1;
             if (keys.a || keys.ArrowLeft) inputX = -1;
@@ -275,7 +321,6 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // Control nativo de reproducción (Evita saltos bruscos a pose T)
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
                 wasMoving = isMoving;
@@ -283,7 +328,7 @@
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.05; 
+                const speed = 0.04; 
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
@@ -292,7 +337,6 @@
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
                 rig.setAttribute('position', pos);
 
-                // Interpolación suave del ángulo de giro
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
