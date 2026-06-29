@@ -19,14 +19,14 @@
             -webkit-user-select: none;
         }
 
-        /* CONSOLA DE DIAGNÓSTICO EN PANTALLA */
+        /* CONSOLA DE DIAGNÓSTICO EN VIVO */
         #debug-console {
             position: absolute;
             top: 10px;
             left: 10px;
             right: 10px;
-            max-height: 90px;
-            background: rgba(15, 23, 42, 0.85);
+            max-height: 120px;
+            background: rgba(15, 23, 42, 0.95);
             border: 1px solid #00f3ff;
             color: #00f3ff;
             font-family: monospace;
@@ -39,62 +39,11 @@
             backdrop-filter: blur(4px);
         }
 
-        #arrows-wrapper {
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            width: 100px;
-            height: 100px;
-            z-index: 999;
-        }
-
-        #joystick-wrapper {
-            position: absolute;
-            bottom: 40px; 
-            right: 40px;
-            width: 100px;
-            height: 100px;
-            z-index: 999;
-        }
-
-        #joystick-container {
-            width: 100px;
-            height: 100px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 2px solid #00f3ff;
-            border-radius: 50%;
-            touch-action: none;
-            position: relative;
-        }
-
-        #joystick-knob {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            width: 40px;
-            height: 40px;
-            background: #00f3ff;
-            border-radius: 50%;
-            box-shadow: 0 0 15px #00f3ff;
-            cursor: pointer;
-            touch-action: none;
-        }
-
-        .joy-arrow {
-            position: absolute;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid #00f3ff;
-            color: #00f3ff;
-            border-radius: 8px;
-            width: 32px;
-            height: 32px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: none;
-        }
-
+        #arrows-wrapper { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 999; }
+        #joystick-wrapper { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; z-index: 999; }
+        #joystick-container { width: 100px; height: 100px; background: rgba(15, 23, 42, 0.6); border: 2px solid #00f3ff; border-radius: 50%; touch-action: none; position: relative; }
+        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #00f3ff; border-radius: 50%; box-shadow: 0 0 15px #00f3ff; cursor: pointer; touch-action: none; }
+        .joy-arrow { position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid #00f3ff; color: #00f3ff; border-radius: 8px; width: 32px; height: 32px; font-size: 14px; display: flex; align-items: center; justify-content: center; touch-action: none; }
         .arrow-up { top: 0; left: 34px; }
         .arrow-down { bottom: 0; left: 34px; }
         .arrow-left { left: 0; top: 34px; }
@@ -103,7 +52,7 @@
 </head>
 <body>
 
-    <div id="debug-console">SISTEMA: Conectando con puente CORS alternativo...</div>
+    <div id="debug-console">SISTEMA: Inicializando entorno virtual...</div>
 
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
@@ -121,14 +70,9 @@
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false"
-             loading-screen="enabled: true; dotsColor: #00f3ff; backgroundColor: #020617">
+             loading-screen="enabled: false">
         
-        <a-assets timeout="90000">
-            <!-- Pasamos tu URL de la release por el túnel de corsproxy.io para burlar el bloqueo móvil -->
-            <a-asset-item id="forest-model" 
-                          src="https://corsproxy.io/?https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb" 
-                          crossorigin="anonymous"></a-asset-item>
-            
+        <a-assets>
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
@@ -137,10 +81,8 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Escenario Real -->
-        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
+        <a-entity id="entorno" position="0 0 0"></a-entity>
 
-        <!-- RIG DE CONTROL -->
         <a-entity id="player-rig" position="0 0 0">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
@@ -165,25 +107,76 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        // Captura errores de scripts nativos
+        // CONTROL GLOBAL DE EXCEPCIONES
         window.addEventListener('error', function(e) {
-            if (e.message) showLog('ERROR SCRIPT: ' + e.message, true);
+            if (e.message) showLog('ERROR INTERNO: ' + e.message, true);
         }, true);
 
-        document.querySelector('a-scene').addEventListener('loaded', function () {
-            showLog('SISTEMA: Motor de renderizado listo. Descargando mapa...');
-        });
+        // NÚCLEO DEL PROYECTO: DESCARGA SUBTERRÁNEA Y CONVERSIÓN BINARIA (BLOB)
+        async function descargarMapaDesdeRelease() {
+            const urlRelease = 'https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb';
+            
+            try {
+                showLog('CONEXIÓN: Solicitando mapa a GitHub Releases...');
+                
+                // Fetch explícito configurado para resolver redirecciones cruzadas en móviles
+                const respuesta = await fetch(urlRelease, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                if (!respuesta.ok) {
+                    throw new Error(`HTTP ${respuesta.status} - Rechazado por origen.`);
+                }
+                
+                showLog('PROCESO: Descargando búfer de datos binarios...');
+                const datosBlob = await respuesta.blob();
+                
+                // Creamos una URL virtual idéntica a un archivo local en el teléfono
+                const urlLocalBlob = URL.createObjectURL(datosBlob);
+                
+                showLog('ÉXITO: Datos descargados. Inicializando geometría del bosque...');
+                
+                // Insertamos la dirección local directamente en la entidad del mapa
+                const entorno = document.getElementById('entorno');
+                entorno.setAttribute('gltf-model', urlLocalBlob);
+                
+            } catch (error) {
+                showLog('ADVERTENCIA: Redirección directa bloqueada por el navegador móvil.', true);
+                showLog('Activando pasarela de datos AllOrigins...');
+                
+                // Pasarela secundaria en caliente para burlar las cabeceras móviles de GitHub
+                try {
+                    const urlPasarela = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlRelease)}`;
+                    const respuestaPasarela = await fetch(urlPasarela);
+                    if (!respuestaPasarela.ok) throw new Error('Pasarela denegada.');
+                    
+                    const datosBlobPasarela = await respuestaPasarela.blob();
+                    const urlLocalBlobPasarela = URL.createObjectURL(datosBlobPasarela);
+                    
+                    showLog('ÉXITO (Pasarela): Mapa extraído correctamente.');
+                    document.getElementById('entorno').setAttribute('gltf-model', urlLocalBlobPasarela);
+                } catch (errPasarela) {
+                    showLog('ERROR CRÍTICO: Bloqueo de red infranqueable en este navegador móvil.', true);
+                }
+            }
+        }
 
-        // Corregido: El error del mapa se escucha en la entidad '#entorno'
-        document.getElementById('entorno').addEventListener('gltf-model-error', function() {
-            showLog('ERROR: El navegador rechazó el mapa incluso con proxy.', true);
-        });
-
+        // CONFIRMACIÓN DE RENDERIZADO EN MOTOR AFRAME
         document.getElementById('entorno').addEventListener('model-loaded', function() {
-            showLog('ÉXITO: ¡Mapa Forest7 cargado y renderizado con éxito!');
+            showLog('SISTEMA: ¡Escenario Forest7 renderizado al 100%! Listo.');
+        });
+        document.getElementById('entorno').addEventListener('gltf-model-error', function() {
+            showLog('ERROR MOTOR: Error estructural al procesar el GLB.', true);
         });
 
-        // Configuración de controles e inercias de movimiento
+        // Lanzar la descarga una vez la infraestructura base de A-Frame esté activa
+        document.querySelector('a-scene').addEventListener('loaded', function () {
+            descargarMapaDesdeRelease();
+        });
+
+        // ARQUITECTURA DE CONTROL DE AVATAR Y CÁMARA (JOYSTICK E INERCIAS)
         const VELOCIDAD_AVANCE = 0.12;   
         const VELOCIDAD_PIERNAS = 0.65;  
 
@@ -200,7 +193,7 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ZOOM TÁCTIL
+        // ZOOM TÁCTIL DOS DEDOS
         let initialTouchDist = 0;
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
@@ -217,18 +210,16 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // BOTONES DE CÁMARA (IZQUIERDA)
+        // BOTONES DE ORIENTACIÓN RÁPIDA (IZQUIERDA)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
-            const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
-            const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
-            btn.addEventListener('touchstart', start, {passive: false});
-            btn.addEventListener('touchend', end, {passive: false});
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; }, {passive: false});
+            btn.addEventListener('touchend', (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; }, {passive: false});
         };
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK TÁCTIL (DERECHA)
+        // DIRECCIONAMIENTO TÁCTIL (DERECHA)
         knob.addEventListener('touchstart', (e) => {
             joyDragging = true; const touch = e.touches[0];
             joyStartX = touch.clientX; joyStartY = touch.clientY;
@@ -251,7 +242,7 @@
             moveX = 0; moveY = 0;
         });
 
-        // VISTA ORBITAL (ARRASTRE PANTALLA)
+        // ARRASTRE DE VISTA DE CÁMARA
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             const touch = e.touches[0]; mouseDragging = true;
