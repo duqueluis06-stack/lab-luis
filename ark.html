@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Conexión Segura Forest7</title>
+    <title>ARK - Entorno Forest7 Estable</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,29 +19,9 @@
             -webkit-user-select: none;
         }
 
-        /* CONSOLA DE DIAGNÓSTICO EN VIVO */
-        #debug-console {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            max-height: 120px;
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid #00f3ff;
-            color: #00f3ff;
-            font-family: monospace;
-            font-size: 11px;
-            padding: 8px;
-            border-radius: 6px;
-            z-index: 10000;
-            overflow-y: auto;
-            pointer-events: none;
-            backdrop-filter: blur(4px);
-        }
-
         #arrows-wrapper { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 999; }
         #joystick-wrapper { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; z-index: 999; }
-        #joystick-container { width: 100px; height: 100px; background: rgba(15, 23, 42, 0.6); border: 2px solid #00f3ff; border-radius: 50%; touch-action: none; position: relative; }
+        #joystick-container { width: 100px; height: 100px; background: rgba(15, 23, 42, 0.6); border: 2px solid #00f3ff; border-radius: 50%; touch-action: none; position: relative; backdrop-filter: blur(4px); }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #00f3ff; border-radius: 50%; box-shadow: 0 0 15px #00f3ff; cursor: pointer; touch-action: none; }
         .joy-arrow { position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid #00f3ff; color: #00f3ff; border-radius: 8px; width: 32px; height: 32px; font-size: 14px; display: flex; align-items: center; justify-content: center; touch-action: none; }
         .arrow-up { top: 0; left: 34px; }
@@ -51,8 +31,6 @@
     </style>
 </head>
 <body>
-
-    <div id="debug-console">SISTEMA: Inicializando entorno virtual...</div>
 
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
@@ -67,12 +45,18 @@
         </div>
     </div>
 
+    <!-- Pantalla de carga nativa activada para esperar los 53MB tranquilamente -->
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false"
-             loading-screen="enabled: false">
+             loading-screen="enabled: true; dotsColor: #00f3ff; backgroundColor: #020617">
         
-        <a-assets>
+        <a-assets timeout="90000">
+            <!-- REEMPLAZA ESTA URL POR LA TUYA DIRECTA DE HUGGING FACE -->
+            <a-asset-item id="forest-model" 
+                          src="https://huggingface.co/datasets/TU_USUARIO/TU_REPOSITORIO/resolve/main/forest7.glb" 
+                          crossorigin="anonymous"></a-asset-item>
+            
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
@@ -81,7 +65,8 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <a-entity id="entorno" position="0 0 0"></a-entity>
+        <!-- El mapa ahora cargará directamente de forma nativa -->
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
         <a-entity id="player-rig" position="0 0 0">
             <a-entity id="avatar-mesh" 
@@ -100,83 +85,6 @@
     </a-scene>
 
     <script>
-        const consoleDiv = document.getElementById('debug-console');
-        function showLog(text, isError = false) {
-            const color = isError ? '#ff0055' : '#00f3ff';
-            consoleDiv.innerHTML += `<br><span style="color:${color}">${text}</span>`;
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
-
-        // CONTROL GLOBAL DE EXCEPCIONES
-        window.addEventListener('error', function(e) {
-            if (e.message) showLog('ERROR INTERNO: ' + e.message, true);
-        }, true);
-
-        // NÚCLEO DEL PROYECTO: DESCARGA SUBTERRÁNEA Y CONVERSIÓN BINARIA (BLOB)
-        async function descargarMapaDesdeRelease() {
-            const urlRelease = 'https://github.com/duqueluis06-stack/lab-luis/releases/download/v1/forest7.glb';
-            
-            try {
-                showLog('CONEXIÓN: Solicitando mapa a GitHub Releases...');
-                
-                // Fetch explícito configurado para resolver redirecciones cruzadas en móviles
-                const respuesta = await fetch(urlRelease, {
-                    method: 'GET',
-                    mode: 'cors',
-                    credentials: 'omit'
-                });
-                
-                if (!respuesta.ok) {
-                    throw new Error(`HTTP ${respuesta.status} - Rechazado por origen.`);
-                }
-                
-                showLog('PROCESO: Descargando búfer de datos binarios...');
-                const datosBlob = await respuesta.blob();
-                
-                // Creamos una URL virtual idéntica a un archivo local en el teléfono
-                const urlLocalBlob = URL.createObjectURL(datosBlob);
-                
-                showLog('ÉXITO: Datos descargados. Inicializando geometría del bosque...');
-                
-                // Insertamos la dirección local directamente en la entidad del mapa
-                const entorno = document.getElementById('entorno');
-                entorno.setAttribute('gltf-model', urlLocalBlob);
-                
-            } catch (error) {
-                showLog('ADVERTENCIA: Redirección directa bloqueada por el navegador móvil.', true);
-                showLog('Activando pasarela de datos AllOrigins...');
-                
-                // Pasarela secundaria en caliente para burlar las cabeceras móviles de GitHub
-                try {
-                    const urlPasarela = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlRelease)}`;
-                    const respuestaPasarela = await fetch(urlPasarela);
-                    if (!respuestaPasarela.ok) throw new Error('Pasarela denegada.');
-                    
-                    const datosBlobPasarela = await respuestaPasarela.blob();
-                    const urlLocalBlobPasarela = URL.createObjectURL(datosBlobPasarela);
-                    
-                    showLog('ÉXITO (Pasarela): Mapa extraído correctamente.');
-                    document.getElementById('entorno').setAttribute('gltf-model', urlLocalBlobPasarela);
-                } catch (errPasarela) {
-                    showLog('ERROR CRÍTICO: Bloqueo de red infranqueable en este navegador móvil.', true);
-                }
-            }
-        }
-
-        // CONFIRMACIÓN DE RENDERIZADO EN MOTOR AFRAME
-        document.getElementById('entorno').addEventListener('model-loaded', function() {
-            showLog('SISTEMA: ¡Escenario Forest7 renderizado al 100%! Listo.');
-        });
-        document.getElementById('entorno').addEventListener('gltf-model-error', function() {
-            showLog('ERROR MOTOR: Error estructural al procesar el GLB.', true);
-        });
-
-        // Lanzar la descarga una vez la infraestructura base de A-Frame esté activa
-        document.querySelector('a-scene').addEventListener('loaded', function () {
-            descargarMapaDesdeRelease();
-        });
-
-        // ARQUITECTURA DE CONTROL DE AVATAR Y CÁMARA (JOYSTICK E INERCIAS)
         const VELOCIDAD_AVANCE = 0.12;   
         const VELOCIDAD_PIERNAS = 0.65;  
 
@@ -210,7 +118,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // BOTONES DE ORIENTACIÓN RÁPIDA (IZQUIERDA)
+        // BOTONES CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; }, {passive: false});
@@ -219,7 +127,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // DIRECCIONAMIENTO TÁCTIL (DERECHA)
+        // JOYSTICK
         knob.addEventListener('touchstart', (e) => {
             joyDragging = true; const touch = e.touches[0];
             joyStartX = touch.clientX; joyStartY = touch.clientY;
@@ -242,7 +150,7 @@
             moveX = 0; moveY = 0;
         });
 
-        // ARRASTRE DE VISTA DE CÁMARA
+        // ROTACIÓN CÁMARA
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             const touch = e.touches[0]; mouseDragging = true;
