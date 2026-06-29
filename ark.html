@@ -2,11 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARK - Entorno Virtual Viverse</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ARK - Viverse Environment</title>
     
+    <!-- A-Frame Core -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    
+    <!-- A-Frame Extras para animaciones del .glb -->
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <style>
@@ -14,45 +15,46 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: #020617;
+            user-select: none;
         }
 
-        /* HUD Interactivo de Estilo Futurista */
+        /* HUD Holográfico */
         #ark-hud {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 100;
-            pointer-events: none; /* Permite interactuar con la escena a través del contenedor */
+            pointer-events: none;
         }
 
         .panel-cyber {
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 0.85);
             border: 1px solid #00f3ff;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
-            padding: 20px;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.2);
+            padding: 18px;
             border-radius: 12px;
             color: #f8fafc;
-            width: 280px;
-            pointer-events: auto; /* Reactiva eventos para botones */
-            backdrop-filter: blur(8px);
+            width: 260px;
+            pointer-events: auto;
+            backdrop-filter: blur(12px);
         }
 
         .hud-header {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #00f3ff;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             border-bottom: 1px solid rgba(0, 243, 255, 0.3);
             padding-bottom: 6px;
         }
 
         .hud-meta {
-            font-size: 12px;
-            margin: 6px 0;
+            font-size: 11px;
+            margin: 5px 0;
             color: #94a3b8;
         }
 
@@ -62,14 +64,14 @@
         }
 
         .hud-controls {
-            margin-top: 15px;
+            margin-top: 12px;
         }
 
         .btn-ark {
             background: transparent;
             border: 1px solid #00f3ff;
             color: #00f3ff;
-            padding: 10px;
+            padding: 8px;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -82,113 +84,202 @@
 
         .btn-ark:hover {
             background: #00f3ff;
-            color: #0f2142;
+            color: #0f172a;
             box-shadow: 0 0 15px #00f3ff;
         }
 
-        /* Indicador de controles de movimiento */
+        /* Joystick Virtual para Dispositivos Táctiles */
+        #joystick-container {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 243, 255, 0.4);
+            border-radius: 50%;
+            z-index: 100;
+            display: none; /* Se activa dinámicamente en pantallas táctiles */
+            touch-action: none;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00f3ff;
+            cursor: pointer;
+        }
+
         #instructions {
             position: absolute;
             bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 25px;
             z-index: 100;
             background: rgba(15, 23, 42, 0.8);
             color: #e2e8f0;
-            padding: 10px 24px;
-            border-radius: 30px;
-            font-size: 12px;
-            letter-spacing: 1px;
-            text-align: center;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 11px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             pointer-events: none;
-            backdrop-filter: blur(4px);
         }
     </style>
 </head>
 <body>
 
+    <!-- HUD de Control -->
     <div id="ark-hud">
         <div class="panel-cyber">
-            <div class="hud-header">SISTEMA ARK CORE</div>
-            <div class="hud-meta">Entorno: <span>forest2.glb</span></div>
+            <div class="hud-header">ARK VIVERSE NODE</div>
+            <div class="hud-meta">Core: <span>duquemartini.com</span></div>
+            <div class="hud-meta">World: <span>forest2.glb</span></div>
             <div class="hud-meta">Avatar: <span>luis-camina.glb</span></div>
-            <div class="hud-meta">Plataforma: <span>Viverse Engine</span></div>
             <div class="hud-controls">
-                <button class="btn-ark" id="toggle-cam">Perspectiva: Libre</button>
+                <button class="btn-ark" id="toggle-cam">Cámara: Exploración</button>
             </div>
         </div>
     </div>
 
-    <div id="instructions">
-        Moverse: <strong>WASD / Flechas</strong> | Mirar: <strong>Arrastrar Ratón</strong>
+    <!-- Joystick para móviles -->
+    <div id="joystick-container">
+        <div id="joystick-knob"></div>
     </div>
 
+    <div id="instructions" id="desktop-guides">
+        WASD o Flechas para desplazarse
+    </div>
+
+    <!-- Escena WebGL -->
     <a-scene renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;" shadow="type: pcfsoft">
         
         <a-assets>
-            <a-asset-item id="bosque-gltf" src="./forest2.glb"></a-asset-item>
-            <a-asset-item id="avatar-gltf" src="./luis-camina.glb"></a-asset-item>
+            <!-- Al estar en la raíz, llamamos directamente al archivo sin prefijos de carpetas -->
+            <a-asset-item id="bosque" src="forest2.glb"></a-asset-item>
+            <a-asset-item id="avatar" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <a-entity light="type: ambient; intensity: 0.6; color: #cbd5e1"></a-entity>
-        
-        <a-entity light="type: directional; 
-                         intensity: 1.4; 
-                         castShadow: true; 
-                         shadowMapHeight: 2048; 
-                         shadowMapWidth: 2048; 
-                         shadowBias: -0.0005;" 
-                  position="15 30 10">
-        </a-entity>
+        <!-- Iluminación del Entorno -->
+        <a-entity light="type: ambient; intensity: 0.7; color: #f8fafc"></a-entity>
+        <a-entity light="type: directional; intensity: 1.2; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048;" position="10 25 15"></a-entity>
 
-        <a-entity id="escenario" 
-                  gltf-model="#bosque-gltf" 
-                  position="0 0 0" 
-                  scale="1 1 1" 
-                  shadow="receive: true; cast: false">
-        </a-entity>
+        <!-- Escenario de Fondo (Bosque) -->
+        <a-entity id="mapa" gltf-model="#bosque" position="0 0 0" shadow="receive: true"></a-entity>
 
-        <a-entity id="avatar-luis" 
-                  gltf-model="#avatar-gltf" 
-                  position="0 0 -5" 
+        <!-- Avatar con animación automática -->
+        <a-entity id="player-avatar" 
+                  gltf-model="#avatar" 
+                  position="0 0 -4" 
                   rotation="0 180 0" 
-                  scale="1 1 1" 
                   animation-mixer="clip: *; loop: repeat; timeScale: 1;"
-                  shadow="cast: true; receive: true">
+                  shadow="cast: true">
         </a-entity>
 
-        <a-entity id="rig-cam-libre" position="0 1.6 0">
-            <a-entity id="cam-libre" camera look-controls wasd-controls="acceleration: 40; fly: false;"></a-entity>
-        </a-entity>
-
-        <a-entity id="rig-cam-avatar" position="0 3.5 -1" rotation="-25 180 0">
-            <a-entity id="cam-avatar" camera="active: false" look-controls="enabled: false"></a-entity>
+        <!-- Sistema de Cámaras Conmutables -->
+        <a-entity id="rig" position="0 0 0" wasd-controls="acceleration: 35;">
+            <!-- Vista de exploración libre (Primera persona ajustada a 1.65m de altura) -->
+            <a-entity id="cam-first" camera="active: true" look-controls position="0 1.65 0"></a-entity>
+            <!-- Vista orbital de seguimiento trasera enfocando al espacio central -->
+            <a-entity id="cam-third" camera="active: false" position="0 3.8 3.5" rotation="-22 0 0"></a-entity>
         </a-entity>
 
     </a-scene>
 
     <script>
+        // Lógica de alternancia de cámaras
         const btnCam = document.getElementById('toggle-cam');
-        const camLibre = document.getElementById('cam-libre');
-        const camAvatar = document.getElementById('cam-avatar');
-        let modoCamara = 'libre';
+        const camFirst = document.getElementById('cam-first');
+        const camThird = document.getElementById('cam-third');
+        let currentCam = 'first';
 
         btnCam.addEventListener('click', () => {
-            if (modoCamara === 'libre') {
-                // Cambiar a enfoque del Avatar (Tercera persona)
-                camAvatar.setAttribute('camera', 'active', true);
-                camLibre.setAttribute('camera', 'active', false);
-                modoCamara = 'avatar';
-                btnCam.innerText = "Perspectiva: Avatar (3ªP)";
+            if (currentCam === 'first') {
+                camThird.setAttribute('camera', 'active', true);
+                camFirst.setAttribute('camera', 'active', false);
+                currentCam = 'third';
+                btnCam.innerText = "Cámara: Tercera Persona";
             } else {
-                // Volver a exploración libre (Primera persona)
-                camLibre.setAttribute('camera', 'active', true);
-                camAvatar.setAttribute('camera', 'active', false);
-                modoCamara = 'libre';
-                btnCam.innerText = "Perspectiva: Libre";
+                camFirst.setAttribute('camera', 'active', true);
+                camThird.setAttribute('camera', 'active', false);
+                currentCam = 'first';
+                btnCam.innerText = "Cámara: Exploración";
             }
         });
+
+        // Mostrar joystick si detecta pantalla táctil
+        const joystickContainer = document.getElementById('joystick-container');
+        const knob = document.getElementById('joystick-knob');
+        const rig = document.getElementById('rig');
+
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            joystickContainer.style.display = 'block';
+            document.getElementById('instructions').innerText = "Usa el joystick para avanzar";
+        }
+
+        // Lógica matemática del Joystick integrada al Rig de A-Frame
+        let dragging = false;
+        let startX, startY;
+        let moveX = 0, moveY = 0;
+
+        knob.addEventListener('touchstart', (e) => {
+            dragging = true;
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!dragging) return;
+            const touch = e.touches[0];
+            let dx = touch.clientX - startX;
+            let dy = touch.clientY - startY;
+
+            const maxDistance = 30;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+
+            if (distance > maxDistance) {
+                dx = (dx / distance) * maxDistance;
+                dy = (dy / distance) * maxDistance;
+            }
+
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            // Normalizar valores para el movimiento 3D
+            moveX = dx / maxDistance;
+            moveY = dy / maxDistance;
+        });
+
+        window.addEventListener('touchend', () => {
+            dragging = false;
+            knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0;
+            moveY = 0;
+        });
+
+        // Bucle de actualización de posición basado en la orientación de la cámara
+        function updateMovement() {
+            if (moveX !== 0 || moveY !== 0) {
+                const camera = document.querySelector('[camera]');
+                const rotation = camera.getAttribute('rotation');
+                if (rotation) {
+                    const angle = rotation.y * (Math.PI / 180);
+                    const currentPos = rig.getAttribute('position');
+                    
+                    // Calcular vector de dirección relativo a donde mira el usuario
+                    const speed = 0.08;
+                    currentPos.x += (moveX * Math.cos(angle) + moveY * Math.sin(angle)) * speed;
+                    currentPos.z += (moveX * Math.sin(angle) - moveY * Math.cos(angle)) * speed;
+                    
+                    rig.setAttribute('position', currentPos);
+                }
+            }
+            requestAnimationFrame(updateMovement);
+        }
+        updateMovement();
     </script>
 </body>
 </html>
