@@ -2,230 +2,353 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entorno 3D - Pruebas Nocturnas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ARK - Control Sincronizado Definitivo</title>
+    
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: system-ui, sans-serif;
+            background-color: #020617;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #arrows-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 40px; 
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-container {
+            width: 100px;
+            height: 100px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid #00f3ff;
+            border-radius: 50%;
+            touch-action: none;
+            position: relative;
+            backdrop-filter: blur(4px);
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00f3ff;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .joy-arrow {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        .joy-arrow:active {
+            background: #00f3ff;
+            color: #020617;
+        }
+
+        .arrow-up { top: 0; left: 34px; }
+        .arrow-down { bottom: 0; left: 34px; }
+        .arrow-left { left: 0; top: 34px; }
+        .arrow-right { right: 0; top: 34px; }
     </style>
-    <!-- Carga de Three.js y GLTFLoader desde CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
 
-<script>
-    // --- VARIABLES GLOBALES ---
-    let scene, camera, renderer, clock;
-    let avatar = null;
-    let escenarioSuelo = null;
-    let mixer = null;
-    let accionCaminar = null;
-    
-    // Configuración física de movimiento
-    const velocidadMovimiento = 5.0; 
-    const velocidadRotacion = 3.0;
-    const raycaster = new THREE.Raycaster();
-    const abajo = new THREE.Vector3(0, -1, 0);
+    <!-- Panel Izquierdo: Cámara -->
+    <div id="arrows-wrapper">
+        <button class="joy-arrow arrow-up" id="btn-up">▲</button>
+        <button class="joy-arrow arrow-down" id="btn-down">▼</button>
+        <button class="joy-arrow arrow-left" id="btn-left">◀</button>
+        <button class="joy-arrow arrow-right" id="btn-right">▶</button>
+    </div>
 
-    // Estado del teclado (fácil de conectar a los inputs de tu joystick)
-    const teclas = { adelante: false, atras: false, izquierda: false, derecha: false };
+    <!-- Panel Derecho: Movimiento -->
+    <div id="joystick-wrapper">
+        <div id="joystick-container">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
 
-    // --- 1. INICIALIZACIÓN DE LA ESCENA ---
-    function init() {
-        scene = new THREE.Scene();
-        clock = new THREE.Clock();
-
-        // Cámara en tercera persona inicial
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
         
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        <a-assets>
+            <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
+            <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
+        </a-assets>
 
-        // Iluminación básica
-        const luzAmbiental = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(luzAmbiental);
+        <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        const luzSol = new THREE.DirectionalLight(0xffffff, 1.2);
-        luzSol.position.set(20, 40, 20);
-        luzSol.castShadow = true;
-        luzSol.shadow.mapSize.width = 2048;
-        luzSol.shadow.mapSize.height = 2048;
-        luzSol.shadow.camera.near = 0.5;
-        luzSol.shadow.camera.far = 150;
-        const d = 40;
-        luzSol.shadow.camera.left = -d;
-        luzSol.shadow.camera.right = d;
-        luzSol.shadow.camera.top = d;
-        luzSol.shadow.camera.bottom = -d;
-        scene.add(luzSol);
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        // --- 2. CARGA DE ENTORNO (forest2.glb) ---
-        const loader = new THREE.GLTFLoader();
-
-        loader.load('forest2.glb', (gltf) => {
-            escenarioSuelo = gltf.scene;
-            scene.add(escenarioSuelo);
+        <!-- RIG CENTRAL -->
+        <a-entity id="player-rig" position="0 0 0">
             
-            escenarioSuelo.traverse((child) => {
-                if (child.isMesh) {
-                    child.receiveShadow = true;
-                    child.castShadow = true;
+            <!-- Forzamos la desactivación de la traslación de esqueleto (bloqueo-z) -->
+            <a-entity id="avatar-mesh" 
+                      gltf-model="#avatar-model" 
+                      position="0 -1.0 0" 
+                      rotation="0 180 0" 
+                      scale="1 1 1"
+                      bloqueo-z
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+            </a-entity>
+
+            <a-entity id="camera-orbit" position="0 1.6 0">
+                <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
+            </a-entity>
+
+        </a-entity>
+
+    </a-scene>
+
+    <script>
+        // --- PARCHE DE BAJO NIVEL: ANULA EL REBOTE DE ANIMACIÓN ---
+        AFRAME.registerComponent('bloqueo-z', {
+            tick: function () {
+                const obj = this.el.getObject3D('mesh');
+                if (obj) {
+                    obj.traverse((child) => {
+                        if (child.isBone && (child.name.toLowerCase().includes('root') || child.name.toLowerCase().includes('hips'))) {
+                            child.position.z = 0; 
+                            child.position.x = 0; 
+                        }
+                    });
                 }
-            });
-            console.log('Entorno forest2.glb listo.');
-        }, undefined, (error) => {
-            console.error('Error cargando forest2.glb:', error);
+            }
         });
 
-        // --- 3. CARGA DEL AVATAR ---
-        // Cambia 'avatar.glb' por el nombre exacto de tu archivo de Mixamo/Avaturn
-        loader.load('avatar.glb', (gltf) => {
-            avatar = gltf.scene;
-            avatar.scale.set(1, 1, 1); // Ajusta la escala si tu personaje es gigante o enano
-            avatar.position.set(0, 0, 0);
-            scene.add(avatar);
+        const knob = document.getElementById('joystick-knob');
+        const rig = document.getElementById('player-rig');
+        const cameraOrbit = document.getElementById('camera-orbit');
+        const avatarMesh = document.getElementById('avatar-mesh');
+        const mainCamera = document.getElementById('main-camera');
 
-            avatar.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
+        let moveX = 0, moveY = 0;
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        let joyDragging = false;
+        let joyStartX, joyStartY;
+
+        let mouseDragging = false;
+        let prevMouseX, prevMouseY;
+        let camYaw = 0;   
+        let camPitch = -0.1; 
+        let camDist = 3.5; 
+        let arrowCam = { up: false, down: false, left: false, right: false };
+        let wasMoving = false;
+
+        // Instancias para el Raycaster de terreno (Evita recrear objetos en cada frame)
+        const terrainRaycaster = new THREE.Raycaster();
+        const abajoVector = new THREE.Vector3(0, -1, 0);
+
+        // ZOOM Rueda + Táctil
+        window.addEventListener('wheel', (e) => {
+            camDist += e.deltaY * 0.005;
+            camDist = Math.max(1.5, Math.min(8.0, camDist));
+            mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+        }, { passive: true });
+
+        let initialTouchDist = 0;
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                if (initialTouchDist === 0) { initialTouchDist = dist; } 
+                else {
+                    let delta = initialTouchDist - dist;
+                    camDist += delta * 0.01;
+                    camDist = Math.max(1.5, Math.min(8.0, camDist));
+                    mainCamera.setAttribute('position', `0 0.6 ${camDist}`);
+                    initialTouchDist = dist;
                 }
-            });
-
-            // Configuración de animaciones
-            if (gltf.animations && gltf.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(avatar);
-                // Asumimos que la primera animación ([0]) es caminar. Ajusta el índice si es otra.
-                accionCaminar = mixer.clipAction(gltf.animations[0]);
             }
-            console.log('Avatar listo.');
-        }, undefined, (error) => {
-            console.error('Error cargando el avatar:', error);
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
+
+        // CÁMARA FLECHAS
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
+            const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchstart', start, {passive: false});
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('touchend', end, {passive: false});
+            btn.addEventListener('mouseleave', end);
+        };
+        setupArrowCamera('btn-up', 'up');
+        setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left');
+        setupArrowCamera('btn-right', 'right');
+
+        // JOYSTICK DERECHO
+        function onJoyStart(e) {
+            joyDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            joyStartX = point.clientX; joyStartY = point.clientY;
+            e.preventDefault(); e.stopPropagation();
+        }
+
+        function onJoyMove(e) {
+            if (!joyDragging) return;
+            const point = e.touches ? e.touches[0] : e;
+            let dx = point.clientX - joyStartX; let dy = point.clientY - joyStartY;
+            const maxLen = 35;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            moveX = dx / maxLen; moveY = dy / maxLen;
+            e.preventDefault(); e.stopPropagation();
+        }
+
+        function onJoyEnd(e) {
+            if(!joyDragging) return;
+            joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0; moveY = 0;
+            if(e && e.cancelable) e.preventDefault();
+        }
+
+        knob.addEventListener('touchstart', onJoyStart, {passive: false});
+        window.addEventListener('touchmove', onJoyMove, {passive: false});
+        window.addEventListener('touchend', onJoyEnd, {passive: false});
+        knob.addEventListener('mousedown', onJoyStart);
+        window.addEventListener('mousemove', onJoyMove);
+        window.addEventListener('mouseup', onJoyEnd);
+
+        // TECLADO PC
+        window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
+
+        // ARRASTRE RATÓN CÁMARA
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
+        window.addEventListener('mousemove', (e) => {
+            if (!mouseDragging) return;
+            let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
+            prevMouseX = e.clientX; prevMouseY = e.clientY;
+            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+        });
+        window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // Eventos de control
-        window.addEventListener('keydown', (e) => gestionarTeclado(e, true));
-        window.addEventListener('keyup', (e) => gestionarTeclado(e, false));
-        window.addEventListener('resize', onWindowResize);
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
+            const touch = e.touches[0];
+            mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+        }, {passive: true});
+        window.addEventListener('touchmove', (e) => {
+            if (!mouseDragging || e.touches.length > 1) return;
+            const touch = e.touches[0];
+            let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
+            prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+            camYaw -= deltaX * 0.005; camPitch -= deltaY * 0.004;
+        }, {passive: true});
+        window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // Arrancar bucle
-        animate();
-    }
+        // BUCLE GENERAL
+        function engineLoop() {
+            if (arrowCam.left) camYaw += 0.02;
+            if (arrowCam.right) camYaw -= 0.02;
+            if (arrowCam.up) camPitch += 0.01;
+            if (arrowCam.down) camPitch -= 0.01;
 
-    // --- 4. GESTIÓN DE INPUTS ---
-    function gestionarTeclado(evento, estadotecla) {
-        switch (evento.code) {
-            case 'ArrowUp':
-            case 'KeyW':
-                teclas.adelante = estadotecla;
-                break;
-            case 'ArrowDown':
-            case 'KeyS':
-                teclas.atras = estadotecla;
-                break;
-            case 'ArrowLeft':
-            case 'KeyA':
-                teclas.izquierda = estadotecla;
-                break;
-            case 'ArrowRight':
-            case 'KeyD':
-                teclas.derecha = estadotecla;
-                break;
-        }
-    }
+            camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
 
-    // --- 5. LÓGICA DE MOVIMIENTO Y ADAPTACIÓN AL SUELO ---
-    function actualizarMovimiento(delta) {
-        if (!avatar) return;
+            let inputX = moveX; let inputY = moveY;
+            if (keys.w || keys.ArrowUp) inputY = -1;
+            if (keys.s || keys.ArrowDown) inputY = 1;
+            if (keys.a || keys.ArrowLeft) inputX = -1;
+            if (keys.d || keys.ArrowRight) inputX = 1;
 
-        let moviendose = false;
+            let isMoving = (inputX !== 0 || inputY !== 0);
 
-        // Rotación (Girar sobre su propio eje)
-        if (teclas.izquierda) avatar.rotation.y += velocidadRotacion * delta;
-        if (teclas.derecha) avatar.rotation.y -= velocidadRotacion * delta;
-
-        // Traslación (Avanzar o retroceder)
-        if (teclas.adelante) {
-            avatar.translateZ(velocidadMovimiento * delta);
-            moviendose = true;
-        }
-        if (teclas.atras) {
-            avatar.translateZ(-velocidadMovimiento * delta * 0.5); // Más lento hacia atrás
-            moviendose = true;
-        }
-
-        // Control de reproducción de la animación de caminata
-        if (accionCaminar) {
-            if (moviendose) {
-                if (!accionCaminar.isRunning()) accionCaminar.play();
-            } else {
-                accionCaminar.stop();
+            if (isMoving !== wasMoving) {
+                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
+                wasMoving = isMoving;
             }
-        }
 
-        // Sistema Raycaster para morder el suelo (Evita flotación y hundimiento)
-        if (escenarioSuelo) {
-            const origenRayo = avatar.position.clone();
-            origenRayo.y += 2.0; // Elevamos el origen para asegurar la intersección desde arriba
+            if (isMoving) {
+                const pos = rig.getAttribute('position');
+                const speed = 0.05; 
 
-            raycaster.set(origenRayo, abajo);
-            const intersecciones = raycaster.intersectObject(escenarioSuelo, true);
+                const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
+                const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-            if (intersecciones.length > 0) {
-                const puntoSuelo = intersecciones[0].point;
-                avatar.position.y = puntoSuelo.y; // Copia la altura exacta de la colina
+                pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
+                rig.setAttribute('position', pos);
+
+                const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
+                let currentAngle = avatarMesh.object3D.rotation.y;
+                let deltaAngle = targetAngle - currentAngle;
+                
+                deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
+                avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
             }
+
+            // --- AJUSTE DINÁMICO DE ALTURA SOBRE FOREST2 ---
+            const entornoEl = document.getElementById('entorno');
+            if (entornoEl) {
+                const entornoObj = entornoEl.getObject3D('mesh');
+                if (entornoObj) {
+                    const pos = rig.getAttribute('position');
+                    // Lanzamos el rayo desde un punto elevado de seguridad (+15m) sobre la posición actual
+                    const origenRayo = new THREE.Vector3(pos.x, pos.y + 15.0, pos.z);
+                    
+                    terrainRaycaster.set(origenRayo, abajoVector);
+                    const intersecciones = terrainRaycaster.intersectObject(entornoObj, true);
+
+                    if (intersecciones.length > 0) {
+                        // Como tu avatar-mesh tiene position="0 -1.0 0", compensamos con +1.0
+                        // para que la base del esqueleto coincida al milímetro con la superficie de la colina.
+                        pos.y = intersecciones[0].point.y + 1.0;
+                        rig.setAttribute('position', pos);
+                    }
+                }
+            }
+
+            requestAnimationFrame(engineLoop);
         }
-    }
-
-    // --- 6. CÁMARA EN TERCERA PERSONA (SEGUIMIENTO SUAVE) ---
-    function actualizarCamara() {
-        if (!avatar) return;
-
-        // Definimos la distancia ideal detrás (Z) y arriba (Y) del avatar
-        const offsetIdeal = new THREE.Vector3(0, 2.5, -4.5);
-        offsetIdeal.applyQuaternion(avatar.quaternion); // Sigue la rotación del personaje
-        
-        const posicionObjetivoCamara = avatar.position.clone().add(offsetIdeal);
-
-        // Interpolación lineal (Lerp) para que la cámara no dé tirones bruscos
-        camera.position.lerp(posicionObjetivoCamara, 0.1);
-        
-        // La cámara siempre mira un punto ligeramente elevado sobre el centro del avatar
-        const objetivoMirada = avatar.position.clone();
-        objetivoMirada.y += 1.2;
-        camera.lookAt(objetivoMirada);
-    }
-
-    // --- 7. BUCLE DE RENDERIZADO ---
-    function animate() {
-        requestAnimationFrame(animate);
-
-        const delta = clock.getDelta();
-
-        // Actualizar mixer de animaciones de Mixamo
-        if (mixer) mixer.update(delta);
-
-        // Procesar físicas y posiciones
-        actualizarMovimiento(delta);
-        actualizarCamara();
-
-        renderer.render(scene, camera);
-    }
-
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    // Arrancar todo al cargar la página
-    window.onload = init;
-</script>
-
+        engineLoop();
+    </script>
 </body>
 </html>
