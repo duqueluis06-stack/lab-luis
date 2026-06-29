@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Control Sincronizado Definitivo</title>
+    <title>ARK - Control Sincronizado Sólido</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,6 +19,7 @@
             -webkit-user-select: none;
         }
 
+        /* BOTONES CÁMARA - IZQUIERDA */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -28,6 +29,7 @@
             z-index: 999;
         }
 
+        /* JOYSTICK - DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -115,21 +117,23 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CENTRAL -->
+        <!-- RIG DE CONTROL UNIFICADO -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Forzamos la desactivación de la traslación de esqueleto (bloqueo-z) -->
+            <!-- AVATAR GROUNDED: Ajusté la altura a -1.35 para bajarlo al nivel del suelo real. -->
+            <!-- Si notas que se hunde de más o queda un poco en el aire, cambia ese -1.35 -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 -1.0 0" 
+                      position="0 -1.35 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
-                      bloqueo-z
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
+            <!-- Sistema de Cámara Orbital -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
             </a-entity>
@@ -139,21 +143,12 @@
     </a-scene>
 
     <script>
-        // --- PARCHE DE BAJO NIVEL: ANULA EL REBOTE DE ANIMACIÓN ---
-        AFRAME.registerComponent('bloqueo-z', {
-            tick: function () {
-                const obj = this.el.getObject3D('mesh');
-                if (obj) {
-                    obj.traverse((child) => {
-                        // Buscamos el hueso raíz o cualquier pista que mueva al personaje adelante localmente
-                        if (child.isBone && (child.name.toLowerCase().includes('root') || child.name.toLowerCase().includes('hips'))) {
-                            child.position.z = 0; // Bloqueo total del rebote en profundidad
-                            child.position.x = 0; // Bloqueo lateral
-                        }
-                    });
-                }
-            }
-        });
+        // ==========================================
+        // AJUSTES DE SINCRONIZACIÓN (Configura aquí)
+        // ==========================================
+        const VELOCIDAD_AVANCE = 0.085;  // Sube este número si avanza muy lento (Ej: 0.09 o 0.1)
+        const VELOCIDAD_PIERNAS = 0.85; // Baja este número si mueve las piernas demasiado rápido (Ej: 0.75)
+        // ==========================================
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -161,6 +156,7 @@
         const avatarMesh = document.getElementById('avatar-mesh');
         const mainCamera = document.getElementById('main-camera');
 
+        // Estados de control
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         let joyDragging = false;
@@ -174,7 +170,7 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ZOOM Rueda + Táctil
+        // ZOOM (Rueda + Táctil)
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(1.5, Math.min(8.0, camDist));
@@ -198,7 +194,7 @@
 
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CÁMARA FLECHAS
+        // CONTROL DE BOTONES CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -214,7 +210,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK DERECHO
+        // GESTIÓN DEL JOYSTICK DERECHO
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -252,7 +248,7 @@
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE RATÓN CÁMARA
+        // VISTA CON ARRASTRE DE PANTALLA
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper')) return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -279,8 +275,9 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE GENERAL
+        // BUCLE PRINCIPAL DEL MOTOR
         function engineLoop() {
+            // 1. Cálculos de Cámara
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch += 0.01;
@@ -290,6 +287,7 @@
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
+            // 2. Control de Entrada (Fusión teclado + joystick)
             let inputX = moveX; let inputY = moveY;
             if (keys.w || keys.ArrowUp) inputY = -1;
             if (keys.s || keys.ArrowDown) inputY = 1;
@@ -298,22 +296,24 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // Sincronización perfecta de animación con variables globales
             if (isMoving !== wasMoving) {
-                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? 1 : 0);
+                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
                 wasMoving = isMoving;
             }
 
+            // 3. Sistema de Traslación Física
             if (isMoving) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.05; 
 
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                pos.x += (fwdX * -inputY + rgtX * inputX) * speed;
-                pos.z += (fwdZ * -inputY + rgtZ * inputX) * speed;
+                pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
                 rig.setAttribute('position', pos);
 
+                // Rotación suave del cuerpo hacia la dirección del movimiento
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
