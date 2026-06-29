@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ARK - Sistema de Control Profesional</title>
     
-    <!-- Motores gráficos WebGL -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
@@ -19,7 +18,6 @@
             user-select: none;
         }
 
-        /* HUD Superior Privado */
         #ark-hud {
             position: absolute;
             top: 20px;
@@ -47,7 +45,6 @@
             color: #00f3ff;
         }
 
-        /* CONTENEDOR DEL PAD DE CONTROL */
         #control-wrapper {
             position: absolute;
             bottom: 30px;
@@ -57,7 +54,6 @@
             z-index: 110;
         }
 
-        /* Área del joystick central */
         #joystick-container {
             position: absolute;
             top: 35px;
@@ -84,7 +80,6 @@
             z-index: 120;
         }
 
-        /* Botones de Flechas Periféricas Activas */
         .joy-arrow {
             position: absolute;
             background: rgba(15, 23, 42, 0.9);
@@ -116,14 +111,12 @@
 </head>
 <body>
 
-    <!-- HUD Estático -->
     <div id="ark-hud">
         <div class="panel-cyber">
-            <div class="hud-header">SISTEMA CONTROL: OK</div>
+            <div class="hud-header">SISTEMA DIAGNÓSTICO</div>
         </div>
     </div>
 
-    <!-- Módulo Unificado de Mandos (Joystick + Flechas Activas) -->
     <div id="control-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -135,27 +128,30 @@
         </div>
     </div>
 
-    <!-- Escena Gráfica -->
     <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
         
         <a-assets>
             <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
+            <!-- NOTA: Asegúrate de que en GitHub esté escrito exactamente en minúsculas: luis-camina.glb -->
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <a-entity light="type: ambient; intensity: 1.0; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 0.7;" position="5 20 5"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Bosque Fijo -->
+        <!-- Entorno Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CONTROLADOR DEL JUGADOR (Elevado ligeramente a 0.15 para evitar subsuelos) -->
+        <!-- RIG CENTRAL -->
         <a-entity id="player-rig" position="0 0.15 0">
             
-            <!-- Aro indicador de posición (Para saber exactamente dónde está parado el objeto) -->
-            <a-ring color="#00f3ff" rotation="-90 0 0" radius-inner="0.3" radius-outer="0.4" position="0 0.02 0" material="shader: flat; transparent: true; opacity: 0.8;"></a-ring>
+            <!-- Indicador Celeste Base -->
+            <a-ring color="#00f3ff" rotation="-90 0 0" radius-inner="0.4" radius-outer="0.5" position="0 0.02 0" material="shader: flat; transparent: true; opacity: 0.9;"></a-ring>
 
-            <!-- Entidad del Avatar con tracking nativo -->
+            <!-- CUBO ROJO DE SEGURIDAD: Si ves este cubo, el motor funciona y el problema es la escala del avatar -->
+            <a-box id="test-cube" color="#ff0055" position="0 0.5 0" scale="0.4 0.8 0.4" material="wireframe: false;"></a-box>
+
+            <!-- Entidad del Avatar -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
@@ -164,9 +160,9 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
 
-            <!-- Cámara Orbital Estilo GTA V -->
-            <a-entity id="camera-orbit" position="0 1.5 0">
-                <a-entity id="main-camera" camera position="0 0.5 3.2"></a-entity>
+            <!-- Cámara Orbital -->
+            <a-entity id="camera-orbit" position="0 1.6 0">
+                <a-entity id="main-camera" camera position="0 0.6 3.5"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -178,18 +174,18 @@
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
+        const testCube = document.getElementById('test-cube');
 
         let moveX = 0, moveY = 0;
         let joyDragging = false;
         let joyStartX, joyStartY;
 
-        // Variables de Rotación de Cámara (Mouse)
         let mouseDragging = false;
         let prevMouseX, prevMouseY;
         let camYaw = 0;   
         let camPitch = -0.1; 
 
-        // 1. SISTEMA DE CONTROL POR FLECHAS PERIFÉRICAS EXTERNAS
+        // 1. MANDOS POR FLECHAS
         const arrowConfig = {
             'btn-up': { x: 0, y: -1 },
             'btn-down': { x: 0, y: 1 },
@@ -207,10 +203,7 @@
                 moveY = data.y;
             };
 
-            const endPress = () => {
-                moveX = 0;
-                moveY = 0;
-            };
+            const endPress = () => { moveX = 0; moveY = 0; };
 
             btn.addEventListener('mousedown', startPress);
             btn.addEventListener('touchstart', startPress);
@@ -219,7 +212,7 @@
             btn.addEventListener('mouseleave', endPress);
         });
 
-        // 2. SISTEMA DE JOYSTICK CENTRAL (ARRASTRAR EL SENSOR)
+        // 2. JOYSTICK CENTRAL
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -262,9 +255,8 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // 3. CONTROL DE VISTA (CENTRAR ESCENA CON MOUSE - EVITA CLICK EN BOTONES)
+        // 3. ROTACIÓN DE ESCENA
         window.addEventListener('mousedown', (e) => {
-            // Si el clic es dentro del panel de control o HUD, ignorar rotación de cámara
             if (e.target.closest('#control-wrapper') || e.target.closest('#ark-hud')) return;
             mouseDragging = true;
             prevMouseX = e.clientX;
@@ -280,7 +272,7 @@
 
             camYaw -= deltaX * 0.005;
             camPitch -= deltaY * 0.004;
-            camPitch = Math.max(-0.5, Math.min(0.2, camPitch)); // Bloqueo de seguridad vertical
+            camPitch = Math.max(-0.5, Math.min(0.2, camPitch));
 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
@@ -288,7 +280,7 @@
 
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // 4. BUCLE DE OPERACIÓN (60 FPS)
+        // 4. BUCLE DE MOVIMIENTO
         function engineLoop() {
             if (moveX !== 0 || moveY !== 0) {
                 const pos = rig.getAttribute('position');
@@ -303,9 +295,12 @@
                 pos.z += (fwdZ * -moveY + rgtZ * moveX) * speed;
                 rig.setAttribute('position', pos);
 
-                // Orientar avatar a la marcha
                 const angle = Math.atan2(moveX, -moveY);
-                avatarMesh.object3D.rotation.y = camYaw + angle + Math.PI;
+                const targetRotation = camYaw + angle + Math.PI;
+                
+                // Rotar tanto el avatar como el cubo testigo hacia donde caminan
+                avatarMesh.object3D.rotation.y = targetRotation;
+                testCube.object3D.rotation.y = targetRotation;
             }
             requestAnimationFrame(engineLoop);
         }
