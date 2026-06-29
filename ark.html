@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ARK - Sistema de Control</title>
+    <title>ARK - Control de Navegación</title>
     
-    <!-- Motores principales optimizados de A-Frame y Animación -->
+    <!-- Librerías de alto rendimiento 3D y sistemas de animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
@@ -19,7 +19,7 @@
             user-select: none;
         }
 
-        /* HUD limpio y privado */
+        /* Pantalla HUD limpia y privada */
         #ark-hud {
             position: absolute;
             top: 20px;
@@ -34,8 +34,9 @@
             padding: 12px 20px;
             border-radius: 8px;
             color: #f8fafc;
-            width: 180px;
+            width: 160px;
             backdrop-filter: blur(8px);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
         }
 
         .hud-header {
@@ -46,107 +47,147 @@
             color: #00f3ff;
         }
 
-        /* Joystick Virtual Universal (Mouse y Táctil) */
-        #joystick-container {
+        /* Contenedor del Joystick con Flechas Periféricas */
+        #joystick-wrapper {
             position: absolute;
-            bottom: 40px;
-            left: 40px;
-            width: 100px;
-            height: 100px;
-            background: rgba(15, 23, 42, 0.6);
+            bottom: 50px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            z-index: 100;
+        }
+
+        #joystick-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.7);
             border: 2px solid #00f3ff;
             border-radius: 50%;
-            z-index: 100;
             touch-action: none;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
         }
 
         #joystick-knob {
             position: absolute;
-            top: 30px;
-            left: 30px;
+            top: 40px;
+            left: 40px;
             width: 40px;
             height: 40px;
             background: #00f3ff;
             border-radius: 50%;
-            box-shadow: 0 0 10px #00f3ff;
+            box-shadow: 0 0 15px #00f3ff;
             cursor: pointer;
+            z-index: 105;
         }
+
+        /* Flechas direccionales exteriores */
+        .joy-arrow {
+            position: absolute;
+            color: #00f3ff;
+            font-size: 16px;
+            font-weight: bold;
+            opacity: 0.7;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .arrow-up { top: 4px; left: 50%; transform: translateX(-50%); }
+        .arrow-down { bottom: 4px; left: 50%; transform: translateX(-50%); }
+        .arrow-left { left: 6px; top: 50%; transform: translateY(-50%); }
+        .arrow-right { right: 6px; top: 50%; transform: translateY(-50%); }
     </style>
 </head>
 <body>
 
-    <!-- Interfaz de Usuario -->
+    <!-- HUD Genérico sin exposición de datos -->
     <div id="ark-hud">
         <div class="panel-cyber">
-            <div class="hud-header">SISTEMA CORE ACTIVO</div>
+            <div class="hud-header">SISTEMA CONTROL: ON</div>
         </div>
     </div>
 
-    <!-- Joystick de Navegación -->
-    <div id="joystick-container">
-        <div id="joystick-knob"></div>
+    <!-- Joystick con Flechas de Dirección Integradas -->
+    <div id="joystick-wrapper">
+        <div id="joystick-container">
+            <div class="joy-arrow arrow-up">▲</div>
+            <div class="joy-arrow arrow-down">▼</div>
+            <div class="joy-arrow arrow-left">◀</div>
+            <div class="joy-arrow arrow-right">▶</div>
+            <div id="joystick-knob"></div>
+        </div>
     </div>
 
-    <!-- Escena 3D con perfil de alto rendimiento gráfico (Sin sombras lentas) -->
-    <a-scene renderer="antialias: true; precision: medium; powerPreference: high-performance; colorManagement: true;">
+    <!-- Escena 3D configurada para rendimiento fluido -->
+    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" loading-screen="enabled: false">
         
         <a-assets>
-            <a-asset-item id="bosque" src="forest2.glb"></a-asset-item>
-            <a-asset-item id="avatar" src="luis-camina.glb"></a-asset-item>
+            <!-- Inyección directa de tus archivos del repositorio -->
+            <a-asset-item id="forest-model" src="forest2.glb"></a-asset-item>
+            <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Iluminación ambiental optimizada pre-renderizada -->
+        <!-- Iluminación global omnidireccional -->
         <a-entity light="type: ambient; intensity: 0.9; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 0.8;" position="5 15 5"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8;" position="10 20 10"></a-entity>
 
-        <!-- Escenario de Fondo -->
-        <a-entity id="mapa" gltf-model="#bosque" position="0 0 0"></a-entity>
+        <!-- Entorno / Bosque -->
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG CENTRAL DE MOVIMIENTO -->
-        <a-entity id="rig" position="0 0 0">
+        <!-- SISTEMA DE SEGUIMIENTO (PLAYER RIG) -->
+        <a-entity id="player-rig" position="0 0.05 0">
             
-            <!-- Avatar posicionado en el origen exacto del Rig para evitar pérdidas de tracking -->
-            <a-entity id="avatar-player" 
-                      gltf-model="#avatar" 
+            <!-- El Avatar se sitúa en la raíz del movimiento -->
+            <a-entity id="avatar-mesh" 
+                      gltf-model="#avatar-model" 
                       position="0 0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
 
-            <!-- Cámara Orbital: Reacciona al arrastrar el mouse en pantalla -->
-            <a-entity id="camera-container" look-controls="pointerLockEnabled: false">
-                <a-entity camera position="0 2.0 3.5" rotation="-12 0 0"></a-entity>
+            <!-- CÁMARA ORBITAL ESTILO GTA V: Pivota en torno al personaje -->
+            <a-entity id="camera-orbit" position="0 1.6 0">
+                <a-entity id="main-camera" camera position="0 0.6 3.5" look-controls="enabled: false"></a-entity>
             </a-entity>
-            
+
         </a-entity>
 
     </a-scene>
 
     <script>
         const knob = document.getElementById('joystick-knob');
-        const rig = document.getElementById('rig');
-        const camContainer = document.getElementById('camera-container');
-        const avatar = document.getElementById('avatar-player');
+        const rig = document.getElementById('player-rig');
+        const cameraOrbit = document.getElementById('camera-orbit');
+        const mainCamera = document.getElementById('main-camera');
+        const avatarMesh = document.getElementById('avatar-mesh');
 
-        let dragging = false;
-        let startX, startY;
+        // VARIABLES DE CONTROL DE MOVIMIENTO
+        let joyDragging = false;
+        let joyStartX, joyStartY;
         let moveX = 0, moveY = 0;
 
-        function onStart(e) {
-            dragging = true;
+        // VARIABLES DE CÁMARA ORBITAL (RATÓN)
+        let mouseDragging = false;
+        let prevMouseX, prevMouseY;
+        let camYaw = 0;   // Rotación horizontal
+        let camPitch = 0; // Rotación vertical (Mirar arriba/abajo)
+
+        // 1. SISTEMA DEL JOYSTICK CON INTERFAZ TÁCTIL Y RATÓN
+        function onJoyStart(e) {
+            joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
-            startX = point.clientX;
-            startY = point.clientY;
+            joyStartX = point.clientX;
+            joyStartY = point.clientY;
+            e.stopPropagation();
         }
 
-        function onMove(e) {
-            if (!dragging) return;
+        function onJoyMove(e) {
+            if (!joyDragging) return;
             const point = e.touches ? e.touches[0] : e;
-            let dx = point.clientX - startX;
-            let dy = point.clientY - startY;
+            let dx = point.clientX - joyStartX;
+            let dy = point.clientY - joyStartY;
 
-            const maxDistance = 30;
+            const maxDistance = 40; // Rango límite del movimiento
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > maxDistance) {
@@ -157,52 +198,79 @@
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
             
             moveX = dx / maxDistance;
-            moveY = dy / maxDistance; // Negativo = Adelante, Positivo = Atrás
+            moveY = dy / maxDistance;
+            e.stopPropagation();
         }
 
-        function onEnd() {
-            dragging = false;
+        function onJoyEnd() {
+            joyDragging = false;
             knob.style.transform = 'translate(0px, 0px)';
             moveX = 0;
             moveY = 0;
         }
 
-        // Registro de interacciones táctiles y mouse para el Joystick
-        knob.addEventListener('touchstart', onStart);
-        window.addEventListener('touchmove', onMove);
-        window.addEventListener('touchend', onEnd);
-        knob.addEventListener('mousedown', onStart);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onEnd);
+        knob.addEventListener('touchstart', onJoyStart);
+        window.addEventListener('touchmove', onJoyMove);
+        window.addEventListener('touchend', onJoyEnd);
+        knob.addEventListener('mousedown', onJoyStart);
+        window.addEventListener('mousemove', onJoyMove);
+        window.addEventListener('mouseup', onJoyEnd);
 
-        // Bucle de renderizado de movimiento relativo a la orientación de la cámara
-        function updateLoop() {
+        // 2. SISTEMA DE CONTROL DE CÁMARA CON RATÓN (CLICK Y ARRASTRAR PANTALLA)
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.id === 'joystick-knob') return;
+            mouseDragging = true;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!mouseDragging) return;
+            let deltaX = e.clientX - prevMouseX;
+            let deltaY = e.clientY - prevMouseY;
+
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+
+            // Sensibilidad orbital estilo shooter / GTA
+            camYaw -= deltaX * 0.005;
+            camPitch -= deltaY * 0.005;
+
+            // Limitación de ángulo vertical para evitar que la cámara se rompa por completo
+            camPitch = Math.max(-0.6, Math.min(0.3, camPitch));
+
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+        });
+
+        window.addEventListener('mouseup', () => {
+            mouseDragging = false;
+        });
+
+        // 3. BUCLE DE ACTUALIZACIÓN EN TIEMPO REAL (60 FPS)
+        function gameLoop() {
             if (moveX !== 0 || moveY !== 0) {
                 const pos = rig.getAttribute('position');
-                const speed = 0.08; // Velocidad fluida de traslación
+                const speed = 0.09; // Velocidad de avance optimizada
 
-                // Captura la orientación actual que el usuario le da con el mouse a la escena
-                const cameraRotation = camContainer.getAttribute('rotation');
-                const yaw = cameraRotation.y * (Math.PI / 180);
+                // Vectores de dirección calculados según la orientación de la cámara orbital
+                const forwardX = -Math.sin(camYaw);
+                const forwardZ = -Math.cos(camYaw);
+                const rightX = Math.cos(camYaw);
+                const rightZ = -Math.sin(camYaw);
 
-                // Cálculo de vectores de movimiento en relación directa a la cámara de tercera persona
-                const forwardX = -Math.sin(yaw);
-                const forwardZ = -Math.cos(yaw);
-                const rightX = Math.cos(yaw);
-                const rightZ = -Math.sin(yaw);
-
-                // Desplazamiento del Rig completo
+                // Movimiento coordinado relativo a la vista
                 pos.x += (forwardX * -moveY + rightX * moveX) * speed;
                 pos.z += (forwardZ * -moveY + rightZ * moveX) * speed;
                 rig.setAttribute('position', pos);
 
-                // Rotación del avatar hacia la dirección de avance
-                const moveAngle = Math.atan2(moveX, -moveY);
-                avatar.object3D.rotation.y = yaw + moveAngle + Math.PI; 
+                // Rotación del avatar hacia el vector de avance de la marcha
+                const targetAngle = Math.atan2(moveX, -moveY);
+                avatarMesh.object3D.rotation.y = camYaw + targetAngle + Math.PI;
             }
-            requestAnimationFrame(updateLoop);
+            requestAnimationFrame(gameLoop);
         }
-        updateLoop();
+        gameLoop();
     </script>
 </body>
 </html>
