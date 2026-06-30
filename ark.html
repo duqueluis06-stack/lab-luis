@@ -1,48 +1,356 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARK</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ARK - Escena Girada</title>
+    
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: system-ui, sans-serif;
+            background-color: #020617;
+            user-select: none;
+            -webkit-user-select: none;
+        }
 
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+        /* BOTÓN DE SALIR */
+        #btn-exit {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.8);
+            border: 1px solid #ef4444;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            touch-action: none;
+        }
+
+        #btn-exit:active {
+            background: #ef4444;
+        }
+
+        /* BOTONES CÁMARA - IZQUIERDA */
+        #arrows-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        /* JOYSTICK - DERECHA */
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 40px; 
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-container {
+            width: 100px;
+            height: 100px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid #00f3ff;
+            border-radius: 50%;
+            touch-action: none;
+            position: relative;
+            backdrop-filter: blur(4px);
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00f3ff;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .joy-arrow {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        .joy-arrow:active {
+            background: #00f3ff;
+            color: #020617;
+        }
+
+        .arrow-up { top: 0; left: 34px; }
+        .arrow-down { bottom: 0; left: 34px; }
+        .arrow-left { left: 0; top: 34px; }
+        .arrow-right { right: 0; top: 34px; }
+    </style>
 </head>
+<body>
 
-<body style="margin:0; overflow:hidden;">
+    <button id="btn-exit">SALIR</button>
 
-<a-scene renderer="colorManagement:true; physicallyCorrectLights:true"
-         loading-screen="enabled:false">
+    <div id="arrows-wrapper">
+        <button class="joy-arrow arrow-up" id="btn-up">▲</button>
+        <button class="joy-arrow arrow-down" id="btn-down">▼</button>
+        <button class="joy-arrow arrow-left" id="btn-left">◀</button>
+        <button class="joy-arrow arrow-right" id="btn-right">▶</button>
+    </div>
 
-  <a-assets>
+    <div id="joystick-wrapper">
+        <div id="joystick-container">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
 
-    <a-asset-item id="forest"
-      src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/forest7.glb">
-    </a-asset-item>
+    <a-scene renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false"
+             loading-screen="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="forest-model" src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/forest7.glb"></a-asset-item>
+            <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
+        </a-assets>
 
-    <a-asset-item id="avatar"
-      src="luis-camina.glb">
-    </a-asset-item>
+        <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-  </a-assets>
+        <!-- ENTORNO COMPLETAMENTE GIRADO DE FORMA DIRECTA -->
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="180 0 0"></a-entity>
 
-  <!-- LUCES -->
-  <a-light type="ambient" intensity="1"></a-light>
+        <!-- RIG DEL JUGADOR -->
+        <a-entity id="player-rig" position="0 0 0">
+            
+            <!-- Avatar Luis -->
+            <a-entity id="avatar-mesh" 
+                      gltf-model="#avatar-model" 
+                      position="0 0 0" 
+                      rotation="0 180 0" 
+                      scale="1 1 1"
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+            </a-entity>
 
-  <!-- ENTORNO (SIN TOCAR POSICIÓN) -->
-  <a-entity gltf-model="#forest"></a-entity>
+            <!-- Cámara Orbital -->
+            <a-entity id="camera-orbit" position="0 1.6 0">
+                <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
+            </a-entity>
 
-  <!-- AVATAR -->
-  <a-entity gltf-model="#avatar"
-            position="0 0 0"
-            rotation="0 0 0"
-            animation-mixer>
-  </a-entity>
+        </a-entity>
 
-  <!-- CÁMARA SIMPLE -->
-  <a-entity camera position="0 1.6 4" look-controls></a-entity>
+    </a-scene>
 
-</a-scene>
+    <script>
+        document.getElementById('entorno').addEventListener('model-loaded', () => {
+            console.log("[ARK Engine] Entorno cargado con rotación forzada a 180 grados.");
+        });
 
+        const VELOCIDAD_AVANCE = 0.05;   
+        const VELOCIDAD_PIERNAS = 1.0;   
+
+        const knob = document.getElementById('joystick-knob');
+        const rig = document.getElementById('player-rig');
+        const cameraOrbit = document.getElementById('camera-orbit');
+        const avatarMesh = document.getElementById('avatar-mesh');
+        const mainCamera = document.getElementById('main-camera');
+
+        let moveX = 0, moveY = 0;
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        let joyDragging = false; let joyStartX, joyStartY;
+        let mouseDragging = false; let prevMouseX, prevMouseY;
+        
+        let camYaw = 0;   
+        let camPitch = -0.25; 
+        let camDist = 4.0; 
+        let arrowCam = { up: false, down: false, left: false, right: false };
+        let wasMoving = false;
+
+        document.getElementById('btn-exit').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        // ZOOM RATÓN
+        window.addEventListener('wheel', (e) => {
+            camDist += e.deltaY * 0.005;
+            camDist = Math.max(2.0, Math.min(8.0, camDist));
+            mainCamera.setAttribute('position', `0 0 ${camDist}`);
+        }, { passive: true });
+
+        // ZOOM TÁCTIL
+        let initialTouchDist = 0;
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                if (initialTouchDist === 0) { initialTouchDist = dist; } 
+                else {
+                    let delta = initialTouchDist - dist;
+                    camDist += delta * 0.01;
+                    camDist = Math.max(2.0, Math.min(8.0, camDist));
+                    mainCamera.setAttribute('position', `0 0 ${camDist}`);
+                    initialTouchDist = dist;
+                }
+            }
+        }, { passive: true });
+        window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
+
+        // CONFIGURACIÓN BOTONES CÁMARA
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
+            const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchstart', start, {passive: false});
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('touchend', end, {passive: false});
+            btn.addEventListener('mouseleave', end);
+        };
+        setupArrowCamera('btn-up', 'up');
+        setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left');
+        setupArrowCamera('btn-right', 'right');
+
+        // JOYSTICK
+        function onJoyStart(e) {
+            joyDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            joyStartX = point.clientX; joyStartY = point.clientY;
+            e.preventDefault(); e.stopPropagation();
+        }
+
+        function onJoyMove(e) {
+            if (!joyDragging) return;
+            const point = e.touches ? e.touches[0] : e;
+            let dx = point.clientX - joyStartX; let dy = point.clientY - joyStartY;
+            const maxLen = 35;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            moveX = dx / maxLen; moveY = dy / maxLen;
+            e.preventDefault(); e.stopPropagation();
+        }
+
+        function onJoyEnd(e) {
+            if(!joyDragging) return;
+            joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0; moveY = 0;
+            if(e && e.cancelable) e.preventDefault();
+        }
+
+        knob.addEventListener('touchstart', onJoyStart, {passive: false});
+        window.addEventListener('touchmove', onJoyMove, {passive: false});
+        window.addEventListener('touchend', onJoyEnd, {passive: false});
+        knob.addEventListener('mousedown', onJoyStart);
+        window.addEventListener('mousemove', onJoyMove);
+        window.addEventListener('mouseup', onJoyEnd);
+
+        window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
+
+        // ROTACIÓN POR ARRASTRE
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
+            mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!mouseDragging) return;
+            let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
+            prevMouseX = e.clientX; prevMouseY = e.clientY;
+            camYaw -= deltaX * 0.0015;  
+            camPitch += deltaY * 0.001; 
+        });
+        window.addEventListener('mouseup', () => { mouseDragging = false; });
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
+            const touch = e.touches[0];
+            mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+        }, {passive: true});
+        window.addEventListener('touchmove', (e) => {
+            if (!mouseDragging || e.touches.length > 1) return;
+            const touch = e.touches[0];
+            let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
+            prevMouseX = touch.clientX; prevMouseY = touch.clientY;
+            camYaw -= deltaX * 0.0015; 
+            camPitch += deltaY * 0.001; 
+        }, {passive: true});
+        window.addEventListener('touchend', () => { mouseDragging = false; });
+
+        // BUCLE PRINCIPAL
+        function engineLoop() {
+            if (arrowCam.left) camYaw += 0.008;
+            if (arrowCam.right) camYaw -= 0.008;
+            if (arrowCam.up) camPitch -= 0.004;   
+            if (arrowCam.down) camPitch += 0.004;  
+
+            camPitch = Math.max(-0.7, Math.min(0.5, camPitch));
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+
+            let inputX = moveX; let inputY = moveY;
+            if (keys.w || keys.ArrowUp) inputY = -1;
+            if (keys.s || keys.ArrowDown) inputY = 1;
+            if (keys.a || keys.ArrowLeft) inputX = -1;
+            if (keys.d || keys.ArrowRight) inputX = 1;
+
+            let isMoving = (inputX !== 0 || inputY !== 0);
+
+            if (isMoving !== wasMoving) {
+                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
+                if (!isMoving) {
+                    const mixer = avatarMesh.components['animation-mixer']?.mixer;
+                    if (mixer && mixer._actions) {
+                        mixer._actions.forEach(action => action.reset());
+                    }
+                }
+                wasMoving = isMoving;
+            }
+
+            if (isMoving) {
+                const pos = rig.getAttribute('position');
+                const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
+                const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
+
+                pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
+                rig.setAttribute('position', pos);
+
+                const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
+                let currentAngle = avatarMesh.object3D.rotation.y;
+                let deltaAngle = targetAngle - currentAngle;
+                
+                deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
+                avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
+            }
+            requestAnimationFrame(engineLoop);
+        }
+        engineLoop();
+    </script>
 </body>
 </html>
