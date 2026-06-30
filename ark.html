@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Suelo Automatizado</title>
+    <title>ARK - Motor Corregido</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -36,10 +36,6 @@
             backdrop-filter: blur(4px);
             box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
             touch-action: none;
-        }
-
-        #btn-exit:active {
-            background: #ef4444;
         }
 
         /* BOTONES CÁMARA - IZQUIERDA */
@@ -102,11 +98,7 @@
             touch-action: none;
         }
 
-        .joy-arrow:active {
-            background: #00f3ff;
-            color: #020617;
-        }
-
+        .joy-arrow:active { background: #00f3ff; color: #020617; }
         .arrow-up { top: 0; left: 34px; }
         .arrow-down { bottom: 0; left: 34px; }
         .arrow-left { left: 0; top: 34px; }
@@ -140,27 +132,28 @@
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
+        <!-- Iluminación mejorada para disimular texturas cuadriculadas -->
+        <a-entity light="type: ambient; intensity: 1.0; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 0.8;" position="10 30 10"></a-entity>
 
-        <!-- ENTORNO: Inicializado en 0, la altura real se calcula dinámicamente por script -->
+        <!-- ENTORNO GENERADO Y ROTADO -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="180 0 0"></a-entity>
 
-        <!-- RIG DEL JUGADOR -->
+        <!-- RIG DEL JUGADOR (CÁMARA + AVATAR) -->
         <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Avatar Luis -->
+            <!-- Avatar con rotación calibrada para evitar deslizamientos raros -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
-                      rotation="0 180 0" 
+                      rotation="0 0 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Cámara Orbital -->
-            <a-entity id="camera-orbit" position="0 1.6 0">
-                <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
+            <!-- Cámara Orbital con pivote limpio -->
+            <a-entity id="camera-orbit" position="0 1.2 0">
+                <a-entity id="main-camera" camera position="0 0 5.0"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -168,49 +161,15 @@
     </a-scene>
 
     <script>
-        // ========================================================
-        // SENSOR DE IMPACTO ULTRA-PRECISO (RAYCASTER)
-        // ========================================================
-        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
-            const entornoEntity = e.target;
-
-            // Dejamos un breve desfase de 200ms para asegurar que Three.js computó la rotación de 180°
-            setTimeout(() => {
-                const obj3D = entornoEntity.object3D;
-                obj3D.updateMatrixWorld(true);
-
-                // Creamos un Raycaster que dispara desde arriba (Y=10000) hacia el suelo (Y=-1)
-                const raycaster = new THREE.Raycaster();
-                const origin = new THREE.Vector3(0, 10000, 0);
-                const direction = new THREE.Vector3(0, -1, 0);
-                raycaster.set(origin, direction);
-
-                // Escaneamos las mallas del bosque para encontrar el primer punto de impacto
-                const intersections = raycaster.intersectObject(obj3D, true);
-
-                if (intersections.length > 0) {
-                    // Detectamos dónde quedó la superficie real tras el giro
-                    const puntoSueloY = intersections[0].point.y;
-                    
-                    // Desplazamos el mapa exactamente lo necesario para estampar esa hierba en Y = 0
-                    entornoEntity.setAttribute('position', `0 ${-puntoSueloY} 0`);
-                    console.log(`[ARK Engine] Suelo fijado con éxito a la altura del avatar.`);
-                } else {
-                    // Fallback de seguridad por si el rayo no cruza la geometría en (0,0)
-                    entornoEntity.setAttribute('position', "0 280 0");
-                    console.log(`[ARK Engine] Raycast fuera de límites. Aplicando corrección estimada.`);
-                }
-            }, 200);
-        });
-
-        const VELOCIDAD_AVANCE = 0.05;   
-        const VELOCIDAD_PIERNAS = 1.0;   
+        const VELOCIDAD_AVANCE = 0.06;   
+        const VELOCIDAD_PIERNAS = 1.2;   
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarMesh = document.getElementById('avatar-mesh');
         const mainCamera = document.getElementById('main-camera');
+        const sceneEl = document.querySelector('a-scene');
 
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
@@ -218,63 +177,45 @@
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.25; 
-        let camDist = 4.0; 
+        let camPitch = -0.15; 
+        let camDist = 5.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        document.getElementById('btn-exit').addEventListener('click', () => {
-            window.location.href = 'index.html';
+        // Generador automático de estrellas reales en el espacio
+        sceneEl.addEventListener('loaded', () => {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 1200;
+            const starPositions = new Float32Array(starsCount * 3);
+            for(let i = 0; i < starsCount * 3; i += 3) {
+                const u = Math.random(); const v = Math.random();
+                const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0);
+                const r = 350; // Distancia en la bóveda celeste
+                starPositions[i] = r * Math.sin(phi) * Math.cos(theta);
+                starPositions[i+1] = Math.abs(r * Math.sin(phi) * Math.sin(theta)) + 10; 
+                starPositions[i+2] = r * Math.cos(phi);
+            }
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starsMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 1.5, sizeAttenuation: false});
+            const starField = new THREE.Points(starsGeometry, starsMaterial);
+            sceneEl.object3D.add(starField);
         });
 
-        // ZOOM RATÓN
+        document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
+
+        // ZOOM ILIMITADO (Para poder alejarte y ver toda la maqueta)
         window.addEventListener('wheel', (e) => {
-            camDist += e.deltaY * 0.005;
-            camDist = Math.max(2.0, Math.min(8.0, camDist));
+            camDist += e.deltaY * 0.01;
+            camDist = Math.max(2.0, Math.min(180.0, camDist)); // Ampliado hasta 180 metros
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // ZOOM TÁCTIL
-        let initialTouchDist = 0;
-        window.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2) {
-                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                if (initialTouchDist === 0) { initialTouchDist = dist; } 
-                else {
-                    let delta = initialTouchDist - dist;
-                    camDist += delta * 0.01;
-                    camDist = Math.max(2.0, Math.min(8.0, camDist));
-                    mainCamera.setAttribute('position', `0 0 ${camDist}`);
-                    initialTouchDist = dist;
-                }
-            }
-        }, { passive: true });
-        window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
-
-        // CONFIGURACIÓN BOTONES CÁMARA
-        const setupArrowCamera = (id, direction) => {
-            const btn = document.getElementById(id);
-            const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
-            const end = (e) => { if(e) e.preventDefault(); arrowCam[direction] = false; };
-            btn.addEventListener('mousedown', start);
-            btn.addEventListener('touchstart', start, {passive: false});
-            btn.addEventListener('mouseup', end);
-            btn.addEventListener('touchend', end, {passive: false});
-            btn.addEventListener('mouseleave', end);
-        };
-        setupArrowCamera('btn-up', 'up');
-        setupArrowCamera('btn-down', 'down');
-        setupArrowCamera('btn-left', 'left');
-        setupArrowCamera('btn-right', 'right');
-
-        // JOYSTICK
+        // JOYSTICK CORREGIDO (Inversión solucionada multiplicando por -1)
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
             joyStartX = point.clientX; joyStartY = point.clientY;
-            e.preventDefault(); e.stopPropagation();
         }
-
         function onJoyMove(e) {
             if (!joyDragging) return;
             const point = e.touches ? e.touches[0] : e;
@@ -283,28 +224,25 @@
             const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            moveX = dx / maxLen; moveY = dy / maxLen;
-            e.preventDefault(); e.stopPropagation();
+            moveX = -1 * (dx / maxLen); // Corrección de espejo horizontal
+            moveY = dy / maxLen;
         }
-
-        function onJoyEnd(e) {
-            if(!joyDragging) return;
+        function onJoyEnd() {
             joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
             moveX = 0; moveY = 0;
-            if(e && e.cancelable) e.preventDefault();
         }
 
-        knob.addEventListener('touchstart', onJoyStart, {passive: false});
+        knob.addEventListener('touchstart', onJoyStart);
         window.addEventListener('touchmove', onJoyMove, {passive: false});
-        window.addEventListener('touchend', onJoyEnd, {passive: false});
+        window.addEventListener('touchend', onJoyEnd);
         knob.addEventListener('mousedown', onJoyStart);
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
-        window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
+        window.addEventListener('keydown', (e) => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup', (e) => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; });
 
-        // ROTACIÓN POR ARRASTRE
+        // ROTACIÓN DE CÁMARA SUAVE
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -313,71 +251,84 @@
             if (!mouseDragging) return;
             let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
             prevMouseX = e.clientX; prevMouseY = e.clientY;
-            camYaw -= deltaX * 0.0015;  
-            camPitch += deltaY * 0.001; 
+            camYaw -= deltaX * 0.002;  
+            camPitch += deltaY * 0.002; 
         });
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
-            const touch = e.touches[0];
-            mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
-        }, {passive: true});
-        window.addEventListener('touchmove', (e) => {
-            if (!mouseDragging || e.touches.length > 1) return;
-            const touch = e.touches[0];
-            let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
-            prevMouseX = touch.clientX; prevMouseY = touch.clientY;
-            camYaw -= deltaX * 0.0015; 
-            camPitch += deltaY * 0.001; 
-        }, {passive: true});
-        window.addEventListener('touchend', () => { mouseDragging = false; });
+        // CONFIGURACIÓN BOTONES CÁMARA EXTRA
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
+            btn.addEventListener('mouseup', () => { arrowCam[direction] = false; });
+            btn.addEventListener('mouseleave', () => { arrowCam[direction] = false; });
+        };
+        setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // BUCLE PRINCIPAL
+        // BUCLE DE RENDERIZADO Y CONTROL EN TIEMPO REAL
         function engineLoop() {
-            if (arrowCam.left) camYaw += 0.008;
-            if (arrowCam.right) camYaw -= 0.008;
-            if (arrowCam.up) camPitch -= 0.004;   
-            if (arrowCam.down) camPitch += 0.004;  
+            // Rotaciones de cámara controladas
+            if (arrowCam.left) camYaw += 0.015;
+            if (arrowCam.right) camYaw -= 0.015;
+            if (arrowCam.up) camPitch -= 0.01;   
+            if (arrowCam.down) camPitch += 0.01;  
 
-            camPitch = Math.max(-0.7, Math.min(0.5, camPitch));
+            camPitch = Math.max(-0.6, Math.min(0.3, camPitch)); // Bloqueo de balancín brusco
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            let inputX = moveX; let inputY = moveY;
-            if (keys.w || keys.ArrowUp) inputY = -1;
-            if (keys.s || keys.ArrowDown) inputY = 1;
-            if (keys.a || keys.ArrowLeft) inputX = -1;
-            if (keys.d || keys.ArrowRight) inputX = 1;
+            // Procesar entradas de teclado limpias (WASD DIRECCIONAL REAL)
+            let inputX = -moveX; 
+            let inputY = moveY;
+            
+            if (keys.w) inputY = -1;
+            if (keys.s) inputY = 1;
+            if (keys.a) inputX = -1; // Izquierda real
+            if (keys.d) inputX = 1;  // Derecha real
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // Control de animación deslizante
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
-                if (!isMoving) {
-                    const mixer = avatarMesh.components['animation-mixer']?.mixer;
-                    if (mixer && mixer._actions) {
-                        mixer._actions.forEach(action => action.reset());
-                    }
-                }
                 wasMoving = isMoving;
             }
 
             if (isMoving) {
                 const pos = rig.getAttribute('position');
+                
+                // Vectores de dirección basados de verdad en la vista de cámara
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
+                
+                // ==========================================
+                // ESCÁNER DE MONTAÑAS (ANTI-HUNDIMIENTO)
+                // ==========================================
+                const entornoMesh = document.getElementById('entorno').object3D;
+                if (entornoMesh) {
+                    const raycaster = new THREE.Raycaster();
+                    const origin = new THREE.Vector3(pos.x, 2000, pos.z); // Dispara desde el cielo
+                    const direction = new THREE.Vector3(0, -1, 0);
+                    raycaster.set(origin, direction);
+                    
+                    const intersects = raycaster.intersectObject(entornoMesh, true);
+                    if (intersects.length > 0) {
+                        pos.y = intersects[0].point.y; // Ajusta la altura exacta de la montaña
+                    }
+                }
+
                 rig.setAttribute('position', pos);
 
-                const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
+                // Rotar malla interna del avatar hacia donde camina
+                const targetAngle = camYaw + Math.atan2(-inputX, inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
-                
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
-                avatarMesh.object3D.rotation.y += deltaAngle * 0.15;
+                avatarMesh.object3D.rotation.y += deltaAngle * 0.2;
             }
             requestAnimationFrame(engineLoop);
         }
