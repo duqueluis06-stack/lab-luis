@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Motor Estable Concluido</title>
+    <title>ARK - Solución Definitiva</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -14,12 +14,11 @@
             padding: 0;
             overflow: hidden;
             font-family: system-ui, sans-serif;
-            background-color: #090d16;
+            background-color: #030712;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* BOTÓN DE SALIR */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -36,7 +35,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* CONTROLES CÁMARA FLUIDOS */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -46,7 +44,6 @@
             z-index: 999;
         }
 
-        /* JOYSTICK AJUSTADO */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -126,19 +123,14 @@
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Fondo del Espacio Profundo -->
-        <a-sky color="#030712"></a-sky>
+        <a-sky color="#020408"></a-sky>
 
-        <a-entity light="type: ambient; intensity: 1.1; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 0.9;" position="15 40 15"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 0.9;" position="10 40 10"></a-entity>
 
-        <!-- ENTORNO MANTENIDO EN CONFIGURACIÓN MANUAL SEGURA -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="180 0 0"></a-entity>
 
-        <!-- SISTEMA DEL JUGADOR -->
         <a-entity id="player-rig" position="0 0 0">
-            
-            <!-- Avatar alineado al frente real -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
@@ -147,23 +139,16 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Cámara Orbital libre -->
-            <a-entity id="camera-orbit" position="0 1.3 0">
-                <a-entity id="main-camera" camera position="0 0 5.0"></a-entity>
+            <a-entity id="camera-orbit" position="0 1.6 0">
+                <a-entity id="main-camera" camera position="0 0 6.0"></a-entity>
             </a-entity>
-
         </a-entity>
 
     </a-scene>
 
     <script>
-        // ========================================================
-        // PANEL DE CALIBRACIÓN MANUAL (Pies en la tierra)
-        // ========================================================
-        const ALTURA_INICIAL_ENTORNO = 0; // Si reapareces flotando, ajusta este número (Ej: 15, 50, -20)
-        
-        const VELOCIDAD_AVANCE = 0.07;   
-        const VELOCIDAD_PIERNAS = 1.2;   
+        const VELOCIDAD_AVANCE = 0.08;   
+        const VELOCIDAD_PIERNAS = 1.3;   
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -173,48 +158,45 @@
         const sceneEl = document.querySelector('a-scene');
         const entornoEntity = document.getElementById('entorno');
 
-        // Aplicar altura base inicial segura
-        entornoEntity.setAttribute('position', `0 ${ALTURA_INICIAL_ENTORNO} 0`);
-
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false };
         let joyDragging = false; let joyStartX, joyStartY;
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.20; 
+        let camPitch = -0.25; 
         let camDist = 6.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Bóveda Celeste de Estrellas Estables
+        // Bóveda de estrellas
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
-            const starsCount = 1000;
+            const starsCount = 1500;
             const positions = new Float32Array(starsCount * 3);
             for(let i = 0; i < starsCount * 3; i += 3) {
-                const maxRadius = 300;
+                const r = 400;
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos((Math.random() * 2) - 1);
-                positions[i] = maxRadius * Math.sin(phi) * Math.cos(theta);
-                positions[i+1] = Math.abs(maxRadius * Math.sin(phi) * Math.sin(theta)) + 5;
-                positions[i+2] = maxRadius * Math.cos(phi);
+                positions[i] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i+1] = Math.abs(r * Math.sin(phi) * Math.sin(theta)) + 2;
+                positions[i+2] = r * Math.cos(phi);
             }
             starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const starsMat = new THREE.PointsMaterial({color: 0xffffff, size: 1.8, sizeAttenuation: false});
+            const starsMat = new THREE.PointsMaterial({color: 0xffffff, size: 2.0, sizeAttenuation: false});
             sceneEl.object3D.add(new THREE.Points(starsGeometry, starsMat));
         });
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // ZOOM DE CÁMARA LIBRE TOTAL (Hasta 400 metros para ver la maqueta completa)
+        // ZOOM MASIVO CONFIGURADO DE ALTA DISTANCIA
         window.addEventListener('wheel', (e) => {
-            camDist += e.deltaY * 0.015;
-            camDist = Math.max(2.5, Math.min(400.0, camDist));
+            camDist += e.deltaY * 0.08;
+            camDist = Math.max(2.5, Math.min(600.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // JOYSTICK DIRECCIONAL CALIBRADO (Sin inversiones cruzadas)
+        // JOYSTICK CALIBRADO SIN INVERSIONES
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -228,8 +210,6 @@
             const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            
-            // Mapeo directo y real de coordenadas
             moveX = dx / maxLen; 
             moveY = dy / maxLen;
         }
@@ -248,20 +228,18 @@
         window.addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; });
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
-        // ARRASTRE DE CÁMARA 360°
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
         window.addEventListener('mousemove', (e) => {
             if (!mouseDragging) return;
-            camYaw -= (e.clientX - prevMouseX) * 0.0025;  
+            camYaw -= (e.clientX - prevMouseX) * 0.003;  
             camPitch += (e.clientY - prevMouseY) * 0.002; 
             prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
-        // BOTONES AUXILIARES DE CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
@@ -271,7 +249,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // BUCLE DEL MOTOR
+        // BUCLE PRINCIPAL DEL MOTOR CON ESCÁNER CONTINUO DE ALTURA MÁXIMA
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -282,14 +260,34 @@
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            // Procesar entradas limpias de movimiento
-            let inputX = 0;
-            let inputY = 0;
+            const pos = rig.getAttribute('position');
 
-            if (keys.w) inputY = -1; // Adelante absoluto
-            if (keys.s) inputY = 1;  // Atrás absoluto
-            if (keys.a) inputX = -1; // Izquierda absoluta
-            if (keys.d) inputX = 1;  // Derecha absoluta
+            // ESCÁNER DE SUPERFICIE REAL (EJECUCIÓN INMEDIATA Y CONSTANTE)
+            const entornoMesh = entornoEntity.object3D;
+            if (entornoMesh) {
+                const raycaster = new THREE.Raycaster();
+                raycaster.params.Mesh.side = THREE.DoubleSide; 
+                raycaster.set(new THREE.Vector3(pos.x, 3000, pos.z), new THREE.Vector3(0, -1, 0));
+                
+                const intersects = raycaster.intersectObject(entornoMesh, true);
+                if (intersects.length > 0) {
+                    let highestPointY = -Infinity;
+                    for (let i = 0; i < intersects.length; i++) {
+                        if (intersects[i].point.y > highestPointY) {
+                            highestPointY = intersects[i].point.y;
+                        }
+                    }
+                    if (highestPointY > -1500 && highestPointY < 1500) {
+                        pos.y = highestPointY; 
+                    }
+                }
+            }
+
+            let inputX = 0; let inputY = 0;
+            if (keys.w) inputY = -1; 
+            if (keys.s) inputY = 1;  
+            if (keys.a) inputX = -1; 
+            if (keys.d) inputX = 1;  
 
             if (joyDragging) {
                 inputX = moveX;
@@ -304,47 +302,20 @@
             }
 
             if (isMoving) {
-                const pos = rig.getAttribute('position');
-                
-                // Vectores de proyección direccional basados en la cámara orbital
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                // Movimiento relativo perfecto a la visual
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
-                
-                // ========================================================
-                // ESCÁNER SEGURO DE TERRENO CON ESCUDO ANTIFLY
-                // ========================================================
-                const entornoMesh = entornoEntity.object3D;
-                if (entornoMesh) {
-                    const raycaster = new THREE.Raycaster();
-                    raycaster.params.Mesh.side = THREE.DoubleSide; // Soporta mallas invertidas
-                    
-                    const origin = new THREE.Vector3(pos.x, 1000, pos.z);
-                    const direction = new THREE.Vector3(0, -1, 0);
-                    raycaster.set(origin, direction);
-                    
-                    const intersects = raycaster.intersectObject(entornoMesh, true);
-                    if (intersects.length > 0) {
-                        const groundY = intersects[0].point.y;
-                        // Escudo de seguridad: Solo altera la altura si está dentro de un rango lógico terrestre
-                        if (groundY > -800 && groundY < 800) {
-                            pos.y = groundY;
-                        }
-                    }
-                }
 
-                rig.setAttribute('position', pos);
-
-                // Rotación del cuerpo del avatar hacia la dirección del paso
                 const targetAngle = camYaw + Math.atan2(-inputX, inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
             }
+
+            rig.setAttribute('position', pos);
             requestAnimationFrame(engineLoop);
         }
         engineLoop();
