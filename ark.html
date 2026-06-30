@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Maqueta Enderezada</title>
+    <title>ARK - Solución Avatar Visible</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -125,22 +125,23 @@
 
         <a-sky color="#020408"></a-sky>
 
-        <a-entity light="type: ambient; intensity: 1.3; color: #ffffff"></a-entity>
-        <a-entity light="type: directional; intensity: 0.9;" position="10 45 10"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.4; color: #ffffff"></a-entity>
+        <a-entity light="type: directional; intensity: 1.0;" position="10 50 10"></a-entity>
 
-        <!-- MAQUETA REPARADA: Rotación corregida a 0 0 0 para que los árboles miren arriba -->
+        <!-- Maqueta en posición correcta -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
+        <!-- Rig del jugador con el avatar elevado sobre el eje de colisión para evitar que se entierre -->
         <a-entity id="player-rig" position="0 0 0">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 0 0" 
+                      position="0 0.3 0" 
                       rotation="0 0 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <a-entity id="camera-orbit" position="0 1.6 0">
+            <a-entity id="camera-orbit" position="0 1.5 0">
                 <a-entity id="main-camera" camera position="0 0 6.0"></a-entity>
             </a-entity>
         </a-entity>
@@ -165,12 +166,12 @@
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.25; 
+        let camPitch = -0.20; 
         let camDist = 6.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Cielo estrellado estallado
+        // Estrellas de fondo
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
             const starsCount = 1500;
@@ -190,14 +191,14 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // Zoom ilimitado libre
+        // Rueda de ratón para zoom de cámara libre
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.08;
             camDist = Math.max(2.5, Math.min(600.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Joystick sin inversión
+        // Controles de Joystick calibrados
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -250,7 +251,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // Bucle con escáner de altura sobre el derecho de la malla
+        // Motor de renderizado con fijación de altura exacta de la superficie
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -263,6 +264,7 @@
 
             const pos = rig.getAttribute('position');
 
+            // Escáner preciso descendente sobre el mapa del derecho
             const entornoMesh = entornoEntity.object3D;
             if (entornoMesh) {
                 const raycaster = new THREE.Raycaster();
@@ -270,14 +272,10 @@
                 
                 const intersects = raycaster.intersectObject(entornoMesh, true);
                 if (intersects.length > 0) {
-                    let highestPointY = -Infinity;
-                    for (let i = 0; i < intersects.length; i++) {
-                        if (intersects[i].point.y > highestPointY) {
-                            highestPointY = intersects[i].point.y;
-                        }
-                    }
-                    if (highestPointY > -1000 && highestPointY < 1000) {
-                        pos.y = highestPointY; 
+                    // Al estar ordenados por cercanía, el primer cruce es el suelo visible superior
+                    const groundY = intersects[0].point.y;
+                    if (groundY > -1000 && groundY < 1000) {
+                        pos.y = groundY; 
                     }
                 }
             }
