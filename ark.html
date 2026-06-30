@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Solución Avatar Visible</title>
+    <title>ARK - Localizador de Avatar</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,6 +19,7 @@
             -webkit-user-select: none;
         }
 
+        /* BOTÓN SALIR */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -33,6 +34,28 @@
             cursor: pointer;
             z-index: 1000;
             backdrop-filter: blur(4px);
+        }
+
+        /* NUEVO BOTÓN: LOCALIZAR / CENTRALIZAR AVATAR */
+        #btn-center {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid #00f3ff;
+            color: #00f3ff;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+            backdrop-filter: blur(4px);
+        }
+        #btn-center:active {
+            background: #00f3ff;
+            color: #030712;
         }
 
         #arrows-wrapper {
@@ -100,6 +123,7 @@
 <body>
 
     <button id="btn-exit">SALIR</button>
+    <button id="btn-center">CENTRALIZAR AVATAR</button>
 
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
@@ -128,14 +152,13 @@
         <a-entity light="type: ambient; intensity: 1.4; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 1.0;" position="10 50 10"></a-entity>
 
-        <!-- Maqueta en posición correcta -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <!-- Rig del jugador con el avatar elevado sobre el eje de colisión para evitar que se entierre -->
         <a-entity id="player-rig" position="0 0 0">
+            <!-- Posicionamiento base levemente levantado para evitar entierros en mallas complejas -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 0.3 0" 
+                      position="0 0.1 0" 
                       rotation="0 0 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
@@ -171,7 +194,7 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Estrellas de fondo
+        // Estrellas
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
             const starsCount = 1500;
@@ -191,14 +214,45 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // Rueda de ratón para zoom de cámara libre
+        // SISTEMA DE RESCATE: FUERZA AL AVATAR AL CENTRO Y SOBRE LA SUPERFICIE VISIBLE
+        document.getElementById('btn-center').addEventListener('click', () => {
+            const pos = rig.getAttribute('position');
+            pos.x = 0;
+            pos.z = 0;
+            
+            const entornoMesh = entornoEntity.object3D;
+            if (entornoMesh) {
+                const raycaster = new THREE.Raycaster();
+                raycaster.set(new THREE.Vector3(0, 3000, 0), new THREE.Vector3(0, -1, 0));
+                const intersects = raycaster.intersectObject(entornoMesh, true);
+                if (intersects.length > 0) {
+                    pos.y = intersects[0].point.y; 
+                } else {
+                    pos.y = 0;
+                }
+            } else {
+                pos.y = 0;
+            }
+            
+            rig.setAttribute('position', pos);
+
+            // Reseteo instantáneo de la visualización de cámara hacia él
+            camYaw = 0;
+            camPitch = -0.20;
+            camDist = 6.0;
+            mainCamera.setAttribute('position', `0 0 ${camDist}`);
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+        });
+
+        // Zoom de cámara libre
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.08;
             camDist = Math.max(2.5, Math.min(600.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Controles de Joystick calibrados
+        // Joystick sin inversiones
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -231,7 +285,7 @@
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit' || e.target.id === 'btn-center') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
         window.addEventListener('mousemove', (e) => {
@@ -251,7 +305,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // Motor de renderizado con fijación de altura exacta de la superficie
+        // Bucle continuo de ejecución
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -264,7 +318,7 @@
 
             const pos = rig.getAttribute('position');
 
-            // Escáner preciso descendente sobre el mapa del derecho
+            // Escáner continuo descendente
             const entornoMesh = entornoEntity.object3D;
             if (entornoMesh) {
                 const raycaster = new THREE.Raycaster();
@@ -272,7 +326,6 @@
                 
                 const intersects = raycaster.intersectObject(entornoMesh, true);
                 if (intersects.length > 0) {
-                    // Al estar ordenados por cercanía, el primer cruce es el suelo visible superior
                     const groundY = intersects[0].point.y;
                     if (groundY > -1000 && groundY < 1000) {
                         pos.y = groundY; 
