@@ -65,10 +65,10 @@
             transition: all 0.2s ease;
         }
 
-        /* Interfaz Multimedia Flotante y Semi-transparente */
+        /* Interfaz Multimedia Flotante (Bajada a top: 90px para evitar colisiones) */
         #audio-container {
             position: absolute;
-            top: 20px;
+            top: 90px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(15, 23, 42, 0.5);
@@ -95,10 +95,6 @@
             justify-content: center;
             padding: 4px;
             transition: transform 0.1s ease, color 0.2s ease;
-        }
-
-        .audio-btn:white {
-            color: #fda4af;
         }
 
         .audio-btn:active {
@@ -190,7 +186,6 @@
     <button id="btn-exit">Salir</button>
     <button id="btn-center">👤</button>
 
-    <!-- Reproductor de Audio Flotante con Vúmetro -->
     <div id="audio-container">
         <button class="audio-btn" id="btn-play-pause">⏸</button>
         <button class="audio-btn" id="btn-next">⏭</button>
@@ -244,7 +239,6 @@
     </a-scene>
 
     <script>
-        // Coordenadas iniciales modificadas a la derecha/izquierda del cero para evitar montaña inicial
         const SPAWN_X = 12;
         const SPAWN_Z = -15;
 
@@ -263,7 +257,6 @@
         const keys = { w: false, a: false, s: false, d: false };
         let joyDragging = false; let joyStartX, joyStartY;
         
-        // Variables para paneo rotacional táctil y de mouse
         let screenDragging = false; let prevScreenX, prevScreenY;
         
         let camYaw = 0;   
@@ -273,7 +266,7 @@
         let wasMoving = false;
         let inicializado = false;
 
-        // --- SISTEMA DE AUDIO E INICIALIZACIÓN CON INTERACCIÓN ---
+        // --- SISTEMA DE AUDIO E INICIALIZACIÓN ---
         const playlist = ['Camino-Nocturno.mp3', 'Sin-Mirar.mp3'];
         let currentTrackIndex = 0;
         const audio = new Audio();
@@ -292,7 +285,6 @@
 
         function loadTrack(index) {
             audio.src = playlist[index];
-            // Extraer nombre limpio para mostrar en pantalla
             const cleanName = playlist[index].replace('.mp3', '').replace('-', ' ');
             trackTitle.textContent = cleanName;
         }
@@ -303,15 +295,13 @@
             
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 32; // Bloques pequeños para un vúmetro rápido de pocas barras
+            analyser.fftSize = 32;
             
             sourceNode = audioCtx.createMediaElementSource(audio);
             sourceNode.connect(analyser);
             analyser.connect(audioCtx.destination);
             
             audioIniciado = true;
-            
-            // Iniciar render del vúmetro gráfico
             drawVUMeter();
         }
 
@@ -325,11 +315,10 @@
             if (audio.paused) {
                 audio.play().then(() => {
                     btnPlayPause.textContent = '⏸';
-                }).catch(err => console.log("Autoplay esperando interacción definitiva..."));
+                }).catch(err => console.log("Esperando interacción..."));
             }
         }
 
-        // Controladores de interfaz de usuario para el reproductor
         btnPlayPause.addEventListener('click', (e) => {
             e.stopPropagation();
             if (!audioIniciado) initAudioEngine();
@@ -362,7 +351,6 @@
             nextTrack();
         });
 
-        // Loop de renderizado del vúmetro neón de aspecto romántico
         function drawVUMeter() {
             requestAnimationFrame(drawVUMeter);
             if (!analyser) return;
@@ -373,24 +361,20 @@
 
             ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
 
-            // Filtramos a 5 barras estilizadas
             const barCount = 5;
             const barWidth = (canvasVU.width / barCount) - 2;
             
             for (let i = 0; i < barCount; i++) {
-                // Mapeo selectivo de frecuencias medias/bajas para mayor dinamismo rítmico
                 const value = dataArray[i * 2] || 0; 
                 const percent = value / 255;
                 const barHeight = percent * canvasVU.height * 0.9;
 
-                // Gradiente romántico: Magenta neón a Rosa suave
                 const grad = ctxVU.createLinearGradient(0, canvasVU.height, 0, 0);
                 grad.addColorStop(0, '#e11d48');
                 grad.addColorStop(1, '#f43f5e');
 
                 ctxVU.fillStyle = grad;
                 
-                // Dibujar barras redondeadas invertidas desde la base inferior del Canvas
                 const x = i * (barWidth + 2);
                 const y = canvasVU.height - barHeight;
                 
@@ -421,7 +405,7 @@
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
         document.getElementById('btn-center').addEventListener('click', () => {
-            triggerAutoplay(); // Al interactuar directamente con el botón del avatar, se enciende la música
+            triggerAutoplay();
             inicializado = false;
             rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
             camYaw = 0;
@@ -436,9 +420,8 @@
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Eventos del Joystick físico/virtual
         function onJoyStart(e) {
-            triggerAutoplay(); // Disparador automático por interacción de movimiento
+            triggerAutoplay();
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
             joyStartX = point.clientX; joyStartY = point.clientY;
@@ -469,16 +452,15 @@
         window.addEventListener('mouseup', onJoyEnd);
 
         window.addEventListener('keydown', (e) => { 
-            triggerAutoplay(); // Disparador automático por teclado
+            triggerAutoplay();
             const k = e.key.toLowerCase(); 
             if (k in keys) keys[k] = true; 
         });
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
-        // Lógica unificada para rotar cámara con el dedo en pantalla o mouse
         function onScreenStart(e) {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#audio-container') || e.target.tagName === 'BUTTON') return;
-            triggerAutoplay(); // Disparador automático por paneo táctil general
+            triggerAutoplay();
             screenDragging = true;
             const point = e.touches ? e.touches[0] : e;
             prevScreenX = point.clientX;
@@ -536,7 +518,6 @@
 
             const pos = rig.getAttribute('position');
 
-            // Bucle inicial cenital hasta impactar suelo
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
@@ -586,21 +567,17 @@
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // Sistema de Altura Avanzado con Colisiones de Árboles y Lerp de estabilidad
             const raycaster = new THREE.Raycaster();
             raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
             
             const intersects = raycaster.intersectObject(mesh, true);
             if (intersects.length > 0) {
                 let groundY = intersects[0].point.y;
-                
-                // DETECTOR DE SÓLIDOS: Si el cambio de altura supera los 0.8 metros, chocó contra un pino/obstáculo
                 if ((groundY - oldY) > 0.8) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
-                    // Interpolación lineal suave (LERP) para erradicar el temblor de pantalla
                     pos.y += (groundY - pos.y) * 0.2;
                 }
             } else {
