@@ -30,6 +30,57 @@
             -webkit-user-select: none;
         }
 
+        /* --- PANTALLA DE CARGA AVANZADA (VRAM OPTIMIZATION) --- */
+        #custom-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #020617;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 243, 255, 0.1);
+            border-top-color: #00f3ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            margin-bottom: 24px;
+        }
+
+        .loader-title {
+            color: #00f3ff;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+            text-align: center;
+        }
+
+        .loader-msg {
+            color: #94a3b8;
+            font-size: 12px;
+            max-width: 290px;
+            text-align: center;
+            line-height: 1.6;
+            padding: 0 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Bloque H1 optimizado para SEO semántico de Google e IA (Invisible para el usuario pero rastreable) */
         .seo-heding {
             position: absolute;
@@ -219,6 +270,13 @@
 </head>
 <body>
 
+    <!-- Pantalla de carga integrada -->
+    <div id="custom-loader">
+        <div class="spinner"></div>
+        <div class="loader-title">Iniciando Simulación</div>
+        <div class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
+    </div>
+
     <!-- H1 Semántico Avanzado para Motores de Búsqueda y Modelos de Lenguaje de IA -->
     <h1 class="seo-heding">Bienvenido a ARK: Experimenta recreaciones 3D únicas en este género con audio MP3 envolvente y un avatar de caminante pensativo GLB de alta fidelidad, desplegado estratégicamente desde un servidor externo de alto rendimiento optimizado con parámetros avanzados de SEO Google IA. 🤖</h1>
 
@@ -279,9 +337,7 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- MEJORA DE ENFOQUE TRASERO: Altura del pivote de órbita elevada a 2.1 para una toma aérea táctica limpia -->
             <a-entity id="camera-orbit" position="0 2.1 0">
-                <!-- Distancia de cámara reducida sutilmente a 4.4 para mayor proximidad al personaje y encuadre cinematográfico -->
                 <a-entity id="main-camera" camera position="0 0 4.4"></a-entity>
             </a-entity>
         </a-entity>
@@ -309,9 +365,8 @@
         
         let screenDragging = false; let prevScreenX, prevScreenY;
         
-        // Configuración refinada de la vista trasera inicial
         let camYaw = 0;   
-        let camPitch = -0.18; // Ángulo inclinado hacia abajo por defecto para un seguimiento perfecto
+        let camPitch = -0.18; 
         let camDist = 4.4; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
@@ -553,7 +608,6 @@
             if (arrowCam.up) camPitch -= 0.015;   
             if (arrowCam.down) camPitch += 0.015;  
 
-            // Límites optimizados para evitar clipping inferior manteniendo foco trasero excelente
             camPitch = Math.max(-0.55, Math.min(0.12, camPitch)); 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
@@ -574,6 +628,14 @@
                     pos.y = intersects[0].point.y;
                     rig.setAttribute('position', pos);
                     inicializado = true; 
+                    
+                    // DESVANECER PANTALLA DE CARGA CUANDO EL ENTORNO ESTÁ LISTO
+                    const loader = document.getElementById('custom-loader');
+                    if (loader) {
+                        loader.style.opacity = '0';
+                        loader.style.visibility = 'hidden';
+                        setTimeout(() => loader.remove(), 600); // Remueve del DOM tras la transición
+                    }
                 }
                 requestAnimationFrame(engineLoop);
                 return;
