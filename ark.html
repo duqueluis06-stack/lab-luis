@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Control y Altura Corregidos</title>
+    <title>ARK - Sistema Anticolisión y Cámara Fija</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -50,10 +50,6 @@
             z-index: 1000;
             box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
             backdrop-filter: blur(4px);
-        }
-        #btn-center:active {
-            background: #00f3ff;
-            color: #030712;
         }
 
         #arrows-wrapper {
@@ -147,30 +143,31 @@
 
         <a-sky color="#020408"></a-sky>
 
-        <a-entity light="type: ambient; intensity: 1.4; color: #ffffff"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.5; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 1.0;" position="10 50 10"></a-entity>
 
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <a-entity id="player-rig" position="0 0 5">
+        <!-- Se inicia el Rig en una altura aérea segura (Y=60) en el centro de la carretera para que caiga limpiamente encima -->
+        <a-entity id="player-rig" position="0 60 0">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 0.05 0" 
+                      position="0 0.02 0" 
                       rotation="0 0 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Órbita de cámara elevada y más cerca para evitar que se meta dentro de las montañas traseras -->
-            <a-entity id="camera-orbit" position="0 2.2 0">
-                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
+            <!-- Órbita de la cámara elevada y protegida contra el subsuelo -->
+            <a-entity id="camera-orbit" position="0 2.0 0">
+                <a-entity id="main-camera" camera position="0 0 5.0"></a-entity>
             </a-entity>
         </a-entity>
 
     </a-scene>
 
     <script>
-        const VELOCIDAD_AVANCE = 0.08;   
+        const VELOCIDAD_AVANCE = 0.09;   
         const VELOCIDAD_PIERNAS = 1.3;   
 
         const knob = document.getElementById('joystick-knob');
@@ -187,10 +184,11 @@
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.30; 
-        let camDist = 4.5; 
+        let camPitch = -0.25; 
+        let camDist = 5.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
+        let isFirstFrame = true;
 
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
@@ -211,15 +209,17 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
+        // Función de centralización y rescate total a zona segura superior de la avenida
         document.getElementById('btn-center').addEventListener('click', () => {
             const pos = rig.getAttribute('position');
             pos.x = 0;
-            pos.z = 5;
+            pos.z = 0;
+            pos.y = 60; // Forzar arriba para re-escanear desde el cielo
             
             const entornoMesh = entornoEntity.object3D;
             if (entornoMesh) {
                 const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(0, 3000, 5), new THREE.Vector3(0, -1, 0));
+                raycaster.set(new THREE.Vector3(0, 2000, 0), new THREE.Vector3(0, -1, 0));
                 const intersects = raycaster.intersectObject(entornoMesh, true);
                 if (intersects.length > 0) {
                     pos.y = intersects[0].point.y; 
@@ -233,8 +233,8 @@
             rig.setAttribute('position', pos);
 
             camYaw = 0;
-            camPitch = -0.30;
-            camDist = 4.5;
+            camPitch = -0.25;
+            camDist = 5.0;
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
@@ -242,7 +242,7 @@
 
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.08;
-            camDist = Math.max(2.0, Math.min(600.0, camDist));
+            camDist = Math.max(2.0, Math.min(40.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
@@ -304,37 +304,17 @@
             if (arrowCam.up) camPitch -= 0.015;   
             if (arrowCam.down) camPitch += 0.015;  
 
-            camPitch = Math.max(-0.8, Math.min(0.3, camPitch)); 
+            // Límites estrictos de inclinación para impedir que la cámara perfore el suelo o se hunda
+            camPitch = Math.max(-0.55, Math.min(0.05, camPitch)); 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
             const pos = rig.getAttribute('position');
-
-            // SOLUCIÓN ALTURA AVENIDA: Escanea capas y selecciona la superficie más cercana al nivel actual del avatar
-            const entornoMesh = entornoEntity.object3D;
-            if (entornoMesh) {
-                const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(pos.x, 3000, pos.z), new THREE.Vector3(0, -1, 0));
-                
-                const intersects = raycaster.intersectObject(entornoMesh, true);
-                if (intersects.length > 0) {
-                    let closestIntersect = intersects[0];
-                    let minDistanceY = Math.abs(intersects[0].point.y - pos.y);
-                    
-                    for (let i = 1; i < intersects.length; i++) {
-                        let distY = Math.abs(intersects[i].point.y - pos.y);
-                        if (distY < minDistanceY) {
-                            minDistanceY = distY;
-                            closestIntersect = intersects[i];
-                        }
-                    }
-                    
-                    const groundY = closestIntersect.point.y;
-                    if (groundY > -1000 && groundY < 1000) {
-                        pos.y = groundY; 
-                    }
-                }
-            }
+            
+            // Guardar posición anterior para bloqueo físico (Anticolisión)
+            let oldX = pos.x;
+            let oldZ = pos.z;
+            let oldY = pos.y;
 
             let inputX = 0; let inputY = 0;
             if (keys.w) inputY = -1; 
@@ -358,16 +338,49 @@
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
-                // Movimiento estable en relación a la orientación de pantalla
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
 
-                // SOLUCIÓN INVERSIÓN: Orientación corregida del cuerpo del avatar alineada con la dirección real del recorrido
                 const targetAngle = camYaw + Math.atan2(inputX, inputY);
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
+            }
+
+            // SISTEMA ANTICOLISIÓN INTELIGENTE Y DETECTOR DE ALTURA DE CARRETERA
+            const entornoMesh = entornoEntity.object3D;
+            if (entornoMesh) {
+                const raycaster = new THREE.Raycaster();
+                // Escaneo desde una altura aérea controlada
+                raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
+                
+                const intersects = raycaster.intersectObject(entornoMesh, true);
+                if (intersects.length > 0) {
+                    let targetY = intersects[0].point.y;
+                    
+                    if (isFirstFrame) {
+                        pos.y = targetY;
+                        isFirstFrame = false;
+                    } else {
+                        // Filtro de colisión: Si el cambio de altura vertical es abrupto (> 1.4 metros), significa que chocó contra un pino, montaña vertical o límite de la maqueta
+                        let alturaDelta = Math.abs(targetY - oldY);
+                        if (alturaDelta > 1.4) {
+                            // Detener el avance fantasma y rebotar la posición
+                            pos.x = oldX;
+                            pos.z = oldZ;
+                            pos.y = oldY;
+                        } else {
+                            // Caminado fluido sobre la avenida o pendientes suaves
+                            pos.y = targetY;
+                        }
+                    }
+                } else {
+                    // Si se sale de los límites de la maqueta, bloquear movimiento por completo
+                    pos.x = oldX;
+                    pos.z = oldZ;
+                    pos.y = oldY;
+                }
             }
 
             rig.setAttribute('position', pos);
