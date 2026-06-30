@@ -65,6 +65,63 @@
             transition: all 0.2s ease;
         }
 
+        /* Interfaz Multimedia Flotante y Semi-transparente */
+        #audio-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            border-radius: 30px;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.15);
+        }
+
+        .audio-btn {
+            background: none;
+            border: none;
+            color: #f43f5e;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            transition: transform 0.1s ease, color 0.2s ease;
+        }
+
+        .audio-btn:white {
+            color: #fda4af;
+        }
+
+        .audio-btn:active {
+            transform: scale(0.92);
+        }
+
+        #track-title {
+            color: #e2e8f0;
+            font-size: 11px;
+            max-width: 95px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        #vu-meter {
+            width: 45px;
+            height: 18px;
+            display: block;
+        }
+
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -132,6 +189,14 @@
 
     <button id="btn-exit">Salir</button>
     <button id="btn-center">👤</button>
+
+    <!-- Reproductor de Audio Flotante con Vúmetro -->
+    <div id="audio-container">
+        <button class="audio-btn" id="btn-play-pause">⏸</button>
+        <button class="audio-btn" id="btn-next">⏭</button>
+        <div id="track-title">Cargando...</div>
+        <canvas id="vu-meter"></canvas>
+    </div>
 
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
@@ -208,6 +273,132 @@
         let wasMoving = false;
         let inicializado = false;
 
+        // --- SISTEMA DE AUDIO E INICIALIZACIÓN CON INTERACCIÓN ---
+        const playlist = ['Camino-Nocturno.mp3', 'Sin-Mirar.mp3'];
+        let currentTrackIndex = 0;
+        const audio = new Audio();
+        audio.crossOrigin = "anonymous";
+        
+        let audioCtx = null;
+        let analyser = null;
+        let sourceNode = null;
+        let audioIniciado = false;
+
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const btnNext = document.getElementById('btn-next');
+        const trackTitle = document.getElementById('track-title');
+        const canvasVU = document.getElementById('vu-meter');
+        const ctxVU = canvasVU.getContext('2d');
+
+        function loadTrack(index) {
+            audio.src = playlist[index];
+            // Extraer nombre limpio para mostrar en pantalla
+            const cleanName = playlist[index].replace('.mp3', '').replace('-', ' ');
+            trackTitle.textContent = cleanName;
+        }
+        loadTrack(currentTrackIndex);
+
+        function initAudioEngine() {
+            if (audioIniciado) return;
+            
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 32; // Bloques pequeños para un vúmetro rápido de pocas barras
+            
+            sourceNode = audioCtx.createMediaElementSource(audio);
+            sourceNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            
+            audioIniciado = true;
+            
+            // Iniciar render del vúmetro gráfico
+            drawVUMeter();
+        }
+
+        function triggerAutoplay() {
+            if (!audioIniciado) {
+                initAudioEngine();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            if (audio.paused) {
+                audio.play().then(() => {
+                    btnPlayPause.textContent = '⏸';
+                }).catch(err => console.log("Autoplay esperando interacción definitiva..."));
+            }
+        }
+
+        // Controladores de interfaz de usuario para el reproductor
+        btnPlayPause.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!audioIniciado) initAudioEngine();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            if (audio.paused) {
+                audio.play();
+                btnPlayPause.textContent = '⏸';
+            } else {
+                audio.pause();
+                btnPlayPause.textContent = '▶';
+            }
+        });
+
+        function nextTrack() {
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            loadTrack(currentTrackIndex);
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            audio.play().then(() => {
+                btnPlayPause.textContent = '⏸';
+            });
+        }
+
+        btnNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            nextTrack();
+        });
+
+        audio.addEventListener('ended', () => {
+            nextTrack();
+        });
+
+        // Loop de renderizado del vúmetro neón de aspecto romántico
+        function drawVUMeter() {
+            requestAnimationFrame(drawVUMeter);
+            if (!analyser) return;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
+
+            // Filtramos a 5 barras estilizadas
+            const barCount = 5;
+            const barWidth = (canvasVU.width / barCount) - 2;
+            
+            for (let i = 0; i < barCount; i++) {
+                // Mapeo selectivo de frecuencias medias/bajas para mayor dinamismo rítmico
+                const value = dataArray[i * 2] || 0; 
+                const percent = value / 255;
+                const barHeight = percent * canvasVU.height * 0.9;
+
+                // Gradiente romántico: Magenta neón a Rosa suave
+                const grad = ctxVU.createLinearGradient(0, canvasVU.height, 0, 0);
+                grad.addColorStop(0, '#e11d48');
+                grad.addColorStop(1, '#f43f5e');
+
+                ctxVU.fillStyle = grad;
+                
+                // Dibujar barras redondeadas invertidas desde la base inferior del Canvas
+                const x = i * (barWidth + 2);
+                const y = canvasVU.height - barHeight;
+                
+                ctxVU.fillRect(x, y, barWidth, barHeight);
+            }
+        }
+        // -------------------------------------------------------------
+
         rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
 
         sceneEl.addEventListener('loaded', () => {
@@ -230,6 +421,7 @@
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
         document.getElementById('btn-center').addEventListener('click', () => {
+            triggerAutoplay(); // Al interactuar directamente con el botón del avatar, se enciende la música
             inicializado = false;
             rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
             camYaw = 0;
@@ -246,6 +438,7 @@
 
         // Eventos del Joystick físico/virtual
         function onJoyStart(e) {
+            triggerAutoplay(); // Disparador automático por interacción de movimiento
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
             joyStartX = point.clientX; joyStartY = point.clientY;
@@ -275,12 +468,17 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        window.addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; });
+        window.addEventListener('keydown', (e) => { 
+            triggerAutoplay(); // Disparador automático por teclado
+            const k = e.key.toLowerCase(); 
+            if (k in keys) keys[k] = true; 
+        });
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
         // Lógica unificada para rotar cámara con el dedo en pantalla o mouse
         function onScreenStart(e) {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.tagName === 'BUTTON') return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#audio-container') || e.target.tagName === 'BUTTON') return;
+            triggerAutoplay(); // Disparador automático por paneo táctil general
             screenDragging = true;
             const point = e.touches ? e.touches[0] : e;
             prevScreenX = point.clientX;
@@ -311,10 +509,10 @@
 
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
+            btn.addEventListener('mousedown', () => { triggerAutoplay(); arrowCam[direction] = true; });
             btn.addEventListener('mouseup', () => { arrowCam[direction] = false; });
             btn.addEventListener('mouseleave', () => { arrowCam[direction] = false; });
-            btn.addEventListener('touchstart', () => { arrowCam[direction] = true; });
+            btn.addEventListener('touchstart', () => { triggerAutoplay(); arrowCam[direction] = true; });
             btn.addEventListener('touchend', () => { arrowCam[direction] = false; });
         };
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
