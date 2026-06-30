@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Acople Cenital de Superficie</title>
+    <title>ARK - Motor de Altura Asimétrico</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -39,16 +39,15 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 2px solid #00f3ff;
-            color: #00f3ff;
+            background: rgba(22, 163, 74, 0.9);
+            border: 2px solid #22c55e;
+            color: white;
             border-radius: 8px;
             padding: 10px 20px;
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             z-index: 1000;
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
             backdrop-filter: blur(4px);
         }
 
@@ -146,11 +145,10 @@
         <a-entity light="type: ambient; intensity: 1.5; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 1.0;" position="10 50 10"></a-entity>
 
-        <!-- Entorno mapeado -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <!-- El contenedor inicia neutro; el script lo posicionará en el techo real detectado -->
-        <a-entity id="player-rig" position="0 0 0">
+        <!-- El contenedor inicia arriba esperando el enganche del script -->
+        <a-entity id="player-rig" position="0 500 0">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0.02 0" 
@@ -159,7 +157,6 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Órbita de cámara en tercera persona -->
             <a-entity id="camera-orbit" position="0 1.8 0">
                 <a-entity id="main-camera" camera position="0 0 5.0"></a-entity>
             </a-entity>
@@ -168,6 +165,14 @@
     </a-scene>
 
     <script>
+        // =========================================================================
+        // CONFIGURACIÓN DE COORDENADAS DE INICIO
+        // Si no querés arrancar en la montaña de coordenadas 0,0 cambiá estos números
+        // por la ubicación exacta de la calle en tu archivo forest7.glb
+        // =========================================================================
+        const SPAWN_X = 0;
+        const SPAWN_Z = 0;
+
         const VELOCIDAD_AVANCE = 0.08;   
         const VELOCIDAD_PIERNAS = 1.3;   
 
@@ -190,39 +195,10 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
         
-        let maquetaCargada = false;
         let inicializado = false;
 
-        // Captura el momento exacto en que la maqueta se despliega en la escena de A-Frame
-        entornoEntity.addEventListener('model-loaded', () => {
-            maquetaCargada = true;
-            forzarAcopleCenital();
-        });
-
-        // ES CANEO DESDE EL CIELO ABSOLUTO: Encuentra la superficie real esté donde esté
-        function forzarAcopleCenital() {
-            const mesh = entornoEntity.object3D;
-            if (!mesh) return;
-            
-            const pos = rig.getAttribute('position');
-            const raycaster = new THREE.Raycaster();
-            
-            // Tiramos el rayo desde Y=2000 hacia abajo en busca de la superficie más alta
-            raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
-            
-            const intersects = raycaster.intersectObject(mesh, true);
-            if (intersects.length > 0) {
-                pos.y = intersects[0].point.y;
-                rig.setAttribute('position', pos);
-                inicializado = true; // Liberamos el bucle del juego
-                console.log("Avatar establecido arriba de la maqueta. Altura detectada Y:", pos.y);
-            } else {
-                // Fallback de seguridad si el modelo no cruza el punto cero
-                pos.y = 0;
-                rig.setAttribute('position', pos);
-                inicializado = true;
-            }
-        }
+        // Forzar coordenadas iniciales de configuración
+        rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
 
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
@@ -243,17 +219,10 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // El botón te saca de abajo de inmediato tirando el rayo cenital de nuevo
+        // Botón Verde - Centralizar e Impactar desde el cielo
         document.getElementById('btn-center').addEventListener('click', () => {
-            const pos = rig.getAttribute('position');
-            pos.x = 0;
-            pos.z = 0;
-            rig.setAttribute('position', pos);
-            
-            if (maquetaCargada) {
-                forzarAcopleCenital();
-            }
-
+            inicializado = false;
+            rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
             camYaw = 0;
             camPitch = -0.25;
             cameraOrbit.object3D.rotation.y = camYaw;
@@ -330,13 +299,27 @@
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
-            // Bloqueo estricto hasta que el acople inicial sea exitoso
-            if (!maquetaCargada || !inicializado) {
+            const mesh = entornoEntity.object3D;
+            if (!mesh) {
                 requestAnimationFrame(engineLoop);
                 return;
             }
 
             const pos = rig.getAttribute('position');
+
+            // 1. ANCLAJE INICIAL ULTRA-SEGURO (Loop de busqueda cenital activa)
+            if (!inicializado) {
+                const raycaster = new THREE.Raycaster();
+                raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
+                const intersects = raycaster.intersectObject(mesh, true);
+                if (intersects.length > 0) {
+                    pos.y = intersects[0].point.y;
+                    rig.setAttribute('position', pos);
+                    inicializado = true; 
+                }
+                requestAnimationFrame(engineLoop);
+                return;
+            }
             
             let oldX = pos.x;
             let oldZ = pos.z;
@@ -374,31 +357,29 @@
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // SEGUIMIENTO DE SUELO LOCAL SEGURO (Una vez posicionado arriba)
-            const mesh = entornoEntity.object3D;
-            if (mesh) {
-                const raycaster = new THREE.Raycaster();
-                // Escanea arrancando desde 8 metros sobre sus pies actuales hacia abajo
-                raycaster.set(new THREE.Vector3(pos.x, oldY + 8.0, pos.z), new THREE.Vector3(0, -1, 0));
-                
-                const intersects = raycaster.intersectObject(mesh, true);
-                if (intersects.length > 0) {
-                    let groundY = intersects[0].point.y;
-                    
-                    // Si el desnivel es abrupto (paredes o colisiones verticales), bloquea el paso
-                    if (Math.abs(groundY - oldY) > 1.5) {
-                        pos.x = oldX;
-                        pos.z = oldZ;
-                        pos.y = oldY;
-                    } else {
-                        pos.y = groundY; // Copia el relieve del asfalto de forma fluida
-                    }
-                } else {
-                    // Si se sale del mapa al vacío, mantiene la última posición estable
+            // 2. DETECTOR DE ALTURA ASIMÉTRICO (Permite caídas libres y bajadas a la calle)
+            const raycaster = new THREE.Raycaster();
+            raycaster.set(new THREE.Vector3(pos.x, oldY + 15.0, pos.z), new THREE.Vector3(0, -1, 0));
+            
+            const intersects = raycaster.intersectObject(mesh, true);
+            if (intersects.length > 0) {
+                let groundY = intersects[0].point.y;
+                let deltaY = groundY - oldY;
+
+                // Si intenta subir un escalón o muro empinado mayor a 0.6 metros, frena
+                if (deltaY > 0.6) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
+                } else {
+                    // Si el terreno baja (el asfalto de la calle), lo asimila sin restricciones
+                    pos.y = groundY;
                 }
+            } else {
+                // Bloqueo de bordes exteriores del mapa completo
+                pos.x = oldX;
+                pos.z = oldZ;
+                pos.y = oldY;
             }
 
             rig.setAttribute('position', pos);
