@@ -19,7 +19,7 @@
             -webkit-user-select: none;
         }
 
-        /* Botón salir circular estilo neón */
+        /* Botón salir circular estilo neón optimizado */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -28,9 +28,9 @@
             border: 2px solid #ef4444;
             color: #ef4444;
             border-radius: 50%;
-            width: 55px;
-            height: 55px;
-            font-size: 11px;
+            width: 46px;
+            height: 46px;
+            font-size: 9px;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -43,43 +43,44 @@
             transition: all 0.2s ease;
         }
 
-        /* Botón centralizar compacto con icono de avatar */
+        /* Botón centralizar compacto con icono de avatar estilo neón refinado */
         #btn-center {
             position: absolute;
             top: 20px;
             left: 20px;
             background: rgba(15, 23, 42, 0.85);
-            border: 2px solid #22c55e;
-            color: #22c55e;
+            border: 2px solid #00ffaa;
+            color: #00ffaa;
             border-radius: 50%;
-            width: 55px;
-            height: 55px;
-            font-size: 22px;
+            width: 46px;
+            height: 46px;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             z-index: 1000;
-            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 170, 0.4);
             backdrop-filter: blur(4px);
             transition: all 0.2s ease;
         }
 
-        /* Interfaz Multimedia Flotante (Bajada a top: 90px para evitar colisiones) */
+        /* Interfaz Multimedia Flotante alineada perfectamente en el centro superior */
         #audio-container {
             position: absolute;
-            top: 90px;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(15, 23, 42, 0.5);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(244, 63, 94, 0.3);
-            border-radius: 30px;
-            padding: 6px 16px;
+            border-radius: 25px;
+            height: 46px;
+            padding: 0 14px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             z-index: 1000;
             box-shadow: 0 0 20px rgba(244, 63, 94, 0.15);
         }
@@ -88,7 +89,7 @@
             background: none;
             border: none;
             color: #f43f5e;
-            font-size: 16px;
+            font-size: 15px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -103,8 +104,8 @@
 
         #track-title {
             color: #e2e8f0;
-            font-size: 11px;
-            max-width: 95px;
+            font-size: 10px;
+            max-width: 80px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -113,8 +114,8 @@
         }
 
         #vu-meter {
-            width: 45px;
-            height: 18px;
+            width: 40px;
+            height: 16px;
             display: block;
         }
 
@@ -183,12 +184,13 @@
 </head>
 <body>
 
-    <button id="btn-exit">Salir</button>
+    <button id="btn-exit">SALIR</button>
     <button id="btn-center">👤</button>
 
     <div id="audio-container">
-        <button class="audio-btn" id="btn-play-pause">⏸</button>
-        <button class="audio-btn" id="btn-next">⏭</button>
+        <button class="audio-btn" id="btn-play" title="Reproducir">▶</button>
+        <button class="audio-btn" id="btn-pause" title="Pausar">⏸</button>
+        <button class="audio-btn" id="btn-next" title="Siguiente">⏭</button>
         <div id="track-title">Cargando...</div>
         <canvas id="vu-meter"></canvas>
     </div>
@@ -216,6 +218,13 @@
         </a-assets>
 
         <a-sky color="#020408"></a-sky>
+
+        <a-sphere id="luna-brillante" 
+                  position="-60 160 -220" 
+                  radius="14" 
+                  color="#f1f5f9" 
+                  material="shader: flat; fog: false">
+        </a-sphere>
 
         <a-entity light="type: ambient; intensity: 1.5; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 1.0;" position="10 50 10"></a-entity>
@@ -277,7 +286,8 @@
         let sourceNode = null;
         let audioIniciado = false;
 
-        const btnPlayPause = document.getElementById('btn-play-pause');
+        const btnPlay = document.getElementById('btn-play');
+        const btnPause = document.getElementById('btn-pause');
         const btnNext = document.getElementById('btn-next');
         const trackTitle = document.getElementById('track-title');
         const canvasVU = document.getElementById('vu-meter');
@@ -313,37 +323,33 @@
                 audioCtx.resume();
             }
             if (audio.paused) {
-                audio.play().then(() => {
-                    btnPlayPause.textContent = '⏸';
-                }).catch(err => console.log("Esperando interacción..."));
+                audio.play().catch(err => console.log("Esperando interacción..."));
             }
         }
 
-        btnPlayPause.addEventListener('click', (e) => {
+        // Eventos independientes para los controles multimedia
+        btnPlay.addEventListener('click', (e) => {
             e.stopPropagation();
             if (!audioIniciado) initAudioEngine();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            audio.play();
+        });
 
-            if (audio.paused) {
-                audio.play();
-                btnPlayPause.textContent = '⏸';
-            } else {
-                audio.pause();
-                btnPlayPause.textContent = '▶';
-            }
+        btnPause.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.pause();
         });
 
         function nextTrack() {
             currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
             loadTrack(currentTrackIndex);
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            audio.play().then(() => {
-                btnPlayPause.textContent = '⏸';
-            });
+            audio.play();
         }
 
         btnNext.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (!audioIniciado) initAudioEngine();
             nextTrack();
         });
 
@@ -548,6 +554,7 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // TU LOGICA ORIGINAL DE ANIMACIÓN EN CADENA PRESERVADA TOTALMENTE
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
                 wasMoving = isMoving;
