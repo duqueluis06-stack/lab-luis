@@ -42,7 +42,7 @@
             background: #ef4444;
         }
 
-        /* BOTONES CÁMARA - IZQUIERDA */
+        /* CONTROLES CÁMARA */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -52,7 +52,7 @@
             z-index: 999;
         }
 
-        /* JOYSTICK - DERECHA */
+        /* JOYSTICK MOVIMIENTO */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -115,10 +115,8 @@
 </head>
 <body>
 
-    <!-- Botón Salir -->
     <button id="btn-exit">SALIR</button>
 
-    <!-- Panel Izquierdo: Cámara -->
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -126,7 +124,6 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
-    <!-- Panel Derecho: Movimiento -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
@@ -146,13 +143,13 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- ESCENARIO BASE: Dejamos la posición y rotación limpias para manejarlas por código nativo -->
-        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
+        <!-- CONTENEDOR MAESTRO: Forzamos el giro de 180° aquí para que A-Frame no lo pueda eliminar -->
+        <a-entity id="entorno-container" rotation="180 0 0" position="0 0 0">
+            <a-entity id="entorno" gltf-model="#forest-model"></a-entity>
+        </a-entity>
 
-        <!-- RIG DEL JUGADOR (Estable en Y=0) -->
+        <!-- RIG DEL JUGADOR -->
         <a-entity id="player-rig" position="0 0 0">
-            
-            <!-- Avatar -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
@@ -161,42 +158,36 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Cámara Orbital -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
-
         </a-entity>
 
     </a-scene>
 
     <script>
         // ========================================================
-        // ROTACIÓN INYECTADA DIRECTAMENTE EN EL MOTOR THREE.JS
+        // ALINEACIÓN ESTABLE CON CONTENEDOR AISLADO
         // ========================================================
-        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
-            const rootModel = e.detail.model;
+        document.getElementById('entorno').addEventListener('model-loaded', () => {
+            const container = document.getElementById('entorno-container');
             
-            // 1. Forzamos la rotación de 180 grados en el eje X directamente en la raíz de Three.js
-            // Usamos Math.PI ya que las rotaciones nativas del motor trabajan en radianes
-            rootModel.rotation.x = Math.PI;
+            // 1. Forzamos a Three.js a procesar el giro de 180 grados del contenedor en el espacio real
+            container.object3D.updateMatrixWorld(true);
             
-            // 2. Obligamos al motor a recalcular de inmediato las nuevas matrices del entorno volteado
-            rootModel.updateMatrixWorld(true);
+            // 2. Medimos la caja de colisión del bloque completo (ya del derecho)
+            const box = new THREE.Box3().setFromObject(container.object3D);
             
-            // 3. Calculamos el Bounding Box exacto del modelo ya puesto del derecho
-            const box = new THREE.Box3().setFromObject(rootModel);
-            
-            // 4. Localizamos el punto mínimo en Y (el fondo del valle transitable)
+            // 3. Al estar del derecho, box.min.y es el fondo transitable del valle del bosque
             const sueloY = box.min.y;
             
-            // 5. Desplazamos la entidad global para estampar ese suelo exactamente en Y = 0
-            e.target.object3D.position.set(0, -sueloY, 0);
+            // 4. Bajamos o subimos el contenedor maestro para que el suelo coincida con las botas del avatar
+            container.setAttribute('position', `0 ${-sueloY} 0`);
             
-            console.log(`[ARK Engine] Rotación forzada por código nativo. Suelo nivelado a: ${-sueloY} metros.`);
+            console.log(`[ARK] Sistema enderezado. Suelo real detectado y nivelado a: ${-sueloY}m.`);
         });
 
-        // Variables de Control del Motor
+        // Variables de control de movimiento
         const VELOCIDAD_AVANCE = 0.05;   
         const VELOCIDAD_PIERNAS = 1.0;   
 
@@ -245,7 +236,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CONTROLES DE CÁMARA (FLECHAS UI)
+        // BOTONES DE CÁMARA
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -261,7 +252,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK LÓGICA
+        // JOYSTICK
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -295,11 +286,10 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // TECLADO
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE PARA ROTACIÓN DE CÁMARA
+        // ARRASTRE IMPLÍCITO DE PANTALLA (ROTACIÓN)
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -328,7 +318,7 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE PRINCIPAL DE RENDERIZADO
+        // BUCLE DEL MOTOR
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.008;
             if (arrowCam.right) camYaw -= 0.008;
