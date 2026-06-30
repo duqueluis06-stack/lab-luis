@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Tercera Persona Calibrado</title>
+    <title>ARK - Tercera Persona</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -42,7 +42,7 @@
             background: #ef4444;
         }
 
-        /* CONTROLES CÁMARA */
+        /* BOTONES CÁMARA - IZQUIERDA */
         #arrows-wrapper {
             position: absolute;
             bottom: 40px;
@@ -52,7 +52,7 @@
             z-index: 999;
         }
 
-        /* JOYSTICK MOVIMIENTO */
+        /* JOYSTICK - DERECHA */
         #joystick-wrapper {
             position: absolute;
             bottom: 40px; 
@@ -115,8 +115,10 @@
 </head>
 <body>
 
+    <!-- UI: Botón Salir -->
     <button id="btn-exit">SALIR</button>
 
+    <!-- UI: Panel Izquierdo (Control Manual Cámara) -->
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -124,6 +126,7 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
+    <!-- UI: Panel Derecho (Joystick Movimiento) -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
@@ -140,16 +143,17 @@
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
 
+        <!-- Iluminación -->
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- CONTENEDOR MAESTRO: Forzamos el giro de 180° aquí para que A-Frame no lo pueda eliminar -->
-        <a-entity id="entorno-container" rotation="180 0 0" position="0 0 0">
-            <a-entity id="entorno" gltf-model="#forest-model"></a-entity>
-        </a-entity>
+        <!-- ENTORNO: Carga limpia y directa en su origen nativo -->
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
         <!-- RIG DEL JUGADOR -->
         <a-entity id="player-rig" position="0 0 0">
+            
+            <!-- Avatar Luis -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
@@ -158,36 +162,22 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
+            <!-- Cámara Orbital en Tercera Persona -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
+
         </a-entity>
 
     </a-scene>
 
     <script>
-        // ========================================================
-        // ALINEACIÓN ESTABLE CON CONTENEDOR AISLADO
-        // ========================================================
+        // Confirmación de carga limpia en logs
         document.getElementById('entorno').addEventListener('model-loaded', () => {
-            const container = document.getElementById('entorno-container');
-            
-            // 1. Forzamos a Three.js a procesar el giro de 180 grados del contenedor en el espacio real
-            container.object3D.updateMatrixWorld(true);
-            
-            // 2. Medimos la caja de colisión del bloque completo (ya del derecho)
-            const box = new THREE.Box3().setFromObject(container.object3D);
-            
-            // 3. Al estar del derecho, box.min.y es el fondo transitable del valle del bosque
-            const sueloY = box.min.y;
-            
-            // 4. Bajamos o subimos el contenedor maestro para que el suelo coincida con las botas del avatar
-            container.setAttribute('position', `0 ${-sueloY} 0`);
-            
-            console.log(`[ARK] Sistema enderezado. Suelo real detectado y nivelado a: ${-sueloY}m.`);
+            console.log("[ARK Engine] Entorno forest7.glb asentado directamente en su origen nativo (0,0,0).");
         });
 
-        // Variables de control de movimiento
+        // Configuración de Control y Físicas
         const VELOCIDAD_AVANCE = 0.05;   
         const VELOCIDAD_PIERNAS = 1.0;   
 
@@ -208,6 +198,7 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
+        // Botón Salir
         document.getElementById('btn-exit').addEventListener('click', () => {
             window.location.href = 'index.html';
         });
@@ -219,7 +210,7 @@
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // ZOOM TÁCTIL
+        // ZOOM TÁCTIL (Pinch)
         let initialTouchDist = 0;
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
@@ -236,7 +227,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // BOTONES DE CÁMARA
+        // CONFIGURACIÓN BOTONES DE CÁMARA UI
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -252,7 +243,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // JOYSTICK
+        // GESTIÓN COMPLETA DEL JOYSTICK
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -286,10 +277,11 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
+        // CAPTURA DE TECLADO ESCENARIO
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE IMPLÍCITO DE PANTALLA (ROTACIÓN)
+        // SWIPE / ARRASTRE EN PANTALLA PARA ROTAR CÁMARA VIRTUAL
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -318,17 +310,20 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE DEL MOTOR
+        // BUCLE DE RENDERIZADO PRINCIPAL (ENGINE LOOP)
         function engineLoop() {
+            // Rotaciones continuas de cámara por botones UI
             if (arrowCam.left) camYaw += 0.008;
             if (arrowCam.right) camYaw -= 0.008;
             if (arrowCam.up) camPitch -= 0.004;   
             if (arrowCam.down) camPitch += 0.004;  
 
+            // Límites físicos para evitar vuelcos de cámara
             camPitch = Math.max(-0.7, Math.min(0.5, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
+            // Fusión de Joystick + Teclado
             let inputX = moveX; let inputY = moveY;
             if (keys.w || keys.ArrowUp) inputY = -1;
             if (keys.s || keys.ArrowDown) inputY = 1;
@@ -337,6 +332,7 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // Gestión reactiva de animaciones (Caminar / Idle)
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
                 if (!isMoving) {
@@ -348,6 +344,7 @@
                 wasMoving = isMoving;
             }
 
+            // Motor de desplazamiento vectorial relativo a la cámara
             if (isMoving) {
                 const pos = rig.getAttribute('position');
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
@@ -357,6 +354,7 @@
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
                 rig.setAttribute('position', pos);
 
+                // Rotación fluida del Avatar hacia la dirección de avance
                 const targetAngle = camYaw + Math.atan2(inputX, -inputY) + Math.PI;
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
