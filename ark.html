@@ -64,7 +64,7 @@
             transition: all 0.2s ease;
         }
 
-        /* Consola de música perfectamente centrada en la barra superior */
+        /* Consola de música perfectamente incrustada en el medio */
         #audio-container {
             position: absolute;
             top: 20px;
@@ -278,7 +278,7 @@
         let wasMoving = false;
         let inicializado = false;
 
-        // --- SISTEMA MULTIMEDIA RENOVADO ---
+        // --- SISTEMA MULTIMEDIA ---
         const playlist = ['Camino-Nocturno.mp3', 'Sin-Mirar.mp3'];
         let currentTrackIndex = 0;
         const audio = new Audio();
@@ -319,11 +319,10 @@
             if (!audioIniciado) initAudioEngine();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             if (audio.paused) {
-                audio.play().catch(err => console.log("Interacción requerida para el audio."));
+                audio.play().catch(err => console.log("Audio esperando interacción."));
             }
         }
 
-        // Eventos independientes de los botones multimedia
         btnPlay.addEventListener('click', (e) => {
             e.stopPropagation();
             if (!audioIniciado) initAudioEngine();
@@ -353,7 +352,6 @@
             nextTrack();
         });
 
-        // Loop dinámico del Vúmetro Romántico Neón
         function drawVUMeter() {
             requestAnimationFrame(drawVUMeter);
             if (!analyser) return;
@@ -549,16 +547,23 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // CORRECCIÓN DE ANIMACIÓN: Resetear a pose neutra al frenar
+            /* =========================================================
+               SISTEMA DE ANIMACIÓN ESTABLECE CAMBIOS EN ESTE BLOQUE
+               ========================================================= */
             if (isMoving !== wasMoving) {
                 if (isMoving) {
-                    avatarMesh.setAttribute('animation-mixer', 'timeScale', VELOCIDAD_PIERNAS);
+                    // Si se está moviendo, activa las piernas con su escala de velocidad
+                    avatarMesh.setAttribute('animation-mixer', {
+                        clip: '*',
+                        timeScale: VELOCIDAD_PIERNAS,
+                        loop: 'repeat'
+                    });
                 } else {
-                    avatarMesh.setAttribute('animation-mixer', 'timeScale', 0);
-                    // Fuerza al mezclador a limpiar acciones para cerrar piernas
-                    if (avatarMesh.components['animation-mixer'] && avatarMesh.components['animation-mixer'].mixer) {
-                        avatarMesh.components['animation-mixer'].mixer.stopAllAction();
-                    }
+                    // Al frenar, pausa el avance de la animación de manera nativa y segura
+                    avatarMesh.setAttribute('animation-mixer', {
+                        clip: '*',
+                        timeScale: 0
+                    });
                 }
                 wasMoving = isMoving;
             }
