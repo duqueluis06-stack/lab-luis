@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Tercera Persona Calibrado</title>
+    <title>ARK - Calibrador de Entorno</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -17,6 +17,39 @@
             background-color: #020617;
             user-select: none;
             -webkit-user-select: none;
+        }
+
+        /* PANEL DE CALIBRACIÓN DE ENTORNO (DEBUG) */
+        #debug-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            z-index: 1001;
+            font-size: 13px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        .calib-btn {
+            background: rgba(2, 6, 23, 0.8);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            padding: 6px 12px;
+            margin: 8px 4px 0 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .calib-btn:active {
+            background: #00f3ff;
+            color: #020617;
         }
 
         /* BOTÓN DE SALIR */
@@ -115,8 +148,18 @@
 </head>
 <body>
 
+    <!-- Panel de Desarrollo: Ajuste del Bosque -->
+    <div id="debug-panel">
+        <strong>Calibrador de Mapa</strong>
+        <div>Posición Y: <span id="val-y">0.0</span> metros</div>
+        <button class="calib-btn" id="cal-up">Subir (E)</button>
+        <button class="calib-btn" id="cal-down">Bajar (Q)</button>
+    </div>
+
+    <!-- Botón Salir -->
     <button id="btn-exit">SALIR</button>
 
+    <!-- Panel Izquierdo: Cámara -->
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -124,6 +167,7 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
+    <!-- Panel Derecho: Movimiento -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
@@ -143,10 +187,13 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Escenario Base: Controlado dinámicamente por la variable entornoY -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
+        <!-- RIG CONTROLADOR (Mantiene Y=0 de forma estricta) -->
         <a-entity id="player-rig" position="0 0 0">
             
+            <!-- Avatar posicionado en la base limpia del Rig -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0 0" 
@@ -155,6 +202,7 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
+            <!-- Cámara Orbital fija a altura de ojos humana (1.6m) -->
             <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
@@ -165,24 +213,26 @@
 
     <script>
         // ==========================================
-        // SISTEMA DE AUTO-NIVELACIÓN DE ENTORNO GLB
+        // MOTOR DE CALIBRACIÓN REAL-TIME (ENTORNO)
         // ==========================================
-        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
-            const mesh = e.detail.model;
-            
-            // Instanciamos el Bounding Box del entorno para analizar su geometría real
-            const box = new THREE.Box3().setFromObject(mesh);
-            
-            // Obtenemos el valor mínimo en Y (el suelo físico del modelo)
-            const deplaceY = box.min.y; 
-            
-            // Desplazamos el entorno exactamente lo necesario hacia abajo (ej: si min.y es 15, lo bajamos a -15)
-            document.getElementById('entorno').setAttribute('position', `0 ${-deplaceY} 0`);
-            
-            console.log(`[ARK Engine] Altura de malla corregida. Ajuste vertical aplicado: ${-deplaceY} metros.`);
-        });
+        let entornoY = 0.0; // Cambia este valor inicial si el entorno arranca muy arriba (ej: -15.0)
+        const entornoEl = document.getElementById('entorno');
+        const valYEl = document.getElementById('val-y');
 
-        // Variables de Configuración y Motor de Físicas/Movimiento
+        function actualizarAlturaEntorno(delta) {
+            entornoY += delta;
+            entornoY = Math.round(entornoY * 10) / 10; // Evitamos imprecisiones de coma flotante
+            entornoEl.setAttribute('position', `0 ${entornoY} 0`);
+            valYEl.innerText = entornoY.toFixed(1);
+        }
+
+        // Eventos para clics en botones de la interfaz
+        document.getElementById('cal-up').addEventListener('click', () => actualizarAlturaEntorno(1.0));
+        document.getElementById('cal-down').addEventListener('click', () => actualizarAlturaEntorno(-1.0));
+
+        // ==========================================
+        // VARIABLES DE CONFIGURACIÓN Y CONTROLES
+        // ==========================================
         const VELOCIDAD_AVANCE = 0.05;   
         const VELOCIDAD_PIERNAS = 1.0;   
 
@@ -207,14 +257,14 @@
             window.location.href = 'index.html';
         });
 
-        // GESTIÓN DE ZOOM (Rueda de ratón)
+        // ZOOM (Scroll ratón)
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(2.0, Math.min(8.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // GESTIÓN DE ZOOM (Pinch en Pantallas Táctiles)
+        // ZOOM (Pinch táctil móvil)
         let initialTouchDist = 0;
         window.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
@@ -231,7 +281,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CONTROL CÁMARA POR BOTONES EN PANTALLA
+        // CONTROLES DE DIRECCIÓN DE CÁMARA (FLECHAS UI)
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -247,7 +297,7 @@
         setupArrowCamera('btn-left', 'left');
         setupArrowCamera('btn-right', 'right');
 
-        // LÓGICA DEL JOYSTICK INTERACTIVO
+        // JOYSTICK LÓGICA DE ARRASTRE
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -281,13 +331,17 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // CONFIGURACIÓN DE TECLADO (WASD / FLECHAS)
-        window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
+        // CAPTURA DE TECLADO (Añadidas Q y E para calibrar)
+        window.addEventListener('keydown', (e) => { 
+            if (e.key in keys) keys[e.key] = true; 
+            if (e.key.toLowerCase() === 'e') actualizarAlturaEntorno(0.5);
+            if (e.key.toLowerCase() === 'q') actualizarAlturaEntorno(-0.5);
+        });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // DETECCIÓN DE DESLIZAMIENTO DE RATÓN/TACTO PARA ORBITAR CÁMARA
+        // MOUSE / SWIPE PANTALLA PARA ORBITAR CÁMARA
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#debug-panel') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
         });
         window.addEventListener('mousemove', (e) => {
@@ -300,7 +354,7 @@
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
         window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#debug-panel') || e.target.id === 'btn-exit') return;
             const touch = e.touches[0];
             mouseDragging = true; prevMouseX = touch.clientX; prevMouseY = touch.clientY;
         }, {passive: true});
@@ -314,7 +368,7 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // LOOP PRINCIPAL DE EJECUCIÓN (Engine Loop)
+        // BUCLE PRINCIPAL DE RENDERIZADO (Engine Loop)
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.008;
             if (arrowCam.right) camYaw -= 0.008;
@@ -333,10 +387,8 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // GESTIÓN DE ANIMACIÓN Y RESET AL FRENAR (Anti-piernas abiertas)
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
-                
                 if (!isMoving) {
                     const mixer = avatarMesh.components['animation-mixer']?.mixer;
                     if (mixer && mixer._actions) {
@@ -346,7 +398,6 @@
                 wasMoving = isMoving;
             }
 
-            // TRASLACIÓN DEL RIG RESPECTO A LA ORIENTACIÓN DE LA CÁMARA
             if (isMoving) {
                 const pos = rig.getAttribute('position');
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
