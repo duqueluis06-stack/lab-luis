@@ -115,8 +115,10 @@
 </head>
 <body>
 
+    <!-- Botón Salir -->
     <button id="btn-exit">SALIR</button>
 
+    <!-- Panel Izquierdo: Cámara -->
     <div id="arrows-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
@@ -124,6 +126,7 @@
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
+    <!-- Panel Derecho: Movimiento -->
     <div id="joystick-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
@@ -143,18 +146,22 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
+        <!-- Escenario Fijo -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
+        <!-- RIG DE CONTROL UNIFICADO -->
         <a-entity id="player-rig" position="0 0 0">
             
+            <!-- SE BAJÓ A -1.8 PARA ENTERRAR EL FLOTADO EN EL SUELO -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 -1.4 0" 
+                      position="0 -1.8 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
+            <!-- CÁMARA ORBITAL -->
             <a-entity id="camera-orbit" position="0 1.4 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
@@ -165,10 +172,10 @@
 
     <script>
         // ==========================================
-        // AJUSTES DE SINCRONIZACIÓN REALISTA
+        // CALIBRACIÓN COINCIDENTE PASO-ESPACIO
         // ==========================================
-        const VELOCIDAD_AVANCE = 0.11;   
-        const VELOCIDAD_PIERNAS = 0.40;  
+        const VELOCIDAD_AVANCE = 0.05;   // Reducido: Recorrido más corto por paso
+        const VELOCIDAD_PIERNAS = 1.0;   // Sincronizado: Velocidad de animación real y natural
         // ==========================================
 
         const knob = document.getElementById('joystick-knob');
@@ -188,7 +195,7 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ACCIÓN BOTÓN SALIR - REDIRECCIÓN DIRECTA A INDEX.HTML
+        // ACCIÓN BOTÓN SALIR
         document.getElementById('btn-exit').addEventListener('click', () => {
             window.location.href = 'index.html';
         });
@@ -270,7 +277,7 @@
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE DE PANTALLA
+        // ARRASTRE DE PANTALLA - ROTACIÓN DE CÁMARA SUAVIZADA
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -279,8 +286,8 @@
             if (!mouseDragging) return;
             let deltaX = e.clientX - prevMouseX; let deltaY = e.clientY - prevMouseY;
             prevMouseX = e.clientX; prevMouseY = e.clientY;
-            camYaw -= deltaX * 0.003; 
-            camPitch += deltaY * 0.002; 
+            camYaw -= deltaX * 0.0015;  // Reducido para mayor control
+            camPitch += deltaY * 0.001; // Reducido para mayor control
         });
         window.addEventListener('mouseup', () => { mouseDragging = false; });
 
@@ -294,17 +301,18 @@
             const touch = e.touches[0];
             let deltaX = touch.clientX - prevMouseX; let deltaY = touch.clientY - prevMouseY;
             prevMouseX = touch.clientX; prevMouseY = touch.clientY;
-            camYaw -= deltaX * 0.003; 
-            camPitch += deltaY * 0.002; 
+            camYaw -= deltaX * 0.0015; 
+            camPitch += deltaY * 0.001; 
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
         // BUCLE PRINCIPAL
         function engineLoop() {
-            if (arrowCam.left) camYaw += 0.015;
-            if (arrowCam.right) camYaw -= 0.015;
-            if (arrowCam.up) camPitch -= 0.008;   
-            if (arrowCam.down) camPitch += 0.008; 
+            // ROTACIÓN POR BOTONES MÁS LENTA Y CONTROLADA
+            if (arrowCam.left) camYaw += 0.008;
+            if (arrowCam.right) camYaw -= 0.008;
+            if (arrowCam.up) camPitch -= 0.004;   
+            if (arrowCam.down) camPitch += 0.004; 
 
             camPitch = Math.max(-0.7, Math.min(0.5, camPitch));
             cameraOrbit.object3D.rotation.y = camYaw;
