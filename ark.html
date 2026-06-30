@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Tercera Persona Alineado</title>
+    <title>ARK - Suelo Automatizado</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -143,8 +143,8 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- ENTORNO: Girado y subido en el eje Y (+15) para elevar el suelo hasta el avatar -->
-        <a-entity id="entorno" gltf-model="#forest-model" position="0 15 0" rotation="180 0 0"></a-entity>
+        <!-- ENTORNO: Inicializado en 0, la altura real se calcula dinámicamente por script -->
+        <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="180 0 0"></a-entity>
 
         <!-- RIG DEL JUGADOR -->
         <a-entity id="player-rig" position="0 0 0">
@@ -168,8 +168,39 @@
     </a-scene>
 
     <script>
-        document.getElementById('entorno').addEventListener('model-loaded', () => {
-            console.log("[ARK Engine] Entorno rotado y elevado a la altura de spawn.");
+        // ========================================================
+        // SENSOR DE IMPACTO ULTRA-PRECISO (RAYCASTER)
+        // ========================================================
+        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
+            const entornoEntity = e.target;
+
+            // Dejamos un breve desfase de 200ms para asegurar que Three.js computó la rotación de 180°
+            setTimeout(() => {
+                const obj3D = entornoEntity.object3D;
+                obj3D.updateMatrixWorld(true);
+
+                // Creamos un Raycaster que dispara desde arriba (Y=10000) hacia el suelo (Y=-1)
+                const raycaster = new THREE.Raycaster();
+                const origin = new THREE.Vector3(0, 10000, 0);
+                const direction = new THREE.Vector3(0, -1, 0);
+                raycaster.set(origin, direction);
+
+                // Escaneamos las mallas del bosque para encontrar el primer punto de impacto
+                const intersections = raycaster.intersectObject(obj3D, true);
+
+                if (intersections.length > 0) {
+                    // Detectamos dónde quedó la superficie real tras el giro
+                    const puntoSueloY = intersections[0].point.y;
+                    
+                    // Desplazamos el mapa exactamente lo necesario para estampar esa hierba en Y = 0
+                    entornoEntity.setAttribute('position', `0 ${-puntoSueloY} 0`);
+                    console.log(`[ARK Engine] Suelo fijado con éxito a la altura del avatar.`);
+                } else {
+                    // Fallback de seguridad por si el rayo no cruza la geometría en (0,0)
+                    entornoEntity.setAttribute('position', "0 280 0");
+                    console.log(`[ARK Engine] Raycast fuera de límites. Aplicando corrección estimada.`);
+                }
+            }, 200);
         });
 
         const VELOCIDAD_AVANCE = 0.05;   
