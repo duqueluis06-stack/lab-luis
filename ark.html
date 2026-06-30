@@ -19,7 +19,7 @@
             -webkit-user-select: none;
         }
 
-        /* BOTÓN DE SALIR - ARRIBA A LA DERECHA */
+        /* BOTÓN DE SALIR */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -139,7 +139,7 @@
              loading-screen="enabled: false">
         
         <a-assets>
-            <!-- URL DE HUGGINGFACE OPTIMIZADA CON 'RESOLVE' -->
+            <!-- ENTORNO FOREST7 DIRECTO VÍA RESOLVE -->
             <a-asset-item id="forest-model" src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/forest7.glb"></a-asset-item>
             <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
         </a-assets>
@@ -147,23 +147,23 @@
         <a-entity light="type: ambient; intensity: 1.2; color: #ffffff"></a-entity>
         <a-entity light="type: directional; intensity: 0.8;" position="5 20 5"></a-entity>
 
-        <!-- Escenario Activo -->
+        <!-- Escenario Base -->
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DE CONTROL UNIFICADO -->
-        <a-entity id="player-rig" position="0 -3.0 0">
+        <!-- RIG NIVELADO A CERO PARA EL NUEVO ENTORNO -->
+        <a-entity id="player-rig" position="0 0 0">
             
-            <!-- Posición relativa interna fija -->
+            <!-- Avatar posicionado en la base del Rig -->
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 -1.8 0" 
+                      position="0 0 0" 
                       rotation="0 180 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- CÁMARA ORBITAL -->
-            <a-entity id="camera-orbit" position="0 1.4 0">
+            <!-- Cámara Orbital calibrada a la altura de la vista (1.6m) -->
+            <a-entity id="camera-orbit" position="0 1.6 0">
                 <a-entity id="main-camera" camera position="0 0 4.0"></a-entity>
             </a-entity>
 
@@ -172,7 +172,6 @@
     </a-scene>
 
     <script>
-        // CALIBRACIÓN PASO-ESPACIO
         const VELOCIDAD_AVANCE = 0.05;   
         const VELOCIDAD_PIERNAS = 1.0;   
 
@@ -193,7 +192,6 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // ACCIÓN BOTÓN SALIR
         document.getElementById('btn-exit').addEventListener('click', () => {
             window.location.href = 'index.html';
         });
@@ -221,7 +219,7 @@
         }, { passive: true });
         window.addEventListener('touchend', (e) => { if (e.touches.length < 2) initialTouchDist = 0; });
 
-        // CONFIGURACIÓN BOTONES CÁMARA
+        // CONTROL CÁMARA FLECHAS
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             const start = (e) => { e.preventDefault(); e.stopPropagation(); arrowCam[direction] = true; };
@@ -275,7 +273,7 @@
         window.addEventListener('keydown', (e) => { if (e.key in keys) keys[e.key] = true; });
         window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
 
-        // ARRASTRE DE PANTALLA - ROTACIÓN
+        // SWIPE ARRASTRE
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.id === 'btn-exit') return;
             mouseDragging = true; prevMouseX = e.clientX; prevMouseY = e.clientY;
@@ -304,7 +302,7 @@
         }, {passive: true});
         window.addEventListener('touchend', () => { mouseDragging = false; });
 
-        // BUCLE PRINCIPAL
+        // BUCLE PRINCIPAL DE RENDERIZADO
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.008;
             if (arrowCam.right) camYaw -= 0.008;
@@ -323,8 +321,17 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // DETECCIÓN DE CAMBIO DE ESTADO (MOVIMIENTO / PAUSA)
             if (isMoving !== wasMoving) {
                 avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
+                
+                // SISTEMA ANTI-PIERNAS ABIERTAS: Reset del frame de animación al frenar
+                if (!isMoving) {
+                    const mixer = avatarMesh.components['animation-mixer']?.mixer;
+                    if (mixer && mixer._actions) {
+                        mixer._actions.forEach(action => action.reset());
+                    }
+                }
                 wasMoving = isMoving;
             }
 
