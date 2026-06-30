@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Localizador de Avatar</title>
+    <title>ARK - Control y Altura Corregidos</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,7 +19,6 @@
             -webkit-user-select: none;
         }
 
-        /* BOTÓN SALIR */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -36,7 +35,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* NUEVO BOTÓN: LOCALIZAR / CENTRALIZAR AVATAR */
         #btn-center {
             position: absolute;
             top: 20px;
@@ -154,18 +152,18 @@
 
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <a-entity id="player-rig" position="0 0 0">
-            <!-- Posicionamiento base levemente levantado para evitar entierros en mallas complejas -->
+        <a-entity id="player-rig" position="0 0 5">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
-                      position="0 0.1 0" 
+                      position="0 0.05 0" 
                       rotation="0 0 0" 
                       scale="1 1 1"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <a-entity id="camera-orbit" position="0 1.5 0">
-                <a-entity id="main-camera" camera position="0 0 6.0"></a-entity>
+            <!-- Órbita de cámara elevada y más cerca para evitar que se meta dentro de las montañas traseras -->
+            <a-entity id="camera-orbit" position="0 2.2 0">
+                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
             </a-entity>
         </a-entity>
 
@@ -189,12 +187,11 @@
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.20; 
-        let camDist = 6.0; 
+        let camPitch = -0.30; 
+        let camDist = 4.5; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
 
-        // Estrellas
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
             const starsCount = 1500;
@@ -214,16 +211,15 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // SISTEMA DE RESCATE: FUERZA AL AVATAR AL CENTRO Y SOBRE LA SUPERFICIE VISIBLE
         document.getElementById('btn-center').addEventListener('click', () => {
             const pos = rig.getAttribute('position');
             pos.x = 0;
-            pos.z = 0;
+            pos.z = 5;
             
             const entornoMesh = entornoEntity.object3D;
             if (entornoMesh) {
                 const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(0, 3000, 0), new THREE.Vector3(0, -1, 0));
+                raycaster.set(new THREE.Vector3(0, 3000, 5), new THREE.Vector3(0, -1, 0));
                 const intersects = raycaster.intersectObject(entornoMesh, true);
                 if (intersects.length > 0) {
                     pos.y = intersects[0].point.y; 
@@ -236,23 +232,20 @@
             
             rig.setAttribute('position', pos);
 
-            // Reseteo instantáneo de la visualización de cámara hacia él
             camYaw = 0;
-            camPitch = -0.20;
-            camDist = 6.0;
+            camPitch = -0.30;
+            camDist = 4.5;
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
         });
 
-        // Zoom de cámara libre
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.08;
-            camDist = Math.max(2.5, Math.min(600.0, camDist));
+            camDist = Math.max(2.0, Math.min(600.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Joystick sin inversiones
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -305,20 +298,19 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // Bucle continuo de ejecución
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch -= 0.015;   
             if (arrowCam.down) camPitch += 0.015;  
 
-            camPitch = Math.max(-0.8, Math.min(0.4, camPitch)); 
+            camPitch = Math.max(-0.8, Math.min(0.3, camPitch)); 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
             const pos = rig.getAttribute('position');
 
-            // Escáner continuo descendente
+            // SOLUCIÓN ALTURA AVENIDA: Escanea capas y selecciona la superficie más cercana al nivel actual del avatar
             const entornoMesh = entornoEntity.object3D;
             if (entornoMesh) {
                 const raycaster = new THREE.Raycaster();
@@ -326,7 +318,18 @@
                 
                 const intersects = raycaster.intersectObject(entornoMesh, true);
                 if (intersects.length > 0) {
-                    const groundY = intersects[0].point.y;
+                    let closestIntersect = intersects[0];
+                    let minDistanceY = Math.abs(intersects[0].point.y - pos.y);
+                    
+                    for (let i = 1; i < intersects.length; i++) {
+                        let distY = Math.abs(intersects[i].point.y - pos.y);
+                        if (distY < minDistanceY) {
+                            minDistanceY = distY;
+                            closestIntersect = intersects[i];
+                        }
+                    }
+                    
+                    const groundY = closestIntersect.point.y;
                     if (groundY > -1000 && groundY < 1000) {
                         pos.y = groundY; 
                     }
@@ -355,10 +358,12 @@
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
+                // Movimiento estable en relación a la orientación de pantalla
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
 
-                const targetAngle = camYaw + Math.atan2(-inputX, inputY) + Math.PI;
+                // SOLUCIÓN INVERSIÓN: Orientación corregida del cuerpo del avatar alineada con la dirección real del recorrido
+                const targetAngle = camYaw + Math.atan2(inputX, inputY);
                 let currentAngle = avatarMesh.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
