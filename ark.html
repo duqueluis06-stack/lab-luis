@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Control de Altura Local Proporcional</title>
+    <title>ARK - Sistema de Acople de Altura Sincronizado</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -148,8 +148,7 @@
 
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <!-- Inicio controlado a nivel de suelo real (Y=2) para evitar caídas infinitas o bugs de cámara inicial -->
-        <a-entity id="player-rig" position="0 2.0 0">
+        <a-entity id="player-rig" position="0 100 0">
             <a-entity id="avatar-mesh" 
                       gltf-model="#avatar-model" 
                       position="0 0.02 0" 
@@ -158,9 +157,8 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 0;">
             </a-entity>
 
-            <!-- Cámara en tercera persona estable -->
             <a-entity id="camera-orbit" position="0 1.8 0">
-                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
+                <a-entity id="main-camera" camera position="0 0 5.0"></a-entity>
             </a-entity>
         </a-entity>
 
@@ -184,10 +182,35 @@
         let mouseDragging = false; let prevMouseX, prevMouseY;
         
         let camYaw = 0;   
-        let camPitch = -0.20; 
-        let camDist = 4.5; 
+        let camPitch = -0.25; 
+        let camDist = 5.0; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
+        
+        let maquetaCargada = false; // Control crucial de asincronía
+
+        // Escuchar el evento real de carga completa de la maqueta de HuggingFace
+        entornoEntity.addEventListener('model-loaded', () => {
+            maquetaCargada = true;
+            forzarAcopleSueloSuperior();
+        });
+
+        // Función de escaneo vertical absoluto descendente (Garantiza quedar ARRIBA de la superficie)
+        function forzarAcopleSueloSuperior() {
+            const mesh = entornoEntity.object3D;
+            if (!mesh) return;
+            
+            const pos = rig.getAttribute('position');
+            const raycaster = new THREE.Raycaster();
+            // Lanza un rayo desde el cielo (Y=500) en las coordenadas actuales para buscar el piso superior de la maqueta
+            raycaster.set(new THREE.Vector3(pos.x, 500, pos.z), new THREE.Vector3(0, -1, 0));
+            
+            const intersects = raycaster.intersectObject(mesh, true);
+            if (intersects.length > 0) {
+                pos.y = intersects[0].point.y;
+                rig.setAttribute('position', pos);
+            }
+        }
 
         sceneEl.addEventListener('loaded', () => {
             const starsGeometry = new THREE.BufferGeometry();
@@ -208,33 +231,26 @@
 
         document.getElementById('btn-exit').addEventListener('click', () => { window.location.href = 'index.html'; });
 
-        // Reseteo limpio al centro exacto de la avenida sin romper la cámara
+        // Corrección del botón centralizar: Te re-ubica arriba usando el escaneo cenital
         document.getElementById('btn-center').addEventListener('click', () => {
             const pos = rig.getAttribute('position');
             pos.x = 0;
             pos.z = 0;
-            pos.y = 5.0; // Forzar un poco arriba para recalcular el suelo inmediato
-
-            const entornoMesh = entornoEntity.object3D;
-            if (entornoMesh) {
-                const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(0, 15, 0), new THREE.Vector3(0, -1, 0));
-                const intersects = raycaster.intersectObject(entornoMesh, true);
-                if (intersects.length > 0) {
-                    pos.y = intersects[0].point.y;
-                }
-            }
-            
             rig.setAttribute('position', pos);
+            
+            if (maquetaCargada) {
+                forzarAcopleSueloSuperior();
+            }
+
             camYaw = 0;
-            camPitch = -0.20;
+            camPitch = -0.25;
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
         });
 
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.05;
-            camDist = Math.max(2.0, Math.min(25.0, camDist));
+            camDist = Math.max(2.5, Math.min(30.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
@@ -293,18 +309,25 @@
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
         function engineLoop() {
+            // Controladores manuales de órbita de cámara (flechas virtuales)
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
             if (arrowCam.up) camPitch -= 0.015;   
             if (arrowCam.down) camPitch += 0.015;  
 
-            camPitch = Math.max(-0.6, Math.min(0.1, camPitch)); 
+            // Ángulos de cámara protegidos para no hundirse bajo el suelo horizontal
+            camPitch = Math.max(-0.6, Math.min(0.05, camPitch)); 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
+            // Si la maqueta no ha cargado, congelamos ejecuciones físicas absurdas
+            if (!maquetaCargada) {
+                requestAnimationFrame(engineLoop);
+                return;
+            }
+
             const pos = rig.getAttribute('position');
             
-            // Backup de posición por si colisiona de forma inválida
             let oldX = pos.x;
             let oldZ = pos.z;
             let oldY = pos.y;
@@ -341,28 +364,27 @@
                 avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // CORRECCIÓN ANTICOLISIÓN LOCALIZADA (Evita saltar a mallas superiores/inferiores)
-            const entornoMesh = entornoEntity.object3D;
-            if (entornoMesh) {
+            // SISTEMA ANTICOLISIÓN SEGURO TRAS LA CARGA COMPLETADA
+            const mesh = entornoEntity.object3D;
+            if (mesh) {
                 const raycaster = new THREE.Raycaster();
+                // El rayo nace 10 metros por encima de su última posición estable conocida
+                raycaster.set(new THREE.Vector3(pos.x, oldY + 10.0, pos.z), new THREE.Vector3(0, -1, 0));
                 
-                // El rayo se origina SOLO 5 metros por encima de donde está pisando el avatar actualmente
-                raycaster.set(new THREE.Vector3(pos.x, oldY + 5.0, pos.z), new THREE.Vector3(0, -1, 0));
-                
-                const intersects = raycaster.intersectObject(entornoMesh, true);
+                const intersects = raycaster.intersectObject(mesh, true);
                 if (intersects.length > 0) {
                     let groundY = intersects[0].point.y;
                     
-                    // Umbral estricto: si la diferencia de altura con el paso anterior es mayor a 1 metro, es un muro/objeto sólido
-                    if (Math.abs(groundY - oldY) > 1.0) {
+                    // Si el descalce vertical es muy bruto (> 1.2m), chocó contra montaña/límite y se frena
+                    if (Math.abs(groundY - oldY) > 1.2) {
                         pos.x = oldX;
                         pos.z = oldZ;
                         pos.y = oldY;
                     } else {
-                        pos.y = groundY; // Desplazamiento fino y fluido por el asfalto o desniveles suaves
+                        pos.y = groundY; // Avanza fluido calcando el asfalto
                     }
                 } else {
-                    // Si el rayo no toca nada (borde exterior de la maqueta), bloquea el paso por completo
+                    // Si se pasa de los bordes límites de la maqueta al vacío, se congela su posición
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
