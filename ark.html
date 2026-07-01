@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <!-- SEO e Indexación Avanzada para Google IA -->
     <title>ARK - Recreaciones 3D Interactivas y Mundos Virtuales</title>
     <meta name="description" content="Explora recreaciones 3D únicas en este género con audio MP3 y avatar interactivo GLB. Simulación avanzada optimizada para motores de búsqueda de IA.">
     
-    <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=GT-MB642KNJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -30,7 +28,6 @@
             -webkit-user-select: none;
         }
 
-        /* --- PANTALLA DE CARGA AVANZADA (VRAM OPTIMIZATION) --- */
         #custom-loader {
             position: fixed;
             top: 0;
@@ -81,7 +78,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Bloque H1 optimizado para SEO semántico de Google e IA (Invisible para el usuario pero rastreable) */
         .seo-heding {
             position: absolute;
             width: 1px;
@@ -94,7 +90,6 @@
             border: 0;
         }
 
-        /* Prevención absoluta de selección visual o recuadros al tocar en móviles */
         button, .joy-arrow, .audio-btn, #btn-exit, #btn-center, #joystick-container, #joystick-knob {
             -webkit-tap-highlight-color: transparent !important;
             -webkit-touch-callout: none !important;
@@ -103,7 +98,6 @@
             -webkit-user-select: none !important;
         }
 
-        /* Botón salir circular optimizado */
         #btn-exit {
             position: absolute;
             top: 20px;
@@ -127,7 +121,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Botón centralizar estilizado */
         #btn-center {
             position: absolute;
             top: 20px;
@@ -149,7 +142,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Consola de música ULTRA COMPACTA */
         #audio-container {
             position: absolute;
             top: 26px;
@@ -197,7 +189,6 @@
             letter-spacing: 0.3px;
         }
 
-        /* VUMeter semitransparente con diseño RGB reactivo */
         #vu-meter {
             width: 32px;
             height: 12px;
@@ -270,14 +261,12 @@
 </head>
 <body>
 
-    <!-- Pantalla de carga integrada -->
     <div id="custom-loader">
         <div class="spinner"></div>
         <div class="loader-title">Iniciando Simulación</div>
         <div class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
     </div>
 
-    <!-- H1 Semántico Avanzado para Motores de Búsqueda y Modelos de Lenguaje de IA -->
     <h1 class="seo-heding">Bienvenido a ARK: Experimenta recreaciones 3D únicas en este género con audio MP3 envolvente y un avatar de caminante pensativo GLB de alta fidelidad, desplegado estratégicamente desde un servidor externo de alto rendimiento optimizado con parámetros avanzados de SEO Google IA. 🤖</h1>
 
     <button id="btn-exit">SALIR</button>
@@ -311,9 +300,9 @@
         
         <a-assets>
             <a-asset-item id="forest-model" src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/forest7.glb"></a-asset-item>
-            <!-- Pre-cargamos ambos archivos GLB de bajo peso independientes -->
-            <a-asset-item id="avatar-walk" src="luis-camina.glb"></a-asset-item>
-            <a-asset-item id="avatar-idle" src="luis-hora.glb"></a-asset-item>
+            <!-- Asegúrate de que los nombres de archivo coincidan exactamente en tu hosting -->
+            <a-asset-item id="avatar-walk-src" src="luis-camina.glb"></a-asset-item>
+            <a-asset-item id="avatar-idle-src" src="luis-hora.glb"></a-asset-item>
         </a-assets>
 
         <a-sky color="#020408"></a-sky>
@@ -331,13 +320,24 @@
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
         <a-entity id="player-rig" position="12 500 -15">
-            <!-- Iniciamos por defecto con el modelo Idle (luis-hora.glb) -->
-            <a-entity id="avatar-mesh" 
-                      gltf-model="#avatar-idle" 
-                      position="0 0.02 0" 
-                      rotation="0 0 0" 
-                      scale="1 1 1"
-                      animation-mixer="clip: *; loop: repeat;">
+            
+            <!-- CONTENEDOR ENVOLVENTE DEL AVATAR -->
+            <a-entity id="avatar-container" position="0 0.02 0" rotation="0 0 0">
+                <!-- AVATAR EN REPOSO (Visible al inicio) -->
+                <a-entity id="mesh-idle" 
+                          gltf-model="#avatar-idle-src" 
+                          scale="1 1 1"
+                          visible="true"
+                          animation-mixer="clip: *; loop: repeat; timeScale: 1;">
+                </a-entity>
+
+                <!-- AVATAR CAMINANDO (Oculto al inicio) -->
+                <a-entity id="mesh-walk" 
+                          gltf-model="#avatar-walk-src" 
+                          scale="1 1 1"
+                          visible="false"
+                          animation-mixer="clip: *; loop: repeat; timeScale: 1.3;">
+                </a-entity>
             </a-entity>
 
             <a-entity id="camera-orbit" position="0 2.1 0">
@@ -352,12 +352,16 @@
         const SPAWN_Z = -15;
 
         const VELOCIDAD_AVANCE = 0.08;   
-        const VELOCIDAD_PIERNAS = 1.3;   
 
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const cameraOrbit = document.getElementById('camera-orbit');
-        const avatarMesh = document.getElementById('avatar-mesh');
+        const avatarContainer = document.getElementById('avatar-container');
+        
+        // Referencias a las dos mallas fijas
+        const meshIdle = document.getElementById('mesh-idle');
+        const meshWalk = document.getElementById('mesh-walk');
+        
         const mainCamera = document.getElementById('main-camera');
         const sceneEl = document.querySelector('a-scene');
         const entornoEntity = document.getElementById('entorno');
@@ -517,6 +521,11 @@
             camPitch = -0.18;
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
+            
+            // Forzar reseteo visual correcto de avatares
+            meshIdle.setAttribute('visible', 'true');
+            meshWalk.setAttribute('visible', 'false');
+            wasMoving = false;
         });
 
         window.addEventListener('wheel', (e) => {
@@ -605,7 +614,6 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // --- FUNCIÓN INNOVADORA DE FILTRADO DE VEGETACIÓN ---
         function filtrarInterseccionSuelo(intersects) {
             for (let i = 0; i < intersects.length; i++) {
                 const nombreObj = intersects[i].object.name.toLowerCase();
@@ -678,16 +686,14 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // --- INYECCIÓN DINÁMICA DE AVATARES (INTERCAMBIO EN TIEMPO REAL) ---
+            // --- CORRECCIÓN: ALTERNANCIA ULTRA RÁPIDA POR VISIBILIDAD ---
             if (isMoving !== wasMoving) {
                 if (isMoving) {
-                    // Si empieza a moverse, inyectamos el avatar que camina y encendemos el timeScale
-                    avatarMesh.setAttribute('gltf-model', '#avatar-walk');
-                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: VELOCIDAD_PIERNAS});
+                    meshIdle.setAttribute('visible', 'false');
+                    meshWalk.setAttribute('visible', 'true');
                 } else {
-                    // Si se detiene, inyectamos el avatar con gesticulación en reposo (luis-hora.glb)
-                    avatarMesh.setAttribute('gltf-model', '#avatar-idle');
-                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1.0});
+                    meshWalk.setAttribute('visible', 'false');
+                    meshIdle.setAttribute('visible', 'true');
                 }
                 wasMoving = isMoving;
             }
@@ -700,10 +706,10 @@
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
 
                 const targetAngle = camYaw + Math.atan2(inputX, inputY);
-                let currentAngle = avatarMesh.object3D.rotation.y;
+                let currentAngle = avatarContainer.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
-                avatarMesh.object3D.rotation.y += deltaAngle * 0.25;
+                avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
             const raycaster = new THREE.Raycaster();
