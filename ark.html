@@ -602,6 +602,25 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
+        // --- FUNCIÓN INNOVADORA DE FILTRADO DE VEGETACIÓN ---
+        function filtrarInterseccionSuelo(intersects) {
+            for (let i = 0; i < intersects.length; i++) {
+                const nombreObj = intersects[i].object.name.toLowerCase();
+                // Si la malla contiene palabras asociadas a hierba baja o plantas, la ignoramos
+                if (nombreObj.includes('grass') || nombreObj.includes('hierba') || 
+                    nombreObj.includes('pasto') || nombreObj.includes('weed') || 
+                    nombreObj.includes('foliage') || nombreObj.includes('bush') || 
+                    nombreObj.includes('matorral') || nombreObj.includes('plant') ||
+                    nombreObj.includes('flor') || nombreObj.includes('flower')) {
+                    continue; 
+                }
+                // Retorna el primer impacto sólido real (suelo base, piedras gigantes o troncos de árboles)
+                return intersects[i];
+            }
+            // Retorno de emergencia si todo el array es vegetación
+            return intersects[0];
+        }
+
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -624,17 +643,19 @@
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 const intersects = raycaster.intersectObject(mesh, true);
-                if (intersects.length > 0) {
-                    pos.y = intersects[0].point.y;
+                
+                // Aplicamos el filtro al iniciar el mapa
+                const hitValido = filtrarInterseccionSuelo(intersects);
+                if (hitValido) {
+                    pos.y = hitValido.point.y;
                     rig.setAttribute('position', pos);
                     inicializado = true; 
                     
-                    // DESVANECER PANTALLA DE CARGA CUANDO EL ENTORNO ESTÁ LISTO
                     const loader = document.getElementById('custom-loader');
                     if (loader) {
                         loader.style.opacity = '0';
                         loader.style.visibility = 'hidden';
-                        setTimeout(() => loader.remove(), 600); // Remueve del DOM tras la transición
+                        setTimeout(() => loader.remove(), 600);
                     }
                 }
                 requestAnimationFrame(engineLoop);
@@ -681,13 +702,19 @@
             raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
             
             const intersects = raycaster.intersectObject(mesh, true);
-            if (intersects.length > 0) {
-                let groundY = intersects[0].point.y;
+            
+            // Filtramos las colisiones en movimiento para atravesar la hierba
+            const hitValido = filtrarInterseccionSuelo(intersects);
+            
+            if (hitValido) {
+                let groundY = hitValido.point.y;
+                // Si el cambio de altura con el suelo real es muy abrupto (>0.8m), es un obstáculo duro (árbol/piedra)
                 if ((groundY - oldY) > 0.8) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
+                    // Suavizado normal para el terreno base
                     pos.y += (groundY - pos.y) * 0.2;
                 }
             } else {
