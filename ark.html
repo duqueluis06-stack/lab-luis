@@ -311,7 +311,9 @@
         
         <a-assets>
             <a-asset-item id="forest-model" src="https://huggingface.co/datasets/Luis-Fernando/ark-assets/resolve/main/forest7.glb"></a-asset-item>
-            <a-asset-item id="avatar-model" src="luis-camina.glb"></a-asset-item>
+            <!-- Pre-cargamos ambos archivos GLB de bajo peso independientes -->
+            <a-asset-item id="avatar-walk" src="luis-camina.glb"></a-asset-item>
+            <a-asset-item id="avatar-idle" src="luis-hora.glb"></a-asset-item>
         </a-assets>
 
         <a-sky color="#020408"></a-sky>
@@ -329,12 +331,13 @@
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
         <a-entity id="player-rig" position="12 500 -15">
+            <!-- Iniciamos por defecto con el modelo Idle (luis-hora.glb) -->
             <a-entity id="avatar-mesh" 
-                      gltf-model="#avatar-model" 
+                      gltf-model="#avatar-idle" 
                       position="0 0.02 0" 
                       rotation="0 0 0" 
                       scale="1 1 1"
-                      animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+                      animation-mixer="clip: *; loop: repeat;">
             </a-entity>
 
             <a-entity id="camera-orbit" position="0 2.1 0">
@@ -606,7 +609,6 @@
         function filtrarInterseccionSuelo(intersects) {
             for (let i = 0; i < intersects.length; i++) {
                 const nombreObj = intersects[i].object.name.toLowerCase();
-                // Si la malla contiene palabras asociadas a hierba baja o plantas, la ignoramos
                 if (nombreObj.includes('grass') || nombreObj.includes('hierba') || 
                     nombreObj.includes('pasto') || nombreObj.includes('weed') || 
                     nombreObj.includes('foliage') || nombreObj.includes('bush') || 
@@ -614,10 +616,8 @@
                     nombreObj.includes('flor') || nombreObj.includes('flower')) {
                     continue; 
                 }
-                // Retorna el primer impacto sólido real (suelo base, piedras gigantes o troncos de árboles)
                 return intersects[i];
             }
-            // Retorno de emergencia si todo el array es vegetación
             return intersects[0];
         }
 
@@ -644,7 +644,6 @@
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 const intersects = raycaster.intersectObject(mesh, true);
                 
-                // Aplicamos el filtro al iniciar el mapa
                 const hitValido = filtrarInterseccionSuelo(intersects);
                 if (hitValido) {
                     pos.y = hitValido.point.y;
@@ -679,8 +678,17 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
+            // --- INYECCIÓN DINÁMICA DE AVATARES (INTERCAMBIO EN TIEMPO REAL) ---
             if (isMoving !== wasMoving) {
-                avatarMesh.setAttribute('animation-mixer', 'timeScale', isMoving ? VELOCIDAD_PIERNAS : 0);
+                if (isMoving) {
+                    // Si empieza a moverse, inyectamos el avatar que camina y encendemos el timeScale
+                    avatarMesh.setAttribute('gltf-model', '#avatar-walk');
+                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: VELOCIDAD_PIERNAS});
+                } else {
+                    // Si se detiene, inyectamos el avatar con gesticulación en reposo (luis-hora.glb)
+                    avatarMesh.setAttribute('gltf-model', '#avatar-idle');
+                    avatarMesh.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1.0});
+                }
                 wasMoving = isMoving;
             }
 
@@ -702,19 +710,15 @@
             raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
             
             const intersects = raycaster.intersectObject(mesh, true);
-            
-            // Filtramos las colisiones en movimiento para atravesar la hierba
             const hitValido = filtrarInterseccionSuelo(intersects);
             
             if (hitValido) {
                 let groundY = hitValido.point.y;
-                // Si el cambio de altura con el suelo real es muy abrupto (>0.8m), es un obstáculo duro (árbol/piedra)
                 if ((groundY - oldY) > 0.8) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
-                    // Suavizado normal para el terreno base
                     pos.y += (groundY - pos.y) * 0.2;
                 }
             } else {
