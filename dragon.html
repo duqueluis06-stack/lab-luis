@@ -1,130 +1,300 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor del Dragón</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: transparent; /* Fondo transparente */
-        }
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-    </style>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>🐉 Drago 3D - Lab Luis</title>
+
+<script type="module"
+src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
+</script>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+html,body{
+
+width:100%;
+height:100%;
+overflow:hidden;
+background:#050505;
+font-family:Arial,Helvetica,sans-serif;
+
+}
+
+/* Fondo animado */
+
+body{
+
+background:
+radial-gradient(circle at top,#183b59,#09111d,#000000);
+
+animation:fondo 15s linear infinite;
+
+}
+
+@keyframes fondo{
+
+0%{
+filter:hue-rotate(0deg);
+}
+
+100%{
+filter:hue-rotate(360deg);
+}
+
+}
+
+model-viewer{
+
+width:100%;
+height:100%;
+background:transparent;
+
+--poster-color:transparent;
+
+}
+
+/* Panel superior */
+
+#panel{
+
+position:absolute;
+
+top:15px;
+
+left:50%;
+
+transform:translateX(-50%);
+
+background:rgba(0,0,0,.45);
+
+backdrop-filter:blur(12px);
+
+padding:14px 25px;
+
+border-radius:15px;
+
+color:white;
+
+z-index:20;
+
+text-align:center;
+
+box-shadow:0 0 20px cyan;
+
+}
+
+#panel h1{
+
+font-size:28px;
+
+margin-bottom:8px;
+
+}
+
+#panel p{
+
+font-size:15px;
+
+opacity:.8;
+
+}
+
+/* Botones */
+
+#botones{
+
+position:absolute;
+
+bottom:25px;
+
+left:50%;
+
+transform:translateX(-50%);
+
+display:flex;
+
+gap:12px;
+
+z-index:30;
+
+flex-wrap:wrap;
+
+justify-content:center;
+
+}
+
+button{
+
+padding:12px 22px;
+
+border:none;
+
+border-radius:10px;
+
+cursor:pointer;
+
+font-size:15px;
+
+font-weight:bold;
+
+background:#00bfff;
+
+color:white;
+
+transition:.3s;
+
+}
+
+button:hover{
+
+background:#00ffff;
+
+transform:scale(1.05);
+
+}
+
+button:active{
+
+transform:scale(.95);
+
+}
+
+/* Créditos */
+
+#creditos{
+
+position:absolute;
+
+bottom:10px;
+
+right:15px;
+
+color:white;
+
+font-size:13px;
+
+opacity:.7;
+
+z-index:30;
+
+}
+
+</style>
+
 </head>
+
 <body>
 
-    <div id="canvas-container"></div>
+<div id="panel">
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.152.0/examples/jsm/"
-        }
-      }
-    </script>
+<h1>🐉 Drago 3D</h1>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+<p>Modelo GLB interactivo</p>
 
-        // 1. Escena y Cámara con perspectiva amplia
-        const scene = new THREE.Scene();
+</div>
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        // AJUSTE DE CÁMARA (PC vs MÓVIL): Aleja y posiciona la cámara para dar "aire" al vuelo
-        if (window.innerWidth < 768) {
-            camera.position.set(0, 6, 16); // Más cerca en móviles para que no se vea diminuto
-        } else {
-            camera.position.set(0, 8, 26); // Más alejado en PC para capturar las alas abiertas
-        }
+<model-viewer
 
-        // 2. Renderizador con Transparencia Habilitada (alpha: true)
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setClearColor(0x000000, 0); // Fuerza la transparencia del fondo
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+id="dragon"
 
-        // 3. Controles de visualización
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        
-        // AJUSTE DEL PUNTO DE MIRA: Eleva el enfoque a la altura del vuelo (Eje Y = 5)
-        // Evita que la cámara se quede mirando al suelo cuando el dragón sube
-        controls.target.set(0, 5, 0); 
+src="drago1.glb"
 
-        // 4. Iluminación global para que el modelo se vea nítido desde cualquier ángulo
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
-        scene.add(ambientLight);
+camera-controls
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        directionalLight.position.set(10, 20, 10);
-        scene.add(directionalLight);
+touch-action="pan-y"
 
-        // 5. Carga limpia del archivo GLB
-        let mixer;
-        const loader = new GLTFLoader();
+shadow-intensity="2"
 
-        loader.load(
-            'dragon1.glb', // Tu archivo en la raíz
-            (gltf) => {
-                const model = gltf.scene;
-                scene.add(model);
+exposure="1.3"
 
-                // Posición base en el centro del escenario
-                model.position.set(0, 0, 0);
+environment-image="neutral"
 
-                // Activar la animación de vuelo automáticamente
-                if (gltf.animations && gltf.animations.length > 0) {
-                    mixer = new THREE.AnimationMixer(model);
-                    const action = mixer.clipAction(gltf.animations[0]);
-                    action.play();
-                }
-            },
-            undefined,
-            (error) => {
-                console.error("Error al cargar el modelo:", error);
-            }
-        );
+auto-rotate
 
-        // 6. Bucle de renderizado continuo
-        const clock = new THREE.Clock();
+rotation-per-second="20deg"
 
-        function animate() {
-            requestAnimationFrame(animate);
+camera-orbit="0deg 75deg 4m"
 
-            const delta = clock.getDelta();
-            if (mixer) mixer.update(delta);
+field-of-view="30deg"
 
-            controls.update();
-            renderer.render(scene, camera);
-        }
+min-camera-orbit="auto auto 2m"
 
-        animate();
+max-camera-orbit="auto auto 10m"
 
-        // 7. Adaptación si el usuario gira el móvil o cambia el tamaño de pantalla
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            
-            if (window.innerWidth < 768) {
-                camera.position.set(0, 6, 16);
-            } else {
-                camera.position.set(0, 8, 26);
-            }
-        });
-    </script>
+interaction-prompt="auto"
+
+loading="eager"
+
+reveal="auto"
+
+ar
+
+>
+
+</model-viewer>
+
+<div id="botones">
+
+<button onclick="rotar()">Rotación</button>
+
+<button onclick="resetCam()">Reset Cámara</button>
+
+<button onclick="fullscreen()">Pantalla completa</button>
+
+</div>
+
+<div id="creditos">
+
+Lab Luis © 2026
+
+</div>
+
+<script>
+
+const modelo=document.getElementById("dragon");
+
+let girando=true;
+
+function rotar(){
+
+girando=!girando;
+
+modelo.autoRotate=girando;
+
+}
+
+function resetCam(){
+
+modelo.cameraOrbit="0deg 75deg 4m";
+
+}
+
+function fullscreen(){
+
+if(!document.fullscreenElement){
+
+document.documentElement.requestFullscreen();
+
+}else{
+
+document.exitFullscreen();
+
+}
+
+}
+
+</script>
+
 </body>
+
 </html>
