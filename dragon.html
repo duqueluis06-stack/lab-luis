@@ -3,63 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba de Visualización Avanzada - Dragón 3D</title>
+    <title>Visor del Dragón</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #1a1a1a;
-            font-family: sans-serif;
+            background-color: transparent; /* Fondo transparente */
         }
         #canvas-container {
             width: 100vw;
             height: 100vh;
             display: block;
         }
-        #status-panel {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            color: #ffffff;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            max-width: 350px;
-            line-height: 1.4;
-            border: 1px solid #444;
-        }
-        .error-msg {
-            color: #ff4d4d;
-            font-weight: bold;
-        }
-        .success-msg {
-            color: #4dff4d;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
 
-    <div id="status-panel">
-        <strong>Estado del Dragón:</strong>
-        <div id="loading-status">Cargando archivo...</div>
-        <hr style="border-color: #444; margin: 8px 0;">
-        <small style="color: #aaa;">
-            • Clic Izquierdo: Rotar<br>
-            • Clic Derecho: Desplazar<br>
-            • Rueda: Zoom
-        </small>
-    </div>
-    
     <div id="canvas-container"></div>
 
     <script type="importmap">
       {
         "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+          "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.152.0/examples/jsm/"
         }
       }
     </script>
@@ -69,103 +36,94 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        const statusDiv = document.getElementById('loading-status');
-
+        // 1. Escena y Cámara con perspectiva amplia
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222);
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 10000);
-        camera.position.set(0, 10, 20); 
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // AJUSTE DE CÁMARA (PC vs MÓVIL): Aleja y posiciona la cámara para dar "aire" al vuelo
+        if (window.innerWidth < 768) {
+            camera.position.set(0, 6, 16); // Más cerca en móviles para que no se vea diminuto
+        } else {
+            camera.position.set(0, 8, 26); // Más alejado en PC para capturar las alas abiertas
+        }
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        // 2. Renderizador con Transparencia Habilitada (alpha: true)
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x000000, 0); // Fuerza la transparencia del fondo
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
+        // 3. Controles de visualización
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // AJUSTE DEL PUNTO DE MIRA: Eleva el enfoque a la altura del vuelo (Eje Y = 5)
+        // Evita que la cámara se quede mirando al suelo cuando el dragón sube
+        controls.target.set(0, 5, 0); 
 
-        scene.add(new THREE.AmbientLight(0xffffff, 2.0));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        dirLight.position.set(20, 40, 20);
-        scene.add(dirLight);
+        // 4. Iluminación global para que el modelo se vea nítido desde cualquier ángulo
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+        scene.add(ambientLight);
 
-        const gridHelper = new THREE.GridHelper(50, 50, 0xff0000, 0x555555);
-        scene.add(gridHelper);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
 
+        // 5. Carga limpia del archivo GLB
         let mixer;
         const loader = new GLTFLoader();
 
         loader.load(
-            './dragon1.glb', 
+            'dragon1.glb', // Tu archivo en la raíz
             (gltf) => {
                 const model = gltf.scene;
                 scene.add(model);
 
-                const box = new THREE.Box3().setFromObject(model);
-                const size = box.getSize(new THREE.Vector3());
-                const center = box.getCenter(new THREE.Vector3());
+                // Posición base en el centro del escenario
+                model.position.set(0, 0, 0);
 
-                model.position.x += (model.position.x - center.x);
-                model.position.y += (model.position.y - center.y);
-                model.position.z += (model.position.z - center.z);
-
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const cameraZ = maxDim * 2.5; 
-                
-                camera.position.set(0, maxDim * 1.5, cameraZ === 0 ? 20 : cameraZ);
-                controls.target.set(0, 0, 0);
-                controls.update();
-
+                // Activar la animación de vuelo automáticamente
                 if (gltf.animations && gltf.animations.length > 0) {
                     mixer = new THREE.AnimationMixer(model);
-                    mixer.clipAction(gltf.animations[0]).play();
-                    statusDiv.innerHTML = '<span class="success-msg">¡Cargado con éxito! Animación activa.</span>';
-                } else {
-                    statusDiv.innerHTML = '<span class="success-msg">¡Cargado con éxito! (Sin animaciones).</span>';
+                    const action = mixer.clipAction(gltf.animations[0]);
+                    action.play();
                 }
             },
-            (xhr) => {
-                if (xhr.total > 0) {
-                    const percent = Math.round((xhr.loaded / xhr.total) * 100);
-                    statusDiv.innerText = `Descargando: ${percent}%`;
-                }
-            },
-            // --- AQUÍ ESTÁ EL CAMBIO PARA DETECTAR EL ERROR REAL ---
+            undefined,
             (error) => {
-                console.error(error);
-                let detalleError = "Error de parseo (¿El archivo GLB está corrupto?).";
-                
-                if (error && error.target) {
-                    if (error.target.status === 404) {
-                        detalleError = "Error 404: Servidor no encuentra el archivo.";
-                    } else if (error.target.status === 403) {
-                        detalleError = "Error 403: El servidor prohíbe el acceso al script.";
-                    } else if (error.target.status) {
-                        detalleError = `Código del Servidor: ${error.target.status}`;
-                    }
-                } else if (error && error.message) {
-                    detalleError = `Detalle: ${error.message}`;
-                }
-                
-                statusDiv.innerHTML = `<span class="error-msg">Error de carga</span><br><span style="font-size:11px; color:#ccc;">${detalleError}</span>`;
+                console.error("Error al cargar el modelo:", error);
             }
         );
 
+        // 6. Bucle de renderizado continuo
         const clock = new THREE.Clock();
+
         function animate() {
             requestAnimationFrame(animate);
+
             const delta = clock.getDelta();
             if (mixer) mixer.update(delta);
+
             controls.update();
             renderer.render(scene, camera);
         }
+
         animate();
 
+        // 7. Adaptación si el usuario gira el móvil o cambia el tamaño de pantalla
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (window.innerWidth < 768) {
+                camera.position.set(0, 6, 16);
+            } else {
+                camera.position.set(0, 8, 26);
+            }
         });
     </script>
 </body>
