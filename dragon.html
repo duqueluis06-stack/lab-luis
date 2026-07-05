@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prueba de Visualización - Dragón 3D</title>
+    <title>Prueba de Visualización Avanzada - Dragón 3D</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #1a1a1a; /* Fondo oscuro para contrastar el modelo */
+            background-color: #1a1a1a;
             font-family: sans-serif;
         }
         #canvas-container {
@@ -17,27 +17,40 @@
             height: 100vh;
             display: block;
         }
-        #instrucciones {
+        #status-panel {
             position: absolute;
             top: 15px;
             left: 15px;
             color: #ffffff;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
             border-radius: 6px;
             font-size: 14px;
-            pointer-events: none;
+            max-width: 300px;
             line-height: 1.4;
+            border: 1px solid #444;
+        }
+        .error-msg {
+            color: #ff4d4d;
+            font-weight: bold;
+        }
+        .success-msg {
+            color: #4dff4d;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <div id="instrucciones">
-        <strong>Controles de Cámara:</strong><br>
-        • Clic Izquierdo + Arrastrar: Rotar vista<br>
-        • Clic Derecho + Arrastrar: Desplazar cámara (Pan)<br>
-        • Rueda del ratón: Zoom (Acercar/Alejar)
+    <div id="status-panel">
+        <strong>Estado del Dragón:</strong>
+        <div id="loading-status">Cargando archivo...</div>
+        <hr style="border-color: #444; margin: 8px 0;">
+        <small style="color: #aaa;">
+            • Clic Izquierdo: Rotar<br>
+            • Clic Derecho: Desplazar<br>
+            • Rueda: Zoom
+        </small>
     </div>
     
     <div id="canvas-container"></div>
@@ -56,101 +69,100 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // 1. Configuración de la Escena, Cámara y Renderizador
+        const statusDiv = document.getElementById('loading-status');
+
+        // 1. Escena y Renderizador
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222); // Fondo gris neutro
+        scene.background = new THREE.Color(0x222222);
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Colocamos la cámara un poco alejada y elevada por defecto
-        camera.position.set(0, 5, 15); 
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 10000);
+        camera.position.set(0, 10, 20); 
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = true;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // 2. Controles Interactivos (OrbitControls)
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Suaviza el movimiento
-        controls.dampingFactor = 0.05;
-        controls.target.set(0, 2, 0); // Apuntar al centro estimando la altura del dragón
+        controls.enableDamping = true;
 
-        // 3. Iluminación de la escena
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-        scene.add(ambientLight);
+        // 2. Iluminación reforzada
+        scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        dirLight.position.set(20, 40, 20);
+        scene.add(dirLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-        directionalLight.position.set(10, 15, 10);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
-
-        // 4. Guía Visual: Cuadrícula en el suelo
-        const gridHelper = new THREE.GridHelper(30, 30, 0xff0000, 0x444444);
+        // 3. Cuadrícula de referencia
+        const gridHelper = new THREE.GridHelper(50, 50, 0xff0000, 0x555555);
         scene.add(gridHelper);
 
-        // 5. Carga del archivo GLB y ejecución de animaciones
+        // 4. Carga con auto-ajuste inteligente
         let mixer;
         const loader = new GLTFLoader();
 
+        // Forzamos que busque en la misma raíz de forma limpia
         loader.load(
-            'dragon1.glb', // Nombre exacto de tu archivo
+            './dragon1.glb', 
             (gltf) => {
                 const model = gltf.scene;
                 scene.add(model);
 
-                // Posición inicial base
-                model.position.set(0, 0, 0);
+                // --- MAGIA DE AUTO-CENTRADO Y AUTO-ESCALA ---
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
 
-                // Habilitar sombras en los componentes del modelo
-                model.traverse((object) => {
-                    if (object.isMesh) object.castShadow = true;
-                });
+                // Mover el modelo para que su centro real esté exactamente en (0,0,0)
+                model.position.x += (model.position.x - center.x);
+                model.position.y += (model.position.y - center.y);
+                model.position.z += (model.position.z - center.z);
 
-                // Si el GLB incluye animaciones, reproduce la primera automáticamente
+                // Reajustar la cámara dinámicamente según el tamaño real del dragón
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const cameraZ = maxDim * 2.5; 
+                
+                camera.position.set(0, maxDim * 1.5, cameraZ === 0 ? 20 : cameraZ);
+                controls.target.set(0, 0, 0);
+                controls.update();
+
+                // Animaciones
                 if (gltf.animations && gltf.animations.length > 0) {
                     mixer = new THREE.AnimationMixer(model);
-                    const action = mixer.clipAction(gltf.animations[0]);
-                    action.play();
-                    console.log("Animación cargada y ejecutándose.");
+                    mixer.clipAction(gltf.animations[0]).play();
+                    statusDiv.innerHTML = '<span class="success-msg">¡Cargado con éxito! Animación activa.</span>';
                 } else {
-                    console.log("El modelo no contiene animaciones grabadas.");
+                    statusDiv.innerHTML = '<span class="success-msg">¡Cargado con éxito! (Sin animaciones).</span>';
                 }
-                
-                console.log("¡Modelo dragon1.glb cargado con éxito!");
             },
             (xhr) => {
-                // Progreso de carga en la consola del navegador
-                console.log((xhr.loaded / xhr.total * 100) + '% cargado');
+                if (xhr.total > 0) {
+                    const percent = Math.round((xhr.loaded / xhr.total) * 100);
+                    statusDiv.innerText = `Descargando: ${percent}%`;
+                }
             },
             (error) => {
-                console.error('Error al intentar cargar el archivo GLB:', error);
+                console.error(error);
+                statusDiv.innerHTML = `<span class="error-msg">Error de carga.<br>El servidor bloqueó el archivo o el GLB está corrupto.</span>`;
             }
         );
 
-        // 6. Bucle de Animación y Renderizado continuo
+        // 5. Bucle de renderizado
         const clock = new THREE.Clock();
-
         function animate() {
             requestAnimationFrame(animate);
-
             const delta = clock.getDelta();
             if (mixer) mixer.update(delta);
-
-            controls.update(); // Mantiene al día la posición de la cámara interactiva
+            controls.update();
             renderer.render(scene, camera);
         }
-
         animate();
 
-        // 7. Ajuste adaptativo si cambias el tamaño de la ventana
-        window.addEventListener('resize', onWindowResize, false);
-
-        function onWindowResize() {
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        });
     </script>
 </body>
 </html>
