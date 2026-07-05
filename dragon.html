@@ -26,7 +26,7 @@
             padding: 15px;
             border-radius: 6px;
             font-size: 14px;
-            max-width: 300px;
+            max-width: 350px;
             line-height: 1.4;
             border: 1px solid #444;
         }
@@ -71,7 +71,6 @@
 
         const statusDiv = document.getElementById('loading-status');
 
-        // 1. Escena y Renderizador
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x222222);
 
@@ -81,44 +80,36 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // 2. Iluminación reforzada
         scene.add(new THREE.AmbientLight(0xffffff, 2.0));
         const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
         dirLight.position.set(20, 40, 20);
         scene.add(dirLight);
 
-        // 3. Cuadrícula de referencia
         const gridHelper = new THREE.GridHelper(50, 50, 0xff0000, 0x555555);
         scene.add(gridHelper);
 
-        // 4. Carga con auto-ajuste inteligente
         let mixer;
         const loader = new GLTFLoader();
 
-        // Forzamos que busque en la misma raíz de forma limpia
         loader.load(
             './dragon1.glb', 
             (gltf) => {
                 const model = gltf.scene;
                 scene.add(model);
 
-                // --- MAGIA DE AUTO-CENTRADO Y AUTO-ESCALA ---
                 const box = new THREE.Box3().setFromObject(model);
                 const size = box.getSize(new THREE.Vector3());
                 const center = box.getCenter(new THREE.Vector3());
 
-                // Mover el modelo para que su centro real esté exactamente en (0,0,0)
                 model.position.x += (model.position.x - center.x);
                 model.position.y += (model.position.y - center.y);
                 model.position.z += (model.position.z - center.z);
 
-                // Reajustar la cámara dinámicamente según el tamaño real del dragón
                 const maxDim = Math.max(size.x, size.y, size.z);
                 const cameraZ = maxDim * 2.5; 
                 
@@ -126,7 +117,6 @@
                 controls.target.set(0, 0, 0);
                 controls.update();
 
-                // Animaciones
                 if (gltf.animations && gltf.animations.length > 0) {
                     mixer = new THREE.AnimationMixer(model);
                     mixer.clipAction(gltf.animations[0]).play();
@@ -141,13 +131,27 @@
                     statusDiv.innerText = `Descargando: ${percent}%`;
                 }
             },
+            // --- AQUÍ ESTÁ EL CAMBIO PARA DETECTAR EL ERROR REAL ---
             (error) => {
                 console.error(error);
-                statusDiv.innerHTML = `<span class="error-msg">Error de carga.<br>El servidor bloqueó el archivo o el GLB está corrupto.</span>`;
+                let detalleError = "Error de parseo (¿El archivo GLB está corrupto?).";
+                
+                if (error && error.target) {
+                    if (error.target.status === 404) {
+                        detalleError = "Error 404: Servidor no encuentra el archivo.";
+                    } else if (error.target.status === 403) {
+                        detalleError = "Error 403: El servidor prohíbe el acceso al script.";
+                    } else if (error.target.status) {
+                        detalleError = `Código del Servidor: ${error.target.status}`;
+                    }
+                } else if (error && error.message) {
+                    detalleError = `Detalle: ${error.message}`;
+                }
+                
+                statusDiv.innerHTML = `<span class="error-msg">Error de carga</span><br><span style="font-size:11px; color:#ccc;">${detalleError}</span>`;
             }
         );
 
-        // 5. Bucle de renderizado
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
