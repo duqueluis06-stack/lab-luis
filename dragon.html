@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Visualización - Dragón 3D</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a1a; /* Fondo oscuro para contrastar el modelo */
+            font-family: sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #instrucciones {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            pointer-events: none;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="instrucciones">
+        <strong>Controles de Cámara:</strong><br>
+        • Clic Izquierdo + Arrastrar: Rotar vista<br>
+        • Clic Derecho + Arrastrar: Desplazar cámara (Pan)<br>
+        • Rueda del ratón: Zoom (Acercar/Alejar)
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Configuración de la Escena, Cámara y Renderizador
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222); // Fondo gris neutro
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Colocamos la cámara un poco alejada y elevada por defecto
+        camera.position.set(0, 5, 15); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // 2. Controles Interactivos (OrbitControls)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Suaviza el movimiento
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, 2, 0); // Apuntar al centro estimando la altura del dragón
+
+        // 3. Iluminación de la escena
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(10, 15, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // 4. Guía Visual: Cuadrícula en el suelo
+        const gridHelper = new THREE.GridHelper(30, 30, 0xff0000, 0x444444);
+        scene.add(gridHelper);
+
+        // 5. Carga del archivo GLB y ejecución de animaciones
+        let mixer;
+        const loader = new GLTFLoader();
+
+        loader.load(
+            'dragon1.glb', // Nombre exacto de tu archivo
+            (gltf) => {
+                const model = gltf.scene;
+                scene.add(model);
+
+                // Posición inicial base
+                model.position.set(0, 0, 0);
+
+                // Habilitar sombras en los componentes del modelo
+                model.traverse((object) => {
+                    if (object.isMesh) object.castShadow = true;
+                });
+
+                // Si el GLB incluye animaciones, reproduce la primera automáticamente
+                if (gltf.animations && gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(model);
+                    const action = mixer.clipAction(gltf.animations[0]);
+                    action.play();
+                    console.log("Animación cargada y ejecutándose.");
+                } else {
+                    console.log("El modelo no contiene animaciones grabadas.");
+                }
+                
+                console.log("¡Modelo dragon1.glb cargado con éxito!");
+            },
+            (xhr) => {
+                // Progreso de carga en la consola del navegador
+                console.log((xhr.loaded / xhr.total * 100) + '% cargado');
+            },
+            (error) => {
+                console.error('Error al intentar cargar el archivo GLB:', error);
+            }
+        );
+
+        // 6. Bucle de Animación y Renderizado continuo
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            controls.update(); // Mantiene al día la posición de la cámara interactiva
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // 7. Ajuste adaptativo si cambias el tamaño de la ventana
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
