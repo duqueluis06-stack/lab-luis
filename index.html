@@ -689,6 +689,9 @@ document.addEventListener('mousemove', e => {
 // --- Motor 3D con Escaneo de Volumen de Animación ---
 let scene, camera, renderer, mixer, clock, controls, headlight;
 
+// RUTA DEL ARCHIVO GLB (Si en tu servidor tiene tilde, cámbialo a 'dragón1.glb')
+const MODEL_PATH = 'dragon1.glb';
+
 function initDragonScene() {
     const container = document.getElementById('canvas-container');
     if (!container) return;
@@ -708,7 +711,7 @@ function initDragonScene() {
     container.innerHTML = ""; 
     container.appendChild(renderer.domElement);
 
-    // Sistema de Iluminación
+    // Luces
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
     scene.add(ambientLight);
 
@@ -727,12 +730,13 @@ function initDragonScene() {
     renderLoop();
 
     const loader = new THREE.GLTFLoader();
-    loader.load('dragon1.glb', function (gltf) {
+    loader.load(MODEL_PATH, function (gltf) {
         const model = gltf.scene;
 
+        // Forzar renderizado y desactivar Frustum Culling para evitar recortes por GPU
         model.traverse((child) => {
             if (child.isMesh) {
-                child.frustumCulled = false;
+                child.frustumCulled = false; 
                 if (child.material) {
                     child.material.side = THREE.DoubleSide;
                     if (child.material.metalness !== undefined) child.material.metalness = 0.2;
@@ -741,28 +745,41 @@ function initDragonScene() {
             }
         });
 
-        // 1. Inicializar el Mezclador de Animaciones inmediatamente
+        // EL DRAGÓN SE QUEDA EXACTAMENTE EN (0,0,0) PARA GARANTIZAR SU APARICIÓN INMEDIATA
+        model.position.set(0, 0, 0);
+        scene.add(model);
+        model.updateMatrixWorld(true);
+
+        // Inicializar el Mezclador Principal
         if (gltf.animations && gltf.animations.length > 0) {
             mixer = new THREE.AnimationMixer(model);
             mixer.clipAction(gltf.animations[0]).play();
         }
 
-        // 2. MUESTREO DINÁMICO DEL ESQUELETO (Cálculo del volumen total animado)
+        // ESCANEO DEL VOLUMEN DINÁMICO DE LOS HUESOS EN LA LÍNEA DE TIEMPO
         const animatedBox = new THREE.Box3();
         const bones = [];
         model.traverse(child => {
             if (child.isBone) bones.push(child);
         });
 
+        const staticBox = new THREE.Box3().setFromObject(model);
+        const staticSize = staticBox.getSize(new THREE.Vector3());
+
         if (bones.length > 0 && gltf.animations && gltf.animations.length > 0) {
             const clip = gltf.animations[0];
             const duration = clip.duration;
-            const sampleSteps = 24; // Muestras a lo largo del bucle de vuelo
+            const sampleSteps = 20;
             
+            // Usamos un mezclador temporal aislado para leer los límites físicos máximos de la animación
+            const scannerMixer = new THREE.AnimationMixer(model);
+            const action = scannerMixer.clipAction(clip);
+            action.play();
+
             for (let i = 0; i <= sampleSteps; i++) {
                 const time = (i / sampleSteps) * duration;
-                mixer.setTime(time);
-                model.updateMatrixWorld(true); // Forzar a Three.js a calcular las posiciones óseas reales en la CPU
+                scannerMixer.setTime(time);
+                model.updateMatrixWorld(true);
                 
                 bones.forEach(bone => {
                     const boneWorldPos = new THREE.Vector3();
@@ -770,49 +787,41 @@ function initDragonScene() {
                     animatedBox.expandByPoint(boneWorldPos);
                 });
             }
-            mixer.setTime(0); // Regresar la animación al inicio limpiamente
+            
+            // Margen de seguridad radial para envolver la malla (alas/carne) que sobresale de los huesos
+            const paddingRadius = Math.max(staticSize.x, staticSize.y, staticSize.z) * 0.25;
+            animatedBox.expandByScalar(paddingRadius);
         } else {
-            animatedBox.setFromObject(model);
+            animatedBox.copy(staticBox);
         }
 
-        // Añadir una envolvente de volumen proporcional para la malla exterior (alas/escamas)
-        const staticBox = new THREE.Box3().setFromObject(model);
-        const staticSize = staticBox.getSize(new THREE.Vector3());
-        const paddingRadius = Math.max(staticSize.x, staticSize.y, staticSize.z) * 0.22;
-        animatedBox.expandByScalar(paddingRadius);
-
-        // 3. Obtener el centro dinámico real y tamaño global calculado
+        // AJUSTE PRECISO DE CÁMARA Y ENCUADRE AUTOMÁTICO BASADO EN EL ESCANEO
         const center = animatedBox.getCenter(new THREE.Vector3());
         const size = animatedBox.getSize(new THREE.Vector3());
 
-        // Centramos el modelo en la escena basándonos en su envolvente de movimiento total
-        model.position.set(-center.x, -center.y, -center.z);
+        // La cámara enfocará el centro dinámico real del vuelo en lugar de la pose inicial fija
+        controls.target.copy(center);
 
-        // 4. CÁLCULO MATEMÁTICO INTEGRAL DE CÁMARA (Encuadre / Framing)
         const maxDim = Math.max(size.x, size.y, size.z);
         const fovRad = (camera.fov * Math.PI) / 180;
         let optimalDistance = maxDim / (2 * Math.tan(fovRad / 2));
 
-        // Adaptación automática para pantallas verticales (Teléfonos móviles)
-        const currentAspect = camera.aspect;
-        if (currentAspect < 1) {
-            optimalDistance = optimalDistance / currentAspect;
+        // Compensación estricta para pantallas verticales (Smartphones)
+        if (camera.aspect < 1) {
+            optimalDistance = optimalDistance / camera.aspect;
         }
 
-        // Multiplicador de encuadre seguro (1.25) para evitar que las puntas toquen los bordes físicos del Canvas
-        optimalDistance *= 1.25;
+        // Multiplicador de encuadre profesional (30% extra de aire limpio alrededor del dragón)
+        optimalDistance *= 1.3;
 
-        // Configurar la posición inicial y el objetivo de la cámara de manera exacta
-        camera.position.set(0, 0, optimalDistance);
-        camera.lookAt(0, 0, 0);
+        // Posicionamos la cámara de forma segura en el eje Z respecto al centro calculado
+        camera.position.set(center.x, center.y, center.z + optimalDistance);
+        camera.lookAt(center);
 
-        controls.target.set(0, 0, 0);
         controls.update();
-
-        scene.add(model);
         
     }, undefined, function (error) {
-        console.error("Error cargando el archivo dragon1.glb:", error);
+        console.error("Error al cargar el archivo GLB desde la ruta:", MODEL_PATH, error);
     });
 
     window.addEventListener('resize', onWindowResize);
