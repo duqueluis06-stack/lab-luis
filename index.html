@@ -419,7 +419,7 @@ header {
 /* ================= CIENTÍFICO GIF (ANIMACIÓN LATERAL) ================= */
 .cientifico-caminando{
     position:fixed;
-    bottom: 42px; 
+    bottom: 44px; 
     width:105px;
     animation:caminar 12s linear infinite;
     filter:drop-shadow(0 0 8px #00ffff);
@@ -538,7 +538,6 @@ footer a[href*="x.com"]{ color:#ffffff; border:1px solid #ffffff; box-shadow:0 0
         font-size: 9px !important;
     }
 
-    /* Visor balanceado en teléfonos */
     #canvas-container {
         height: 180px !important; 
         margin: 6px auto !important;
@@ -559,7 +558,6 @@ footer a[href*="x.com"]{ color:#ffffff; border:1px solid #ffffff; box-shadow:0 0
         height: 36px !important;
     }
 
-    /* AJUSTE DEL GIF EN TELÉFONOS: Incrementado a 75px y subido un poco para perfecta legibilidad */
     .cientifico-caminando {
         bottom: 44px !important;
         width: 75px !important; 
@@ -688,7 +686,7 @@ document.addEventListener('mousemove', e => {
   });
 });
 
-// --- Motor 3D Robusto con Iluminación Frontal Dinámica ---
+// --- Motor 3D con Escaneo de Volumen de Animación ---
 let scene, camera, renderer, mixer, clock, controls, headlight;
 
 function initDragonScene() {
@@ -702,22 +700,19 @@ function initDragonScene() {
     scene = new THREE.Scene();
 
     camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 0, 6); 
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     
-    container.innerHTML = ""; // Limpieza preventiva del canvas
+    container.innerHTML = ""; 
     container.appendChild(renderer.domElement);
 
-    // Sistema de luces reforzado contra texturas oscuras PBR nativas
+    // Sistema de Iluminación
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
     scene.add(ambientLight);
 
-    // LUZ FRONTAL HEADLIGHT (Sigue a la cámara para iluminar cualquier punto ciego)
     headlight = new THREE.DirectionalLight(0xffffff, 1.8);
-    headlight.position.copy(camera.position);
     scene.add(headlight);
 
     const secondaryLight = new THREE.DirectionalLight(0x00ffcc, 1.0);
@@ -727,10 +722,8 @@ function initDragonScene() {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.enableZoom = true; // Habilitado por si necesitas re-ajustar distancia de visualización
-    controls.target.set(0, 0, 0);
+    controls.enableZoom = true;
 
-    // Arrancamos el bucle inmediatamente para inicializar el contexto gráfico
     renderLoop();
 
     const loader = new THREE.GLTFLoader();
@@ -742,37 +735,82 @@ function initDragonScene() {
                 child.frustumCulled = false;
                 if (child.material) {
                     child.material.side = THREE.DoubleSide;
-                    // Fuerza al motor a procesar materiales opacos sin omitir reflejos básicos
                     if (child.material.metalness !== undefined) child.material.metalness = 0.2;
                     if (child.material.roughness !== undefined) child.material.roughness = 0.5;
                 }
             }
         });
 
-        // Centrado matemático preciso usando límites geométricos de caja
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        model.position.set(-center.x, -center.y, -center.z);
-
-        // Normalización inteligente de dimensiones
-        const maxDim = Math.max(size.x, size.y, size.z);
-        let scaleFactor = maxDim > 0 ? (3.2 / maxDim) : 1;
-
-        // Escalado adaptativo equilibrado
-        if (window.innerWidth < 600) {
-            scaleFactor *= 0.85; 
-        }
-
-        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        scene.add(model);
-
-        // Activación de esqueletos de animación internos
+        // 1. Inicializar el Mezclador de Animaciones inmediatamente
         if (gltf.animations && gltf.animations.length > 0) {
             mixer = new THREE.AnimationMixer(model);
             mixer.clipAction(gltf.animations[0]).play();
         }
+
+        // 2. MUESTREO DINÁMICO DEL ESQUELETO (Cálculo del volumen total animado)
+        const animatedBox = new THREE.Box3();
+        const bones = [];
+        model.traverse(child => {
+            if (child.isBone) bones.push(child);
+        });
+
+        if (bones.length > 0 && gltf.animations && gltf.animations.length > 0) {
+            const clip = gltf.animations[0];
+            const duration = clip.duration;
+            const sampleSteps = 24; // Muestras a lo largo del bucle de vuelo
+            
+            for (let i = 0; i <= sampleSteps; i++) {
+                const time = (i / sampleSteps) * duration;
+                mixer.setTime(time);
+                model.updateMatrixWorld(true); // Forzar a Three.js a calcular las posiciones óseas reales en la CPU
+                
+                bones.forEach(bone => {
+                    const boneWorldPos = new THREE.Vector3();
+                    bone.getWorldPosition(boneWorldPos);
+                    animatedBox.expandByPoint(boneWorldPos);
+                });
+            }
+            mixer.setTime(0); // Regresar la animación al inicio limpiamente
+        } else {
+            animatedBox.setFromObject(model);
+        }
+
+        // Añadir una envolvente de volumen proporcional para la malla exterior (alas/escamas)
+        const staticBox = new THREE.Box3().setFromObject(model);
+        const staticSize = staticBox.getSize(new THREE.Vector3());
+        const paddingRadius = Math.max(staticSize.x, staticSize.y, staticSize.z) * 0.22;
+        animatedBox.expandByScalar(paddingRadius);
+
+        // 3. Obtener el centro dinámico real y tamaño global calculado
+        const center = animatedBox.getCenter(new THREE.Vector3());
+        const size = animatedBox.getSize(new THREE.Vector3());
+
+        // Centramos el modelo en la escena basándonos en su envolvente de movimiento total
+        model.position.set(-center.x, -center.y, -center.z);
+
+        // 4. CÁLCULO MATEMÁTICO INTEGRAL DE CÁMARA (Encuadre / Framing)
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fovRad = (camera.fov * Math.PI) / 180;
+        let optimalDistance = maxDim / (2 * Math.tan(fovRad / 2));
+
+        // Adaptación automática para pantallas verticales (Teléfonos móviles)
+        const currentAspect = camera.aspect;
+        if (currentAspect < 1) {
+            optimalDistance = optimalDistance / currentAspect;
+        }
+
+        // Multiplicador de encuadre seguro (1.25) para evitar que las puntas toquen los bordes físicos del Canvas
+        optimalDistance *= 1.25;
+
+        // Configurar la posición inicial y el objetivo de la cámara de manera exacta
+        camera.position.set(0, 0, optimalDistance);
+        camera.lookAt(0, 0, 0);
+
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        scene.add(model);
+        
     }, undefined, function (error) {
         console.error("Error cargando el archivo dragon1.glb:", error);
     });
@@ -794,7 +832,7 @@ function renderLoop() {
     requestAnimationFrame(renderLoop);
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
-    if (headlight && camera) headlight.position.copy(camera.position); // La luz se mueve contigo
+    if (headlight && camera) headlight.position.copy(camera.position); 
     if (controls) controls.update(); 
     if (renderer && scene && camera) renderer.render(scene, camera);
 }
