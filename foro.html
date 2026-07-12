@@ -213,7 +213,7 @@
    <header>
     <h1>FORO LUIYI 🧠</h1>
     
-    <!-- NUEVO: PANEL NÚCLEO DE AUDIO INTERACTIVO -->
+    <!-- PANEL NÚCLEO DE AUDIO INTERACTIVO -->
     <div class="core-audio-panel">
         <div class="core-controls">
             <button id="core-play" class="core-btn">⚡ PLAY</button>
@@ -242,11 +242,11 @@
 
     <button id="creditos_btn" style="position:fixed; top:90px; right:20px; background:transparent; border:none; color:rgba(255,255,255,0.2); font-size:9px; cursor:pointer; z-index:100;" onclick="window.location.href='creditos.html'">SYS.LOG</button>
 
-    <!-- NUEVO: SISTEMA DE AUDIO Y VISUALIZADOR DE TORMENTA -->
-    <audio id="core-audio-track" src="Nucleo-que-despierta.mp3" loop crossorigin="anonymous"></audio>
+    <!-- TRACK DE AUDIO NATIVO (Sin restricciones de origen) -->
+    <audio id="core-audio-track" src="Nucleo-que-despierta.mp3" loop></audio>
 
     <script>
-        // Inicialización del Motor de Audio y Efectos Atmosféricos
+        // Motor Atmosférico y Control de Audio Robusto
         (function() {
             const audio = document.getElementById('core-audio-track');
             const playBtn = document.getElementById('core-play');
@@ -254,100 +254,63 @@
             const canvas = document.getElementById('lightning-vu');
             const ctx = canvas.getContext('2d');
 
-            let audioCtx = null;
-            let analyser = null;
-            let source = null;
-            let dataArray = [];
-            let isSetup = false;
-
-            function setupAudioEngine() {
-                if (isSetup) return;
-                try {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    analyser = audioCtx.createAnalyser();
-                    analyser.fftSize = 32;
-                    source = audioCtx.createMediaElementSource(audio);
-                    source.connect(analyser);
-                    analyser.connect(audioCtx.destination);
-                    dataArray = new Uint8Array(analyser.frequencyBinCount);
-                    isSetup = true;
-                } catch(e) {
-                    console.log("Web Audio API no soportada o bloqueada por políticas locales.", e);
-                }
-            }
-
-            // Forzar volver a empezar al presionar PLAY
+            // Forzar reinicio y reproducción nativa sin alterar el ruteo interno del navegador
             playBtn.onclick = () => {
-                setupAudioEngine();
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 audio.currentTime = 0; 
-                audio.play().catch(err => console.log("Interacción requerida"));
+                audio.play().catch(err => console.log("Interacción requerida por el navegador:", err));
             };
 
             pauseBtn.onclick = () => {
                 audio.pause();
             };
 
-            // Simulación de Autoplay en el primer toque del usuario en el documento
+            // Disparador de entrada automática tras el primer clic del usuario en la interfaz
             document.addEventListener('click', () => {
-                setupAudioEngine();
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
                 if (audio.paused && !audio.dataset.fired) {
                     audio.play().catch(() => {});
                     audio.dataset.fired = "true";
                 }
             }, { once: true });
 
-            // Renderizado del Vúmetro: Nubes y Relámpagos reactivos
+            // Renderizado Sintético de Tormentas (100% inmune a bloqueos CORS/Local)
             function renderStorm() {
                 requestAnimationFrame(renderStorm);
-                
-                let volume = 0;
-                if (isSetup && !audio.paused) {
-                    analyser.getByteFrequencyData(dataArray);
-                    let sum = 0;
-                    for (let i = 0; i < dataArray.length; i++) {
-                        sum += dataArray[i];
-                    }
-                    volume = sum / dataArray.length; // Rango base aproximado 0 - 255
-                }
-
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // Dibujar nubes base estéticas en la parte superior
-                ctx.fillStyle = volume > 90 ? 'rgba(0, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.12)';
+                let isPlaying = !audio.paused;
+
+                // Dibujar nubes estéticas con pulsación eléctrica variable si suena música
+                ctx.fillStyle = (isPlaying && Math.random() > 0.8) ? 'rgba(0, 255, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)';
                 ctx.beginPath();
                 ctx.arc(20, 8, 10, 0, Math.PI * 2);
                 ctx.arc(35, 6, 12, 0, Math.PI * 2);
                 ctx.arc(50, 8, 10, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Disparar relámpagos si hay suficiente energía/volumen
-                if (volume > 40 && !audio.paused) {
-                    ctx.strokeStyle = volume > 130 ? '#ff00ff' : '#00ffff';
-                    ctx.lineWidth = volume > 130 ? 2 : 1;
-                    ctx.shadowBlur = volume / 8;
+                // Generación matemática de relámpagos procedimentales
+                if (isPlaying && Math.random() > 0.65) {
+                    ctx.strokeStyle = Math.random() > 0.4 ? '#00ffff' : '#ff00ff';
+                    ctx.lineWidth = Math.random() > 0.75 ? 2 : 1;
+                    ctx.shadowBlur = 10 + Math.random() * 12;
                     ctx.shadowColor = ctx.strokeStyle;
 
-                    let startX = 25 + Math.random() * 20;
+                    let startX = 22 + Math.random() * 25;
                     let startY = 12;
 
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
 
-                    // Segmentación procedimental del rayo según potencia del audio
-                    startX += (Math.random() - 0.5) * 12;
-                    startY += 8 + Math.random() * 4;
+                    // Fractura del rayo descendente
+                    startX += (Math.random() - 0.5) * 14;
+                    startY += 7 + Math.random() * 5;
                     ctx.lineTo(startX, startY);
 
-                    if (volume > 80) {
-                        startX += (Math.random() - 0.5) * 16;
-                        startY += (volume / 255) * 15;
-                        ctx.lineTo(startX, startY);
-                    }
+                    startX += (Math.random() - 0.5) * 18;
+                    startY += 9 + Math.random() * 7;
+                    ctx.lineTo(startX, startY);
 
                     ctx.stroke();
-                    ctx.shadowBlur = 0; // Reset para no sobrecargar CPU
+                    ctx.shadowBlur = 0; 
                 }
             }
 
