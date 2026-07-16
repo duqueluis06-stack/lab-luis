@@ -94,6 +94,7 @@
             text-align: center;
             line-height: 1.6;
             padding: 0 20px;
+            transition: color 0.3s ease;
         }
 
         @keyframes spin {
@@ -286,7 +287,7 @@
     <div id="custom-loader">
         <div class="spinner"></div>
         <div class="loader-title">Iniciando Simulación</div>
-        <div class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
+        <div id="loader-msg" class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
     </div>
 
     <h1 class="seo-heding">Bienvenido a ARK: Experimenta recreaciones 3D únicas en este género con audio MP3 envolvente y un avatar de caminante pensativo GLB de alta fidelidad, desplegado estratégicamente desde un servidor externo de alto rendimiento optimizado con parámetros avanzados de SEO Google IA. 🤖</h1>
@@ -315,8 +316,8 @@
         </div>
     </div>
 
-    <!-- SE AÑADIÓ gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;" PARA DAR SOPORTE A MODELOS COMPRIMIDOS CON DRACO -->
-    <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;"
+    <!-- SE APUNTA A LA VERSIÓN ESTABLE 1.5.6 DE LOS DECODIFICADORES DRACO DE GOOGLE -->
+    <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false"
@@ -378,7 +379,6 @@
         const cameraOrbit = document.getElementById('camera-orbit');
         const avatarContainer = document.getElementById('avatar-container');
         
-        // Referencias a las dos mallas fijas
         const meshIdle = document.getElementById('mesh-idle');
         const meshWalk = document.getElementById('mesh-walk');
         
@@ -397,7 +397,40 @@
         let camDist = 4.4; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
+        
+        // --- CONTROL DE INICIALIZACIÓN ROBUSTA ---
         let inicializado = false;
+        let entornoCargado = false;
+        const tiempoInicio = Date.now();
+
+        // Escuchar el evento de carga real del entorno 3D
+        entornoEntity.addEventListener('model-loaded', () => {
+            entornoCargado = true;
+            console.log("🌲 El modelo del entorno se ha cargado y procesado con éxito.");
+        });
+
+        entornoEntity.addEventListener('model-error', (err) => {
+            console.error("❌ Error al descargar o parsear el entorno 3D (¿CORS o Draco fallido?):", err);
+        });
+
+        // Actualizar mensaje del loader si tarda demasiado
+        setTimeout(() => {
+            const loaderMsg = document.getElementById('loader-msg');
+            if (loaderMsg && !inicializado) {
+                loaderMsg.textContent = "Optimizando la inicialización... Si tarda demasiado, es posible que el servidor de recursos (Hugging Face) esté lento o que exista un bloqueo de CORS. Revisa la consola F12.";
+                loaderMsg.style.color = "#fb7185"; 
+            }
+        }, 5000);
+
+        function ocultarLoader() {
+            const loader = document.getElementById('custom-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.visibility = 'hidden';
+                setTimeout(() => loader.remove(), 600);
+            }
+        }
+        // -----------------------------------------
 
         // --- SISTEMA MULTIMEDIA INTEGRADO ---
         const playlist = ['audio/Camino-Nocturno.mp3', 'audio/Sin-Mirar.mp3'];
@@ -447,7 +480,7 @@
                 audioCtx.resume();
             }
             if (audio.paused) {
-                audio.play().catch(err => console.log("Interacción detectada. Audio cargado."));
+                audio.play().catch(err => console.log("Interacción detectada. Audio listo."));
             }
         }
 
@@ -542,7 +575,6 @@
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
             
-            // Forzar reseteo visual correcto de avatares
             meshIdle.setAttribute('visible', 'true');
             meshWalk.setAttribute('visible', 'false');
             wasMoving = false;
@@ -660,30 +692,40 @@
             cameraOrbit.object3D.rotation.x = camPitch;
 
             const mesh = entornoEntity.object3D;
-            if (!mesh) {
+
+            // ESPERA ACTIVA: Si el mesh no existe o no se ha completado el evento 'model-loaded',
+            // esperamos hasta un máximo de 7 segundos antes de aplicar el Plan B.
+            if (!mesh || (!entornoCargado && (Date.now() - tiempoInicio < 7000))) {
                 requestAnimationFrame(engineLoop);
                 return;
             }
 
             const pos = rig.getAttribute('position');
 
+            // --- LÓGICA DE INICIALIZACIÓN CON PLAN B INTEGRADO ---
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
-                const intersects = raycaster.intersectObject(mesh, true);
                 
-                const hitValido = filtrarInterseccionSuelo(intersects);
+                let hitValido = null;
+                if (mesh.children && mesh.children.length > 0) {
+                    const intersects = raycaster.intersectObject(mesh, true);
+                    hitValido = filtrarInterseccionSuelo(intersects);
+                }
+                
                 if (hitValido) {
                     pos.y = hitValido.point.y;
                     rig.setAttribute('position', pos);
                     inicializado = true; 
-                    
-                    const loader = document.getElementById('custom-loader');
-                    if (loader) {
-                        loader.style.opacity = '0';
-                        loader.style.visibility = 'hidden';
-                        setTimeout(() => loader.remove(), 600);
-                    }
+                    ocultarLoader();
+                } else if (Date.now() - tiempoInicio > 7000) {
+                    // PLAN B: Timeout de seguridad. Si el modelo falló o el punto de spawn quedó fuera
+                    // de los límites del mapa, forzamos altura base (y = 0) para no bloquear la simulación.
+                    console.warn("⚠️ Advertencia: No se detectó colisión de suelo tras 7s. Forzando inicio con altura por defecto (Y=0).");
+                    pos.y = 0; 
+                    rig.setAttribute('position', pos);
+                    inicializado = true; 
+                    ocultarLoader();
                 }
                 requestAnimationFrame(engineLoop);
                 return;
@@ -706,7 +748,6 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // --- CORRECCIÓN: ALTERNANCIA ULTRA RÁPIDA POR VISIBILIDAD ---
             if (isMoving !== wasMoving) {
                 if (isMoving) {
                     meshIdle.setAttribute('visible', 'false');
