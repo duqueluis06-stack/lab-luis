@@ -94,7 +94,6 @@
             text-align: center;
             line-height: 1.6;
             padding: 0 20px;
-            transition: color 0.3s ease;
         }
 
         @keyframes spin {
@@ -287,7 +286,7 @@
     <div id="custom-loader">
         <div class="spinner"></div>
         <div class="loader-title">Iniciando Simulación</div>
-        <div id="loader-msg" class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
+        <div class="loader-msg">Procesando texturas de alta fidelidad y VRAM en tu dispositivo. Por favor, espera un momento...</div>
     </div>
 
     <h1 class="seo-heding">Bienvenido a ARK: Experimenta recreaciones 3D únicas en este género con audio MP3 envolvente y un avatar de caminante pensativo GLB de alta fidelidad, desplegado estratégicamente desde un servidor externo de alto rendimiento optimizado con parámetros avanzados de SEO Google IA. 🤖</h1>
@@ -316,7 +315,6 @@
         </div>
     </div>
 
-    <!-- SE APUNTA A LA VERSIÓN ESTABLE 1.5.6 DE LOS DECODIFICADORES DRACO DE GOOGLE -->
     <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" 
@@ -343,6 +341,7 @@
 
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
+        <!-- MANTENEMOS TUS COORDENADAS ORIGINALES PERFECTAS -->
         <a-entity id="player-rig" position="12 500 -15">
             
             <a-entity id="avatar-container" position="0 0.02 0" rotation="0 0 0">
@@ -371,7 +370,6 @@
     <script>
         const SPAWN_X = 12;
         const SPAWN_Z = -15;
-
         const VELOCIDAD_AVANCE = 0.08;   
 
         const knob = document.getElementById('joystick-knob');
@@ -389,7 +387,6 @@
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false };
         let joyDragging = false; let joyStartX, joyStartY;
-        
         let screenDragging = false; let prevScreenX, prevScreenY;
         
         let camYaw = 0;   
@@ -398,29 +395,13 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
         
-        // --- CONTROL DE INICIALIZACIÓN ROBUSTA ---
+        // CONTROL DE INICIALIZACIÓN LIMPIO Y DIRECTO
         let inicializado = false;
         let entornoCargado = false;
-        const tiempoInicio = Date.now();
 
-        // Escuchar el evento de carga real del entorno 3D
         entornoEntity.addEventListener('model-loaded', () => {
             entornoCargado = true;
-            console.log("🌲 El modelo del entorno se ha cargado y procesado con éxito.");
         });
-
-        entornoEntity.addEventListener('model-error', (err) => {
-            console.error("❌ Error al descargar o parsear el entorno 3D (¿CORS o Draco fallido?):", err);
-        });
-
-        // Actualizar mensaje del loader si tarda demasiado
-        setTimeout(() => {
-            const loaderMsg = document.getElementById('loader-msg');
-            if (loaderMsg && !inicializado) {
-                loaderMsg.textContent = "Optimizando la inicialización... Si tarda demasiado, es posible que el servidor de recursos (Hugging Face) esté lento o que exista un bloqueo de CORS. Revisa la consola F12.";
-                loaderMsg.style.color = "#fb7185"; 
-            }
-        }, 5000);
 
         function ocultarLoader() {
             const loader = document.getElementById('custom-loader');
@@ -430,7 +411,6 @@
                 setTimeout(() => loader.remove(), 600);
             }
         }
-        // -----------------------------------------
 
         // --- SISTEMA MULTIMEDIA INTEGRADO ---
         const playlist = ['audio/Camino-Nocturno.mp3', 'audio/Sin-Mirar.mp3'];
@@ -459,29 +439,20 @@
 
         function initAudioEngine() {
             if (audioIniciado) return;
-            
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
             analyser.fftSize = 32;
-            
             sourceNode = audioCtx.createMediaElementSource(audio);
             sourceNode.connect(analyser);
             analyser.connect(audioCtx.destination);
-            
             audioIniciado = true;
             drawVUMeter();
         }
 
         function triggerAutoplay() {
-            if (!audioIniciado) {
-                initAudioEngine();
-            }
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            if (audio.paused) {
-                audio.play().catch(err => console.log("Interacción detectada. Audio listo."));
-            }
+            if (!audioIniciado) initAudioEngine();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (audio.paused) audio.play().catch(err => {});
         }
 
         btnPlay.addEventListener('click', (e) => {
@@ -509,42 +480,32 @@
             nextTrack();
         });
 
-        audio.addEventListener('ended', () => {
-            nextTrack();
-        });
+        audio.addEventListener('ended', () => { nextTrack(); });
 
         function drawVUMeter() {
             requestAnimationFrame(drawVUMeter);
             if (!analyser) return;
-
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
-
             ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
-
             const barCount = 5;
             const barWidth = (canvasVU.width / barCount) - 2;
-            
             for (let i = 0; i < barCount; i++) {
                 const value = dataArray[i * 2] || 0; 
                 const percent = value / 255;
                 const barHeight = percent * canvasVU.height * 0.9;
-
                 const grad = ctxVU.createLinearGradient(0, canvasVU.height, 0, 0);
                 grad.addColorStop(0, '#e11d48');
                 grad.addColorStop(1, '#f43f5e');
-
                 ctxVU.fillStyle = grad;
-                
                 const x = i * (barWidth + 2);
                 const y = canvasVU.height - barHeight;
-                
                 ctxVU.fillRect(x, y, barWidth, barHeight);
             }
         }
-        // -------------------------------------------------------------
 
+        // ASIGNACIÓN DE COORDENADAS INICIALES EN EL RIG
         rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
 
         sceneEl.addEventListener('loaded', () => {
@@ -574,7 +535,6 @@
             camPitch = -0.18;
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
-            
             meshIdle.setAttribute('visible', 'true');
             meshWalk.setAttribute('visible', 'false');
             wasMoving = false;
@@ -637,16 +597,12 @@
             const point = e.touches ? e.touches[0] : e;
             const clientX = point.clientX;
             const clientY = point.clientY;
-            
             camYaw -= (clientX - prevScreenX) * 0.005;  
             camPitch += (clientY - prevScreenY) * 0.004; 
-            
             prevScreenX = clientX; 
             prevScreenY = clientY;
         }
-        function onScreenEnd() {
-            screenDragging = false;
-        }
+        function onScreenEnd() { screenDragging = false; }
 
         window.addEventListener('mousedown', onScreenStart);
         window.addEventListener('mousemove', onScreenMove);
@@ -693,36 +649,24 @@
 
             const mesh = entornoEntity.object3D;
 
-            // ESPERA ACTIVA: Si el mesh no existe o no se ha completado el evento 'model-loaded',
-            // esperamos hasta un máximo de 7 segundos antes de aplicar el Plan B.
-            if (!mesh || (!entornoCargado && (Date.now() - tiempoInicio < 7000))) {
+            // ESPERA PURA: Si el mesh no está listo en la escena 3D o el evento 'model-loaded' no ha saltado, congelamos el loop.
+            if (!mesh || !entornoCargado || !mesh.children || mesh.children.length === 0) {
                 requestAnimationFrame(engineLoop);
                 return;
             }
 
             const pos = rig.getAttribute('position');
 
-            // --- LÓGICA DE INICIALIZACIÓN CON PLAN B INTEGRADO ---
+            // CALCULO EXCLUSIVO DE ALTURA DESDE LOS 500 ORIGINALES
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 
-                let hitValido = null;
-                if (mesh.children && mesh.children.length > 0) {
-                    const intersects = raycaster.intersectObject(mesh, true);
-                    hitValido = filtrarInterseccionSuelo(intersects);
-                }
+                const intersects = raycaster.intersectObject(mesh, true);
+                const hitValido = filtrarInterseccionSuelo(intersects);
                 
                 if (hitValido) {
                     pos.y = hitValido.point.y;
-                    rig.setAttribute('position', pos);
-                    inicializado = true; 
-                    ocultarLoader();
-                } else if (Date.now() - tiempoInicio > 7000) {
-                    // PLAN B: Timeout de seguridad. Si el modelo falló o el punto de spawn quedó fuera
-                    // de los límites del mapa, forzamos altura base (y = 0) para no bloquear la simulación.
-                    console.warn("⚠️ Advertencia: No se detectó colisión de suelo tras 7s. Forzando inicio con altura por defecto (Y=0).");
-                    pos.y = 0; 
                     rig.setAttribute('position', pos);
                     inicializado = true; 
                     ocultarLoader();
