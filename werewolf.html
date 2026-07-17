@@ -2,9 +2,30 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Prueba de Posición</title>
+  <title>Prueba de Posición Centrada</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+  <script>
+    AFRAME.registerComponent('seguimiento-camara', {
+      schema: {
+        offsetY: {type: 'number', default: -1.6}, // Altura del avatar respecto a la cámara
+        distancia: {type: 'number', default: 2.5}  // Distancia delante de la cámara
+      },
+      tick: function () {
+        var cameraEl = document.querySelector('#camera');
+        if (!cameraEl) return;
+        var camPos = cameraEl.object3D.position;
+        var camRot = cameraEl.object3D.rotation;
+        
+        var angle = camRot.y;
+        var d = this.data.distancia;
+        this.el.object3D.position.x = camPos.x - d * Math.sin(angle);
+        this.el.object3D.position.z = camPos.z - d * Math.cos(angle);
+        this.el.object3D.position.y = camPos.y + this.data.offsetY;
+        this.el.object3D.rotation.y = camRot.y + Math.PI;
+      }
+    });
+  </script>
 </head>
 <body style="margin: 0; overflow: hidden;">
   <a-scene>
@@ -17,20 +38,17 @@
     <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
     <a-light type="directional" position="5 10 5" intensity="0.5"></a-light>
 
-    <!-- Pueblo (Ajusta la altura Y aquí) -->
-    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 -10 0"></a-entity>
+    <!-- Pueblo centrado en Y = 0 -->
+    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 0 0"></a-entity>
 
-    <!-- Rig de Cámara y Avatar vinculados -->
-    <a-entity id="rig" position="0 0 0" wasd-controls="acceleration: 20;">
-      <a-camera look-controls position="0 1.6 0"></a-camera>
-      
-      <!-- Avatar Luis -->
-      <a-entity id="avatar-luis" 
-                gltf-model="#luis-camina" 
-                position="0 0 -2.5" 
-                rotation="0 180 0" 
-                animation-mixer>
-      </a-entity>
+    <!-- Cámara (Usa WASD para desplazarte) -->
+    <a-camera id="camera" wasd-controls="acceleration: 20;" look-controls position="0 1.6 3"></a-camera>
+    
+    <!-- Avatar de Luis (Sigue automáticamente a la cámara y se mueve con ella) -->
+    <a-entity id="avatar-luis" 
+              gltf-model="#luis-camina" 
+              seguimiento-camara="offsetY: -1.6; distancia: 2.5"
+              animation-mixer>
     </a-entity>
   </a-scene>
 </body>
