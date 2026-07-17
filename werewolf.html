@@ -38,6 +38,25 @@
       color: #000000;
       box-shadow: 0 0 25px rgba(255, 85, 0, 0.8);
     }
+    
+    /* Indicador visual de carga y controles en pantalla */
+    .instructions-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(11, 13, 26, 0.8);
+      border: 1px solid #9ab2e1;
+      padding: 10px 20px;
+      border-radius: 5px;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 0.8rem;
+      text-align: center;
+      pointer-events: none;
+      box-shadow: 0 0 10px rgba(154, 178, 225, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -47,13 +66,19 @@
     <a href="inter.html">⤶ VOLVER AL DASHBOARD</a>
   </div>
 
-  <!-- ⚡ AQUÍ ESTÁ EL TRUCO: Añadido "gltf-model" con la ruta al decodificador de Draco -->
+  <!-- Panel de instrucciones flotante -->
+  <div class="instructions-panel">
+    Usa WASD para caminar · Ratón para mirar · Presiona [Ctrl + Alt + I] para abrir el Editor 3D
+  </div>
+
+  <!-- Escena con niebla densa y oscura para la atmósfera de terror -->
+  <!-- Aumentamos el timeout de carga a 60 segundos (60000ms) para que el pueblo de 98MB descargue por completo -->
   <a-scene 
     fog="type: exponential; color: #0b0d1a; density: 0.04;"
     gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;">
     
-    <!-- 1. GESTIÓN DE ASSETS (Carga optimizada de tus GLB desde Hugging Face) -->
-    <a-assets timeout="15000">
+    <!-- 1. GESTIÓN DE ASSETS (Carga de tus GLB desde Hugging Face) -->
+    <a-assets timeout="60000">
       <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
       <a-asset-item id="casa" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/casa.glb"></a-asset-item>
       
@@ -68,47 +93,64 @@
       <a-asset-item id="luis-sigilo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-sigilo.glb"></a-asset-item>
     </a-assets>
 
-    <!-- 2. ILUMINACIÓN (Luz de luna tenue y una luz focal misteriosa) -->
-    <a-light type="ambient" color="#1a2035" intensity="0.3"></a-light>
-    <a-light type="directional" color="#9ab2e1" intensity="0.5" position="-5 10 -5" castShadow="true"></a-light>
+    <!-- 2. ILUMINACIÓN MEJORADA (Mantiene el misterio pero añade contraste y visibilidad) -->
+    <!-- Luz de ambiente base -->
+    <a-light type="ambient" color="#111625" intensity="0.4"></a-light>
+    
+    <!-- Luz de hemisferio: da un tono azulado desde arriba y oscuro desde el suelo, dando un volumen espectacular -->
+    <a-light type="hemisphere" color="#2b3a55" groundColor="#080a10" intensity="0.6"></a-light>
+    
+    <!-- Luz de luna direccional (más intensa para definir las sombras de los personajes) -->
+    <a-light type="directional" color="#a0b0ff" intensity="0.8" position="-10 15 -5" castShadow="true"></a-light>
+
+    <!-- Luz focal cálida (farola/linterna en la cabaña): Crea un contraste brutal entre el frío azul y el cálido fuego -->
+    <a-light type="point" color="#ff7700" intensity="2" distance="15" position="-8 2 -10" decay="2"></a-light>
 
     <!-- 3. CIELO NOCTURNO -->
     <a-sky color="#05070f"></a-sky>
 
     <!-- 4. ENTORNO (Pueblo y Casa) -->
+    <!-- Escenario principal -->
     <a-entity gltf-model="#pueblo" position="0 0 0" scale="1 1 1" shadow="receive: true"></a-entity>
-    <a-entity gltf-model="#casa" position="-8 0 -12" rotation="0 45 0" scale="1.2 1.2 1.2"></a-entity>
+    
+    <!-- Tu casa elevada ligeramente (Y=0.1) para evitar parpadeo de texturas con el suelo del pueblo -->
+    <a-entity gltf-model="#casa" position="-8 0.1 -12" rotation="0 45 0" scale="1.2 1.2 1.2"></a-entity>
 
-    <!-- 5. PERSONAJES Y ANIMACIONES -->
+    <!-- 5. PERSONAJES Y ANIMACIONES (Elevados en el eje Y para que no se hundan en el terreno) -->
+    
+    <!-- El Hombre Lobo acechando -->
     <a-entity gltf-model="#werewolf-idle" 
-              position="3 0 -6" 
+              position="3 0.3 -6" 
               rotation="0 -45 0" 
               scale="1.5 1.5 1.5"
-              animation-mixer>
+              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
+    <!-- El Hombre Lobo aullando (elevado a Y=2.8 para estar sobre la colina o tejado) -->
     <a-entity gltf-model="#werewolf-howl" 
-              position="10 2.5 -15" 
+              position="10 2.8 -15" 
               rotation="0 -90 0" 
               scale="1.5 1.5 1.5"
-              animation-mixer>
+              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
+    <!-- Tu avatar: Luis en sigilo -->
     <a-entity gltf-model="#luis-sigilo" 
-              position="-2 0 -5" 
+              position="-2 0.3 -5" 
               rotation="0 30 0" 
               scale="1 1 1"
-              animation-mixer>
+              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
+    <!-- Tu avatar: Luis llamando ayuda -->
     <a-entity gltf-model="#luis-llama" 
-              position="-6 0 -10" 
+              position="-6 0.3 -10" 
               rotation="0 120 0" 
               scale="1 1 1"
-              animation-mixer>
+              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
-    <!-- 6. CÁMARA DE USUARIO -->
+    <!-- 6. CÁMARA DE USUARIO (Posicionada a nivel de ojos del avatar) -->
     <a-entity id="rig" position="0 1.6 2">
       <a-camera look-controls wasd-controls="fly: false; acceleration: 20;"></a-camera>
     </a-entity>
