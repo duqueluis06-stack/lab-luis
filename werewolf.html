@@ -2,309 +2,113 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <title>Pueblo de Hombres Lobo - Posicionador Dinámico</title>
-    <meta name="description" content="Explora e identifica coordenadas en tiempo real dentro del entorno interactivo 3D.">
-
-    <!-- Cargamos A-Frame y A-Frame Extras para poder reproducir las animaciones del Avatar -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Werewolf 3D Universe</title>
+    <!-- Motores principales de Renderizado 3D -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: 'Courier New', Courier, monospace;
-            background-color: #05050a;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        /* Pantalla de carga personalizada */
-        #custom-loader {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #05050a;
-            z-index: 99999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(220, 38, 38, 0.1);
-            border-top-color: #dc2626;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            box-shadow: 0 0 15px rgba(220, 38, 38, 0.2);
-            margin-bottom: 24px;
-        }
-
-        .loader-title {
-            color: #dc2626;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
-            text-align: center;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* HUD de Coordenadas de Alta Precisión */
-        #coordenadas-hud {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 9999;
-            background: rgba(10, 10, 15, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid #dc2626;
-            color: #f8fafc;
-            padding: 15px;
-            border-radius: 8px;
-            width: 250px;
-            box-shadow: 0 0 15px rgba(220, 38, 38, 0.25);
-        }
-
-        #coordenadas-hud h3 {
-            margin: 0 0 10px 0;
-            font-size: 12px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: #dc2626;
-            border-bottom: 1px solid rgba(220, 38, 38, 0.3);
-            padding-bottom: 5px;
-        }
-
-        .coords-display {
-            font-size: 13px;
-            line-height: 1.6;
-            color: #cbd5e1;
-            margin-bottom: 12px;
-        }
-
-        .coords-display span {
-            color: #ef4444;
-            font-weight: bold;
-        }
-
-        /* Botón Innovador: Copia rápida para tu flujo de trabajo */
-        #btn-copy {
-            width: 100%;
-            background: rgba(220, 38, 38, 0.15);
-            border: 1px solid #dc2626;
-            color: #f8fafc;
-            padding: 8px;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 11px;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.2s ease;
-        }
-
-        #btn-copy:hover {
-            background: #dc2626;
-            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
-        }
-
-        /* Evitar pulsaciones accidentales en UI de exploración */
-        button, .joy-arrow, #btn-center, #joystick-container, #joystick-knob {
-            -webkit-tap-highlight-color: transparent !important;
-            -webkit-touch-callout: none !important;
-            outline: none !important;
-            user-select: none !important;
-            -webkit-user-select: none !important;
-        }
-
-        #btn-center {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 2px solid #dc2626;
-            color: #dc2626;
-            border-radius: 50%;
-            width: 46px;
-            height: 46px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 1000;
-            box-shadow: 0 0 15px rgba(220, 38, 38, 0.3);
-            backdrop-filter: blur(4px);
-            transition: all 0.2s ease;
-        }
-
-        /* Sistema de Controles en Pantalla (Mobile-Friendly) */
-        #arrows-wrapper {
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            width: 100px;
-            height: 100px;
-            z-index: 999;
-        }
-
-        #joystick-wrapper {
-            position: absolute;
-            bottom: 40px; 
-            right: 40px;
-            width: 100px;
-            height: 100px;
-            z-index: 999;
-        }
-
-        #joystick-container {
-            width: 100px;
-            height: 100px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 2px solid #dc2626;
-            border-radius: 50%;
-            touch-action: none;
-            position: relative;
-            box-shadow: 0 0 10px rgba(220, 38, 38, 0.2);
-        }
-
-        #joystick-knob {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            width: 40px;
-            height: 40px;
-            background: #dc2626;
-            border-radius: 50%;
-            box-shadow: 0 0 15px #dc2626;
-            cursor: pointer;
-            touch-action: none;
-        }
-
-        .joy-arrow {
-            position: absolute;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid #dc2626;
-            color: #dc2626;
-            border-radius: 8px;
-            width: 32px;
-            height: 32px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: none;
-        }
-
-        .arrow-up { top: 0; left: 34px; }
-        .arrow-down { bottom: 0; left: 34px; }
-        .arrow-left { left: 0; top: 34px; }
-        .arrow-right { right: 0; top: 34px; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-user-select: none; }
+        #custom-loader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #080810; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.6s ease, visibility 0.6s; color: #fff; }
+        .spinner { width: 50px; height: 50px; border: 3px solid rgba(220, 38, 38, 0.2); border-top-color: #dc2626; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Controles e Interfaz UI */
+        #joystick-wrapper { position: fixed; bottom: 30px; left: 30px; width: 110px; height: 110px; background: rgba(15, 15, 25, 0.4); border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; z-index: 999; touch-action: none; backdrop-filter: blur(4px); }
+        #joystick-knob { width: 45px; height: 45px; background: linear-gradient(135deg, #dc2626, #991b1b); border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; touch-action: none; transition: transform 0.05s ease-out; }
+        
+        #arrows-wrapper { position: fixed; bottom: 30px; right: 30px; display: grid; grid-template-columns: repeat(3, 45px); grid-template-rows: repeat(3, 45px); gap: 5px; z-index: 999; }
+        .arrow-btn { background: rgba(15, 15, 25, 0.6); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 16px; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background 0.2s; user-select: none; }
+        .arrow-btn:active { background: #dc2626; border-color: #ff4545; }
+        
+        #coordenadas-hud { position: fixed; top: 15px; left: 15px; background: rgba(10, 10, 15, 0.85); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px; padding: 12px 16px; color: #fff; font-size: 13px; z-index: 999; box-shadow: 0 4px 15px rgba(0,0,0,0.5); backdrop-filter: blur(5px); display: flex; flex-direction: column; gap: 8px; }
+        .coord-row { display: flex; gap: 15px; font-family: monospace; font-size: 14px; }
+        .coord-val { color: #00ffaa; font-weight: bold; }
+        
+        .hud-actions { display: flex; gap: 8px; margin-top: 4px; }
+        .hud-btn { flex: 1; background: rgba(220, 38, 38, 0.15); border: 1px solid #dc2626; color: #fff; border-radius: 4px; padding: 5px; font-size: 11px; cursor: pointer; transition: all 0.2s; font-weight: 600; text-transform: uppercase; }
+        .hud-btn:hover { background: rgba(220, 38, 38, 0.3); }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de carga -->
+    <!-- Loader Personalizado -->
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Cargando Pueblo Gótico</div>
+        <div style="font-size: 18px; font-weight: bold; tracking-wider; margin-bottom: 5px;">CARGANDO ENTORNO</div>
+        <div style="font-size: 12px; color: #888;">Generando colisiones y mapeo de terreno...</div>
     </div>
 
-    <!-- HUD de Coordenadas en tiempo real -->
+    <!-- HUD de Estado y Teletransporte -->
     <div id="coordenadas-hud">
-        <h3>Localizador de Spawn</h3>
-        <div class="coords-display">
-            X: <span id="valX">0.00</span><br>
-            Y: <span id="valY">0.00</span><br>
-            Z: <span id="valZ">0.00</span>
+        <div class="coord-row">
+            <span>X: <span id="valX" class="coord-val">0.00</span></span>
+            <span>Y: <span id="valY" class="coord-val">0.00</span></span>
+            <span>Z: <span id="valZ" class="coord-val">0.00</span></span>
         </div>
-        <button id="btn-copy">Copiar Vector3</button>
+        <div class="hud-actions">
+            <button id="btn-center" class="hud-btn">Reaparecer</button>
+            <button id="btn-copy" class="hud-btn">Copiar Vector3</button>
+        </div>
     </div>
 
-    <button id="btn-center" title="Reiniciar Posición">👤</button>
-
-    <!-- Controles táctiles -->
-    <div id="arrows-wrapper">
-        <button class="joy-arrow arrow-up" id="btn-up">▲</button>
-        <button class="joy-arrow arrow-down" id="btn-down">▼</button>
-        <button class="joy-arrow arrow-left" id="btn-left">◀</button>
-        <button class="joy-arrow arrow-right" id="btn-right">▶</button>
-    </div>
-
+    <!-- Controles de pantalla táctil -->
     <div id="joystick-wrapper">
-        <div id="joystick-container">
-            <div id="joystick-knob"></div>
-        </div>
+        <div id="joystick-knob"></div>
     </div>
 
-    <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
-             renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
-             vr-mode-ui="enabled: false" 
-             device-orientation-permission-ui="enabled: false"
-             loading-screen="enabled: false">
-        
+    <div id="arrows-wrapper">
+        <div></div>
+        <button id="btn-up" class="arrow-btn">▲</button>
+        <div></div>
+        <button id="btn-left" class="arrow-btn">◀</button>
+        <div class="arrow-btn" style="background:none; border:none; font-size:11px; opacity:0.3;">CAM</div>
+        <button id="btn-right" class="arrow-btn">▶</button>
+        <div></div>
+        <button id="btn-down" class="arrow-btn">▼</button>
+        <div></div>
+    </div>
+
+    <a-scene shadow="type: pcfsoft" renderer="colorManagement: true; antialias: true;">
+        <!-- Contenedor de Activos 3D (Hugging Face) -->
         <a-assets>
             <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
             <a-asset-item id="avatar-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
-            <!-- Si tienes un modelo de idle específico puedes enlazarlo aquí, de lo contrario usamos el de caminar como fallback -->
             <a-asset-item id="avatar-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Atmósfera nocturna de terror -->
-        <a-sky color="#030307"></a-sky>
+        <!-- Iluminación de Escena -->
+        <a-entity light="type: ambient; color: #1e1e2d; intensity: 0.6;"></a-entity>
+        <a-entity light="type: directional; color: #a1b0d4; intensity: 0.8; castShadow: true; shadowMapHeight: 1024; shadowMapWidth: 1024;" position="10 25 15"></a-entity>
 
-        <a-entity light="type: ambient; intensity: 0.9; color: #cbd5e1"></a-entity>
-        <a-entity light="type: directional; intensity: 0.4; color: #7dd3fc" position="-20 40 -20"></a-entity>
+        <!-- Entidad del Escenario del Pueblo -->
+        <a-entity id="entorno" gltf-model="#pueblo" position="0 0 0" shadow="receive: true; cast: false;"></a-entity>
 
-        <!-- Pueblo (Entorno de colisión) -->
-        <a-entity id="entorno" gltf-model="#pueblo" position="0 0 0" rotation="0 0 0"></a-entity>
-
-        <!-- Rig del Jugador (Spawn celestial para caída e inicialización impecable) -->
-        <a-entity id="player-rig" position="0 500 15">
+        <!-- Rig del Jugador (Punto de anclaje de posición física) -->
+        <a-entity id="player-rig" position="7.14 500 13.99">
             
-            <!-- Contenedor del Avatar -->
-            <a-entity id="avatar-container" position="0 0.02 0" rotation="0 180 0">
-                <a-entity id="mesh-idle" 
-                          gltf-model="#avatar-idle-src" 
-                          scale="1 1 1"
-                          visible="true"
-                          animation-mixer="clip: *; loop: repeat; timeScale: 0.8;">
-                </a-entity>
+            <!-- Contenedor del Avatar (Controla la rotación independiente del cuerpo) -->
+            <a-entity id="avatar-container" position="0 0 0">
+                <!-- Modelo Activo al caminar -->
+                <a-entity id="mesh-walk" gltf-model="#avatar-walk-src" shadow="cast: true" animation-mixer="timeScale: 1.1;" visible="false" position="0 0 0"></a-entity>
+                <!-- Modelo Activo al estar quieto -->
+                <a-entity id="mesh-idle" gltf-model="#avatar-idle-src" shadow="cast: true" animation-mixer="timeScale: 1.0;" visible="true" position="0 0 0"></a-entity>
+            </a-entity>
 
-                <a-entity id="mesh-walk" 
-                          gltf-model="#avatar-walk-src" 
-                          scale="1 1 1"
-                          visible="false"
-                          animation-mixer="clip: *; loop: repeat; timeScale: 1.3;">
+            <!-- Sistema de Cámara Orbitaria en Tercera Persona -->
+            <a-entity id="camera-orbit">
+                <a-entity id="main-camera" camera position="0 0 4.5">
+                    <!-- Efecto de niebla gótica integrada -->
                 </a-entity>
             </a-entity>
 
-            <!-- Órbita de Cámara (Tercera persona óptima) -->
-            <a-entity id="camera-orbit" position="0 2.1 0">
-                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
-            </a-entity>
         </a-entity>
-
     </a-scene>
 
     <script>
-        // Configuración del punto de entrada en el pueblo
-        const SPAWN_X = 0;
-        const SPAWN_Z = 15;
+        // Configuración de tu Spawn Point exacto
+        const SPAWN_X = 7.14;
+        const SPAWN_Z = 13.99;
         const VELOCIDAD_AVANCE = 0.09;   
 
         const knob = document.getElementById('joystick-knob');
@@ -319,7 +123,7 @@
         const sceneEl = document.querySelector('a-scene');
         const entornoEntity = document.getElementById('entorno');
 
-        // Referencias del HUD
+        // UI HUD
         const valX = document.getElementById('valX');
         const valY = document.getElementById('valY');
         const valZ = document.getElementById('valZ');
@@ -352,10 +156,10 @@
             }
         }
 
-        // Asignación de coordenadas aéreas iniciales en el Rig
+        // Posicionamiento de seguridad inicial (en el aire, sobre tu Spawn)
         rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
 
-        // Reinicio rápido al punto de inicio
+        // Botón de reaparición rápida
         document.getElementById('btn-center').addEventListener('click', () => {
             inicializado = false;
             rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
@@ -363,19 +167,21 @@
             camPitch = -0.15;
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
-            meshIdle.setAttribute('visible', 'true');
+            
             meshWalk.setAttribute('visible', 'false');
+            meshIdle.setAttribute('visible', 'true');
+            detenerAnimacion(meshIdle);
             wasMoving = false;
         });
 
-        // Zoom con rueda del ratón
+        // Zoom de cámara
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.05;
             camDist = Math.max(2.0, Math.min(25.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Drag del Joystick Virtual
+        // Eventos de Joystick Virtual (Móvil y Escritorio)
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -406,14 +212,14 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // Teclado
+        // Teclado WASD
         window.addEventListener('keydown', (e) => { 
             const k = e.key.toLowerCase(); 
             if (k in keys) keys[k] = true; 
         });
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
-        // Drag de Pantalla para mover Cámara Orbitaria
+        // Arrastrar pantalla para orbitar cámara
         function onScreenStart(e) {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#coordenadas-hud') || e.target.tagName === 'BUTTON') return;
             screenDragging = true;
@@ -440,7 +246,7 @@
         window.addEventListener('touchmove', onScreenMove, {passive: true});
         window.addEventListener('touchend', onScreenEnd);
 
-        // Flechas de dirección de cámara en pantalla
+        // Configurar botones táctiles de la cámara
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
@@ -452,7 +258,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // Copiar coordenadas actuales en portapapeles
+        // Portapapeles para almacenar coordenadas rápidamente
         btnCopy.addEventListener('click', () => {
             const pos = rig.getAttribute('position');
             const formatted = `position="${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}"`;
@@ -468,7 +274,7 @@
             });
         });
 
-        // Filtrado inteligente para ignorar la vegetación estética y pisar suelo firme
+        // NUEVO FILTRO MEJORADO: Ignora colisiones de árboles, hojas, arbustos y plantas
         function filtrarInterseccionSuelo(intersects) {
             for (let i = 0; i < intersects.length; i++) {
                 const nombreObj = intersects[i].object.name.toLowerCase();
@@ -476,15 +282,40 @@
                     nombreObj.includes('pasto') || nombreObj.includes('weed') || 
                     nombreObj.includes('foliage') || nombreObj.includes('bush') || 
                     nombreObj.includes('matorral') || nombreObj.includes('plant') ||
-                    nombreObj.includes('flor') || nombreObj.includes('flower')) {
-                    continue; 
+                    nombreObj.includes('flor') || nombreObj.includes('flower') ||
+                    nombreObj.includes('tree') || nombreObj.includes('arbol') ||
+                    nombreObj.includes('hoja') || nombreObj.includes('leaf') ||
+                    nombreObj.includes('leaves') || nombreObj.includes('rama') ||
+                    nombreObj.includes('branch') || nombreObj.includes('tronco')) {
+                    continue; // Pasa de largo este objeto de vegetación para buscar terreno real abajo
                 }
                 return intersects[i];
             }
-            return intersects[0];
+            return null;
         }
 
-        // Bucle Principal del Motor de Físicas y Renderizado
+        // Control dinámico de animaciones con el mixer de A-Frame
+        function reproducirAnimacion(entity) {
+            if (entity.components && entity.components['animation-mixer']) {
+                entity.components['animation-mixer'].play();
+            }
+        }
+
+        function detenerAnimacion(entity) {
+            if (entity.components && entity.components['animation-mixer']) {
+                entity.components['animation-mixer'].pause();
+            }
+        }
+
+        // Forzar congelamiento inicial en cuanto los modelos 3D carguen
+        meshIdle.addEventListener('model-loaded', () => {
+            setTimeout(() => detenerAnimacion(meshIdle), 100);
+        });
+        meshWalk.addEventListener('model-loaded', () => {
+            setTimeout(() => detenerAnimacion(meshWalk), 100);
+        });
+
+        // Bucle Principal de Renderizado y Física
         function engineLoop() {
             if (arrowCam.left) camYaw += 0.02;
             if (arrowCam.right) camYaw -= 0.02;
@@ -497,7 +328,6 @@
 
             const mesh = entornoEntity.object3D;
 
-            // Esperar que el Pueblo GLB esté cargado por completo en escena
             if (!mesh || !entornoCargado || !mesh.children || mesh.children.length === 0) {
                 requestAnimationFrame(engineLoop);
                 return;
@@ -505,7 +335,7 @@
 
             const pos = rig.getAttribute('position');
 
-            // --- INICIALIZACIÓN FÍSICA (Fijar suelo en Spawn) ---
+            // --- FASE DE ENTRADA INICIAL (Fijado al suelo firme) ---
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
@@ -517,6 +347,7 @@
                     pos.y = hitValido.point.y;
                     rig.setAttribute('position', pos);
                     inicializado = true; 
+                    detenerAnimacion(meshIdle);
                     ocultarLoader();
                 }
                 requestAnimationFrame(engineLoop);
@@ -540,19 +371,21 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // Alternancia fluida de mallas/animaciones (Caminar vs Quieto)
+            // Control Dinámico de Animaciones (Alterna visible y pausa)
             if (isMoving !== wasMoving) {
                 if (isMoving) {
                     meshIdle.setAttribute('visible', 'false');
                     meshWalk.setAttribute('visible', 'true');
+                    reproducirAnimacion(meshWalk);
                 } else {
                     meshWalk.setAttribute('visible', 'false');
                     meshIdle.setAttribute('visible', 'true');
+                    detenerAnimacion(meshIdle);
                 }
                 wasMoving = isMoving;
             }
 
-            // Mover rig en función de la orientación de la cámara
+            // Desplazar rig según el giro de la cámara
             if (isMoving) {
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
@@ -560,7 +393,7 @@
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
 
-                // Rotar el avatar hacia la dirección del movimiento
+                // Apuntar cara de Luis al sentido de avance
                 const targetAngle = camYaw + Math.atan2(inputX, inputY) + Math.PI;
                 let currentAngle = avatarContainer.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
@@ -568,7 +401,7 @@
                 avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // Raycasting de colisión y relieve en tiempo real
+            // Raycaster para el relieve del suelo
             const raycaster = new THREE.Raycaster();
             raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
             
@@ -577,23 +410,21 @@
             
             if (hitValido) {
                 let groundY = hitValido.point.y;
-                // Si el relieve sube más de 0.8m repentinamente, se trata como colisión de pared
+                // Si la diferencia de nivel supera los 0.8m, se considera pared
                 if ((groundY - oldY) > 0.8) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
-                    // Desplazamiento vertical fluido
                     pos.y += (groundY - pos.y) * 0.25;
                 }
             } else {
-                // Si sale de los límites del mapa, bloquear la posición
                 pos.x = oldX;
                 pos.z = oldZ;
                 pos.y = oldY;
             }
 
-            // Actualizar HUD en tiempo real
+            // HUD
             valX.textContent = pos.x.toFixed(2);
             valY.textContent = pos.y.toFixed(2);
             valZ.textContent = pos.z.toFixed(2);
