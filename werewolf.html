@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Werewolf 3D Universe</title>
-    <!-- Motores principales de Renderizado 3D -->
+    <title>Werewolf 3D Universe - Edición Final</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <style>
@@ -32,19 +31,17 @@
 </head>
 <body>
 
-    <!-- Loader Personalizado -->
     <div id="custom-loader">
         <div class="spinner"></div>
         <div style="font-size: 18px; font-weight: bold; tracking-wider; margin-bottom: 5px;">CARGANDO ENTORNO</div>
         <div style="font-size: 12px; color: #888;">Generando colisiones y mapeo de terreno...</div>
     </div>
 
-    <!-- HUD de Estado y Teletransporte -->
     <div id="coordenadas-hud">
         <div class="coord-row">
-            <span>X: <span id="valX" class="coord-val">0.00</span></span>
-            <span>Y: <span id="valY" class="coord-val">0.00</span></span>
-            <span>Z: <span id="valZ" class="coord-val">0.00</span></span>
+            <span>X: <span id="valX" class="coord-val">7.14</span></span>
+            <span>Y: <span id="valY" class="coord-val">2.24</span></span>
+            <span>Z: <span id="valZ" class="coord-val">13.99</span></span>
         </div>
         <div class="hud-actions">
             <button id="btn-center" class="hud-btn">Reaparecer</button>
@@ -52,7 +49,6 @@
         </div>
     </div>
 
-    <!-- Controles de pantalla táctil -->
     <div id="joystick-wrapper">
         <div id="joystick-knob"></div>
     </div>
@@ -70,36 +66,26 @@
     </div>
 
     <a-scene shadow="type: pcfsoft" renderer="colorManagement: true; antialias: true;">
-        <!-- Contenedor de Activos 3D (Hugging Face) -->
         <a-assets>
             <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
             <a-asset-item id="avatar-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
             <a-asset-item id="avatar-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Iluminación de Escena -->
         <a-entity light="type: ambient; color: #1e1e2d; intensity: 0.6;"></a-entity>
         <a-entity light="type: directional; color: #a1b0d4; intensity: 0.8; castShadow: true; shadowMapHeight: 1024; shadowMapWidth: 1024;" position="10 25 15"></a-entity>
 
-        <!-- Entidad del Escenario del Pueblo -->
         <a-entity id="entorno" gltf-model="#pueblo" position="0 0 0" shadow="receive: true; cast: false;"></a-entity>
 
-        <!-- Rig del Jugador (Punto de anclaje de posición física) -->
         <a-entity id="player-rig" position="7.14 500 13.99">
             
-            <!-- Contenedor del Avatar (Controla la rotación independiente del cuerpo) -->
             <a-entity id="avatar-container" position="0 0 0">
-                <!-- Modelo Activo al caminar -->
                 <a-entity id="mesh-walk" gltf-model="#avatar-walk-src" shadow="cast: true" animation-mixer="timeScale: 1.1;" visible="false" position="0 0 0"></a-entity>
-                <!-- Modelo Activo al estar quieto -->
                 <a-entity id="mesh-idle" gltf-model="#avatar-idle-src" shadow="cast: true" animation-mixer="timeScale: 1.0;" visible="true" position="0 0 0"></a-entity>
             </a-entity>
 
-            <!-- Sistema de Cámara Orbitaria en Tercera Persona -->
-            <a-entity id="camera-orbit">
-                <a-entity id="main-camera" camera position="0 0 4.5">
-                    <!-- Efecto de niebla gótica integrada -->
-                </a-entity>
+            <a-entity id="camera-orbit" position="0 2.5 0">
+                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
             </a-entity>
 
         </a-entity>
@@ -135,7 +121,7 @@
         let screenDragging = false; let prevScreenX, prevScreenY;
         
         let camYaw = 0;   
-        let camPitch = -0.15; 
+        let camPitch = 0.1; // Ángulo inicial óptimo mirando levemente hacia abajo
         let camDist = 4.5; 
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
@@ -164,7 +150,7 @@
             inicializado = false;
             rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
             camYaw = 0;
-            camPitch = -0.15;
+            camPitch = 0.1;
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
             
@@ -274,22 +260,37 @@
             });
         });
 
-        // NUEVO FILTRO MEJORADO: Ignora colisiones de árboles, hojas, arbustos y plantas
+        // ALGORITMO RECURSIVO DE FILTRADO: Analiza objetos y padres para ignorar cualquier vegetación/árboles de forma absoluta
+        function esVegetacion(object) {
+            let current = object;
+            while (current) {
+                const nombre = (current.name || "").toLowerCase();
+                if (nombre.includes('grass') || nombre.includes('hierba') || 
+                    nombre.includes('pasto') || nombre.includes('weed') || 
+                    nombre.includes('foliage') || nombre.includes('bush') || 
+                    nombre.includes('matorral') || nombre.includes('plant') ||
+                    nombre.includes('flor') || nombre.includes('flower') ||
+                    nombre.includes('tree') || nombre.includes('arbol') ||
+                    nombre.includes('hoja') || nombre.includes('leaf') ||
+                    nombre.includes('leaves') || nombre.includes('rama') ||
+                    nombre.includes('branch') || nombre.includes('tronco') ||
+                    nombre.includes('trunk') || nombre.includes('wood') ||
+                    nombre.includes('pine') || nombre.includes('pino') ||
+                    nombre.includes('foresta') || nombre.includes('forest') ||
+                    nombre.includes('vegeta')) {
+                    return true; // Es vegetación o parte de un árbol, ignorar física
+                }
+                current = current.parent; // Sube en la jerarquía del GLTF
+            }
+            return false;
+        }
+
         function filtrarInterseccionSuelo(intersects) {
             for (let i = 0; i < intersects.length; i++) {
-                const nombreObj = intersects[i].object.name.toLowerCase();
-                if (nombreObj.includes('grass') || nombreObj.includes('hierba') || 
-                    nombreObj.includes('pasto') || nombreObj.includes('weed') || 
-                    nombreObj.includes('foliage') || nombreObj.includes('bush') || 
-                    nombreObj.includes('matorral') || nombreObj.includes('plant') ||
-                    nombreObj.includes('flor') || nombreObj.includes('flower') ||
-                    nombreObj.includes('tree') || nombreObj.includes('arbol') ||
-                    nombreObj.includes('hoja') || nombreObj.includes('leaf') ||
-                    nombreObj.includes('leaves') || nombreObj.includes('rama') ||
-                    nombreObj.includes('branch') || nombreObj.includes('tronco')) {
-                    continue; // Pasa de largo este objeto de vegetación para buscar terreno real abajo
+                if (esVegetacion(intersects[i].object)) {
+                    continue; // Pasa de largo si es árbol/hierba para buscar el suelo de abajo
                 }
-                return intersects[i];
+                return intersects[i]; // Retorna la colisión firme (suelo/casa)
             }
             return null;
         }
@@ -322,7 +323,8 @@
             if (arrowCam.up) camPitch -= 0.015;   
             if (arrowCam.down) camPitch += 0.015;  
 
-            camPitch = Math.max(-0.6, Math.min(0.2, camPitch)); 
+            // CLAMP DE SEGURIDAD PARA LA CÁMARA: Evita que se sumerja bajo el suelo (-0.05 mínimo)
+            camPitch = Math.max(-0.05, Math.min(0.8, camPitch)); 
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
 
@@ -393,8 +395,8 @@
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
                 pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
 
-                // Apuntar cara de Luis al sentido de avance
-                const targetAngle = camYaw + Math.atan2(inputX, inputY) + Math.PI;
+                // CORRECCIÓN DE ORIENTACIÓN: Apuntar cara de Luis al sentido exacto de avance (Se elimina desfase de 180 grados)
+                const targetAngle = camYaw + Math.atan2(inputX, inputY);
                 let currentAngle = avatarContainer.object3D.rotation.y;
                 let deltaAngle = targetAngle - currentAngle;
                 deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
@@ -410,13 +412,13 @@
             
             if (hitValido) {
                 let groundY = hitValido.point.y;
-                // Si la diferencia de nivel supera los 0.8m, se considera pared
+                // Si la diferencia de nivel supera los 0.8m (pared/casa), colisiona y frena.
                 if ((groundY - oldY) > 0.8) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
-                    pos.y += (groundY - pos.y) * 0.25;
+                    pos.y += (groundY - pos.y) * 0.25; // Sube/baja rampas suavemente
                 }
             } else {
                 pos.x = oldX;
