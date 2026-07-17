@@ -9,9 +9,125 @@
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <!-- Cargamos el componente de extras para reproducir las animaciones de los GLB -->
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-  
+
+  <script>
+    // Componente personalizado para controlar la lógica, tiempos y sensores de la escena
+    AFRAME.registerComponent('escena-terror', {
+      init: function () {
+        this.time = 0;
+        this.timelineTriggered = false;
+        this.houseSceneTriggered = false;
+        
+        // Captura de entidades
+        this.luisCamina = document.querySelector('#ent-luis-camina');
+        this.luisSigilo = document.querySelector('#ent-luis-sigilo');
+        this.luisLlama = document.querySelector('#ent-luis-llama');
+        this.wwIdle = document.querySelector('#ent-ww-idle');
+        this.wwBeast = document.querySelector('#ent-ww-beast');
+        this.casa = document.querySelector('#ent-casa');
+        this.rig = document.querySelector('#rig');
+        
+        // Estado inicial de visibilidad
+        this.luisCamina.setAttribute('visible', true);
+        this.luisSigilo.setAttribute('visible', false);
+        this.luisLlama.setAttribute('visible', false);
+        this.wwIdle.setAttribute('visible', true);
+        this.wwBeast.setAttribute('visible', false);
+
+        // Pausar animación inicial de Luis para dejarlo estático
+        this.luisCamina.addEventListener('model-loaded', () => {
+          this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
+        });
+      },
+      
+      tick: function (time, timeDelta) {
+        this.time += timeDelta;
+        
+        // --- EVENTO DE LOS 30 SEGUNDOS ---
+        if (this.time >= 30000 && !this.timelineTriggered) {
+          this.timelineTriggered = true;
+          this.ejecutarEvento30s();
+        }
+        
+        // --- MOVIMIENTO DE LA BESTIA HACIA EL AVATAR (t = 30s a 45s) ---
+        if (this.timelineTriggered && this.time < 45000) {
+          let posBeast = this.wwBeast.getAttribute('position');
+          let posPlayer = this.rig.getAttribute('position');
+          
+          // Interpolación suave en el plano horizontal (X, Z) hacia el jugador
+          posBeast.z += (posPlayer.z - posBeast.z) * 0.005;
+          posBeast.x += (posPlayer.x - posBeast.x) * 0.005;
+          this.wwBeast.setAttribute('position', posBeast);
+        }
+        
+        // --- DETECTOR DE PROXIMIDAD A LA CASA ---
+        if (!this.houseSceneTriggered) {
+          let posRig = this.rig.getAttribute('position');
+          let posCasa = this.casa.getAttribute('position');
+          
+          // Calcular distancia en el plano XZ (suelo)
+          let dx = posRig.x - posCasa.x;
+          let dz = posRig.z - posCasa.z;
+          let distancia = Math.sqrt(dx * dx + dz * dz);
+          
+          // Si el jugador está a menos de 4.5 metros de la casa
+          if (distancia < 4.5) {
+            this.houseSceneTriggered = true;
+            this.ejecutarEscenaCasa();
+          }
+        }
+      },
+      
+      ejecutarEvento30s: function() {
+        // Desaparece lobo estático, aparece lobo bestia enfurecido
+        this.wwIdle.setAttribute('visible', false);
+        this.wwBeast.setAttribute('visible', true);
+        this.wwBeast.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1.2});
+        
+        // Desaparece Luis camina, aparece Luis sigilo activo
+        this.luisCamina.setAttribute('visible', false);
+        this.luisSigilo.setAttribute('visible', true);
+        this.luisSigilo.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+        
+        // A los 10 segundos (t = 40s total), Luis vuelve a modo camina estático
+        setTimeout(() => {
+          this.luisSigilo.setAttribute('visible', false);
+          this.luisCamina.setAttribute('visible', true);
+          this.luisCamina.setAttribute('animation-mixer', {timeScale: 0});
+        }, 10000);
+        
+        // A los 15 segundos (t = 45s total), la bestia desaparece en la niebla
+        setTimeout(() => {
+          this.wwBeast.setAttribute('visible', false);
+        }, 15000);
+      },
+      
+      ejecutarEscenaCasa: function() {
+        // Ocultamos los avatares normales
+        this.luisCamina.setAttribute('visible', false);
+        this.luisSigilo.setAttribute('visible', false);
+        
+        // Situamos a Luis Llama en la puerta de la cabaña pidiendo ayuda
+        let posCasa = this.casa.getAttribute('position');
+        this.luisLlama.setAttribute('position', { x: posCasa.x, y: -2.9, z: posCasa.z + 1.8 });
+        this.luisLlama.setAttribute('visible', true);
+        this.luisLlama.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+        
+        // A los 15 segundos, entra a la cabaña y se queda a salvo (estático)
+        setTimeout(() => {
+          this.luisLlama.setAttribute('visible', false);
+          
+          // Posición dentro de la cabaña
+          this.luisCamina.setAttribute('position', { x: posCasa.x, y: -2.9, z: posCasa.z - 0.5 });
+          this.luisCamina.setAttribute('visible', true);
+          this.luisCamina.setAttribute('animation-mixer', {timeScale: 0});
+        }, 15000);
+      }
+    });
+  </script>
+
   <style>
-    /* Botón flotante para regresar a la consola de control */
+    /* Estilo del botón HUD de vuelta */
     .btn-back-hud {
       position: fixed;
       top: 20px;
@@ -39,15 +155,14 @@
       box-shadow: 0 0 25px rgba(255, 85, 0, 0.8);
     }
     
-    /* Indicador visual de carga y controles en pantalla */
     .instructions-panel {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 9999;
-      background: rgba(11, 13, 26, 0.8);
-      border: 1px solid #9ab2e1;
+      background: rgba(11, 13, 26, 0.85);
+      border: 1px solid #ff5500;
       padding: 10px 20px;
       border-radius: 5px;
       color: #ffffff;
@@ -55,29 +170,27 @@
       font-size: 0.8rem;
       text-align: center;
       pointer-events: none;
-      box-shadow: 0 0 10px rgba(154, 178, 225, 0.2);
+      box-shadow: 0 0 15px rgba(255, 85, 0, 0.2);
     }
   </style>
 </head>
 <body>
 
-  <!-- Botón de escape al panel de telemetría -->
   <div class="btn-back-hud">
     <a href="inter.html">⤶ VOLVER AL DASHBOARD</a>
   </div>
 
-  <!-- Panel de instrucciones flotante -->
   <div class="instructions-panel">
-    Usa WASD para caminar · Ratón para mirar · Presiona [Ctrl + Alt + I] para abrir el Editor 3D
+    Camina con WASD · Mira con el ratón · Acércate a la casa de la derecha para refugiarte
   </div>
 
-  <!-- Escena con niebla densa y oscura para la atmósfera de terror -->
-  <!-- Aumentamos el timeout de carga a 60 segundos (60000ms) para que el pueblo de 98MB descargue por completo -->
+  <!-- Inicializamos la escena con nuestra lógica integrada y soporte de Draco -->
   <a-scene 
-    fog="type: exponential; color: #0b0d1a; density: 0.04;"
+    escena-terror
+    fog="type: exponential; color: #0b0d1a; density: 0.05;"
     gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;">
     
-    <!-- 1. GESTIÓN DE ASSETS (Carga de tus GLB desde Hugging Face) -->
+    <!-- 1. GESTIÓN DE ASSETS (60 segundos de margen de descarga) -->
     <a-assets timeout="60000">
       <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
       <a-asset-item id="casa" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/casa.glb"></a-asset-item>
@@ -93,66 +206,76 @@
       <a-asset-item id="luis-sigilo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-sigilo.glb"></a-asset-item>
     </a-assets>
 
-    <!-- 2. ILUMINACIÓN MEJORADA (Mantiene el misterio pero añade contraste y visibilidad) -->
-    <!-- Luz de ambiente base -->
-    <a-light type="ambient" color="#111625" intensity="0.4"></a-light>
+    <!-- 2. CIELO Y LUNA (Añadido cuerpo celeste real para la ambientación) -->
+    <a-sky color="#03050a"></a-sky>
     
-    <!-- Luz de hemisferio: da un tono azulado desde arriba y oscuro desde el suelo, dando un volumen espectacular -->
-    <a-light type="hemisphere" color="#2b3a55" groundColor="#080a10" intensity="0.6"></a-light>
+    <!-- Esfera de la Luna -->
+    <a-sphere position="15 35 -25" radius="3" color="#d0e0ff" material="shader: flat; fog: false"></a-sphere>
+
+    <!-- 3. ILUMINACIÓN AMBIENTAL & SOMBRAS -->
+    <a-light type="ambient" color="#0e1322" intensity="0.3"></a-light>
+    <a-light type="hemisphere" color="#22304d" groundColor="#05070a" intensity="0.5"></a-light>
     
-    <!-- Luz de luna direccional (más intensa para definir las sombras de los personajes) -->
-    <a-light type="directional" color="#a0b0ff" intensity="0.8" position="-10 15 -5" castShadow="true"></a-light>
+    <!-- Luz direccional de la Luna -->
+    <a-light type="directional" color="#a5bfff" intensity="0.6" position="15 35 -25" castShadow="true"></a-light>
 
-    <!-- Luz focal cálida (farola/linterna en la cabaña): Crea un contraste brutal entre el frío azul y el cálido fuego -->
-    <a-light type="point" color="#ff7700" intensity="2" distance="15" position="-8 2 -10" decay="2"></a-light>
+    <!-- Luz cálida tipo farola en la entrada de la cabaña -->
+    <a-light type="point" color="#ff6200" intensity="1.8" distance="12" position="6 -1 -4" decay="1.5"></a-light>
 
-    <!-- 3. CIELO NOCTURNO -->
-    <a-sky color="#05070f"></a-sky>
-
-    <!-- 4. ENTORNO (Pueblo y Casa) -->
-    <!-- Escenario principal -->
-    <a-entity gltf-model="#pueblo" position="0 0 0" scale="1 1 1" shadow="receive: true"></a-entity>
+    <!-- 4. ENTORNO (Pueblo y Casa alineados a la altura Y del suelo) -->
+    <!-- El pueblo se baja a Y = -3 para servir de base sólida -->
+    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 -3 0" scale="1 1 1" shadow="receive: true"></a-entity>
     
-    <!-- Tu casa elevada ligeramente (Y=0.1) para evitar parpadeo de texturas con el suelo del pueblo -->
-    <a-entity gltf-model="#casa" position="-8 0.1 -12" rotation="0 45 0" scale="1.2 1.2 1.2"></a-entity>
+    <!-- La cabaña colocada a la derecha de la posición de inicio -->
+    <a-entity id="ent-casa" gltf-model="#casa" position="6 -3 -5" rotation="0 -30 0" scale="1.1 1.1 1.1"></a-entity>
 
-    <!-- 5. PERSONAJES Y ANIMACIONES (Elevados en el eje Y para que no se hundan en el terreno) -->
+    <!-- 5. PERSONAJES CONTROLADOS POR EL SCRIPT (Ubicados en Y = -2.9 para pisar el suelo) -->
     
-    <!-- El Hombre Lobo acechando -->
-    <a-entity gltf-model="#werewolf-idle" 
-              position="3 0.3 -6" 
-              rotation="0 -45 0" 
-              scale="1.5 1.5 1.5"
+    <!-- Luis principal (Camina pero pausado al inicio en Y = -2.9) -->
+    <a-entity id="ent-luis-camina" 
+              gltf-model="#luis-camina" 
+              position="0 -2.9 1" 
+              rotation="0 180 0" 
+              scale="1 1 1">
+    </a-entity>
+
+    <!-- Luis Sigilo (Oculto al inicio) -->
+    <a-entity id="ent-luis-sigilo" 
+              gltf-model="#luis-sigilo" 
+              position="0 -2.9 1" 
+              rotation="0 180 0" 
+              scale="1 1 1">
+    </a-entity>
+
+    <!-- Luis Llama (Oculto al inicio, se moverá a la casa mediante script) -->
+    <a-entity id="ent-luis-llama" 
+              gltf-model="#luis-llama" 
+              position="0 -2.9 1" 
+              rotation="0 0 0" 
+              scale="1 1 1">
+    </a-entity>
+
+    <!-- Werewolf Idle (Fijo al fondo de la calle observando a Luis) -->
+    <a-entity id="ent-ww-idle" 
+              gltf-model="#werewolf-idle" 
+              position="0 -2.9 -15" 
+              rotation="0 0 0" 
+              scale="1.4 1.4 1.4"
               animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
-    <!-- El Hombre Lobo aullando (elevado a Y=2.8 para estar sobre la colina o tejado) -->
-    <a-entity gltf-model="#werewolf-howl" 
-              position="10 2.8 -15" 
-              rotation="0 -90 0" 
-              scale="1.5 1.5 1.5"
-              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
+    <!-- Werewolf Beast (Oculto, se activará y avanzará a los 30s) -->
+    <a-entity id="ent-ww-beast" 
+              gltf-model="#werewolf-beast" 
+              position="0 -2.9 -15" 
+              rotation="0 0 0" 
+              scale="1.4 1.4 1.4">
     </a-entity>
 
-    <!-- Tu avatar: Luis en sigilo -->
-    <a-entity gltf-model="#luis-sigilo" 
-              position="-2 0.3 -5" 
-              rotation="0 30 0" 
-              scale="1 1 1"
-              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
-    </a-entity>
-
-    <!-- Tu avatar: Luis llamando ayuda -->
-    <a-entity gltf-model="#luis-llama" 
-              position="-6 0.3 -10" 
-              rotation="0 120 0" 
-              scale="1 1 1"
-              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
-    </a-entity>
-
-    <!-- 6. CÁMARA DE USUARIO (Posicionada a nivel de ojos del avatar) -->
-    <a-entity id="rig" position="0 1.6 2">
-      <a-camera look-controls wasd-controls="fly: false; acceleration: 20;"></a-camera>
+    <!-- 6. CÁMARA DE EXPLORACIÓN (Sincronizada con el suelo del pueblo) -->
+    <!-- Como el suelo está en Y = -3, el Rig se sitúa en Y = -3 para que los ojos estén a 1.6 metros del suelo (-1.4) -->
+    <a-entity id="rig" position="0 -1.4 3">
+      <a-camera look-controls wasd-controls="fly: false; acceleration: 18;"></a-camera>
     </a-entity>
 
   </a-scene>
