@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Werewolf 3D Universe - Localizador Pro</title>
+    <title>Werewolf 3D Universe - Calle Central Fija</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <style>
@@ -35,21 +35,21 @@
     <div id="custom-loader">
         <div class="spinner"></div>
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">CARGANDO ENTORNO</div>
-        <div style="font-size: 12px; color: #888;">Estabilizando controles de cámara...</div>
+        <div style="font-size: 12px; color: #888;">Posicionando avatar en la calle central...</div>
     </div>
 
     <!-- HUD de Estado, Modos y Teletransporte -->
     <div id="coordenadas-hud">
         <div class="coord-row">
-            <span>X:<span id="valX" class="coord-val">7.14</span></span>
-            <span>Y:<span id="valY" class="coord-val">2.24</span></span>
-            <span>Z:<span id="valZ" class="coord-val">13.99</span></span>
+            <span>X:<span id="valX" class="coord-val">17.44</span></span>
+            <span>Y:<span id="valY" class="coord-val">1.02</span></span>
+            <span>Z:<span id="valZ" class="coord-val">17.78</span></span>
         </div>
         <div class="hud-actions">
             <button id="btn-mode" class="hud-btn" style="background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; flex: 1.3;">Modo: Caminar</button>
             <button id="btn-center" class="hud-btn">Respawn</button>
         </div>
-        <!-- Controles de elevación exclusivos para el Modo Dron -->
+        <!-- Controles de elevación del Modo Dron -->
         <div class="hud-actions" id="drone-height-controls" style="display: none;">
             <button id="btn-fly-up" class="hud-btn" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981;">▲ Subir Alto</button>
             <button id="btn-fly-down" class="hud-btn" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981;">▼ Bajar Nivel</button>
@@ -59,11 +59,12 @@
         </div>
     </div>
 
-    <!-- Controles táctiles/ratón secundarios -->
+    <!-- Joystick Virtual -->
     <div id="joystick-wrapper">
         <div id="joystick-knob"></div>
     </div>
 
+    <!-- Botones de Rotación de Cámara Secundarios -->
     <div id="arrows-wrapper">
         <div></div>
         <button id="btn-up" class="arrow-btn">▲</button>
@@ -88,14 +89,14 @@
 
         <a-entity id="entorno" gltf-model="#pueblo" position="0 0 0" shadow="receive: true; cast: false;"></a-entity>
 
-        <!-- Rig del Jugador -->
-        <a-entity id="player-rig" position="7.14 500 13.99">
+        <!-- Rig del Jugador configurado exactamente en tus coordenadas -->
+        <a-entity id="player-rig" position="17.44 1.02 17.78">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="mesh-walk" gltf-model="#avatar-walk-src" shadow="cast: true" animation-mixer="timeScale: 1.1;" visible="false"></a-entity>
                 <a-entity id="mesh-idle" gltf-model="#avatar-idle-src" shadow="cast: true" animation-mixer="timeScale: 1.0;" visible="true"></a-entity>
             </a-entity>
 
-            <!-- Sistema de Órbita Corregido (Altura base óptima) -->
+            <!-- Cámara en tercera persona con órbita estabilizada -->
             <a-entity id="camera-orbit" position="0 1.8 0">
                 <a-entity id="main-camera" camera position="0 0 5.5"></a-entity>
             </a-entity>
@@ -103,8 +104,10 @@
     </a-scene>
 
     <script>
-        const SPAWN_X = 30;
-        const SPAWN_Z = 13.99;
+        // CONFIGURACIÓN DE TU NUEVA LOGÍSTICA DE SPAWN CENTRAL
+        const SPAWN_X = 17.44;
+        const SPAWN_Y = 1.02;
+        const SPAWN_Z = 17.78;
         let VELOCIDAD_AVANCE = 0.12;
 
         const knob = document.getElementById('joystick-knob');
@@ -116,7 +119,6 @@
         const mainCamera = document.getElementById('main-camera');
         const entornoEntity = document.getElementById('entorno');
 
-        // UI Elementos
         const valX = document.getElementById('valX');
         const valY = document.getElementById('valY');
         const valZ = document.getElementById('valZ');
@@ -129,7 +131,6 @@
         let joyDragging = false; let joyStartX, joyStartY;
         let screenDragging = false; let prevScreenX, prevScreenY;
         
-        // Valores de cámara iniciales equilibrados
         let camYaw = 0;   
         let camPitch = 0.2; 
         let camDist = 5.5; 
@@ -139,7 +140,6 @@
         let inicializado = false;
         let entornoCargado = false;
         
-        // Control de Modos (Caminar vs Volar/Dron)
         let modoDron = false;
         let flyUpActive = false;
         let flyDownActive = false;
@@ -154,29 +154,32 @@
             }
         }
 
-        // Conmutador de modo de movimiento
+        // Posicionar rig directamente en el punto guardado de inicio
+        rig.setAttribute('position', `${SPAWN_X} ${SPAWN_Y} ${SPAWN_Z}`);
+
+        // Selector de Modos de movimiento
         btnMode.addEventListener('click', () => {
             modoDron = !modoDron;
             if (modoDron) {
                 btnMode.textContent = "Modo: Dron Vuelo";
                 btnMode.style.background = "rgba(16, 185, 129, 0.3)";
                 btnMode.style.borderColor = "#10b981";
-                droneControlsUI.style.display = "flex"; // Muestra botones subir/bajar
-                VELOCIDAD_AVANCE = 0.25; // Volar es más rápido
+                droneControlsUI.style.display = "flex";
+                VELOCIDAD_AVANCE = 0.25;
             } else {
                 btnMode.textContent = "Modo: Caminar";
                 btnMode.style.background = "rgba(59, 130, 246, 0.2)";
                 btnMode.style.borderColor = "#3b82f6";
                 droneControlsUI.style.display = "none";
                 VELOCIDAD_AVANCE = 0.12;
-                inicializado = false; // Fuerza re-ajuste al suelo firme
+                inicializado = false; // Re-engancha el suelo firme de la calle
             }
         });
 
-        // Botón Respawn
+        // Evento Respawn exacto
         document.getElementById('btn-center').addEventListener('click', () => {
             inicializado = false;
-            rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
+            rig.setAttribute('position', `${SPAWN_X} ${SPAWN_Y} ${SPAWN_Z}`);
             camYaw = 0; camPitch = 0.2;
             cameraOrbit.object3D.rotation.set(camPitch, camYaw, 0);
             meshWalk.setAttribute('visible', 'false');
@@ -184,38 +187,32 @@
             wasMoving = false;
         });
 
-        // Zoom rueda del ratón
+        // Zoom con rueda
         window.addEventListener('wheel', (e) => {
             camDist += e.deltaY * 0.005;
             camDist = Math.max(2.0, Math.min(30.0, camDist));
             mainCamera.setAttribute('position', `0 0 ${camDist}`);
         }, { passive: true });
 
-        // Captura de arrastre de pantalla (CÁMARA SUAVE Y SIN TRABAS)
+        // Rotación de cámara por arrastre de ratón/pantalla suave
         function onScreenStart(e) {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#coordenadas-hud') || e.target.tagName === 'BUTTON') return;
             screenDragging = true;
             const point = e.touches ? e.touches[0] : e;
-            prevScreenX = point.clientX;
-            prevScreenY = point.clientY;
+            prevScreenX = point.clientX; prevScreenY = point.clientY;
         }
         
         function onScreenMove(e) {
             if (!screenDragging) return;
             const point = e.touches ? e.touches[0] : e;
-            
-            // Sensibilidad calibrada
             const deltaX = point.clientX - prevScreenX;
             const deltaY = point.clientY - prevScreenY;
             
             camYaw -= deltaX * 0.005;  
-            camPitch -= deltaY * 0.005; // Dirección de arrastre natural e intuitiva
+            camPitch -= deltaY * 0.005; 
+            camPitch = Math.max(-0.8, Math.min(1.4, camPitch)); // Libertad vertical calibrada
             
-            // LÍMITES AMPLIADOS: Permite mirar libremente casi en vertical sin atrancarse
-            camPitch = Math.max(-0.8, Math.min(1.4, camPitch)); 
-            
-            prevScreenX = point.clientX;
-            prevScreenY = point.clientY;
+            prevScreenX = point.clientX; prevScreenY = point.clientY;
         }
         function onScreenEnd() { screenDragging = false; }
 
@@ -226,7 +223,7 @@
         window.addEventListener('touchmove', onScreenMove, {passive: true});
         window.addEventListener('touchend', onScreenEnd);
 
-        // Joystick Virtual
+        // Controles de Joystick
         function onJoyStart(e) {
             joyDragging = true;
             const point = e.touches ? e.touches[0] : e;
@@ -249,29 +246,24 @@
         window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', onJoyEnd);
 
-        // Teclado completo (WASD + Espacio/Shift para modo vuelo)
+        // Teclado
         window.addEventListener('keydown', (e) => { 
-            const k = e.key.toLowerCase(); 
-            if (k in keys) keys[k] = true; 
-            if (e.key === ' ') keys['space'] = true;
-            if (e.key === 'Shift') keys['shift'] = true;
+            const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; 
+            if (e.key === ' ') keys['space'] = true; if (e.key === 'Shift') keys['shift'] = true;
         });
         window.addEventListener('keyup', (e) => { 
-            const k = e.key.toLowerCase(); 
-            if (k in keys) keys[k] = false; 
-            if (e.key === ' ') keys['space'] = false;
-            if (e.key === 'Shift') keys['shift'] = false;
+            const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; 
+            if (e.key === ' ') keys['space'] = false; if (e.key === 'Shift') keys['shift'] = false;
         });
 
-        // Botones UI de elevación de Dron
-        const bUp = document.getElementById('btn-fly-up');
-        const bDown = document.getElementById('btn-fly-down');
+        // Botones de Dron Volador
+        const bUp = document.getElementById('btn-fly-up'); const bDown = document.getElementById('btn-fly-down');
         bUp.addEventListener('mousedown', () => flyUpActive = true); bUp.addEventListener('mouseup', () => flyUpActive = false);
         bUp.addEventListener('touchstart', () => flyUpActive = true); bUp.addEventListener('touchend', () => flyUpActive = false);
         bDown.addEventListener('mousedown', () => flyDownActive = true); bDown.addEventListener('mouseup', () => flyDownActive = false);
         bDown.addEventListener('touchstart', () => flyDownActive = true); bDown.addEventListener('touchend', () => flyDownActive = false);
 
-        // Botones de cámara direccionales (Alternativa al ratón)
+        // Botones de Flecha de Cámara
         const setupArrowCamera = (id, direction) => {
             const btn = document.getElementById(id);
             btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
@@ -282,7 +274,7 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // Copiar coordenadas
+        // Copiar Vector3
         btnCopy.addEventListener('click', () => {
             const pos = rig.getAttribute('position');
             const formatted = `position="${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}"`;
@@ -292,7 +284,7 @@
             });
         });
 
-        // Filtro estricto anti-árboles
+        // Filtro estricto para ignorar colisiones con árboles
         function esVegetacion(object) {
             let current = object;
             while (current) {
@@ -310,16 +302,12 @@
             return null;
         }
 
-        // BUCLE DE RENDERIZADO Y LÓGICA DE MOVIMIENTO
+        // Bucle de Renderizado y Físicas Estables
         function engineLoop() {
-            // Rotación por botones HUD si se usan
-            if (arrowCam.left) camYaw += 0.025;
-            if (arrowCam.right) camYaw -= 0.025;
-            if (arrowCam.up) camPitch += 0.02;   
-            if (arrowCam.down) camPitch -= 0.02;  
+            if (arrowCam.left) camYaw += 0.025; if (arrowCam.right) camYaw -= 0.025;
+            if (arrowCam.up) camPitch += 0.02; if (arrowCam.down) camPitch -= 0.02;  
             camPitch = Math.max(-0.8, Math.min(1.4, camPitch)); 
 
-            // Aplicar matriz de rotación limpia a la cámara
             cameraOrbit.object3D.rotation.set(camPitch, camYaw, 0);
 
             const mesh = entornoEntity.object3D;
@@ -329,18 +317,10 @@
 
             const pos = rig.getAttribute('position');
 
-            // Caída inicial controlada al cargar
-            if (!inicializado && !modoDron) {
-                const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
-                const hit = filtrarInterseccionSuelo(raycaster.intersectObject(mesh, true));
-                if (hit) {
-                    pos.y = hit.point.y; rig.setAttribute('position', pos);
-                    inicializado = true; ocultarLoader();
-                }
-                requestAnimationFrame(engineLoop); return;
-            } else if (modoDron) {
-                ocultarLoader(); // Quita el loader si entras en modo dron directamente
+            // Carga instantánea si ya estamos posicionados en tus coordenadas
+            if (!inicializado) {
+                inicializado = true; 
+                ocultarLoader();
             }
 
             let oldX = pos.x; let oldZ = pos.z; let oldY = pos.y;
@@ -351,7 +331,6 @@
 
             let isMoving = (inputX !== 0 || inputY !== 0);
 
-            // Gestión de animación de caminata
             if (isMoving !== wasMoving) {
                 if (isMoving && !modoDron) {
                     meshIdle.setAttribute('visible', 'false'); meshWalk.setAttribute('visible', 'true');
@@ -363,13 +342,12 @@
                 wasMoving = isMoving;
             }
 
-            // Traslación en el espacio orientada a la cámara
             if (isMoving) {
                 const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                 const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                 pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
-                pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
+                pos.z += (fwdZ * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
 
                 if (!modoDron) {
                     const targetAngle = camYaw + Math.atan2(inputX, inputY);
@@ -379,30 +357,28 @@
                 }
             }
 
-            // --- GESTIÓN DE ALTURA SEGÚN EL MODO ACTIVO ---
+            // Gestión de Altura Limpia
             if (modoDron) {
-                // Control vertical del dron sin restricciones físicas
                 if (keys['space'] || flyUpActive) pos.y += 0.3;
                 if (keys['shift'] || flyDownActive) pos.y -= 0.3;
             } else {
-                // Modo caminar: pegado al relieve real de la calle
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 const hit = filtrarInterseccionSuelo(raycaster.intersectObject(mesh, true));
                 
                 if (hit) {
                     let groundY = hit.point.y;
-                    if ((groundY - oldY) > 0.9) { // Colisión contra una pared real del pueblo
+                    if ((groundY - oldY) > 0.9) { // Pared firme detected (Bloqueo horizontal)
                         pos.x = oldX; pos.z = oldZ; pos.y = oldY;
                     } else {
-                        pos.y += (groundY - pos.y) * 0.35; // Adaptación suave a rampas/suelo
+                        pos.y += (groundY - pos.y) * 0.35; // Rampa/Relieve suave
                     }
                 } else {
                     pos.x = oldX; pos.z = oldZ; pos.y = oldY;
                 }
             }
 
-            // Actualizar textos en el HUD en tiempo real
+            // Feedback en vivo al HUD
             valX.textContent = pos.x.toFixed(2);
             valY.textContent = pos.y.toFixed(2);
             valZ.textContent = pos.z.toFixed(2);
