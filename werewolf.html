@@ -2,54 +2,97 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Prueba de Posición Centrada</title>
+  <title>Posicionador de Avatar</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-  <script>
-    AFRAME.registerComponent('seguimiento-camara', {
-      schema: {
-        offsetY: {type: 'number', default: -1.6}, // Altura del avatar respecto a la cámara
-        distancia: {type: 'number', default: 2.5}  // Distancia delante de la cámara
-      },
-      tick: function () {
-        var cameraEl = document.querySelector('#camera');
-        if (!cameraEl) return;
-        var camPos = cameraEl.object3D.position;
-        var camRot = cameraEl.object3D.rotation;
-        
-        var angle = camRot.y;
-        var d = this.data.distancia;
-        this.el.object3D.position.x = camPos.x - d * Math.sin(angle);
-        this.el.object3D.position.z = camPos.z - d * Math.cos(angle);
-        this.el.object3D.position.y = camPos.y + this.data.offsetY;
-        this.el.object3D.rotation.y = camRot.y + Math.PI;
-      }
-    });
-  </script>
+  <style>
+    #coordenadas-hud {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      color: #00ff00;
+      padding: 15px;
+      font-family: monospace;
+      border-radius: 8px;
+      border: 1px solid #00ff00;
+      width: 280px;
+    }
+    .control-row {
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .control-row label { width: 30px; }
+    .control-row input { width: 180px; }
+    #coordenadas-actuales {
+      font-weight: bold;
+      margin-top: 10px;
+      color: #ffaa00;
+    }
+  </style>
 </head>
-<body style="margin: 0; overflow: hidden;">
+<body>
+
+  <!-- Panel de Control del Avatar -->
+  <div id="coordenadas-hud">
+    <h3>Mover Avatar</h3>
+    <div class="control-row">
+      <label>X:</label>
+      <input type="range" id="posX" min="-100" max="100" step="0.5" value="0">
+    </div>
+    <div class="control-row">
+      <label>Y:</label>
+      <input type="range" id="posY" min="-100" max="100" step="0.5" value="0">
+    </div>
+    <div class="control-row">
+      <label>Z:</label>
+      <input type="range" id="posZ" min="-100" max="100" step="0.5" value="0">
+    </div>
+    <div id="coordenadas-actuales">COORDENADAS: X: 0, Y: 0, Z: 0</div>
+  </div>
+
   <a-scene>
     <a-assets>
       <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
       <a-asset-item id="luis-camina" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Luces -->
     <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
     <a-light type="directional" position="5 10 5" intensity="0.5"></a-light>
 
-    <!-- Pueblo centrado en Y = 0 -->
+    <!-- Pueblo fijo -->
     <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 0 0"></a-entity>
 
-    <!-- Cámara (Usa WASD para desplazarte) -->
-    <a-camera id="camera" wasd-controls="acceleration: 20;" look-controls position="0 1.6 3"></a-camera>
+    <!-- Cámara libre con WASD -->
+    <a-camera id="camera" wasd-controls="acceleration: 20;" look-controls position="0 5 15"></a-camera>
     
-    <!-- Avatar de Luis (Sigue automáticamente a la cámara y se mueve con ella) -->
-    <a-entity id="avatar-luis" 
-              gltf-model="#luis-camina" 
-              seguimiento-camara="offsetY: -1.6; distancia: 2.5"
-              animation-mixer>
-    </a-entity>
+    <!-- Avatar de Luis -->
+    <a-entity id="avatar-luis" gltf-model="#luis-camina" position="0 0 0" rotation="0 180 0"></a-entity>
   </a-scene>
+
+  <script>
+    const avatar = document.querySelector('#avatar-luis');
+    const posXInput = document.querySelector('#posX');
+    const posYInput = document.querySelector('#posY');
+    const posZInput = document.querySelector('#posZ');
+    const coordsDisplay = document.querySelector('#coordenadas-actuales');
+
+    function actualizarPosicion() {
+      const x = posXInput.value;
+      const y = posYInput.value;
+      const z = posZInput.value;
+      
+      avatar.setAttribute('position', `${x} ${y} ${z}`);
+      coordsDisplay.innerHTML = `COORDENADAS:<br>X: ${x}<br>Y: ${y}<br>Z: ${z}`;
+    }
+
+    posXInput.addEventListener('input', actualizarPosicion);
+    posYInput.addEventListener('input', actualizarPosicion);
+    posZInput.addEventListener('input', actualizarPosicion);
+    
+    actualizarPosicion();
+  </script>
 </body>
 </html>
