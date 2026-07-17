@@ -2,231 +2,268 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Calibrador Tridimensional Interactivo</title>
+  <title>Werewolf Experience - Escena de Terror Final</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
-  <!-- A-Frame y Extras -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
 
+  <script>
+    AFRAME.registerComponent('controlador-juego', {
+      init: function () {
+        this.time = 0;
+        this.timelineTriggered = false;
+        this.houseSceneTriggered = false;
+        this.currentAvatar = 'camina';
+        
+        this.rig = document.querySelector('#rig');
+        this.luisCamina = document.querySelector('#avatar-luis-camina');
+        this.luisSigilo = document.querySelector('#avatar-luis-sigilo');
+        this.worldLuisLlama = document.querySelector('#world-luis-llama');
+        
+        this.wwIdle = document.querySelector('#ent-ww-idle');
+        this.wwBeast = document.querySelector('#ent-ww-beast');
+        this.casa = document.querySelector('#ent-casa');
+        
+        this.lastPos = new THREE.Vector3();
+        this.rig.object3D.getWorldPosition(this.lastPos);
+        
+        this.luisCamina.setAttribute('visible', true);
+        this.luisSigilo.setAttribute('visible', false);
+        this.worldLuisLlama.setAttribute('visible', false);
+        this.wwIdle.setAttribute('visible', true);
+        this.wwBeast.setAttribute('visible', false);
+        
+        this.luisCamina.addEventListener('model-loaded', () => {
+          this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
+        });
+      },
+      
+      tick: function (time, timeDelta) {
+        this.time += timeDelta;
+        
+        let currentPos = new THREE.Vector3();
+        this.rig.object3D.getWorldPosition(currentPos);
+        let distanciaRecorrida = currentPos.distanceTo(this.lastPos);
+        
+        if (distanciaRecorrida > 0.002) {
+          if (this.currentAvatar === 'camina') {
+            this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+          } else if (this.currentAvatar === 'sigilo') {
+            this.luisSigilo.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+          }
+        } else {
+          if (this.currentAvatar === 'camina') {
+            this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
+          } else if (this.currentAvatar === 'sigilo') {
+            this.luisSigilo.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
+          }
+        }
+        this.lastPos.copy(currentPos);
+        
+        if (this.time >= 30000 && !this.timelineTriggered) {
+          this.timelineTriggered = true;
+          this.ejecutarFasePersecucion();
+        }
+        
+        if (this.timelineTriggered && this.wwBeast.getAttribute('visible')) {
+          let posBeast = this.wwBeast.getAttribute('position');
+          let posPlayer = this.rig.getAttribute('position');
+          
+          posBeast.z += (posPlayer.z - posBeast.z) * 0.006;
+          posBeast.x += (posPlayer.x - posBeast.x) * 0.006;
+          this.wwBeast.setAttribute('position', posBeast);
+          
+          this.wwBeast.object3D.lookAt(posPlayer.x, posBeast.y, posPlayer.z);
+        }
+        
+        if (!this.houseSceneTriggered) {
+          let posRig = this.rig.getAttribute('position');
+          let posCasa = this.casa.getAttribute('position');
+          
+          let dx = posRig.x - posCasa.x;
+          let dz = posRig.z - posCasa.z;
+          let distanciaACasa = Math.sqrt(dx * dx + dz * dz);
+          
+          if (distanciaACasa < 4.5) {
+            this.houseSceneTriggered = true;
+            this.ejecutarCinematicaCasa();
+          }
+        }
+      },
+      
+      ejecutarFasePersecucion: function() {
+        this.wwIdle.setAttribute('visible', false);
+        this.wwBeast.setAttribute('visible', true);
+        this.wwBeast.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1.1});
+        
+        this.luisCamina.setAttribute('visible', false);
+        this.luisSigilo.setAttribute('visible', true);
+        this.currentAvatar = 'sigilo';
+        
+        setTimeout(() => {
+          if (!this.houseSceneTriggered) {
+            this.luisSigilo.setAttribute('visible', false);
+            this.luisCamina.setAttribute('visible', true);
+            this.currentAvatar = 'camina';
+            this.luisCamina.setAttribute('animation-mixer', {timeScale: 0});
+          }
+        }, 10000);
+        
+        setTimeout(() => {
+          this.wwBeast.setAttribute('visible', false);
+        }, 15000);
+      },
+      
+      ejecutarCinematicaCasa: function() {
+        this.rig.setAttribute('wasd-controls', {enabled: false});
+        
+        this.luisCamina.setAttribute('visible', false);
+        this.luisSigilo.setAttribute('visible', false);
+        this.currentAvatar = 'none';
+        
+        let posCasa = this.casa.getAttribute('position');
+        this.worldLuisLlama.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z + 1.6 });
+        this.worldLuisLlama.setAttribute('visible', true);
+        this.worldLuisLlama.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
+        
+        this.rig.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z + 5 });
+        
+        setTimeout(() => {
+          this.worldLuisLlama.setAttribute('visible', false);
+          this.rig.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z - 0.5 });
+          
+          this.luisCamina.setAttribute('visible', true);
+          this.currentAvatar = 'camina';
+          this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
+          this.rig.setAttribute('wasd-controls', {enabled: true});
+        }, 15000);
+      }
+    });
+  </script>
+
   <style>
-    /* Interfaz de control flotante */
-    .panel-control {
+    .btn-back-hud {
       position: fixed;
       top: 20px;
-      right: 20px;
+      left: 20px;
       z-index: 9999;
-      background: rgba(10, 15, 30, 0.9);
-      border: 2px solid #00ffcc;
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 8px;
-      font-family: 'Courier New', Courier, monospace;
-      width: 320px;
-      box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
+      font-family: monospace;
     }
-
-    .panel-control h3 {
-      margin-top: 0;
-      color: #00ffcc;
-      font-size: 1.1rem;
-      border-bottom: 1px solid #00ffcc;
-      padding-bottom: 8px;
-      text-transform: uppercase;
-    }
-
-    .stat-box {
-      background: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 4px;
-      margin: 10px 0;
-      font-size: 0.9rem;
-      border-left: 4px solid #ff5500;
-    }
-
-    .coordenada-destacada {
-      font-size: 1.2rem;
+    .btn-back-hud a {
+      background: rgba(0, 0, 0, 0.85);
       color: #ff5500;
+      border: 2px solid #ff5500;
+      padding: 10px 16px;
+      text-decoration: none;
       font-weight: bold;
-    }
-
-    .grupo-botones {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    button {
-      background: #112233;
-      color: #00ffcc;
-      border: 1px solid #00ffcc;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-weight: bold;
-      border-radius: 4px;
-      transition: all 0.2s ease;
+      border-radius: 6px;
+      box-shadow: 0 0 15px rgba(255, 85, 0, 0.4);
       font-size: 0.8rem;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+      display: inline-block;
     }
-
-    button:hover {
-      background: #00ffcc;
-      color: #112233;
-      box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+    .btn-back-hud a:hover {
+      background: #ff5500;
+      color: #000000;
+      box-shadow: 0 0 25px rgba(255, 85, 0, 0.8);
     }
-
-    .btn-danger {
-      border-color: #ff3333;
-      color: #ff3333;
-    }
-    .btn-danger:hover {
-      background: #ff3333;
-      color: #ffffff;
-      box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
-    }
-
-    .instrucciones {
-      font-size: 0.75rem;
-      color: #aaaaaa;
-      margin-top: 15px;
-      line-height: 1.3;
-    }
-
-    /* Indicador visual de Luis */
-    .hud-indicador {
+    .instructions-panel {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 9999;
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-family: sans-serif;
+      background: rgba(11, 13, 26, 0.9);
+      border: 1px solid #ff5500;
+      padding: 12px 24px;
+      border-radius: 5px;
+      color: #ffffff;
+      font-family: monospace;
       font-size: 0.85rem;
+      text-align: center;
       pointer-events: none;
-      border: 1px solid #555;
+      box-shadow: 0 0 15px rgba(255, 85, 0, 0.2);
     }
   </style>
 </head>
 <body>
 
-  <!-- Marcador HUD de ayuda -->
-  <div class="hud-indicador">
-    Luis está fijo en Y = 0. Ajusta la altura del pueblo hasta que coincidan.
+  <div class="btn-back-hud">
+    <a href="inter.html">⤶ VOLVER AL DASHBOARD</a>
   </div>
 
-  <!-- Panel de Control Interactivo -->
-  <div class="panel-control">
-    <h3>Calibrador de Altura</h3>
-    
-    <div class="stat-box">
-      <div>Altura Y del Pueblo:</div>
-      <div class="coordenada-destacada" id="val-pueblo-y">0.00 m</div>
-    </div>
-
-    <div class="stat-box" style="border-left-color: #00ffcc;">
-      <div>Línea de Código sugerida:</div>
-      <code style="font-size: 0.75rem; display: block; margin-top: 5px; color: #00ffcc;" id="code-suggest">
-        &lt;a-entity id="ent-pueblo" position="0 0 0" ...&gt;
-      </code>
-    </div>
-
-    <div style="margin-top: 15px; font-weight: bold; font-size: 0.8rem;">Ajuste del Pueblo (Y):</div>
-    <div class="grupo-botones">
-      <button onclick="ajustarPueblo(5)">▲ Subir +5m</button>
-      <button onclick="ajustarPueblo(-5)">▼ Bajar -5m</button>
-      <button onclick="ajustarPueblo(1)">▲ Subir +1m</button>
-      <button onclick="ajustarPueblo(-1)">▼ Bajar -1m</button>
-      <button onclick="ajustarPueblo(0.1)">▲ Subir +0.1m</button>
-      <button onclick="ajustarPueblo(-0.1)">▼ Bajar -0.1m</button>
-    </div>
-
-    <div style="margin-top: 15px; font-weight: bold; font-size: 0.8rem;">Zoom de Cámara (Z):</div>
-    <div class="grupo-botones">
-      <button class="btn-danger" onclick="ajustarCamara(-1)">🔍 Zoom IN (Acercar)</button>
-      <button class="btn-danger" onclick="ajustarCamara(1)">🔍 Zoom OUT (Alejar)</button>
-    </div>
-
-    <div class="instrucciones">
-      <strong>Instrucciones:</strong><br>
-      1. Usa los botones <strong>Subir/Bajar</strong> para desplazar verticalmente el pueblo gigante.<br>
-      2. Usa los botones de <strong>Zoom</strong> para alejar o acercar la cámara y ver el plano general.<br>
-      3. Cuando veas que los pies de Luis pisan la calle del pueblo, copia el valor Y generado.<br>
-      4. Usa WASD para desplazarte horizontalmente.
-    </div>
+  <div class="instructions-panel">
+    Usa WASD para caminar · Luis se moverá contigo · Dirígete a la Cabaña de la derecha
   </div>
 
-  <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;">
+  <a-scene 
+    controlador-juego
+    fog="type: exponential; color: #070913; density: 0.05;"
+    gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;">
     
     <a-assets timeout="60000">
       <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
+      <a-asset-item id="casa" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/casa.glb"></a-asset-item>
+      <a-asset-item id="werewolf-beast" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb"></a-asset-item>
+      <a-asset-item id="werewolf-idle" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb"></a-asset-item>
       <a-asset-item id="luis-camina" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
+      <a-asset-item id="luis-llama" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb"></a-asset-item>
+      <a-asset-item id="luis-sigilo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-sigilo.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Luz de día para inspección perfecta -->
-    <a-sky color="#a0c4ff"></a-sky>
-    <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="0.6" position="-2 4 1"></a-light>
+    <a-sky color="#03050a"></a-sky>
+    <a-sphere position="15 25 -25" radius="3.5" color="#d0e0ff" material="shader: flat; fog: false"></a-sphere>
 
-    <!-- Referencia Visual: Disco de calibración bajo los pies de Luis en Y = 0 -->
-    <a-ring position="0 0.02 0" rotation="-90 0 0" radius-inner="0.9" radius-outer="1" color="#ff0000" material="side: double"></a-ring>
-    <a-box position="0 -0.05 0" width="1.5" height="0.1" depth="1.5" color="#ff0000"></a-box>
+    <a-light type="ambient" color="#0a0d1a" intensity="0.4"></a-light>
+    <a-light type="hemisphere" color="#1a253c" groundColor="#03050a" intensity="0.5"></a-light>
+    <a-light type="directional" color="#9bb6ff" intensity="0.7" position="15 25 -25" castShadow="true"></a-light>
+    <a-light type="point" color="#ff5500" intensity="2.5" distance="10" position="8 -9 -3.5" decay="1.2"></a-light>
 
-    <!-- Luis principal en el origen exacto (0, 0, 0) y ESTÁTICO -->
-    <a-entity id="ent-luis-camina" 
-              gltf-model="#luis-camina" 
-              position="0 0 0" 
-              rotation="0 180 0" 
-              scale="1 1 1"
-              animation-mixer="clip: *; loop: repeat; timeScale: 0;">
+    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 -10 0" scale="1 1 1" shadow="receive: true"></a-entity>
+    <a-entity id="ent-casa" gltf-model="#casa" position="8 -10 -5" rotation="0 -30 0" scale="1.1 1.1 1.1"></a-entity>
+
+    <a-entity id="ent-ww-idle" 
+              gltf-model="#werewolf-idle" 
+              position="0 -10 -12" 
+              rotation="0 0 0" 
+              scale="1.4 1.4 1.4"
+              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
     </a-entity>
 
-    <!-- El Pueblo en Y inicial 0 (Ajustable dinámicamente) -->
-    <a-entity id="ent-pueblo" 
-              gltf-model="#pueblo" 
-              position="0 0 0" 
+    <a-entity id="ent-ww-beast" 
+              gltf-model="#werewolf-beast" 
+              position="0 -10 -12" 
+              rotation="0 0 0" 
+              scale="1.4 1.4 1.4">
+    </a-entity>
+
+    <a-entity id="world-luis-llama" 
+              gltf-model="#luis-llama" 
+              position="8 -10 -3.5" 
+              rotation="0 150 0" 
               scale="1 1 1">
     </a-entity>
 
-    <!-- Rig de Cámara controlado (Solo movimiento plano, sin vuelo vertical) -->
-    <a-entity id="rig" position="0 0 4">
-      <a-camera id="camara" look-controls wasd-controls="fly: false; acceleration: 15;" position="0 1.6 0"></a-camera>
+    <a-entity id="rig" position="0 -10 3" wasd-controls="fly: false; acceleration: 18;">
+      <a-camera look-controls position="0 1.6 0"></a-camera>
+      
+      <a-entity id="avatar-luis-camina" 
+                gltf-model="#luis-camina" 
+                position="0 0 -2.5" 
+                rotation="0 180 0" 
+                scale="1 1 1">
+      </a-entity>
+
+      <a-entity id="avatar-luis-sigilo" 
+                gltf-model="#luis-sigilo" 
+                position="0 0 -2.5" 
+                rotation="0 180 0" 
+                scale="1 1 1">
+      </a-entity>
     </a-entity>
 
   </a-scene>
-
-  <script>
-    let puebloY = 0;
-    let rigZ = 4; // Distancia inicial de la cámara
-
-    const elPueblo = document.querySelector('#ent-pueblo');
-    const elRig = document.querySelector('#rig');
-    const dispY = document.querySelector('#val-pueblo-y');
-    const dispCode = document.querySelector('#code-suggest');
-
-    // Función para mover el pueblo arriba y abajo
-    window.ajustarPueblo = function(delta) {
-      puebloY = parseFloat((puebloY + delta).toFixed(2));
-      elPueblo.setAttribute('position', { x: 0, y: puebloY, z: 0 });
-      actualizarInterfaz();
-    };
-
-    // Función para hacer Zoom (acercar/alejar la cámara físicamente en el eje Z)
-    window.ajustarCamara = function(delta) {
-      rigZ = parseFloat((rigZ + delta).toFixed(2));
-      let currentPos = elRig.getAttribute('position');
-      elRig.setAttribute('position', { x: currentPos.x, y: currentPos.y, z: rigZ });
-    };
-
-    function actualizarInterfaz() {
-      dispY.innerText = puebloY.toFixed(2) + " m";
-      dispCode.innerText = `<a-entity id="ent-pueblo" position="0 ${puebloY.toFixed(2)} 0" ...>`;
-    }
-
-    // Inicializar interfaz
-    actualizarInterfaz();
-  </script>
 </body>
 </html>
