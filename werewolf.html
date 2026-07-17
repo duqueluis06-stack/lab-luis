@@ -1,98 +1,607 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Posicionador de Avatar</title>
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <style>
-    #coordenadas-hud {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 9999;
-      background: rgba(0, 0, 0, 0.85);
-      color: #00ff00;
-      padding: 15px;
-      font-family: monospace;
-      border-radius: 8px;
-      border: 1px solid #00ff00;
-      width: 280px;
-    }
-    .control-row {
-      margin: 10px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .control-row label { width: 30px; }
-    .control-row input { width: 180px; }
-    #coordenadas-actuales {
-      font-weight: bold;
-      margin-top: 10px;
-      color: #ffaa00;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>Pueblo de Hombres Lobo - Posicionador Dinámico</title>
+    <meta name="description" content="Explora e identifica coordenadas en tiempo real dentro del entorno interactivo 3D.">
+
+    <!-- Cargamos A-Frame y A-Frame Extras para poder reproducir las animaciones del Avatar -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #05050a;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Pantalla de carga personalizada */
+        #custom-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #05050a;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(220, 38, 38, 0.1);
+            border-top-color: #dc2626;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.2);
+            margin-bottom: 24px;
+        }
+
+        .loader-title {
+            color: #dc2626;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
+            text-align: center;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* HUD de Coordenadas de Alta Precisión */
+        #coordenadas-hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid #dc2626;
+            color: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            width: 250px;
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.25);
+        }
+
+        #coordenadas-hud h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #dc2626;
+            border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .coords-display {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        .coords-display span {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        /* Botón Innovador: Copia rápida para tu flujo de trabajo */
+        #btn-copy {
+            width: 100%;
+            background: rgba(220, 38, 38, 0.15);
+            border: 1px solid #dc2626;
+            color: #f8fafc;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        #btn-copy:hover {
+            background: #dc2626;
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+        }
+
+        /* Evitar pulsaciones accidentales en UI de exploración */
+        button, .joy-arrow, #btn-center, #joystick-container, #joystick-knob {
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none !important;
+            outline: none !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        #btn-center {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #dc2626;
+            color: #dc2626;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.3);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease;
+        }
+
+        /* Sistema de Controles en Pantalla (Mobile-Friendly) */
+        #arrows-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 40px; 
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+        }
+
+        #joystick-container {
+            width: 100px;
+            height: 100px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid #dc2626;
+            border-radius: 50%;
+            touch-action: none;
+            position: relative;
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.2);
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 40px;
+            height: 40px;
+            background: #dc2626;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #dc2626;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .joy-arrow {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid #dc2626;
+            color: #dc2626;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        .arrow-up { top: 0; left: 34px; }
+        .arrow-down { bottom: 0; left: 34px; }
+        .arrow-left { left: 0; top: 34px; }
+        .arrow-right { right: 0; top: 34px; }
+    </style>
 </head>
 <body>
 
-  <!-- Panel de Control del Avatar -->
-  <div id="coordenadas-hud">
-    <h3>Mover Avatar</h3>
-    <div class="control-row">
-      <label>X:</label>
-      <input type="range" id="posX" min="-100" max="100" step="0.5" value="0">
+    <!-- Pantalla de carga -->
+    <div id="custom-loader">
+        <div class="spinner"></div>
+        <div class="loader-title">Cargando Pueblo Gótico</div>
     </div>
-    <div class="control-row">
-      <label>Y:</label>
-      <input type="range" id="posY" min="-100" max="100" step="0.5" value="0">
+
+    <!-- HUD de Coordenadas en tiempo real -->
+    <div id="coordenadas-hud">
+        <h3>Localizador de Spawn</h3>
+        <div class="coords-display">
+            X: <span id="valX">0.00</span><br>
+            Y: <span id="valY">0.00</span><br>
+            Z: <span id="valZ">0.00</span>
+        </div>
+        <button id="btn-copy">Copiar Vector3</button>
     </div>
-    <div class="control-row">
-      <label>Z:</label>
-      <input type="range" id="posZ" min="-100" max="100" step="0.5" value="0">
+
+    <button id="btn-center" title="Reiniciar Posición">👤</button>
+
+    <!-- Controles táctiles -->
+    <div id="arrows-wrapper">
+        <button class="joy-arrow arrow-up" id="btn-up">▲</button>
+        <button class="joy-arrow arrow-down" id="btn-down">▼</button>
+        <button class="joy-arrow arrow-left" id="btn-left">◀</button>
+        <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
-    <div id="coordenadas-actuales">COORDENADAS: X: 0, Y: 0, Z: 0</div>
-  </div>
 
-  <a-scene>
-    <a-assets>
-      <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
-      <a-asset-item id="luis-camina" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
-    </a-assets>
+    <div id="joystick-wrapper">
+        <div id="joystick-container">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
 
-    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
-    <a-light type="directional" position="5 10 5" intensity="0.5"></a-light>
+    <a-scene gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
+             renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false"
+             loading-screen="enabled: false">
+        
+        <a-assets>
+            <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
+            <a-asset-item id="avatar-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
+            <!-- Si tienes un modelo de idle específico puedes enlazarlo aquí, de lo contrario usamos el de caminar como fallback -->
+            <a-asset-item id="avatar-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
+        </a-assets>
 
-    <!-- Pueblo fijo -->
-    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 0 0"></a-entity>
+        <!-- Atmósfera nocturna de terror -->
+        <a-sky color="#030307"></a-sky>
 
-    <!-- Cámara libre con WASD -->
-    <a-camera id="camera" wasd-controls="acceleration: 20;" look-controls position="0 5 15"></a-camera>
-    
-    <!-- Avatar de Luis -->
-    <a-entity id="avatar-luis" gltf-model="#luis-camina" position="0 0 0" rotation="0 180 0"></a-entity>
-  </a-scene>
+        <a-entity light="type: ambient; intensity: 0.9; color: #cbd5e1"></a-entity>
+        <a-entity light="type: directional; intensity: 0.4; color: #7dd3fc" position="-20 40 -20"></a-entity>
 
-  <script>
-    const avatar = document.querySelector('#avatar-luis');
-    const posXInput = document.querySelector('#posX');
-    const posYInput = document.querySelector('#posY');
-    const posZInput = document.querySelector('#posZ');
-    const coordsDisplay = document.querySelector('#coordenadas-actuales');
+        <!-- Pueblo (Entorno de colisión) -->
+        <a-entity id="entorno" gltf-model="#pueblo" position="0 0 0" rotation="0 0 0"></a-entity>
 
-    function actualizarPosicion() {
-      const x = posXInput.value;
-      const y = posYInput.value;
-      const z = posZInput.value;
-      
-      avatar.setAttribute('position', `${x} ${y} ${z}`);
-      coordsDisplay.innerHTML = `COORDENADAS:<br>X: ${x}<br>Y: ${y}<br>Z: ${z}`;
-    }
+        <!-- Rig del Jugador (Spawn celestial para caída e inicialización impecable) -->
+        <a-entity id="player-rig" position="0 500 15">
+            
+            <!-- Contenedor del Avatar -->
+            <a-entity id="avatar-container" position="0 0.02 0" rotation="0 180 0">
+                <a-entity id="mesh-idle" 
+                          gltf-model="#avatar-idle-src" 
+                          scale="1 1 1"
+                          visible="true"
+                          animation-mixer="clip: *; loop: repeat; timeScale: 0.8;">
+                </a-entity>
 
-    posXInput.addEventListener('input', actualizarPosicion);
-    posYInput.addEventListener('input', actualizarPosicion);
-    posZInput.addEventListener('input', actualizarPosicion);
-    
-    actualizarPosicion();
-  </script>
+                <a-entity id="mesh-walk" 
+                          gltf-model="#avatar-walk-src" 
+                          scale="1 1 1"
+                          visible="false"
+                          animation-mixer="clip: *; loop: repeat; timeScale: 1.3;">
+                </a-entity>
+            </a-entity>
+
+            <!-- Órbita de Cámara (Tercera persona óptima) -->
+            <a-entity id="camera-orbit" position="0 2.1 0">
+                <a-entity id="main-camera" camera position="0 0 4.5"></a-entity>
+            </a-entity>
+        </a-entity>
+
+    </a-scene>
+
+    <script>
+        // Configuración del punto de entrada en el pueblo
+        const SPAWN_X = 0;
+        const SPAWN_Z = 15;
+        const VELOCIDAD_AVANCE = 0.09;   
+
+        const knob = document.getElementById('joystick-knob');
+        const rig = document.getElementById('player-rig');
+        const cameraOrbit = document.getElementById('camera-orbit');
+        const avatarContainer = document.getElementById('avatar-container');
+        
+        const meshIdle = document.getElementById('mesh-idle');
+        const meshWalk = document.getElementById('mesh-walk');
+        
+        const mainCamera = document.getElementById('main-camera');
+        const sceneEl = document.querySelector('a-scene');
+        const entornoEntity = document.getElementById('entorno');
+
+        // Referencias del HUD
+        const valX = document.getElementById('valX');
+        const valY = document.getElementById('valY');
+        const valZ = document.getElementById('valZ');
+        const btnCopy = document.getElementById('btn-copy');
+
+        let moveX = 0, moveY = 0;
+        const keys = { w: false, a: false, s: false, d: false };
+        let joyDragging = false; let joyStartX, joyStartY;
+        let screenDragging = false; let prevScreenX, prevScreenY;
+        
+        let camYaw = 0;   
+        let camPitch = -0.15; 
+        let camDist = 4.5; 
+        let arrowCam = { up: false, down: false, left: false, right: false };
+        let wasMoving = false;
+        
+        let inicializado = false;
+        let entornoCargado = false;
+
+        entornoEntity.addEventListener('model-loaded', () => {
+            entornoCargado = true;
+        });
+
+        function ocultarLoader() {
+            const loader = document.getElementById('custom-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.visibility = 'hidden';
+                setTimeout(() => loader.remove(), 600);
+            }
+        }
+
+        // Asignación de coordenadas aéreas iniciales en el Rig
+        rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
+
+        // Reinicio rápido al punto de inicio
+        document.getElementById('btn-center').addEventListener('click', () => {
+            inicializado = false;
+            rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
+            camYaw = 0;
+            camPitch = -0.15;
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+            meshIdle.setAttribute('visible', 'true');
+            meshWalk.setAttribute('visible', 'false');
+            wasMoving = false;
+        });
+
+        // Zoom con rueda del ratón
+        window.addEventListener('wheel', (e) => {
+            camDist += e.deltaY * 0.05;
+            camDist = Math.max(2.0, Math.min(25.0, camDist));
+            mainCamera.setAttribute('position', `0 0 ${camDist}`);
+        }, { passive: true });
+
+        // Drag del Joystick Virtual
+        function onJoyStart(e) {
+            joyDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            joyStartX = point.clientX; joyStartY = point.clientY;
+            e.stopPropagation();
+        }
+        function onJoyMove(e) {
+            if (!joyDragging) return;
+            const point = e.touches ? e.touches[0] : e;
+            let dx = point.clientX - joyStartX; let dy = point.clientY - joyStartY;
+            const maxLen = 35;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            moveX = dx / maxLen; 
+            moveY = dy / maxLen;
+            e.stopPropagation();
+        }
+        function onJoyEnd() {
+            joyDragging = false; knob.style.transform = 'translate(0px, 0px)';
+            moveX = 0; moveY = 0;
+        }
+
+        knob.addEventListener('touchstart', onJoyStart);
+        window.addEventListener('touchmove', onJoyMove, {passive: false});
+        window.addEventListener('touchend', onJoyEnd);
+        knob.addEventListener('mousedown', onJoyStart);
+        window.addEventListener('mousemove', onJoyMove);
+        window.addEventListener('mouseup', onJoyEnd);
+
+        // Teclado
+        window.addEventListener('keydown', (e) => { 
+            const k = e.key.toLowerCase(); 
+            if (k in keys) keys[k] = true; 
+        });
+        window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
+
+        // Drag de Pantalla para mover Cámara Orbitaria
+        function onScreenStart(e) {
+            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#coordenadas-hud') || e.target.tagName === 'BUTTON') return;
+            screenDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            prevScreenX = point.clientX;
+            prevScreenY = point.clientY;
+        }
+        function onScreenMove(e) {
+            if (!screenDragging) return;
+            const point = e.touches ? e.touches[0] : e;
+            const clientX = point.clientX;
+            const clientY = point.clientY;
+            camYaw -= (clientX - prevScreenX) * 0.005;  
+            camPitch += (clientY - prevScreenY) * 0.004; 
+            prevScreenX = clientX; 
+            prevScreenY = clientY;
+        }
+        function onScreenEnd() { screenDragging = false; }
+
+        window.addEventListener('mousedown', onScreenStart);
+        window.addEventListener('mousemove', onScreenMove);
+        window.addEventListener('mouseup', onScreenEnd);
+        window.addEventListener('touchstart', onScreenStart, {passive: true});
+        window.addEventListener('touchmove', onScreenMove, {passive: true});
+        window.addEventListener('touchend', onScreenEnd);
+
+        // Flechas de dirección de cámara en pantalla
+        const setupArrowCamera = (id, direction) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('mousedown', () => { arrowCam[direction] = true; });
+            btn.addEventListener('mouseup', () => { arrowCam[direction] = false; });
+            btn.addEventListener('mouseleave', () => { arrowCam[direction] = false; });
+            btn.addEventListener('touchstart', () => { arrowCam[direction] = true; });
+            btn.addEventListener('touchend', () => { arrowCam[direction] = false; });
+        };
+        setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
+        setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
+
+        // Copiar coordenadas actuales en portapapeles
+        btnCopy.addEventListener('click', () => {
+            const pos = rig.getAttribute('position');
+            const formatted = `position="${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}"`;
+            navigator.clipboard.writeText(formatted).then(() => {
+                btnCopy.textContent = "¡Copiado!";
+                btnCopy.style.background = "rgba(0, 255, 170, 0.2)";
+                btnCopy.style.borderColor = "#00ffaa";
+                setTimeout(() => {
+                    btnCopy.textContent = "Copiar Vector3";
+                    btnCopy.style.background = "rgba(220, 38, 38, 0.15)";
+                    btnCopy.style.borderColor = "#dc2626";
+                }, 1500);
+            });
+        });
+
+        // Filtrado inteligente para ignorar la vegetación estética y pisar suelo firme
+        function filtrarInterseccionSuelo(intersects) {
+            for (let i = 0; i < intersects.length; i++) {
+                const nombreObj = intersects[i].object.name.toLowerCase();
+                if (nombreObj.includes('grass') || nombreObj.includes('hierba') || 
+                    nombreObj.includes('pasto') || nombreObj.includes('weed') || 
+                    nombreObj.includes('foliage') || nombreObj.includes('bush') || 
+                    nombreObj.includes('matorral') || nombreObj.includes('plant') ||
+                    nombreObj.includes('flor') || nombreObj.includes('flower')) {
+                    continue; 
+                }
+                return intersects[i];
+            }
+            return intersects[0];
+        }
+
+        // Bucle Principal del Motor de Físicas y Renderizado
+        function engineLoop() {
+            if (arrowCam.left) camYaw += 0.02;
+            if (arrowCam.right) camYaw -= 0.02;
+            if (arrowCam.up) camPitch -= 0.015;   
+            if (arrowCam.down) camPitch += 0.015;  
+
+            camPitch = Math.max(-0.6, Math.min(0.2, camPitch)); 
+            cameraOrbit.object3D.rotation.y = camYaw;
+            cameraOrbit.object3D.rotation.x = camPitch;
+
+            const mesh = entornoEntity.object3D;
+
+            // Esperar que el Pueblo GLB esté cargado por completo en escena
+            if (!mesh || !entornoCargado || !mesh.children || mesh.children.length === 0) {
+                requestAnimationFrame(engineLoop);
+                return;
+            }
+
+            const pos = rig.getAttribute('position');
+
+            // --- INICIALIZACIÓN FÍSICA (Fijar suelo en Spawn) ---
+            if (!inicializado) {
+                const raycaster = new THREE.Raycaster();
+                raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
+                
+                const intersects = raycaster.intersectObject(mesh, true);
+                const hitValido = filtrarInterseccionSuelo(intersects);
+                
+                if (hitValido) {
+                    pos.y = hitValido.point.y;
+                    rig.setAttribute('position', pos);
+                    inicializado = true; 
+                    ocultarLoader();
+                }
+                requestAnimationFrame(engineLoop);
+                return;
+            }
+            
+            let oldX = pos.x;
+            let oldZ = pos.z;
+            let oldY = pos.y;
+
+            let inputX = 0; let inputY = 0;
+            if (keys.w) inputY = -1; 
+            if (keys.s) inputY = 1;  
+            if (keys.a) inputX = -1; 
+            if (keys.d) inputX = 1;  
+
+            if (joyDragging) {
+                inputX = moveX;
+                inputY = moveY;
+            }
+
+            let isMoving = (inputX !== 0 || inputY !== 0);
+
+            // Alternancia fluida de mallas/animaciones (Caminar vs Quieto)
+            if (isMoving !== wasMoving) {
+                if (isMoving) {
+                    meshIdle.setAttribute('visible', 'false');
+                    meshWalk.setAttribute('visible', 'true');
+                } else {
+                    meshWalk.setAttribute('visible', 'false');
+                    meshIdle.setAttribute('visible', 'true');
+                }
+                wasMoving = isMoving;
+            }
+
+            // Mover rig en función de la orientación de la cámara
+            if (isMoving) {
+                const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
+                const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
+
+                pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_AVANCE;
+                pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_AVANCE;
+
+                // Rotar el avatar hacia la dirección del movimiento
+                const targetAngle = camYaw + Math.atan2(inputX, inputY) + Math.PI;
+                let currentAngle = avatarContainer.object3D.rotation.y;
+                let deltaAngle = targetAngle - currentAngle;
+                deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
+                avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
+            }
+
+            // Raycasting de colisión y relieve en tiempo real
+            const raycaster = new THREE.Raycaster();
+            raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
+            
+            const intersects = raycaster.intersectObject(mesh, true);
+            const hitValido = filtrarInterseccionSuelo(intersects);
+            
+            if (hitValido) {
+                let groundY = hitValido.point.y;
+                // Si el relieve sube más de 0.8m repentinamente, se trata como colisión de pared
+                if ((groundY - oldY) > 0.8) {
+                    pos.x = oldX;
+                    pos.z = oldZ;
+                    pos.y = oldY;
+                } else {
+                    // Desplazamiento vertical fluido
+                    pos.y += (groundY - pos.y) * 0.25;
+                }
+            } else {
+                // Si sale de los límites del mapa, bloquear la posición
+                pos.x = oldX;
+                pos.z = oldZ;
+                pos.y = oldY;
+            }
+
+            // Actualizar HUD en tiempo real
+            valX.textContent = pos.x.toFixed(2);
+            valY.textContent = pos.y.toFixed(2);
+            valZ.textContent = pos.z.toFixed(2);
+
+            rig.setAttribute('position', pos);
+            requestAnimationFrame(engineLoop);
+        }
+        engineLoop();
+    </script>
 </body>
 </html>
