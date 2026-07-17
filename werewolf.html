@@ -2,268 +2,36 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Werewolf Experience - Escena de Terror Final</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  
+  <title>Prueba de Posición</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-
-  <script>
-    AFRAME.registerComponent('controlador-juego', {
-      init: function () {
-        this.time = 0;
-        this.timelineTriggered = false;
-        this.houseSceneTriggered = false;
-        this.currentAvatar = 'camina';
-        
-        this.rig = document.querySelector('#rig');
-        this.luisCamina = document.querySelector('#avatar-luis-camina');
-        this.luisSigilo = document.querySelector('#avatar-luis-sigilo');
-        this.worldLuisLlama = document.querySelector('#world-luis-llama');
-        
-        this.wwIdle = document.querySelector('#ent-ww-idle');
-        this.wwBeast = document.querySelector('#ent-ww-beast');
-        this.casa = document.querySelector('#ent-casa');
-        
-        this.lastPos = new THREE.Vector3();
-        this.rig.object3D.getWorldPosition(this.lastPos);
-        
-        this.luisCamina.setAttribute('visible', true);
-        this.luisSigilo.setAttribute('visible', false);
-        this.worldLuisLlama.setAttribute('visible', false);
-        this.wwIdle.setAttribute('visible', true);
-        this.wwBeast.setAttribute('visible', false);
-        
-        this.luisCamina.addEventListener('model-loaded', () => {
-          this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
-        });
-      },
-      
-      tick: function (time, timeDelta) {
-        this.time += timeDelta;
-        
-        let currentPos = new THREE.Vector3();
-        this.rig.object3D.getWorldPosition(currentPos);
-        let distanciaRecorrida = currentPos.distanceTo(this.lastPos);
-        
-        if (distanciaRecorrida > 0.002) {
-          if (this.currentAvatar === 'camina') {
-            this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
-          } else if (this.currentAvatar === 'sigilo') {
-            this.luisSigilo.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
-          }
-        } else {
-          if (this.currentAvatar === 'camina') {
-            this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
-          } else if (this.currentAvatar === 'sigilo') {
-            this.luisSigilo.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
-          }
-        }
-        this.lastPos.copy(currentPos);
-        
-        if (this.time >= 30000 && !this.timelineTriggered) {
-          this.timelineTriggered = true;
-          this.ejecutarFasePersecucion();
-        }
-        
-        if (this.timelineTriggered && this.wwBeast.getAttribute('visible')) {
-          let posBeast = this.wwBeast.getAttribute('position');
-          let posPlayer = this.rig.getAttribute('position');
-          
-          posBeast.z += (posPlayer.z - posBeast.z) * 0.006;
-          posBeast.x += (posPlayer.x - posBeast.x) * 0.006;
-          this.wwBeast.setAttribute('position', posBeast);
-          
-          this.wwBeast.object3D.lookAt(posPlayer.x, posBeast.y, posPlayer.z);
-        }
-        
-        if (!this.houseSceneTriggered) {
-          let posRig = this.rig.getAttribute('position');
-          let posCasa = this.casa.getAttribute('position');
-          
-          let dx = posRig.x - posCasa.x;
-          let dz = posRig.z - posCasa.z;
-          let distanciaACasa = Math.sqrt(dx * dx + dz * dz);
-          
-          if (distanciaACasa < 4.5) {
-            this.houseSceneTriggered = true;
-            this.ejecutarCinematicaCasa();
-          }
-        }
-      },
-      
-      ejecutarFasePersecucion: function() {
-        this.wwIdle.setAttribute('visible', false);
-        this.wwBeast.setAttribute('visible', true);
-        this.wwBeast.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1.1});
-        
-        this.luisCamina.setAttribute('visible', false);
-        this.luisSigilo.setAttribute('visible', true);
-        this.currentAvatar = 'sigilo';
-        
-        setTimeout(() => {
-          if (!this.houseSceneTriggered) {
-            this.luisSigilo.setAttribute('visible', false);
-            this.luisCamina.setAttribute('visible', true);
-            this.currentAvatar = 'camina';
-            this.luisCamina.setAttribute('animation-mixer', {timeScale: 0});
-          }
-        }, 10000);
-        
-        setTimeout(() => {
-          this.wwBeast.setAttribute('visible', false);
-        }, 15000);
-      },
-      
-      ejecutarCinematicaCasa: function() {
-        this.rig.setAttribute('wasd-controls', {enabled: false});
-        
-        this.luisCamina.setAttribute('visible', false);
-        this.luisSigilo.setAttribute('visible', false);
-        this.currentAvatar = 'none';
-        
-        let posCasa = this.casa.getAttribute('position');
-        this.worldLuisLlama.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z + 1.6 });
-        this.worldLuisLlama.setAttribute('visible', true);
-        this.worldLuisLlama.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
-        
-        this.rig.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z + 5 });
-        
-        setTimeout(() => {
-          this.worldLuisLlama.setAttribute('visible', false);
-          this.rig.setAttribute('position', { x: posCasa.x, y: -10, z: posCasa.z - 0.5 });
-          
-          this.luisCamina.setAttribute('visible', true);
-          this.currentAvatar = 'camina';
-          this.luisCamina.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 0});
-          this.rig.setAttribute('wasd-controls', {enabled: true});
-        }, 15000);
-      }
-    });
-  </script>
-
-  <style>
-    .btn-back-hud {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      z-index: 9999;
-      font-family: monospace;
-    }
-    .btn-back-hud a {
-      background: rgba(0, 0, 0, 0.85);
-      color: #ff5500;
-      border: 2px solid #ff5500;
-      padding: 10px 16px;
-      text-decoration: none;
-      font-weight: bold;
-      border-radius: 6px;
-      box-shadow: 0 0 15px rgba(255, 85, 0, 0.4);
-      font-size: 0.8rem;
-      letter-spacing: 1px;
-      transition: all 0.2s ease;
-      display: inline-block;
-    }
-    .btn-back-hud a:hover {
-      background: #ff5500;
-      color: #000000;
-      box-shadow: 0 0 25px rgba(255, 85, 0, 0.8);
-    }
-    .instructions-panel {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      background: rgba(11, 13, 26, 0.9);
-      border: 1px solid #ff5500;
-      padding: 12px 24px;
-      border-radius: 5px;
-      color: #ffffff;
-      font-family: monospace;
-      font-size: 0.85rem;
-      text-align: center;
-      pointer-events: none;
-      box-shadow: 0 0 15px rgba(255, 85, 0, 0.2);
-    }
-  </style>
 </head>
-<body>
-
-  <div class="btn-back-hud">
-    <a href="inter.html">⤶ VOLVER AL DASHBOARD</a>
-  </div>
-
-  <div class="instructions-panel">
-    Usa WASD para caminar · Luis se moverá contigo · Dirígete a la Cabaña de la derecha
-  </div>
-
-  <a-scene 
-    controlador-juego
-    fog="type: exponential; color: #070913; density: 0.05;"
-    gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;">
-    
-    <a-assets timeout="60000">
+<body style="margin: 0; overflow: hidden;">
+  <a-scene>
+    <a-assets>
       <a-asset-item id="pueblo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
-      <a-asset-item id="casa" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/casa.glb"></a-asset-item>
-      <a-asset-item id="werewolf-beast" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb"></a-asset-item>
-      <a-asset-item id="werewolf-idle" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb"></a-asset-item>
       <a-asset-item id="luis-camina" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
-      <a-asset-item id="luis-llama" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb"></a-asset-item>
-      <a-asset-item id="luis-sigilo" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-sigilo.glb"></a-asset-item>
     </a-assets>
 
-    <a-sky color="#03050a"></a-sky>
-    <a-sphere position="15 25 -25" radius="3.5" color="#d0e0ff" material="shader: flat; fog: false"></a-sphere>
+    <!-- Luces -->
+    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+    <a-light type="directional" position="5 10 5" intensity="0.5"></a-light>
 
-    <a-light type="ambient" color="#0a0d1a" intensity="0.4"></a-light>
-    <a-light type="hemisphere" color="#1a253c" groundColor="#03050a" intensity="0.5"></a-light>
-    <a-light type="directional" color="#9bb6ff" intensity="0.7" position="15 25 -25" castShadow="true"></a-light>
-    <a-light type="point" color="#ff5500" intensity="2.5" distance="10" position="8 -9 -3.5" decay="1.2"></a-light>
+    <!-- Pueblo (Ajusta la altura Y aquí) -->
+    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 -10 0"></a-entity>
 
-    <a-entity id="ent-pueblo" gltf-model="#pueblo" position="0 -10 0" scale="1 1 1" shadow="receive: true"></a-entity>
-    <a-entity id="ent-casa" gltf-model="#casa" position="8 -10 -5" rotation="0 -30 0" scale="1.1 1.1 1.1"></a-entity>
-
-    <a-entity id="ent-ww-idle" 
-              gltf-model="#werewolf-idle" 
-              position="0 -10 -12" 
-              rotation="0 0 0" 
-              scale="1.4 1.4 1.4"
-              animation-mixer="clip: *; loop: repeat; timeScale: 1;">
-    </a-entity>
-
-    <a-entity id="ent-ww-beast" 
-              gltf-model="#werewolf-beast" 
-              position="0 -10 -12" 
-              rotation="0 0 0" 
-              scale="1.4 1.4 1.4">
-    </a-entity>
-
-    <a-entity id="world-luis-llama" 
-              gltf-model="#luis-llama" 
-              position="8 -10 -3.5" 
-              rotation="0 150 0" 
-              scale="1 1 1">
-    </a-entity>
-
-    <a-entity id="rig" position="0 -10 3" wasd-controls="fly: false; acceleration: 18;">
+    <!-- Rig de Cámara y Avatar vinculados -->
+    <a-entity id="rig" position="0 0 0" wasd-controls="acceleration: 20;">
       <a-camera look-controls position="0 1.6 0"></a-camera>
       
-      <a-entity id="avatar-luis-camina" 
+      <!-- Avatar Luis -->
+      <a-entity id="avatar-luis" 
                 gltf-model="#luis-camina" 
                 position="0 0 -2.5" 
                 rotation="0 180 0" 
-                scale="1 1 1">
-      </a-entity>
-
-      <a-entity id="avatar-luis-sigilo" 
-                gltf-model="#luis-sigilo" 
-                position="0 0 -2.5" 
-                rotation="0 180 0" 
-                scale="1 1 1">
+                animation-mixer>
       </a-entity>
     </a-entity>
-
   </a-scene>
 </body>
 </html>
