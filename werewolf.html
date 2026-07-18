@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v6.5 Production</title>
+    <title>ARK - Werewolf Escape Simulator v6.6 Performance</title>
     
     <!-- Librerías estables de A-Frame y Extras de Animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -109,7 +109,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Cargando texturas y archivos de audio...</div>
+            <div class="loader-msg" id="loader-status">Optimizando rendimiento de la maqueta...</div>
         </div>
     </div>
 
@@ -157,7 +157,7 @@
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb" crossorigin="anonymous"></a-asset-item.
+            <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-atento-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-atento.glb" crossorigin="anonymous"></a-asset-item>
 
@@ -180,7 +180,7 @@
         <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
         
         <!-- Efecto de Lluvia -->
-        <a-entity particle-system="preset: rain; color: #444; particleCount: 2000; size: 0.4; velocityValue: 0 15 0; opacity: 0.3;"></a-entity>
+        <a-entity particle-system="preset: rain; color: #444; particleCount: 1500; size: 0.4; velocityValue: 0 15 0; opacity: 0.25;"></a-entity>
         
         <!-- Iluminación Exterior -->
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #2a3550"></a-entity>
@@ -259,7 +259,8 @@
             pos: new THREE.Vector3(0, 0, 25), salud: 100, stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
-            esInterior: false, audioStalkPlaying: false, audioEnojadoPlaying: false
+            esInterior: false, audioStalkPlaying: false, audioEnojadoPlaying: false,
+            frameTicks: 0, cachedAlturaSuelo: 0
         };
 
         const UI = {
@@ -292,14 +293,15 @@
                 asset.addEventListener('loaded', onAssetLoaded);
                 asset.addEventListener('error', onAssetLoaded);
             });
-            setTimeout(() => { if (!GAME_STATE.escenaIniciada) showStartButton(); }, 12000);
+            // Seguridad: Si Hugging Face tarda demasiado, fuerza el botón a los 8 segundos
+            setTimeout(() => { if (!GAME_STATE.escenaIniciada) showStartButton(); }, 8000);
         }
 
         function onAssetLoaded() {
             GAME_STATE.assetsCargados++;
             const percent = Math.floor((GAME_STATE.assetsCargados / GAME_STATE.totalAssets) * 100);
             UI.bar.style.width = percent + '%';
-            if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) { setTimeout(showStartButton, 500); }
+            if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) { setTimeout(showStartButton, 300); }
         }
 
         function showStartButton() {
@@ -311,12 +313,10 @@
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
                 
-                // --- ARRANQUE DEL ENGINE DE AUDIO INTEGRADO ---
                 if(document.getElementById('audio-global-limbo').components.sound) {
                     document.getElementById('audio-global-limbo').components.sound.playSound();
                 }
 
-                // Disparador cíclico del aullido del lobo (exactamente cada 1 minuto)
                 setInterval(() => {
                     if (GAME_STATE.juegoActivo && !GAME_STATE.isDead) {
                         const sAullido = document.getElementById('audio-global-aullido').components.sound;
@@ -357,7 +357,7 @@
             window.addEventListener('pointermove', e => {
                 if (!INPUT.isDraggingCam) return;
                 let dx = e.clientX - INPUT.lastMouseX; let dy = e.clientY - INPUT.lastMouseY;
-                INPUT.camYaw -= dx * 0.004; INPUT.camPitch -= dy * 0.004;
+                INPUT.camYaw -= dx * 0.0035; INPUT.camPitch -= dy * 0.0035;
                 INPUT.camPitch = Math.max(-0.4, Math.min(0.4, INPUT.camPitch));
                 INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
             });
@@ -430,6 +430,10 @@
             if (!GAME_STATE.juegoActivo) { requestAnimationFrame(engineLoop); return; }
 
             if (!GAME_STATE.isDead && ENT.rig.object3D) {
+                GAME_STATE.frameTicks++;
+                // Ejecutar raycasting pesado solo una vez cada 6 frames (Throttling del motor 3D)
+                const ejecutarRaycastPesado = (GAME_STATE.frameTicks % 6 === 0);
+
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
                 ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
@@ -440,19 +444,15 @@
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                // --- DETECTOR DE BAJO TECHO (FPP INTERIOR AUTOMÁTICO) ---
-                let bajoTecho = false;
-                if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                // RASTREADOR DE TECHO OPTIMIZADO
+                if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                     const rayoTecho = new THREE.Raycaster(
                         new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
                         new THREE.Vector3(0, 1, 0)
                     );
                     const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
-                    if (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5) {
-                        bajoTecho = true;
-                    }
+                    GAME_STATE.esInterior = (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5);
                 }
-                GAME_STATE.esInterior = bajoTecho;
 
                 const camaraElemento = document.getElementById('main-camera');
                 if (GAME_STATE.esInterior) {
@@ -472,9 +472,8 @@
                     GAME_STATE.pos.x += dx * speed;
                     GAME_STATE.pos.z += dz * speed;
 
-                    // --- SOLUCIÓN DE BALANCEO CONTRA BORDES DE ÁRBOLES Y VEGETACIÓN GLITCH ---
-                    let alturaSuelo = GAME_STATE.pos.y;
-                    if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                    // RASTREADOR DE SUELO OPTIMIZADO CON FILTRADO DE ÁRBOLES
+                    if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                         const rayoCaida = new THREE.Raycaster(
                             new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
                             new THREE.Vector3(0, -1, 0)
@@ -489,7 +488,6 @@
                                 let obj = colisionesSuelo[i].object;
                                 let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
                                 
-                                // Filtrado reactivo: ignoramos colisiones con hojas, copas o troncos de árboles
                                 if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
                                     nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
                                     nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
@@ -505,13 +503,13 @@
                                 }
                             }
                             
-                            // Umbral suave de escalón (0.55m): evita atascos en el relieve o rocas del mapa
                             if (mejorImpacto && menorDiferencia < 0.55) {
-                                alturaSuelo = mejorImpacto.point.y;
+                                GAME_STATE.cachedAlturaSuelo = mejorImpacto.point.y;
                             }
                         }
                     }
-                    GAME_STATE.pos.y = alturaSuelo;
+                    
+                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
                     let targetAngle = Math.atan2(dx, dz);
@@ -524,7 +522,7 @@
                     switchMesh('atento');
                 }
 
-                // Gestión de la Resistencia / Stamina
+                // Stamina
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
                     if (GAME_STATE.stamina <= 0) {
@@ -539,7 +537,7 @@
                 }
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
-                // --- SISTEMA INTERACTIVO DE IA Y AUDIO DEL HOMBRE LOBO ---
+                // IA Lobo
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
                 
@@ -618,7 +616,7 @@
             GAME_STATE.salud = 100; GAME_STATE.stamina = CONFIG.staminaMax; GAME_STATE.isDead = false; GAME_STATE.loboEstado = 'idle';
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.audioStalkPlaying = false; GAME_STATE.audioEnojadoPlaying = false;
-            GAME_STATE.pos.set(0, 0, 25);
+            GAME_STATE.pos.set(0, 0, 25); GAME_STATE.cachedAlturaSuelo = 0;
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(15, 0, -10);
             INPUT.camYaw = 0; INPUT.camPitch = 0;
