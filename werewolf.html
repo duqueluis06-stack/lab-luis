@@ -41,7 +41,7 @@
     <div id="custom-loader">
         <div class="spinner"></div>
         <div class="loader-title">ARK: Simulador v4.4</div>
-        <div class="loader-msg">Inicializando descompresión Draco y forzando matriz estática de `luis-hora`...</div>
+        <div class="loader-msg">Inicializando descompresión Draco y forzando mallas de renderizado...</div>
     </div>
 
     <div id="fade-screen"></div>
@@ -70,7 +70,6 @@
         </div>
     </div>
 
-    <!-- Forzamos la ruta del decodificador Draco oficial de Google para evitar bloqueos -->
     <a-scene id="escena-principal" gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;" fog="type: exponential; color: #030307; density: 0.025;" renderer="antialias: false; colorManagement: true; powerPreference: high-performance;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
@@ -90,7 +89,6 @@
 
         <a-plane rotation="-90 0 0" width="300" height="300" color="#05050a" material="roughness: 1; metalness: 0"></a-plane>
 
-        <!-- El pueblo Draco ahora carga directamente en cualquier dispositivo -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
         <!-- RIG DE LUIS -->
@@ -99,8 +97,8 @@
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1.15;"></a-entity>
                 <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1.25;"></a-entity>
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-                <!-- Agregado force-render definitivo -->
-                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1;" force-render></a-entity>
+                <!-- CORREGIDO: Escala inicial fijada en su tamaño correcto para evitar bugs de carga asíncrona -->
+                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;" force-render></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw">
@@ -191,15 +189,14 @@
         let loboAturdidoTimer = 0;
         let wwPoseActual = "idle";
         
-        // SOLUCIÓN AL BUG: Arranca en vacío para obligar al motor a aplicar la escala en el frame 1
-        let meshActivoLuis = ""; 
+        // CORREGIDO: Inicializa directamente en 'hora' para emparejar el estado con el HTML modificado
+        let meshActivoLuis = "hora"; 
 
         const raycasterSuelo = new THREE.Raycaster();
         const vectorAbajo = new THREE.Vector3(0, -1, 0);
 
-        // Control de carga del entorno
         document.getElementById('entorno').addEventListener('model-loaded', ocultarLoader);
-        setTimeout(ocultarLoader, 4500); // Fail-safe por si Hugging Face tarda en responder
+        setTimeout(ocultarLoader, 4500); 
         
         function ocultarLoader() { if (loaderEliminado) return; loaderEliminado = true; document.getElementById('custom-loader').style.opacity = '0'; setTimeout(() => document.getElementById('custom-loader').remove(), 500); }
 
@@ -369,7 +366,7 @@
                 if(intLobo.length > 0 && Math.abs(intLobo[0].point.y - loboPos.y) < 1.5) { loboPos.y = intLobo[0].point.y; }
             }
 
-            // Movimiento del jugador y actualización forzada
+            // Movimiento del jugador
             if (jugadorEstado === "EXPLORANDO" || jugadorEstado === "SALVADO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -406,7 +403,6 @@
                         avatarContainer.object3D.rotation.y += diffAngle * 0.25;
                     }
                 } else {
-                    // Si no se mueve, forzamos de inmediato el renderizado del avatar estático
                     if (jugadorEstado === "EXPLORANDO") {
                         setLuisMesh('hora'); 
                     } else if (jugadorEstado === "LLAMANDO") {
@@ -416,7 +412,7 @@
                     }
                 }
 
-                // Ajuste dinámico de escaleras / relieve
+                // Ajuste dinámico de terreno
                 if (document.getElementById('entorno').object3D) {
                     let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 1.2, pos.z);
                     raycasterSuelo.set(inicioRaySuelo, vectorAbajo);
