@@ -89,8 +89,8 @@
 
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Conectando Servidor WebGL</div>
-        <div class="loader-msg">Descomprimiendo estructuras Draco de alta fidelidad. Iniciando entorno seguro...</div>
+        <div class="loader-title">Cargando Entorno 3D</div>
+        <div class="loader-msg">Procesando estructuras complejas y preparando controles adaptativos...</div>
     </div>
 
     <div id="alert-ui">⚠️ ¡Huye! Entra en la casa 🏡</div>
@@ -110,7 +110,6 @@
         </div>
     </div>
 
-    <!-- NÚCLEO DRACO ESTABLE DE GOOGLE -->
     <a-scene fog="type: exponential; color: #02040a; density: 0.012;"
              gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
@@ -127,13 +126,12 @@
 
         <a-sky color="#02040a"></a-sky>
 
-        <!-- ILUMINACIÓN GENERAL INTENSIFICADA PARA EVITAR PANTALLA NEGRA -->
         <a-sphere id="luna-llena" position="30 80 -90" radius="6" color="#e2e8f0" material="shader: flat; fog: false"></a-sphere>
         <a-entity light="type: directional; intensity: 0.7; color: #93c5fd;" position="30 80 -90"></a-entity>
         <a-entity light="type: ambient; intensity: 0.4; color: #2e2a72"></a-entity>
 
-        <!-- SUELO BASE DE SEGURIDAD (Si el mapa falla o tarda, nunca verás negro el vacío) -->
-        <a-plane position="0 -0.05 0" rotation="-90 0 0" width="300" height="300" color="#111827" material="roughness: 0.9"></a-plane>
+        <!-- PLANO DE SEGURIDAD FÍSICA CONSTANTE -->
+        <a-plane position="0 -0.02 0" rotation="-90 0 0" width="400" height="400" color="#111827" material="roughness: 0.95"></a-plane>
 
         <!-- ENTIDAD DEL PUEBLO -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
@@ -149,7 +147,6 @@
                 </a-entity>
             </a-entity>
 
-            <!-- CÁMARA CON FOTOMETRÍA FRONTAL -->
             <a-entity id="camera-orbit" position="0 2.1 0">
                 <a-entity id="main-camera" camera position="0 0 4.5">
                     <a-entity light="type: spot; intensity: 2.0; distance: 45; angle: 40; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
@@ -169,10 +166,11 @@
                       animation-mixer="clip: *; loop: repeat; timeScale: 1.3;">
             </a-entity>
 
-            <a-entity id="ww-eyes" position="0 1.85 0.35">
+            <!-- CONTENEDOR DINÁMICO DE OJOS -->
+            <a-entity id="ww-eyes" position="0 1.75 0.35">
                 <a-sphere color="#ffaa00" radius="0.04" position="-0.12 0 0" material="shader: flat; fog: false"></a-sphere>
                 <a-sphere color="#ffaa00" radius="0.04" position="0.12 0 0" material="shader: flat; fog: false"></a-sphere>
-                <a-entity light="type: point; intensity: 0.9; distance: 5; color: #ffaa00"></a-entity>
+                <a-entity light="type: point; intensity: 1.2; distance: 6; color: #ffaa00"></a-entity>
             </a-entity>
         </a-entity>
 
@@ -194,6 +192,7 @@
         
         const luisWalk = document.getElementById('luis-mesh-walk');
         const luisLlama = document.getElementById('luis-mesh-llama');
+        const wwEyes = document.getElementById('ww-eyes');
 
         const wwModels = {
             idle: document.getElementById('ww-idle'),
@@ -226,14 +225,12 @@
             }
         }
 
-        // CONTROL DE CARGA COMPLETA U OPTIMISTAA
         document.getElementById('entorno').addEventListener('model-loaded', () => { 
             entornoCargado = true; 
             ocultarLoader();
         });
 
-        // SALVAGUARDA: Si a los 5 segundos Hugging Face no responde, forzar la apertura del lienzo
-        setTimeout(ocultarLoader, 5000);
+        setTimeout(ocultarLoader, 6000);
 
         function onScreenStart(e) {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.tagName === 'BUTTON') return;
@@ -275,11 +272,22 @@
         };
         setArrowCam('btn-up', 'up'); setArrowCam('btn-down', 'down'); setArrowCam('btn-left', 'left'); setArrowCam('btn-right', 'right');
 
+        // AJUSTE DINÁMICO DE OJOS SEGÚN POSTURA DEL MODELO GLTF
         function cambiarPoseLobo(nuevaPose) {
             loboEstado = nuevaPose;
             Object.keys(wwModels).forEach(key => {
                 if(wwModels[key]) wwModels[key].setAttribute('visible', key === nuevaPose);
             });
+
+            if (wwEyes && wwEyes.object3D) {
+                if (nuevaPose === 'idle') {
+                    wwEyes.object3D.position.set(0, 1.75, 0.35);
+                } else if (nuevaPose === 'howl') {
+                    wwEyes.object3D.position.set(0, 1.95, 0.10);
+                } else if (nuevaPose === 'beast') {
+                    wwEyes.object3D.position.set(0, 1.05, 0.70); // Se encoge a 4 patas y adelanta la cabeza
+                }
+            }
         }
 
         function filtrarInterseccionSuelo(intersects) {
@@ -294,7 +302,6 @@
         function engineLoop() {
             requestAnimationFrame(engineLoop);
 
-            // GUARDA CRÍTICA: Si A-Frame no ha construido las entidades WebGL todavía, posponer ejecución sin colapsar
             if (!rig.object3D || !cameraOrbit.object3D || !avatarContainer.object3D || !werewolfRig.object3D) return;
 
             // ROTACIÓN CÁMARA
@@ -330,7 +337,7 @@
                 }
             }
 
-            // CONTROL DE MOVIMIENTO DINÁMICO DE LUIS
+            // CONTROL DE MOVIMIENTO DINÁMICO DE LUIS (CORREGIDO)
             if (jugadorEstado === "EXPLORANDO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -342,26 +349,38 @@
 
                 if (moviendo) {
                     let oldX = pos.x; let oldZ = pos.z; let oldY = pos.y;
+                    
+                    // VECTORES DE MOVIMIENTO CORREGIDOS (FÓRMULA TRIGONOMÉTRICA EXACTA)
                     const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
                     const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                     pos.x += (fwdX * -inputY + rgtX * inputX) * VELOCIDAD_LUIS;
-                    pos.z += (fwdZ * -inputY + rgtX * inputX) * VELOCIDAD_LUIS;
+                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * VELOCIDAD_LUIS; 
 
                     const targetAngle = camYaw + Math.atan2(inputX, inputY);
                     let deltaAngle = Math.atan2(Math.sin(targetAngle - avatarContainer.object3D.rotation.y), Math.cos(targetAngle - avatarContainer.object3D.rotation.y));
                     avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
 
-                    // RAYCASTING DE SUELO SEGURO
+                    // RAYCASTING NO BLOQUEANTE (Suelo dinámico)
                     if (entornoCargado && meshPueblo && meshPueblo.children.length > 0) {
                         const ray = new THREE.Raycaster(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                         const hits = ray.intersectObject(meshPueblo, true);
                         const hitSuelo = filtrarInterseccionSuelo(hits);
                         if (hitSuelo) {
                             let groundY = hitSuelo.point.y;
-                            if ((groundY - oldY) > 0.8) { pos.x = oldX; pos.z = oldZ; pos.y = oldY; } 
-                            else { pos.y += (groundY - pos.y) * 0.2; }
-                        } else { pos.x = oldX; pos.z = oldZ; }
+                            if ((groundY - oldY) > 0.8) { 
+                                // Si choca contra una pared o desnivel insalvable, rebota a su posición previa
+                                pos.x = oldX; pos.z = oldZ; pos.y = oldY; 
+                            } else { 
+                                pos.y += (groundY - pos.y) * 0.2; 
+                            }
+                        } else { 
+                            // Red de seguridad: si sale de los límites del pueblo camina libre sobre Y=0
+                            pos.y += (0 - pos.y) * 0.2; 
+                        }
+                    } else {
+                        // Si el mapa aún no carga del todo en la GPU, el jugador puede moverse en Y=0 libremente
+                        pos.y = 0;
                     }
                 }
 
