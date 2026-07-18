@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v5.3 Stable</title>
+    <title>ARK - Werewolf Escape Simulator v5.4 Stable</title>
     
     <!-- Librerías estables de A-Frame y Extras -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -144,7 +144,7 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- ESCENA A-FRAME (Optimización antialias: false y precision: medium para VRAM) -->
+    <!-- ESCENA A-FRAME -->
     <a-scene id="escena-principal" 
              fog="type: linear; color: #080812; near: 15; far: 75;" 
              renderer="colorManagement: true; antialias: false; powerPreference: high-performance; precision: medium;" 
@@ -163,7 +163,7 @@
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-atento-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-atento.glb" crossorigin="anonymous"></a-asset-item>
             
-            <!-- Servidores con CORS Abierto para garantizar el funcionamiento del audio -->
+            <!-- Canales estables de Wikimedia con políticas abiertas directas -->
             <audio id="snd-rain" src="https://upload.wikimedia.org/wikipedia/commons/8/87/Rain_on_roof_loop.mp3" preload="auto" crossorigin="anonymous"></audio>
             <audio id="snd-howl" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Wolf_howl_single.mp3" preload="auto" crossorigin="anonymous"></audio>
             <audio id="snd-thunder" src="https://upload.wikimedia.org/wikipedia/commons/8/80/Thunder_close.mp3" preload="auto" crossorigin="anonymous"></audio>
@@ -176,15 +176,12 @@
         <a-entity id="luz-luna" light="type: directional; intensity: 0.7; color: #9abaff;" position="20 50 -40"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
-        <!-- Canales de audio nativos de A-Frame -->
-        <a-entity id="ent-snd-rain" sound="src: #snd-rain; autoplay: true; loop: true; volume: 0.4; poolSize: 1;"></a-entity>
+        <a-entity id="ent-snd-rain" sound="src: #snd-rain; autoplay: false; loop: true; volume: 0.4; poolSize: 1;"></a-entity>
         <a-entity id="ent-snd-howl" sound="src: #snd-howl; autoplay: false; volume: 0.8; poolSize: 1;"></a-entity>
         <a-entity id="ent-snd-thunder" sound="src: #snd-thunder; autoplay: false; volume: 0.9; poolSize: 1;"></a-entity>
 
-        <!-- El Pueblo/Entorno -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- Zona de Refugio -->
         <a-entity id="refugio-target" position="17.4 0.2 16.5">
             <a-entity light="type: point; intensity: 3.0; distance: 15; color: #ff8822;"></a-entity>
             <a-cylinder radius="3" height="0.1" color="#ff8822" material="opacity: 0.3; transparent: true; shader: flat;"></a-cylinder>
@@ -202,7 +199,6 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <!-- OPTIMIZACIÓN DE CÁMARA: Más cercana (2.2m) y mayor FOV para interiores sin colisiones -->
                     <a-entity id="main-camera" camera="fov: 70; near: 0.1; far: 300;" position="0 1.5 2.2">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.5; distance: 45; angle: 40; penumbra: 0.4; color: #fffee0;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
@@ -210,7 +206,7 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO: WEREWOLF -->
+        <!-- ENEMIGO -->
         <a-entity id="werewolf-rig" position="15 0 -10">
             <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" scale="0.8 0.8 0.8" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
@@ -225,11 +221,11 @@
             velCaminar: 0.06,
             velCorrer: 0.13,
             suavizadoGiroAvatar: 0.25,
-            staminaMax: 200,          // ENERGÍA DUPLICADA
-            staminaGasto: 0.22,       // CONSUMO REDUCIDO A LA MITAD
+            staminaMax: 200,
+            staminaGasto: 0.22,
             staminaRecuperacion: 0.4,
-            wwVelAcecho: 0.016,       // LOBO MÁS EQUILIBRADO PARA MÓVIL
-            wwVelAtaque: 0.048,       // VELOCIDAD DE CARGA REDUCIDA
+            wwVelAcecho: 0.016,
+            wwVelAtaque: 0.048,
             distDeteccionLobo: 30,
             distAtaqueLobo: 14,
             distMeleeLobo: 2.3,
@@ -237,7 +233,7 @@
         };
 
         const GAME_STATE = {
-            assetsCargados: 0, totalAssets: 0, escenaIniciada: false,
+            assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             pos: new THREE.Vector3(0, 0, 25), salud: 100, stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0
@@ -251,7 +247,7 @@
 
         const ENT = {
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
-            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'),
+            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), llama: document.getElementById('luis-mesh-llama'), atento: document.getElementById('luis-mesh-atento'), activeName: 'atento' },
             wwRig: document.getElementById('werewolf-rig'),
@@ -271,40 +267,51 @@
         function initLoader() {
             const assets = document.querySelectorAll('a-asset-item, audio');
             GAME_STATE.totalAssets = assets.length;
-            if (GAME_STATE.totalAssets === 0) { startScene(); return; }
+            if (GAME_STATE.totalAssets === 0) { showStartButton(); return; }
             assets.forEach(asset => {
                 asset.addEventListener('loaded', onAssetLoaded);
                 asset.addEventListener('error', onAssetLoaded);
             });
-            setTimeout(() => { if (!GAME_STATE.escenaIniciada) startScene(); }, 12000);
+            setTimeout(() => { if (!GAME_STATE.escenaIniciada) showStartButton(); }, 12000);
         }
 
         function onAssetLoaded() {
             GAME_STATE.assetsCargados++;
             const percent = Math.floor((GAME_STATE.assetsCargados / GAME_STATE.totalAssets) * 100);
             UI.bar.style.width = percent + '%';
-            if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) { setTimeout(startScene, 500); }
+            if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) { setTimeout(showStartButton, 500); }
         }
 
-        function startScene() {
+        // Genera el botón interactivo obligatorio para forzar el audio sin errores de seguridad
+        function showStartButton() {
             if (GAME_STATE.escenaIniciada) return;
             GAME_STATE.escenaIniciada = true;
-            UI.loader.classList.add('hidden');
             
-            initControls();
-            GAME_STATE.lastFrameTime = performance.now();
-            requestAnimationFrame(engineLoop);
-            setInterval(triggerThunder, 11000);
+            UI.status.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 13px; letter-spacing: 2px; margin-top: 15px; box-shadow: 0 0 20px rgba(239,68,68,0.5); text-transform: uppercase;">Entrar a la Simulación</button>`;
             
-            // Forzar desbloqueo de audio nativo al iniciar el entorno por interacción
-            document.body.addEventListener('pointerdown', () => {
+            document.getElementById('btn-play-engine').addEventListener('click', () => {
+                UI.loader.classList.add('hidden');
+                
+                // Desbloqueo forzado de contextos Web Audio API
                 if(ENT.scene.audioListener && ENT.scene.audioListener.context.state === 'suspended') {
                     ENT.scene.audioListener.context.resume();
                 }
+                
+                // Forzar reproducción de los elementos nativos
+                document.querySelectorAll('audio').forEach(track => {
+                    track.play().catch(() => {});
+                });
+
                 if(ENT.sndRain && ENT.sndRain.components.sound) {
                     ENT.sndRain.components.sound.playSound();
                 }
-            }, { once: true });
+
+                initControls();
+                GAME_STATE.juegoActivo = true;
+                GAME_STATE.lastFrameTime = performance.now();
+                requestAnimationFrame(engineLoop);
+                setInterval(triggerThunder, 11000);
+            });
         }
 
         function initControls() {
@@ -347,7 +354,6 @@
 
             UI.btnReset.addEventListener('click', resetGame);
             
-            // SPRINT CONFIGURADO COMO TOGGLE (Tocar y activar/desactivar)
             UI.btnSprint.addEventListener('click', () => {
                 if (GAME_STATE.enCooldownSprint) return;
                 toggleSprint(!GAME_STATE.modoCorrerActive);
@@ -418,6 +424,12 @@
             const dt = (time - GAME_STATE.lastFrameTime) / 1000;
             GAME_STATE.lastFrameTime = time;
 
+            // Congela de raíz la ejecución si el jugador no ha pulsado el botón (evita errores en móvil)
+            if (!GAME_STATE.juegoActivo) {
+                requestAnimationFrame(engineLoop);
+                return;
+            }
+
             if (!GAME_STATE.isDead && ENT.rig.object3D) {
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
                 ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
@@ -443,7 +455,42 @@
 
                     GAME_STATE.pos.x += dx * speed;
                     GAME_STATE.pos.z += dz * speed;
-                    ENT.rig.object3D.position.set(GAME_STATE.pos.x, 0, GAME_STATE.pos.z);
+
+                    // --- SISTEMA INTEGÉRRIMO DE ESCALERAS Y ALTURA MEDIANTE INTERSECCIÓN DE MALLA ---
+                    let alturaSuelo = 0;
+                    if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                        const rayoCaida = new THREE.Raycaster(
+                            new THREE.Vector3(GAME_STATE.pos.x, 30, GAME_STATE.pos.z),
+                            new THREE.Vector3(0, -1, 0)
+                        );
+                        const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                        if (colisionesSuelo.length > 0) {
+                            alturaSuelo = colisionesSuelo[0].point.y;
+                        }
+                    }
+                    GAME_STATE.pos.y = alturaSuelo;
+                    ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
+
+                    // --- DETECTOR ULTRA-RÁPIDO DE INTERIORES (TECHOS COCHOS DE CASAS) ---
+                    let bajoTecho = false;
+                    if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                        const rayoTecho = new THREE.Raycaster(
+                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
+                            new THREE.Vector3(0, 1, 0)
+                        );
+                        const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                        if (colisionesTecho.length > 0 && colisionesTecho[0].distance < 4.0) {
+                            bajoTecho = true;
+                        }
+                    }
+
+                    // Forzar primera persona si estás bajo el techo de una casita para evitar ver vigas rotas
+                    const camaraElemento = document.getElementById('main-camera');
+                    if (bajoTecho) {
+                        camaraElemento.setAttribute('position', '0 1.6 0');
+                    } else {
+                        camaraElemento.setAttribute('position', '0 1.5 2.2');
+                    }
 
                     let targetAngle = Math.atan2(dx, dz);
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
@@ -468,7 +515,6 @@
                     }
                 }
                 
-                // Renderizado proporcional exacto de la nueva barra extendida
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
                 let loboPos = ENT.wwRig.object3D.position;
@@ -523,7 +569,7 @@
         }
 
         function triggerThunder() {
-            if (GAME_STATE.isDead || !GAME_STATE.escenaIniciada) return;
+            if (GAME_STATE.isDead || !GAME_STATE.juegoActivo) return;
             if (ENT.sndThunder && ENT.sndThunder.components.sound) ENT.sndThunder.components.sound.playSound();
             
             const luz = ENT.luzRelampago.object3D.element;
