@@ -111,7 +111,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Conectando audios locales y virtuales...</div>
+            <div class="loader-msg" id="loader-status">Conectando audios locales de tu repositorio GitHub...</div>
         </div>
     </div>
 
@@ -151,7 +151,6 @@
         
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
@@ -191,8 +190,7 @@
 
         <!-- ENEMIGO -->
         <a-entity id="werewolf-rig" position="25 0 -15">
-            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
         </a-entity>
 
@@ -266,7 +264,7 @@
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'BOSQUE', lastFrameTime: 0,
-            esInterior: false, frameTicks: 0, cachedAlturaSuelo: 0, activeMesh: 'atento', wwActiveMesh: 'howl',
+            esInterior: false, frameTicks: 0, cachedAlturaSuelo: 0, activeMesh: 'atento', wwActiveMesh: 'beast',
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(25, 0, -15), tiempoUltimoAullido: 0
         };
 
@@ -292,7 +290,7 @@
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), atento: document.getElementById('luis-mesh-atento') },
             wwRig: document.getElementById('werewolf-rig'),
-            wwMeshes: { howl: document.getElementById('ww-mesh-howl'), beast: document.getElementById('ww-mesh-beast') }
+            wwMeshes: { beast: document.getElementById('ww-mesh-beast') }
         };
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
@@ -375,7 +373,7 @@
             window.addEventListener('pointermove', e => {
                 if (!joyActive) return;
                 let dx = e.clientX - jStartX; let dy = e.clientY - jStartY;
-                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
+                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dx);
                 if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
                 knob.style.transform = `translate(${dx}px, ${dy}px)`;
                 INPUT.joyMove.x = dx / maxLen; INPUT.joyMove.y = dy / maxLen;
@@ -505,7 +503,6 @@
                             const colisiones = rayo.intersectObject(ENT.entorno.getObject3D('mesh'), true);
                             if (colisiones.length > 0) {
                                 let validY = colisiones[0].point.y;
-                                // Evita teletransportes verticales raros causados por las copas o follaje
                                 if (!isNaN(validY) && Math.abs(validY - GAME_STATE.pos.y) < 0.75) {
                                     GAME_STATE.cachedAlturaSuelo = validY;
                                 }
@@ -529,7 +526,7 @@
                     switchMesh('atento');
                 }
 
-               const camaraElemento = document.getElementById('main-camera');
+                const camaraElemento = document.getElementById('main-camera');
                 if (camaraElemento) {
                     if (GAME_STATE.esInterior) {
                         camaraElemento.setAttribute('position', '0 0.35 0'); 
@@ -571,7 +568,7 @@
                             loboPos.z += dirALugar.z * CONFIG.wwVelAcecho;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(dirALugar.x, dirALugar.z);
                         } else {
-                            switchWwMesh('howl');
+                            switchWwMesh('beast');
                             if (GAME_STATE.frameTicks % 250 === 0) {
                                 GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
                             }
@@ -624,12 +621,11 @@
                         }
                     } else {
                         GAME_STATE.loboEstado = 'BOSQUE';
-                        switchWwMesh('howl');
+                        switchWwMesh('beast');
                         UI.damage.classList.remove('active');
                     }
                 }
 
-                // Control reactivo en tiempo real de tus pistas de GitHub
                 AudioController.actualizarProximidad(GAME_STATE.loboEstado, distJugadorLobo);
 
             } catch (err) {
@@ -672,10 +668,9 @@
             UI.jumpscare.classList.remove('active');
 
             for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            GAME_STATE.activeMesh = 'atento'; GAME_STATE.wwActiveMesh = 'howl';
+            GAME_STATE.activeMesh = 'atento'; GAME_STATE.wwActiveMesh = 'beast';
 
-            if(ENT.wwMeshes.howl) { ENT.wwMeshes.howl.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.howl.setAttribute('visible', 'true'); }
-            if(ENT.wwMeshes.beast) { ENT.wwMeshes.beast.setAttribute('scale', '0 0 0'); ENT.wwMeshes.beast.setAttribute('visible', 'false'); }
+            if(ENT.wwMeshes.beast) { ENT.wwMeshes.beast.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.beast.setAttribute('visible', 'true'); }
             if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
             
             AudioController.reproducirMusicaFondo();
