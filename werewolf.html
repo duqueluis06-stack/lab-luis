@@ -99,8 +99,8 @@
 
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Atmósfera de Terror Activa</div>
-        <div class="loader-msg">Estabilizando físicas sólidas e inyectando bruma neón de peligro dinámico...</div>
+        <div class="loader-title">Restaurando Detalles Originales</div>
+        <div class="loader-msg">Renderizando texturas nativas del pueblo y configurando bruma de pesadilla por sectores...</div>
     </div>
 
     <div id="alert-ui">⚠️ ¡Huye! Entra en la casa 🏡</div>
@@ -121,8 +121,8 @@
         </div>
     </div>
 
+    <!-- CARGA NATIVA GLB SIN DRACO PARA MÁXIMO DETALLE -->
     <a-scene id="escena-principal" fog="type: exponential; color: #02040a; density: 0.015;"
-             gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
         
@@ -146,9 +146,9 @@
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
-        <!-- ENTORNO DEL JUGADOR (ESCALA HUMANA EQUILIBRADA) -->
+        <!-- ENTORNO DEL JUGADOR (TAMAÑO DEL AVATAR CORREGIDO A 0.38 PARA LAS SILLAS) -->
         <a-entity id="player-rig" position="0 0 15">
-            <a-entity id="avatar-container" position="0 0.02 0" scale="0.28 0.28 0.28">
+            <a-entity id="avatar-container" position="0 0.02 0" scale="0.38 0.38 0.38">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true"
                           animation-mixer="clip: *; loop: repeat; timeScale: 0;">
                 </a-entity>
@@ -160,22 +160,30 @@
                 </a-entity>
             </a-entity>
 
-            <a-entity id="camera-orbit" position="0 0.65 0">
-                <a-entity id="main-camera" camera position="0 0 1.7">
+            <!-- CAPAS LOCALIZADAS DE BRUMA/HUMO DE PESADILLA (SOLO ALREDEDOR DEL JUGADOR, POR PARTES) -->
+            <a-entity id="nightmare-smoke" visible="false">
+                <a-sphere position="0 0.6 -1.2" radius="0.8" color="#160205" material="transparent: true; opacity: 0.45; shader: flat; side: double"></a-sphere>
+                <a-sphere position="-0.9 0.9 -0.6" radius="0.6" color="#0a0003" material="transparent: true; opacity: 0.5; shader: flat; side: double"></a-sphere>
+                <a-sphere position="0.9 0.5 -0.8" radius="0.7" color="#1c0408" material="transparent: true; opacity: 0.4; shader: flat; side: double"></a-sphere>
+                <a-sphere position="0 1.4 0.6" radius="0.75" color="#080104" material="transparent: true; opacity: 0.35; shader: flat; side: double"></a-sphere>
+            </a-entity>
+
+            <!-- CÁMARA AJUSTADA EN PROPORCIÓN AL NUEVO TAMAÑO -->
+            <a-entity id="camera-orbit" position="0 0.85 0">
+                <a-entity id="main-camera" camera position="0 0 2.0">
                     <a-entity light="type: spot; intensity: 2.0; distance: 25; angle: 45; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
                 </a-entity>
             </a-entity>
         </a-entity>
 
-        <!-- HOMBRE LOBO GIGANTE E IMPONENTE (ESCALA AUMENTADA A 0.55) -->
-        <a-entity id="werewolf-rig" position="-12 0 -8" scale="0.55 0.55 0.55">
+        <!-- HOMBRE LOBO GIGANTE (AJUSTADO EN PROPORCIÓN A 0.68) -->
+        <a-entity id="werewolf-rig" position="-12 0 -8" scale="0.68 0.68 0.68">
             <a-entity id="ww-idle" gltf-model="#ww-idle-src" visible="true"
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
             <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false"
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
-            <!-- ACCIÓN 3: COMPLETA MENTE ERGUIDO Y ESTÁTICO -->
             <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false"
                       animation-mixer="clip: *; loop: repeat; timeScale: 0.8;">
             </a-entity>
@@ -188,24 +196,24 @@
 
         const SPAWN_X = 0; const SPAWN_Z = 15;
         const CASA_FACHADA_X = 17.44; const CASA_FACHADA_Z = 17.78;
-        const RADIO_DISPARADOR = 1.0; 
+        const RADIO_DISPARADOR = 1.2; 
         const CASA_INTERIOR_X = 17.50; const CASA_INTERIOR_Z = 15.50;
         
-        // VELOCIDADES DE TERROR AJUSTADAS
         const VEL_CAMINAR = 0.035;
-        const VEL_CORRER = 0.068; // Un click más lento para preservar la inmersión
+        const VEL_CORRER = 0.068; 
 
-        // MAPA FÍSICO DE OBSTÁCULOS RÍGIDOS (Bloquea tanto al jugador como al lobo)
+        // COLISIONES FÍSICAS REAJUSTADAS AL NUEVO ANCHO DEL AVATAR
         const obstaculosEntorno = [
-            {x: 17.44, z: 17.0, r: 2.3}, // Estructura de la casa principal
-            {x: -6, z: 4, r: 2.0},       // Árboles zona oeste
-            {x: 6, z: -4, r: 1.8},       // Rocas y vegetación norte
-            {x: -12, z: 12, r: 2.2},     // Bosque lateral izquierdo
-            {x: 14, z: 5, r: 1.9}        // Construcción este
+            {x: 17.44, z: 17.0, r: 2.4}, 
+            {x: -6, z: 4, r: 2.1},       
+            {x: 6, z: -4, r: 1.9},       
+            {x: -12, z: 12, r: 2.3},     
+            {x: 14, z: 5, r: 2.0}        
         ];
 
         const escena = document.getElementById('escena-principal');
         const luzAmbiental = document.getElementById('luz-ambiental');
+        const nightmareSmoke = document.getElementById('nightmare-smoke');
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const werewolfRig = document.getElementById('werewolf-rig');
@@ -333,34 +341,38 @@
 
             let distLoboJugador = Math.sqrt(Math.pow(pos.x - loboPos.x, 2) + Math.pow(pos.z - loboPos.z, 2));
 
-            // SISTEMA DINÁMICO DE BRUMA NEÓN ROJA DE PELIGRO
+            // SISTEMA DE NIEBLA OSCURA Y CAPAS DE HUMO GIRATORIAS (PESADILLA POR PARTES)
             if (distLoboJugador < 6.8 && jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #ff0000; density: 0.05;');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.7; color: #ff2222');
+                nightmareSmoke.setAttribute('visible', 'true');
+                nightmareSmoke.object3D.rotation.y += 0.006; // Movimiento sutil y realista de humo flotante
                 
-                if (distLoboJugador < 0.9) {
+                // Bruma densa oscura de pesadilla en vez de rojo neón estridente
+                escena.setAttribute('fog', 'type: exponential; color: #070208; density: 0.038;');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.25; color: #3a0e16');
+                
+                if (distLoboJugador < 1.0) {
                     alertUI.innerHTML = "🚨 ¡EL HOMBRE LOBO TE ALCANZÓ! 🚨<br>¡Muévete rápido!";
                     let repelerX = (pos.x - loboPos.x) / distLoboJugador;
                     let repelerZ = (pos.z - loboPos.z) / distLoboJugador;
                     pos.x += repelerX * 0.06; pos.z += repelerZ * 0.06;
                 } else {
-                    alertUI.innerHTML = "⚠️ SIENTO UNA PRESENCIA... ¡EL LOBO ESTÁ CERCA! 🐺";
+                    alertUI.innerHTML = "⚠️ SIENTO UNA PRESENCIA... EL HUMO SE ESPESA 🐺";
                 }
             } else if (jugadorEstado === "EXPLORANDO") {
-                // Restaurar bruma normal nocturna si está lejos
+                // Desactivar el humo localizado y restaurar la noche limpia
+                nightmareSmoke.setAttribute('visible', 'false');
                 escena.setAttribute('fog', 'type: exponential; color: #02040a; density: 0.015;');
                 luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.4; color: #2e2a72');
                 alertUI.innerHTML = "⚠️ ¡Huye! Entra en la casa 🏡";
             }
 
-            // GESTIÓN DE LA IA DEL HOMBRE LOBO + ACCIÓN 3 ERGUIDA
+            // GESTIÓN DE LA IA DEL HOMBRE LOBO
             if (loboEstado === 'howl') {
                 loboTimerEstado += 1;
                 if (loboTimerEstado > 180) { cambiarPoseLobo('idle'); loboTimerEstado = 0; }
             } else if (loboEstado === 'beast') {
-                // Acción 3: Se queda erguido, quieto e imponente observando el entorno
                 loboTimerEstado += 1;
-                if (loboTimerEstado > 140) { // Tras 2.3 segundos quieto, cambia al siguiente punto
+                if (loboTimerEstado > 140) { 
                     waypointIndex = (waypointIndex + 1) % loboWaypoints.length;
                     cambiarPoseLobo('idle');
                     loboTimerEstado = 0;
@@ -380,23 +392,21 @@
                         loboPos.z += (dz / distLobo) * 0.032;
                         werewolfRig.object3D.rotation.y = Math.atan2(dx, dz);
 
-                        // Evitar que el lobo atraviese árboles colisionando geométricamente
                         for (let obs of obstaculosEntorno) {
                             if (Math.sqrt(Math.pow(loboPos.x - obs.x, 2) + Math.pow(loboPos.z - obs.z, 2)) < obs.r) {
                                 loboPos.x = viejoLoboX; loboPos.z = viejoLoboZ;
-                                waypointIndex = (waypointIndex + 1) % loboWaypoints.length; // Desviar ruta
+                                waypointIndex = (waypointIndex + 1) % loboWaypoints.length; 
                                 break;
                             }
                         }
                     } else {
-                        // Al llegar al punto de destino activa el modo ERGUIDO Y QUIETO
                         cambiarPoseLobo('beast');
                         loboTimerEstado = 0;
                     }
                 }
             }
 
-            // CONTROL DE MOVIMIENTO DINÁMICO E INTERRUPTOR DE PIERNAS CERRADAS
+            // CONTROL DEL AVATAR
             if (jugadorEstado === "EXPLORANDO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -423,7 +433,6 @@
                     pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
                     pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual; 
 
-                    // CONTROL TOTAL DE FÍSICAS SÓLIDAS EN EL ENTORNO
                     let choco = false;
                     for (let obs of obstaculosEntorno) {
                         let dObj = Math.sqrt(Math.pow(pos.x - obs.x, 2) + Math.pow(pos.z - obs.z, 2));
@@ -435,7 +444,6 @@
                     let deltaAngle = Math.atan2(Math.sin(targetAngle - avatarContainer.object3D.rotation.y), Math.cos(targetAngle - avatarContainer.object3D.rotation.y));
                     avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
                 } else {
-                    // PARADO SEGURO: Fuerza a cerrar las piernas volviendo a la pose base estática del mesh de caminata
                     luisWalk.setAttribute('visible', 'true');
                     luisRun.setAttribute('visible', 'false');
                     luisLlama.setAttribute('visible', 'false');
@@ -454,10 +462,10 @@
 
                     setTimeout(() => {
                         jugadorEstado = "SALVADO";
-                        // Pasa mágicamente a través de la puerta al interior seguro
                         pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
                         escena.setAttribute('fog', 'type: exponential; color: #02040a; density: 0.015;');
                         luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.4; color: #2e2a72');
+                        nightmareSmoke.setAttribute('visible', 'false');
                         
                         luisLlama.setAttribute('visible', 'false');
                         luisWalk.setAttribute('visible', 'true'); 
@@ -472,7 +480,6 @@
             if (!rig.object3D) return;
             jugadorEstado = "EXPLORANDO";
             modoCorrer = false;
-            btnSprint.textContent = "RETORNAR A EXPLORAR";
             btnSprint.textContent = "🏃‍♂️ CORRER";
             btnSprint.style.borderColor = "#ef4444";
             rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
