@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v5.6 Stable</title>
+    <title>ARK - Werewolf Escape Simulator v5.8 Interior-Fix</title>
     
     <!-- Librerías estables de A-Frame y Extras -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -41,10 +41,7 @@
             border-top-color: var(--ui-red); border-radius: 50%; 
             animation: spin 1s linear infinite; 
         }
-        .spinner-icon {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 28px; color: var(--ui-red); animation: pulse 2s infinite;
-        }
+        .spinner-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: var(--ui-red); animation: pulse 2s infinite; }
 
         .loader-text-group { text-align: center; }
         .loader-title { color: var(--ui-red); font-size: 18px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
@@ -124,7 +121,7 @@
     <div id="ui-top-bar">
         <div class="ui-row">
             <button id="btn-reset" class="ui-btn">🔄</button>
-            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. Corre hacia la luz naranja del refugio 🏡</div>
+            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. Refúgiate en la fogata del campamento ⛺</div>
             <button id="btn-sprint" class="ui-btn">SPRINT</button>
         </div>
         <div id="stamina-container">
@@ -177,10 +174,25 @@
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <a-entity id="refugio-target" position="17.4 0.2 16.5">
-            <a-entity light="type: point; intensity: 3.0; distance: 15; color: #ff8822;"></a-entity>
-            <a-cylinder radius="3" height="0.1" color="#ff8822" material="opacity: 0.3; transparent: true; shader: flat;"></a-cylinder>
-            <a-box width="0.5" height="4" depth="0.5" color="#ffaa44" material="shader: flat" animation="property: scale; from: 1 1 1; to: 1 1.3 1; dir: alternate; loop: true; dur: 800"></a-box>
+        <!-- FOGATA VIRTUAL REALISTA (ZONA DE SALVACIÓN) -->
+        <a-entity id="refugio-target" position="17.4 0.05 16.5">
+            <!-- Luz dinámica parpadeante de la fogata -->
+            <a-entity light="type: point; intensity: 3.5; distance: 12; color: #ff5500;" 
+                      animation="property: light.intensity; from: 2.7; to: 3.8; dur: 110; dir: alternate; loop: true"></a-entity>
+            
+            <!-- Troncos cruzados estilizados -->
+            <a-cylinder radius="0.08" height="0.9" color="#4a2e1b" rotation="20 45 30" position="0 0.05 0"></a-cylinder>
+            <a-cylinder radius="0.08" height="0.9" color="#3d2516" rotation="25 -45 -20" position="0 0.05 0"></a-cylinder>
+            <a-cylinder radius="0.08" height="0.9" color="#5c3a21" rotation="-30 90 10" position="0 0.05 0"></a-cylinder>
+            
+            <!-- Fuego Central Animado (Doble cono asíncrono para dar volumen orgánico) -->
+            <a-cone radius-bottom="0.35" radius-top="0.01" height="0.8" color="#ff6a00" material="shader: flat; transparent: true; opacity: 0.85" position="0 0.35 0"
+                    animation="property: scale; from: 1 1 1; to: 1.15 1.3 1.15; dir: alternate; loop: true; dur: 220"></a-cone>
+            <a-cone radius-bottom="0.22" radius-top="0.01" height="0.65" color="#ffcc00" material="shader: flat; transparent: true; opacity: 0.95" position="0 0.38 0"
+                    animation="property: scale; from: 0.9 1 0.9; to: 1.2 1.4 1.2; dir: alternate; loop: true; dur: 160"></a-cone>
+            
+            <!-- Base de cenizas oscuras -->
+            <a-circle radius="0.6" color="#1a1a1a" rotation="-90 0 0" position="0 0.01 0"></a-circle>
         </a-entity>
 
         <!-- RIG JUGADOR -->
@@ -201,11 +213,11 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO -->
+        <!-- ENEMIGO (HOMBRE LOBO) -->
         <a-entity id="werewolf-rig" position="15 0 -10">
-            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" scale="0.8 0.8 0.8" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
         </a-entity>
 
@@ -232,8 +244,7 @@
             pos: new THREE.Vector3(0, 0, 25), salud: 100, stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
-            // Contenedor de Audio Nativo en JS
-            audio: { rain: null, howl: null, thunder: null }
+            esInterior: false
         };
 
         const UI = {
@@ -285,24 +296,11 @@
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
                 
-                // --- INSTANCIACIÓN DE AUDIO EN HILO DE USUARIO DIRECTO ---
-                try {
-                    GAME_STATE.audio.rain = new Audio("https://upload.wikimedia.org/wikipedia/commons/8/87/Rain_on_roof_loop.mp3");
-                    GAME_STATE.audio.howl = new Audio("https://upload.wikimedia.org/wikipedia/commons/d/dd/Wolf_howl_single.mp3");
-                    GAME_STATE.audio.thunder = new Audio("https://upload.wikimedia.org/wikipedia/commons/8/80/Thunder_close.mp3");
-
-                    // Forzar carga interna
-                    Object.keys(GAME_STATE.audio).forEach(k => {
-                        GAME_STATE.audio[k].load();
-                    });
-
-                    // Configurar y reproducir Lluvia de fondo
-                    GAME_STATE.audio.rain.volume = 0.3;
-                    GAME_STATE.audio.rain.loop = true;
-                    GAME_STATE.audio.rain.play().catch(err => console.log("Audio retenido por política del navegador:", err));
-                } catch(e) {
-                    console.error("Error crítico inicializando el motor de audio JS:", e);
-                }
+                /* =============================================================
+                   ESPACIO PARA TUS 4 AUDIOS PERSONALIZADOS
+                   Cuando los tengas listos, puedes descomentar e inicializarlos aquí:
+                   ej: var miAudio = new Audio('url_de_tu_mp3'); miAudio.play();
+                   ============================================================= */
 
                 initControls();
                 GAME_STATE.juegoActivo = true;
@@ -319,10 +317,7 @@
                 if(k === 's' || k === 'arrowdown') INPUT.keys.s = true;
                 if(k === 'a' || k === 'arrowleft') INPUT.keys.a = true;
                 if(k === 'd' || k === 'arrowright') INPUT.keys.d = true;
-                if(e.key === 'Shift') {
-                    e.preventDefault();
-                    toggleSprint(!GAME_STATE.modoCorrerActive);
-                }
+                if(e.key === 'Shift') { e.preventDefault(); toggleSprint(!GAME_STATE.modoCorrerActive); }
             });
             window.addEventListener('keyup', e => {
                 const k = e.key.toLowerCase();
@@ -335,49 +330,32 @@
             window.addEventListener('pointerdown', e => {
                 if (e.target.closest('.ui-btn') || e.target.closest('.control-wrapper') || e.target.closest('#alert-ui')) return;
                 INPUT.isDraggingCam = true;
-                INPUT.lastMouseX = e.clientX;
-                INPUT.lastMouseY = e.clientY;
+                INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
             });
             window.addEventListener('pointermove', e => {
                 if (!INPUT.isDraggingCam) return;
-                let dx = e.clientX - INPUT.lastMouseX;
-                let dy = e.clientY - INPUT.lastMouseY;
-                INPUT.camYaw -= dx * 0.004;
-                INPUT.camPitch -= dy * 0.004;
+                let dx = e.clientX - INPUT.lastMouseX; let dy = e.clientY - INPUT.lastMouseY;
+                INPUT.camYaw -= dx * 0.004; INPUT.camPitch -= dy * 0.004;
                 INPUT.camPitch = Math.max(-0.4, Math.min(0.4, INPUT.camPitch));
-                INPUT.lastMouseX = e.clientX;
-                INPUT.lastMouseY = e.clientY;
+                INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
             });
             window.addEventListener('pointerup', () => INPUT.isDraggingCam = false);
 
             UI.btnReset.addEventListener('click', resetGame);
-            
-            UI.btnSprint.addEventListener('click', () => {
-                if (GAME_STATE.enCooldownSprint) return;
-                toggleSprint(!GAME_STATE.modoCorrerActive);
-            });
+            UI.btnSprint.addEventListener('click', () => { if (!GAME_STATE.enCooldownSprint) toggleSprint(!GAME_STATE.modoCorrerActive); });
 
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
-            let joyActive = false;
-            let jStartX = 0, jStartY = 0;
+            let joyActive = false; let jStartX = 0, jStartY = 0;
 
-            const handleJoyStart = (e) => {
-                joyActive = true;
-                const rect = container.getBoundingClientRect();
-                jStartX = rect.left + rect.width / 2;
-                jStartY = rect.top + rect.height / 2;
-            };
+            const handleJoyStart = (e) => { joyActive = true; const rect = container.getBoundingClientRect(); jStartX = rect.left + rect.width / 2; jStartY = rect.top + rect.height / 2; };
             const handleJoyMove = (e) => {
                 if (!joyActive) return;
-                let dx = e.clientX - jStartX;
-                let dy = e.clientY - jStartY;
-                const maxLen = 35;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+                let dx = e.clientX - jStartX; let dy = e.clientY - jStartY;
+                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
                 knob.style.transform = `translate(${dx}px, ${dy}px)`;
-                INPUT.joyMove.x = dx / maxLen;
-                INPUT.joyMove.y = dy / maxLen;
+                INPUT.joyMove.x = dx / maxLen; INPUT.joyMove.y = dy / maxLen;
             };
             const handleJoyEnd = () => { joyActive = false; knob.style.transform = 'translate(0px,0px)'; INPUT.joyMove.x = 0; INPUT.joyMove.y = 0; };
 
@@ -396,25 +374,35 @@
 
         function toggleSprint(active) {
             if (active && GAME_STATE.stamina > 20 && !GAME_STATE.enCooldownSprint) {
-                GAME_STATE.modoCorrerActive = true;
-                UI.btnSprint.classList.add('active');
+                GAME_STATE.modoCorrerActive = true; UI.btnSprint.classList.add('active');
             } else {
-                GAME_STATE.modoCorrerActive = false;
-                UI.btnSprint.classList.remove('active');
+                GAME_STATE.modoCorrerActive = false; UI.btnSprint.classList.remove('active');
             }
         }
 
         function switchMesh(target) {
-            if (ENT.meshes.activeName === target) return;
+            if (ENT.meshes.activeName === target) {
+                if (GAME_STATE.esInterior) ENT.meshes[target].setAttribute('scale', '0 0 0');
+                return;
+            }
             ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
-            ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
+            if (!GAME_STATE.esInterior) {
+                ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
+            }
             ENT.meshes.activeName = target;
         }
 
         function switchWwMesh(target) {
             if (ENT.wwMeshes.activeName === target) return;
+            
+            // Apagamos el viejo
             ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('scale', '0 0 0');
+            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
+            
+            // Encendemos el nuevo de forma explícita para evitar pérdidas de contexto WebGL
             ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
+            ENT.wwMeshes[target].setAttribute('visible', 'true');
+            
             ENT.wwMeshes.activeName = target;
         }
 
@@ -422,26 +410,40 @@
             const dt = (time - GAME_STATE.lastFrameTime) / 1000;
             GAME_STATE.lastFrameTime = time;
 
-            if (!GAME_STATE.juegoActivo) {
-                requestAnimationFrame(engineLoop);
-                return;
-            }
+            if (!GAME_STATE.juegoActivo) { requestAnimationFrame(engineLoop); return; }
 
             if (!GAME_STATE.isDead && ENT.rig.object3D) {
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
                 ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
                 let mx = 0; let mz = 0;
-                if (INPUT.keys.w) mz = -1;
-                if (INPUT.keys.s) mz = 1;
-                if (INPUT.keys.a) mx = -1;
-                if (INPUT.keys.d) mx = 1;
-
-                if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) {
-                    mx = INPUT.joyMove.x; mz = INPUT.joyMove.y;
-                }
+                if (INPUT.keys.w) mz = -1; if (INPUT.keys.s) mz = 1;
+                if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
+                if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
+
+                // --- DETECTOR INTELIGENTE DE INTERIORES (CÁMARA FPV AUTO) ---
+                let bajoTecho = false;
+                if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                    const rayoTecho = new THREE.Raycaster(
+                        new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
+                        new THREE.Vector3(0, 1, 0)
+                    );
+                    const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                    if (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5) {
+                        bajoTecho = true;
+                    }
+                }
+                GAME_STATE.esInterior = bajoTecho;
+
+                const camaraElemento = document.getElementById('main-camera');
+                if (GAME_STATE.esInterior) {
+                    camaraElemento.setAttribute('position', '0 1.55 0'); // Primera persona estable a la altura de los ojos
+                    ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0'); // Ocultar cuerpo propio para no estorbar la pantalla
+                } else {
+                    camaraElemento.setAttribute('position', '0 1.5 2.2'); // Tercera persona original fuera de las estructuras
+                }
 
                 if (GAME_STATE.inputMoviendo) {
                     let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
@@ -453,18 +455,17 @@
                     GAME_STATE.pos.x += dx * speed;
                     GAME_STATE.pos.z += dz * speed;
 
-                    // --- NUEVA LÓGICA DE DETECCIÓN INTELIGENTE DE SUELO (EVITA TECHOS) ---
+                    // --- AJUSTE DEL RAYCASTER DE PECHO (EVITA SEGUNDOS PISOS Y ÁRBOLES) ---
                     let alturaSuelo = GAME_STATE.pos.y;
                     if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                        // Lanzamos un rayo vertical amplio desde arriba del avatar
+                        // Lanzamos el rayo desde 1.2m (pecho) en lugar de un punto alto exterior
                         const rayoCaida = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 3.5, GAME_STATE.pos.z),
+                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
                             new THREE.Vector3(0, -1, 0)
                         );
                         const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
                         
                         if (colisionesSuelo.length > 0) {
-                            // Buscamos cuál de todos los impactos está más cerca del Y real de los pies del jugador
                             let impactoMasCercano = colisionesSuelo[0];
                             let diferenciaMinima = Math.abs(impactoMasCercano.point.y - GAME_STATE.pos.y);
                             
@@ -476,34 +477,14 @@
                                 }
                             }
                             
-                            // Solo actualiza la altura si la superficie más cercana está a un rango lógico de escalón (< 2.0m)
-                            if (diferenciaMinima < 2.0) {
+                            // Si el cambio de altura es un escalón lógico (< 1.0m), adaptamos la altura
+                            if (diferenciaMinima < 1.0) {
                                 alturaSuelo = impactoMasCercano.point.y;
                             }
                         }
                     }
                     GAME_STATE.pos.y = alturaSuelo;
                     ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
-
-                    // --- DETECTOR DE INTERIORES PARA CAMBIO AUTOMÁTICO A PRIMERA PERSONA ---
-                    let bajoTecho = false;
-                    if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                        const rayoTecho = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
-                            new THREE.Vector3(0, 1, 0)
-                        );
-                        const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
-                        if (colisionesTecho.length > 0 && colisionesTecho[0].distance < 4.0) {
-                            bajoTecho = true;
-                        }
-                    }
-
-                    const camaraElemento = document.getElementById('main-camera');
-                    if (bajoTecho) {
-                        camaraElemento.setAttribute('position', '0 1.6 0');
-                    } else {
-                        camaraElemento.setAttribute('position', '0 1.5 2.2');
-                    }
 
                     let targetAngle = Math.atan2(dx, dz);
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
@@ -515,6 +496,7 @@
                     switchMesh('atento');
                 }
 
+                // Gestión de Resistencia (Stamina)
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
                     if (GAME_STATE.stamina <= 0) {
@@ -527,9 +509,9 @@
                         GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown');
                     }
                 }
-                
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
+                // Lógica física de persecución del Hombre Lobo
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
 
@@ -538,20 +520,11 @@
                     let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos).normalize();
                     let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
                     
-                    loboPos.x += dir.x * vLobo;
-                    loboPos.z += dir.z * vLobo;
+                    loboPos.x += dir.x * vLobo; loboPos.z += dir.z * vLobo;
                     ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
 
                     if (dist < CONFIG.distAtaqueLobo) {
-                        if(GAME_STATE.loboEstado !== 'ataque') {
-                            GAME_STATE.loboEstado = 'ataque';
-                            if(GAME_STATE.audio.howl) { 
-                                GAME_STATE.audio.howl.currentTime = 0; 
-                                GAME_STATE.audio.howl.volume = 0.85; 
-                                GAME_STATE.audio.howl.play().catch(()=>{}); 
-                            }
-                        }
-                        UI.damage.classList.add('active');
+                        GAME_STATE.loboEstado = 'ataque'; UI.damage.classList.add('active');
                     } else {
                         GAME_STATE.loboEstado = 'acecho'; UI.damage.classList.remove('active');
                     }
@@ -563,9 +536,10 @@
                     switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
                 }
 
-                if (GAME_STATE.pos.distanceTo(new THREE.Vector3(17.4, 0.2, 16.5)) <= CONFIG.radioVictoria) {
+                // Condición de victoria al tocar la fogata
+                if (GAME_STATE.pos.distanceTo(new THREE.Vector3(17.4, 0.05, 16.5)) <= CONFIG.radioVictoria) {
                     GAME_STATE.isDead = true;
-                    UI.alert.textContent = "🎉 ¡REFUGIO ALCANZADO! HAS GANADO LUIS 🎉";
+                    UI.alert.textContent = "🎉 ¡CAMPAMENTO ALCANZADO! EL FUEGO TE PONE A SALVO LUIS 🎉";
                     UI.alert.style.borderColor = "var(--ui-green)"; UI.alert.style.color = "var(--ui-green)";
                     setTimeout(resetGame, 4000);
                 }
@@ -587,12 +561,6 @@
 
         function triggerThunder() {
             if (GAME_STATE.isDead || !GAME_STATE.juegoActivo) return;
-            if(GAME_STATE.audio.thunder) { 
-                GAME_STATE.audio.thunder.currentTime = 0; 
-                GAME_STATE.audio.thunder.volume = 0.9; 
-                GAME_STATE.audio.thunder.play().catch(()=>{}); 
-            }
-            
             const luz = ENT.luzRelampago.object3D.element;
             if(luz) {
                 luz.setAttribute('light', 'intensity', '2.0');
@@ -608,20 +576,28 @@
 
         function resetGame() {
             GAME_STATE.salud = 100; GAME_STATE.stamina = CONFIG.staminaMax; GAME_STATE.isDead = false; GAME_STATE.loboEstado = 'idle';
-            GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false;
+            GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.pos.set(0, 0, 25);
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(15, 0, -10);
             INPUT.camYaw = 0; INPUT.camPitch = 0;
             UI.btnSprint.classList.remove('active', 'cooldown');
-            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Corre hacia la luz naranja del refugio 🏡";
+            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Refúgiate en la fogata del campamento ⛺";
             UI.alert.style.borderColor = "var(--ui-red)"; UI.alert.style.color = "#fca5a5";
             UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
             
+            // Reajuste de visibilidad y escalas limpias
             Object.keys(ENT.meshes).forEach(k => { if(k !== 'activeName') ENT.meshes[k].setAttribute('scale', '0 0 0'); });
-            Object.keys(ENT.wwMeshes).forEach(k => { if(k !== 'activeName') ENT.wwMeshes[k].setAttribute('scale', '0 0 0'); });
+            
+            ENT.wwMeshes.idle.setAttribute('scale', '0.8 0.8 0.8');
+            ENT.wwMeshes.idle.setAttribute('visible', 'true');
+            ENT.wwMeshes.howl.setAttribute('scale', '0 0 0');
+            ENT.wwMeshes.howl.setAttribute('visible', 'false');
+            ENT.wwMeshes.beast.setAttribute('scale', '0 0 0');
+            ENT.wwMeshes.beast.setAttribute('visible', 'false');
+            ENT.wwMeshes.activeName = 'idle';
+
             ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38'); ENT.meshes.activeName = 'atento';
-            ENT.wwMeshes.idle.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.activeName = 'idle';
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') { initLoader(); }
