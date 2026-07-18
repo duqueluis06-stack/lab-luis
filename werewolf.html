@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v6.7 Premium Protection</title>
+    <title>ARK - Werewolf Escape Simulator v7.0 Full Game Experience</title>
     
     <!-- Librerías estables de A-Frame y Extras de Animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -26,7 +26,7 @@
             -webkit-user-select: none; color: #fff;
         }
 
-        /* --- Pantalla de Carga Avanzada --- */
+        /* --- Pantalla de Carga de Videojuego --- */
         #custom-loader { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background-color: var(--bg-dark); z-index: 99999; 
@@ -100,7 +100,7 @@
 </head>
 <body>
 
-    <!-- Pantalla de Carga -->
+    <!-- Pantalla de Carga Integrada -->
     <div id="custom-loader">
         <div class="spinner-container">
             <div class="spinner"></div>
@@ -109,7 +109,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Iniciando entorno protegido contra copias...</div>
+            <div class="loader-msg" id="loader-status">Iniciando simulación virtual de escape protegida...</div>
         </div>
     </div>
 
@@ -121,7 +121,7 @@
     <div id="ui-top-bar">
         <div class="ui-row">
             <button id="btn-reset" class="ui-btn">🔄</button>
-            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. Explora el entorno y evade al Hombre Lobo 🐺</div>
+            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. ¡Corre por tu vida y evade al Hombre Lobo! 🐺</div>
             <button id="btn-sprint" class="ui-btn">SPRINT</button>
         </div>
         <div id="stamina-container">
@@ -187,10 +187,10 @@
         <a-entity id="luz-luna" light="type: directional; intensity: 0.75; color: #9abaff;" position="20 55 -45"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
-        <!-- El Mapa/Pueblo Completo -->
+        <!-- El Mapa/Entorno Virtual Completo -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- Iluminación de Interior -->
+        <!-- Iluminación de Interior (Cámara baja a 1.20m para realismo de techos) -->
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
 
@@ -240,7 +240,7 @@
     </a-scene>
 
     <script>
-        // --- ESCUDO DE PROTECCIÓN PREMIUM: BLOQUEO DE CLIC DERECHO ---
+        // --- ESCUDO ANTI-COPIA: SISTEMA DE BLOQUEO DE CLIC DERECHO ---
         window.addEventListener('contextmenu', function(e) {
             e.preventDefault();
         }, false);
@@ -252,8 +252,8 @@
             staminaMax: 200,
             staminaGasto: 0.22,
             staminaRecuperacion: 0.4,
-            wwVelAcecho: 0.022,  // Ajustado para suavidad
-            wwVelAtaque: 0.055,  // Persecución fluida
+            wwVelAcecho: 0.022,
+            wwVelAtaque: 0.055,
             distDeteccionLobo: 30,
             distAtaqueLobo: 14,
             distMeleeLobo: 2.3
@@ -312,7 +312,8 @@
             if (GAME_STATE.escenaIniciada) return;
             GAME_STATE.escenaIniciada = true;
             
-            UI.status.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 13px; letter-spacing: 2px; margin-top: 15px; box-shadow: 0 0 20px rgba(239,68,68,0.5); text-transform: uppercase;">Entrar a la Maqueta</button>`;
+            // CAMBIO EXCLUSIVO UX: El botón ahora es inmersivo e incita a jugar de inmediato
+            UI.status.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 13px; letter-spacing: 2px; margin-top: 15px; box-shadow: 0 0 20px rgba(239,68,68,0.5); text-transform: uppercase;">¡CORRER POR TU VIDA! (INICIAR JUEGO)</button>`;
             
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
@@ -433,21 +434,103 @@
 
             if (!GAME_STATE.juegoActivo) { requestAnimationFrame(engineLoop); return; }
 
-            if (!GAME_STATE.isDead && ENT.rig.object3D) {
+            if (ENT.rig.object3D) {
                 GAME_STATE.frameTicks++;
                 const ejecutarRaycastPesado = (GAME_STATE.frameTicks % 6 === 0);
 
-                ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
-                ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
+                // --- PROCESAMIENTO ACTIVO DEL JUGADOR SI NO ESTÁ MUERTO ---
+                if (!GAME_STATE.isDead) {
+                    ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
+                    ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
-                let mx = 0; let mz = 0;
-                if (INPUT.keys.w) mz = -1; if (INPUT.keys.s) mz = 1;
-                if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
-                if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
+                    let mx = 0; let mz = 0;
+                    if (INPUT.keys.w) mz = -1; if (INPUT.keys.s) mz = 1;
+                    if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
+                    if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
 
-                GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
+                    GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                // RASTREADOR DE TECHO OPTIMIZADO
+                    if (GAME_STATE.inputMoviendo) {
+                        let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
+                        let angle = INPUT.camYaw;
+                        
+                        let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
+                        let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
+
+                        GAME_STATE.pos.x += dx * speed;
+                        GAME_STATE.pos.z += dz * speed;
+
+                        // RASTREADOR DE SUELO OPTIMIZADO CON FILTRADO DE ÁRBOLES
+                        if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                            const rayoCaida = new THREE.Raycaster(
+                                new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
+                                new THREE.Vector3(0, -1, 0)
+                            );
+                            const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                            
+                            if (colisionesSuelo.length > 0) {
+                                let mejorImpacto = null;
+                                let menorDiferencia = Infinity;
+                                
+                                for (let i = 0; i < colisionesSuelo.length; i++) {
+                                    let obj = colisionesSuelo[i].object;
+                                    let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
+                                    
+                                    if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
+                                        nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
+                                        nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
+                                        nombreMesh.includes('trunk') || nombreMesh.includes('foliage') || 
+                                        nombreMesh.includes('wood')) {
+                                        continue; 
+                                    }
+                                    
+                                    let difActual = Math.abs(colisionesSuelo[i].point.y - GAME_STATE.pos.y);
+                                    if (difActual < menorDiferencia) {
+                                        menorDiferencia = difActual;
+                                        mejorImpacto = colisionesSuelo[i];
+                                    }
+                                }
+                                
+                                if (mejorImpacto && menorDiferencia < 0.55) {
+                                    GAME_STATE.cachedAlturaSuelo = mejorImpacto.point.y;
+                                }
+                            }
+                        }
+                        
+                        GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                        ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
+
+                        let targetAngle = Math.atan2(dx, dz);
+                        let diff = targetAngle - ENT.avatar.object3D.rotation.y;
+                        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
+
+                        switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
+                    } else {
+                        switchMesh('atento');
+                    }
+
+                    // Stamina
+                    if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
+                        GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
+                        if (GAME_STATE.stamina <= 0) {
+                            toggleSprint(false); GAME_STATE.enCooldownSprint = true;
+                            UI.btnSprint.classList.add('cooldown');
+                        }
+                    } else {
+                        GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
+                        if (GAME_STATE.stamina >= 50 && GAME_STATE.enCooldownSprint) {
+                            GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown');
+                        }
+                    }
+                    UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
+                } else {
+                    // Si murió, detener inmediatamente movimiento residual para evitar congelamientos mecánicos
+                    GAME_STATE.inputMoviendo = false;
+                    switchMesh('atento');
+                }
+
+                // RASTREADOR DE TECHO OPTIMIZADO (Sigue procesando para estabilizar cámara)
                 if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                     const rayoTecho = new THREE.Raycaster(
                         new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
@@ -457,170 +540,104 @@
                     GAME_STATE.esInterior = (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5);
                 }
 
-                // --- AJUSTE DE ALTURA DE CÁMARA (PERFECTA EN INTERIORES) ---
                 const camaraElemento = document.getElementById('main-camera');
                 if (GAME_STATE.esInterior) {
-                    camaraElemento.setAttribute('position', '0 1.20 0'); // Bajado a 1.20m para realismo de techos
-                    ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
+                    camaraElemento.setAttribute('position', '0 1.20 0');
+                    if (!GAME_STATE.isDead) ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
                 } else {
                     camaraElemento.setAttribute('position', '0 1.5 2.2');
                 }
 
-                if (GAME_STATE.inputMoviendo) {
-                    let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
-                    let angle = INPUT.camYaw;
-                    
-                    let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
-                    let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
-
-                    GAME_STATE.pos.x += dx * speed;
-                    GAME_STATE.pos.z += dz * speed;
-
-                    // RASTREADOR DE SUELO OPTIMIZADO CON FILTRADO DE ÁRBOLES
-                    if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                        const rayoCaida = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
-                            new THREE.Vector3(0, -1, 0)
-                        );
-                        const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
-                        
-                        if (colisionesSuelo.length > 0) {
-                            let mejorImpacto = null;
-                            let menorDiferencia = Infinity;
-                            
-                            for (let i = 0; i < colisionesSuelo.length; i++) {
-                                let obj = colisionesSuelo[i].object;
-                                let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
-                                
-                                if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
-                                    nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
-                                    nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
-                                    nombreMesh.includes('trunk') || nombreMesh.includes('foliage') || 
-                                    nombreMesh.includes('wood')) {
-                                    continue; 
-                                }
-                                
-                                let difActual = Math.abs(colisionesSuelo[i].point.y - GAME_STATE.pos.y);
-                                if (difActual < menorDiferencia) {
-                                    menorDiferencia = difActual;
-                                    mejorImpacto = colisionesSuelo[i];
-                                }
-                            }
-                            
-                            if (mejorImpacto && menorDiferencia < 0.55) {
-                                GAME_STATE.cachedAlturaSuelo = mejorImpacto.point.y;
-                            }
-                        }
-                    }
-                    
-                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
-                    ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
-
-                    let targetAngle = Math.atan2(dx, dz);
-                    let diff = targetAngle - ENT.avatar.object3D.rotation.y;
-                    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-                    ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
-
-                    switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
-                } else {
-                    switchMesh('atento');
-                }
-
-                // Stamina
-                if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
-                    GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
-                    if (GAME_STATE.stamina <= 0) {
-                        toggleSprint(false); GAME_STATE.enCooldownSprint = true;
-                        UI.btnSprint.classList.add('cooldown');
-                    }
-                } else {
-                    GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
-                    if (GAME_STATE.stamina >= 50 && GAME_STATE.enCooldownSprint) {
-                        GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown');
-                    }
-                }
-                UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
-
-                // --- IA Y PERSECUCIÓN CORREGIDA DEL HOMBRE LOBO ---
+                // --- IA DEL LOBO INDEPENDIENTE (EVITA CONGELAR LA ESCENA) ---
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
                 
                 const soundStalk = document.getElementById('audio-local-stalk').components.sound;
                 const soundEnojado = document.getElementById('audio-local-enojado').components.sound;
 
-                if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
-                    switchWwMesh('beast');
-                    
-                    // SOLUCIÓN: Aplanamos la dirección en Y antes de normalizar para evitar que el relieve del mapa anule el movimiento del lobo
-                    let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
-                    dir.y = 0; 
-                    dir.normalize();
-                    
-                    let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
-                    
-                    loboPos.x += dir.x * vLobo; 
-                    loboPos.z += dir.z * vLobo;
-                    ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
+                if (!GAME_STATE.isDead) {
+                    if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
+                        switchWwMesh('beast');
+                        
+                        let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
+                        dir.y = 0; 
+                        dir.normalize();
+                        
+                        let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
+                        
+                        loboPos.x += dir.x * vLobo; 
+                        loboPos.z += dir.z * vLobo;
+                        ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
 
-                    if (dist < CONFIG.distAtaqueLobo) {
-                        GAME_STATE.loboEstado = 'ataque'; UI.damage.classList.add('active');
-                        
-                        if (!GAME_STATE.audioEnojadoPlaying && soundEnojado) {
-                            soundEnojado.playSound(); GAME_STATE.audioEnojadoPlaying = true;
+                        if (dist < CONFIG.distAtaqueLobo) {
+                            GAME_STATE.loboEstado = 'ataque'; UI.damage.classList.add('active');
+                            
+                            if (!GAME_STATE.audioEnojadoPlaying && soundEnojado) {
+                                soundEnojado.playSound(); GAME_STATE.audioEnojadoPlaying = true;
+                            }
+                            if(soundEnojado) soundEnojado.setVolume(1.0);
+                            if(soundStalk) soundStalk.setVolume(0.15);
+                        } else {
+                            GAME_STATE.loboEstado = 'acecho'; UI.damage.classList.remove('active');
+                            
+                            if (!GAME_STATE.audioStalkPlaying && soundStalk) {
+                                soundStalk.playSound(); GAME_STATE.audioStalkPlaying = true;
+                            }
+                            if (GAME_STATE.audioEnojadoPlaying && soundEnojado) {
+                                soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false;
+                            }
+                            let volMix = 1 - ((dist - CONFIG.distAtaqueLobo) / (CONFIG.distDeteccionLobo - CONFIG.distAtaqueLobo));
+                            if(soundStalk) soundStalk.setVolume(Math.max(0, volMix));
                         }
-                        if(soundEnojado) soundEnojado.setVolume(1.0);
-                        if(soundStalk) soundStalk.setVolume(0.15);
+                    } else if (dist <= CONFIG.distMeleeLobo) {
+                        if (GAME_STATE.loboEstado !== 'melee') {
+                            GAME_STATE.loboEstado = 'melee'; 
+                            switchWwMesh('howl'); 
+                            ejecutarDaño();
+                        }
                     } else {
-                        GAME_STATE.loboEstado = 'acecho'; UI.damage.classList.remove('active');
-                        
-                        if (!GAME_STATE.audioStalkPlaying && soundStalk) {
-                            soundStalk.playSound(); GAME_STATE.audioStalkPlaying = true;
-                        }
-                        if (GAME_STATE.audioEnojadoPlaying && soundEnojado) {
-                            soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false;
-                        }
-                        let volMix = 1 - ((dist - CONFIG.distAtaqueLobo) / (CONFIG.distDeteccionLobo - CONFIG.distAtaqueLobo));
-                        if(soundStalk) soundStalk.setVolume(Math.max(0, volMix));
-                    }
-                } else if (dist <= CONFIG.distMeleeLobo) {
-                    if (GAME_STATE.loboEstado !== 'melee') {
-                        GAME_STATE.loboEstado = 'melee'; 
-                        switchWwMesh('howl'); 
-                        ejecutarDaño();
+                        switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
+                        if (GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.stopSound(); GAME_STATE.audioStalkPlaying = false; }
+                        if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
                     }
                 } else {
-                    switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
-                    if (GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.stopSound(); GAME_STATE.audioStalkPlaying = false; }
-                    if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
+                    // SI EL JUGADOR MUERE, EL LOBO NO SE DETIENE: Celebra su victoria aullando de forma fluida
+                    switchWwMesh('howl');
+                    UI.damage.classList.remove('active');
                 }
             }
             requestAnimationFrame(engineLoop);
         }
 
-        // --- SISTEMA INTERACTIVO DE DAÑO CON KNOCKBACK (EMPUJE) ---
+        // --- SISTEMA CORREGIDO DE DAÑO Y EMPUJE (ANTI-CONGELACIÓN) ---
         function ejecutarDaño() {
             if (GAME_STATE.isDead) return;
             GAME_STATE.salud -= 25;
             UI.alert.textContent = `🚨 ¡TE HA ALCANZADO! SALUD: ${GAME_STATE.salud}% 🚨`;
             
-            // MECÁNICA ANTI-BLOQUEO: Empuja al jugador hacia atrás lejos del lobo al recibir un golpe (2.5 metros)
             let loboPos = ENT.wwRig.object3D.position;
             let dirKnockback = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
             dirKnockback.y = 0;
-            dirKnockback.normalize();
             
-            // Aplicar el desplazamiento de impacto
-            GAME_STATE.pos.addScaledVector(dirKnockback, 2.5);
+            // ESCUDO DE VECTORES NULOS: Si estás exactamente superpuesto al lobo, te expulsa hacia atrás en Z por defecto
+            if (dirKnockback.lengthSq() < 0.001) {
+                dirKnockback.set(0, 0, 1);
+            } else {
+                dirKnockback.normalize();
+            }
+            
+            // Empuje de colisión limpio de 3.5 metros
+            GAME_STATE.pos.addScaledVector(dirKnockback, 3.5);
             ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
             
-            // Cancelar sprint por aturdimiento
             toggleSprint(false);
 
             if (GAME_STATE.salud <= 0) {
-                GAME_STATE.isDead = true; UI.alert.textContent = "💥 SIMULACIÓN FALLIDA. REINICIANDO... 💥";
-                UI.fade.style.opacity = "1"; setTimeout(resetGame, 2500);
+                GAME_STATE.isDead = true; 
+                UI.alert.textContent = "💥 SIMULACIÓN FALLIDA. REINICIANDO... 💥";
+                UI.fade.style.opacity = "1"; 
+                setTimeout(resetGame, 2500); // El entorno sigue vivo 2.5 segundos antes de reiniciar de golpe
             } else {
-                // Permite volver a evaluar el estado de combate tras recuperarse del impacto
                 setTimeout(() => { if (GAME_STATE.loboEstado === 'melee') GAME_STATE.loboEstado = 'idle'; }, 800);
             }
         }
@@ -649,7 +666,7 @@
             ENT.wwRig.object3D.position.set(15, 0, -10);
             INPUT.camYaw = 0; INPUT.camPitch = 0;
             UI.btnSprint.classList.remove('active', 'cooldown');
-            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Explora el entorno y evade al Hombre Lobo 🐺";
+            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. ¡Corre por tu vida y evade al Hombre Lobo! 🐺";
             UI.alert.style.borderColor = "var(--ui-red)"; UI.alert.style.color = "#fca5a5";
             UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
             
