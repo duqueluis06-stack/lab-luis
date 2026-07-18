@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v7.2</title>
+    <title>ARK - Werewolf Escape Simulator v7.3</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -206,7 +206,7 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO (HOMBRE LOBO) - Sin Mesh Idle pesado -->
+        <!-- ENEMIGO (HOMBRE LOBO) -->
         <a-entity id="werewolf-rig" position="15 0 -10">
             <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
@@ -458,7 +458,7 @@
 
                     if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                         const rayoCaida = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
+                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z),
                             new THREE.Vector3(0, -1, 0)
                         );
                         const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
@@ -471,11 +471,13 @@
                                 let obj = colisionesSuelo[i].object;
                                 let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
                                 
+                                // Filtros extendidos para ignorar vegetación densa del bosque
                                 if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
                                     nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
                                     nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
                                     nombreMesh.includes('trunk') || nombreMesh.includes('foliage') || 
-                                    nombreMesh.includes('wood')) {
+                                    nombreMesh.includes('wood') || nombreMesh.includes('plant') ||
+                                    nombreMesh.includes('bosque') || nombreMesh.includes('forest')) {
                                     continue; 
                                 }
                                 
@@ -486,7 +488,8 @@
                                 }
                             }
                             
-                            if (mejorImpacto && menorDiferencia < 0.55) {
+                            // Ajuste de rango a 2.0 metros para evitar bloqueos en desniveles forestales
+                            if (mejorImpacto && menorDiferencia < 2.0) {
                                 GAME_STATE.cachedAlturaSuelo = mejorImpacto.point.y;
                             }
                         }
@@ -531,7 +534,8 @@
 
             const camaraElemento = document.getElementById('main-camera');
             if (GAME_STATE.esInterior) {
-                camaraElemento.setAttribute('position', '0 1.20 0');
+                // Cámara bajada a 0.85 para un punto de vista idóneo en interiores bajos
+                camaraElemento.setAttribute('position', '0 0.85 0');
                 for (let key in ENT.meshes) {
                     if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
                 }
@@ -539,7 +543,7 @@
                 camaraElemento.setAttribute('position', '0 1.5 2.2');
             }
 
-            // --- SEGUIMIENTO Y AUDIO DEL LOBO CON FALLBACK A HOWL ---
+            // --- SEGUIMIENTO Y AUDIO DEL LOBO ---
             let loboPos = ENT.wwRig.object3D.position;
             let dist = GAME_STATE.pos.distanceTo(loboPos);
             
