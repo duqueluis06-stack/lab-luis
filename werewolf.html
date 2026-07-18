@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v5.5 Stable</title>
+    <title>ARK - Werewolf Escape Simulator v5.6 Stable</title>
     
     <!-- Librerías estables de A-Frame y Extras -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -118,7 +118,7 @@
 
     <div id="damage-vignette"></div>
     <div id="fade-screen"></div>
-    <div id="pc-instruction">💻 Controles: WASD | Shift para activar/desactivar Sprint | Arrastrar pantalla para mirar</div>
+    <div id="pc-instruction">💻 Controles: WASD | Shift para Sprint | Arrastrar pantalla para mirar</div>
 
     <!-- UI Superior -->
     <div id="ui-top-bar">
@@ -144,11 +144,6 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- Elementos de Audio Nativos Directos (Garantizan funcionamiento multiplataforma) -->
-    <audio id="snd-rain" src="https://upload.wikimedia.org/wikipedia/commons/8/87/Rain_on_roof_loop.mp3" preload="auto" crossorigin="anonymous"></audio>
-    <audio id="snd-howl" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Wolf_howl_single.mp3" preload="auto" crossorigin="anonymous"></audio>
-    <audio id="snd-thunder" src="https://upload.wikimedia.org/wikipedia/commons/8/80/Thunder_close.mp3" preload="auto" crossorigin="anonymous"></audio>
-
     <!-- ESCENA A-FRAME -->
     <a-scene id="escena-principal" 
              fog="type: linear; color: #080812; near: 15; far: 75;" 
@@ -170,10 +165,14 @@
         </a-assets>
 
         <a-sky color="#05050b"></a-sky>
+        
+        <!-- LA LUNA (Visual e Inmune a la Niebla) -->
+        <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
+        
         <a-entity particle-system="preset: rain; color: #444; particleCount: 2000; size: 0.4; velocityValue: 0 15 0; opacity: 0.3;"></a-entity>
         
-        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.5; color: #2a3550"></a-entity>
-        <a-entity id="luz-luna" light="type: directional; intensity: 0.7; color: #9abaff;" position="20 50 -40"></a-entity>
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #2a3550"></a-entity>
+        <a-entity id="luz-luna" light="type: directional; intensity: 0.75; color: #9abaff;" position="20 55 -45"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
@@ -232,7 +231,9 @@
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             pos: new THREE.Vector3(0, 0, 25), salud: 100, stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
-            loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0
+            loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
+            // Contenedor de Audio Nativo en JS
+            audio: { rain: null, howl: null, thunder: null }
         };
 
         const UI = {
@@ -284,12 +285,23 @@
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
                 
-                // Desbloqueo y ejecución forzada nativa del sonido ambiental (Lluvia)
-                const rainTrack = document.getElementById('snd-rain');
-                if (rainTrack) {
-                    rainTrack.volume = 0.35;
-                    rainTrack.loop = true;
-                    rainTrack.play().catch(e => console.log("Permiso de audio retenido:", e));
+                // --- INSTANCIACIÓN DE AUDIO EN HILO DE USUARIO DIRECTO ---
+                try {
+                    GAME_STATE.audio.rain = new Audio("https://upload.wikimedia.org/wikipedia/commons/8/87/Rain_on_roof_loop.mp3");
+                    GAME_STATE.audio.howl = new Audio("https://upload.wikimedia.org/wikipedia/commons/d/dd/Wolf_howl_single.mp3");
+                    GAME_STATE.audio.thunder = new Audio("https://upload.wikimedia.org/wikipedia/commons/8/80/Thunder_close.mp3");
+
+                    // Forzar carga interna
+                    Object.keys(GAME_STATE.audio).forEach(k => {
+                        GAME_STATE.audio[k].load();
+                    });
+
+                    // Configurar y reproducir Lluvia de fondo
+                    GAME_STATE.audio.rain.volume = 0.3;
+                    GAME_STATE.audio.rain.loop = true;
+                    GAME_STATE.audio.rain.play().catch(err => console.log("Audio retenido por política del navegador:", err));
+                } catch(e) {
+                    console.error("Error crítico inicializando el motor de audio JS:", e);
                 }
 
                 initControls();
@@ -441,16 +453,33 @@
                     GAME_STATE.pos.x += dx * speed;
                     GAME_STATE.pos.z += dz * speed;
 
-                    // --- SISTEMA CORREGIDO: SE LANZA DESDE LA ALTURA DEL PERSONAJE (+1.8M), NUNCA DESDE EL CIELO ---
+                    // --- NUEVA LÓGICA DE DETECCIÓN INTELIGENTE DE SUELO (EVITA TECHOS) ---
                     let alturaSuelo = GAME_STATE.pos.y;
                     if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                        // Lanzamos un rayo vertical amplio desde arriba del avatar
                         const rayoCaida = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.8, GAME_STATE.pos.z),
+                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 3.5, GAME_STATE.pos.z),
                             new THREE.Vector3(0, -1, 0)
                         );
                         const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                        
                         if (colisionesSuelo.length > 0) {
-                            alturaSuelo = colisionesSuelo[0].point.y;
+                            // Buscamos cuál de todos los impactos está más cerca del Y real de los pies del jugador
+                            let impactoMasCercano = colisionesSuelo[0];
+                            let diferenciaMinima = Math.abs(impactoMasCercano.point.y - GAME_STATE.pos.y);
+                            
+                            for (let i = 1; i < colisionesSuelo.length; i++) {
+                                let difActual = Math.abs(colisionesSuelo[i].point.y - GAME_STATE.pos.y);
+                                if (difActual < diferenciaMinima) {
+                                    diferenciaMinima = difActual;
+                                    impactoMasCercano = colisionesSuelo[i];
+                                }
+                            }
+                            
+                            // Solo actualiza la altura si la superficie más cercana está a un rango lógico de escalón (< 2.0m)
+                            if (diferenciaMinima < 2.0) {
+                                alturaSuelo = impactoMasCercano.point.y;
+                            }
                         }
                     }
                     GAME_STATE.pos.y = alturaSuelo;
@@ -516,8 +545,11 @@
                     if (dist < CONFIG.distAtaqueLobo) {
                         if(GAME_STATE.loboEstado !== 'ataque') {
                             GAME_STATE.loboEstado = 'ataque';
-                            const howlSound = document.getElementById('snd-howl');
-                            if(howlSound) { howlSound.currentTime = 0; howlSound.volume = 0.8; howlSound.play().catch(()=>{}); }
+                            if(GAME_STATE.audio.howl) { 
+                                GAME_STATE.audio.howl.currentTime = 0; 
+                                GAME_STATE.audio.howl.volume = 0.85; 
+                                GAME_STATE.audio.howl.play().catch(()=>{}); 
+                            }
                         }
                         UI.damage.classList.add('active');
                     } else {
@@ -555,8 +587,11 @@
 
         function triggerThunder() {
             if (GAME_STATE.isDead || !GAME_STATE.juegoActivo) return;
-            const thunderSound = document.getElementById('snd-thunder');
-            if(thunderSound) { thunderSound.currentTime = 0; thunderSound.volume = 0.85; thunderSound.play().catch(()=>{}); }
+            if(GAME_STATE.audio.thunder) { 
+                GAME_STATE.audio.thunder.currentTime = 0; 
+                GAME_STATE.audio.thunder.volume = 0.9; 
+                GAME_STATE.audio.thunder.play().catch(()=>{}); 
+            }
             
             const luz = ENT.luzRelampago.object3D.element;
             if(luz) {
