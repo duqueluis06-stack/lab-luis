@@ -161,7 +161,7 @@
         <div class="ui-row">
             <button id="btn-reset" class="ui-btn" title="Reiniciar Simulación">🔄</button>
             <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡</div>
-            <button id="btn-sprint" class="ui-btn">🏃‍♂️ CORRER</button>
+            <button id="btn-sprint" class="ui-btn">RUN</button>
         </div>
         <div id="stamina-container">
             <div id="stamina-bar"></div>
@@ -183,8 +183,9 @@
         </div>
     </div>
 
-    <!-- ESCENA A-FRAME -->
+    <!-- ESCENA A-FRAME (Con Decoder Draco inyectado de forma segura) -->
     <a-scene id="escena-principal" 
+             gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              fog="type: exponential; color: #020205; density: 0.03;" 
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance; physicallyCorrectLights: true;" 
              vr-mode-ui="enabled: false" 
@@ -193,13 +194,11 @@
              timeout="15000">
         
         <a-assets>
-            <!-- Modelos GLB sin compresión Draco agresiva en el entorno para evitar pérdida de detalles -->
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
-            <!-- Avatar Luis - Cambiado luis-hora por luis-atento con soporte CORS -->
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb" crossorigin="anonymous"></a-asset-item>
@@ -248,7 +247,6 @@
         <a-entity id="player-rig" position="0 0 25">
             
             <a-entity id="avatar-container" position="0 0 0">
-                <!-- Se eliminó luis-mesh-hora y se configuró luis-mesh-atento en visible="true" como pose por defecto -->
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
                 <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
@@ -271,7 +269,6 @@
         </a-entity>
 
         <!-- --- ENEMIGO: WEREWOLF --- -->
-        <!-- Limpiado el asset eliminando componentes visuales sobrantes en los ojos para una mejor estética -->
         <a-entity id="werewolf-rig" position="15 0 -10" scale="0.8 0.8 0.8">
             <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
             <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
@@ -283,7 +280,7 @@
 
     </a-scene>
 
-    <!-- ======= LÓGICA JAVASCRIPT CORREGIDA Y EXPANSA ======= -->
+    <!-- ======= LÓGICA JAVASCRIPT TOTALMENTE SANEADA ======= -->
     <script>
         // ==========================================
         // 1. CONFIGURACIÓN Y CONSTANTES DEL JUEGO
@@ -314,7 +311,7 @@
             assetsCargados: 0,
             totalAssets: 0,
             escenaIniciada: false,
-            pos: new THREE.Vector3(),
+            pos: new THREE.Vector3(0, 0, 25),
             respawnPos: new THREE.Vector3(0, 0, 25),
             salud: 100,
             stamina: 100,
@@ -357,7 +354,7 @@
                 walk: document.getElementById('luis-mesh-walk'),
                 run: document.getElementById('luis-mesh-run'),
                 llama: document.getElementById('luis-mesh-llama'),
-                atento: document.getElementById('luis-mesh-atento'), // Mapeado al nuevo id
+                atento: document.getElementById('luis-mesh-atento'),
                 activeName: 'atento'
             },
             sndHeart: document.getElementById('ent-snd-heart'),
@@ -398,12 +395,12 @@
 
             assets.forEach(asset => {
                 asset.addEventListener('loaded', onAssetLoaded);
-                asset.addEventListener('error', onAssetLoaded); // Fail-safe ante errores
+                asset.addEventListener('error', onAssetLoaded);
             });
 
             setTimeout(() => {
                 if (!GAME_STATE.escenaIniciada) startScene();
-            }, 16000); // Seguro de arranque
+            }, 16000);
         }
 
         function onAssetLoaded() {
@@ -434,7 +431,7 @@
             GAME_STATE.lastFrameTime = performance.now();
             requestAnimationFrame(engineLoop);
 
-            setInterval(triggerThunderstormEffect, 12000); // Relámpagos recurrentes
+            setInterval(triggerThunderstormEffect, 12000);
         }
 
         function initInputHandlers() {
@@ -507,7 +504,7 @@
             window.addEventListener('touchmove', handleJoyMove, {passive: false});
             window.addEventListener('touchend', handleJoyEnd);
 
-            // Setup de Flechas de Cámara Móvil que faltaba completar
+            // Setup de Flechas de Cámara Móvil
             const setupArrow = (id, key) => {
                 const btn = document.getElementById(id);
                 btn.addEventListener('touchstart', e => { e.preventDefault(); INPUT.arrowCam[key] = true; });
@@ -534,10 +531,7 @@
         // ==========================================
         function switchMesh(targetName) {
             if (ENT.meshes.activeName === targetName) return;
-            
-            // Ocultar la malla activa previa
             ENT.meshes[ENT.meshes.activeName].setAttribute('visible', 'false');
-            // Mostrar la nueva
             ENT.meshes[targetName].setAttribute('visible', 'true');
             ENT.meshes.activeName = targetName;
         }
@@ -568,7 +562,6 @@
         }
 
         function updateCameraRotation() {
-            // Rotación por botones/flechas virtuales de cámara
             if (INPUT.arrowCam.left) INPUT.camYaw += CONFIG.rotacionCámaraFlechas;
             if (INPUT.arrowCam.right) INPUT.camYaw -= CONFIG.rotacionCámaraFlechas;
             if (INPUT.arrowCam.up) INPUT.camPitch += CONFIG.rotacionCámaraFlechas * 40;
@@ -594,7 +587,6 @@
             if (GAME_STATE.inputMoviendo) {
                 let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
                 
-                // Dirección orientada hacia la vista de la cámara
                 let angle = INPUT.camYaw;
                 let directionX = moveX * Math.cos(angle) + moveZ * Math.sin(angle);
                 let directionZ = moveZ * Math.cos(angle) - moveX * Math.sin(angle);
@@ -603,20 +595,17 @@
                 GAME_STATE.pos.z += directionZ * speed;
                 ENT.rig.setAttribute('position', `${GAME_STATE.pos.x} 0 ${GAME_STATE.pos.z}`);
 
-                // Rotación suave del avatar hacia la dirección a la que camina
                 let targetAngle = Math.atan2(directionX, directionZ) * (180 / Math.PI) + 180;
                 let currentRot = ENT.avatar.getAttribute('rotation') || {x: 0, y: 0, z: 0};
                 let smoothedY = currentRot.y + (targetAngle - currentRot.y) * CONFIG.suavizadoGiroAvatar;
                 ENT.avatar.setAttribute('rotation', `0 ${smoothedY} 0`);
 
-                // Alternar entre caminar y correr
                 if (GAME_STATE.modoCorrerActive) {
                     switchMesh('run');
                 } else {
                     switchMesh('walk');
                 }
             } else {
-                // Si está en reposo total, se activa luis-atento automáticamente
                 switchMesh('atento');
             }
         }
@@ -645,7 +634,6 @@
 
             let dist = GAME_STATE.pos.distanceTo(GAME_STATE.loboPos);
 
-            // Máquina de estados básica simplificada de persecución
             if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
                 switchWwMesh('beast');
                 let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, GAME_STATE.loboPos).normalize();
@@ -657,7 +645,6 @@
                 let targetRot = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
                 ENT.wwRig.setAttribute('rotation', `0 ${targetRot} 0`);
             } else if (dist <= CONFIG.distMeleeLobo) {
-                // Ataque al jugador
                 executeDamage();
             } else {
                 switchWwMesh('idle');
@@ -665,7 +652,6 @@
         }
 
         function checkGameplayConditions() {
-            // Verificar condición de Victoria al llegar al refugio
             let targetPosStr = ENT.targetVictoria.getAttribute('position');
             let targetPos = new THREE.Vector3(targetPosStr.x, targetPosStr.y, targetPosStr.z);
             
@@ -723,7 +709,6 @@
             }, 600);
         }
 
-        // Inicializador en ventana
         window.addEventListener('DOMContentLoaded', initLoader);
     </script>
 </body>
