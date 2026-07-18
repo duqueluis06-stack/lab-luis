@@ -99,8 +99,8 @@
 
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Optimizando Escala Cósmica</div>
-        <div class="loader-msg">Ajustando proporciones anatómicas e inyectando físicas de colisión sólida...</div>
+        <div class="loader-title">Atmósfera de Terror Activa</div>
+        <div class="loader-msg">Estabilizando físicas sólidas e inyectando bruma neón de peligro dinámico...</div>
     </div>
 
     <div id="alert-ui">⚠️ ¡Huye! Entra en la casa 🏡</div>
@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    <a-scene fog="type: exponential; color: #02040a; density: 0.015;"
+    <a-scene id="escena-principal" fog="type: exponential; color: #02040a; density: 0.015;"
              gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
@@ -140,13 +140,13 @@
 
         <a-sphere id="luna-llena" position="30 80 -90" radius="6" color="#e2e8f0" material="shader: flat; fog: false"></a-sphere>
         <a-entity light="type: directional; intensity: 0.7; color: #93c5fd;" position="30 80 -90"></a-entity>
-        <a-entity light="type: ambient; intensity: 0.4; color: #2e2a72"></a-entity>
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.4; color: #2e2a72"></a-entity>
 
         <a-plane position="0 -0.01 0" rotation="-90 0 0" width="400" height="400" color="#111827" material="roughness: 0.95"></a-plane>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
-        <!-- ENTORNO DEL JUGADOR (ESCALADO CORRECTO A 0.28) -->
+        <!-- ENTORNO DEL JUGADOR (ESCALA HUMANA EQUILIBRADA) -->
         <a-entity id="player-rig" position="0 0 15">
             <a-entity id="avatar-container" position="0 0.02 0" scale="0.28 0.28 0.28">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true"
@@ -160,7 +160,6 @@
                 </a-entity>
             </a-entity>
 
-            <!-- CÁMARA AJUSTADA HANGAR BAJO PARA LA NUEVA ESTATURA HUMANA -->
             <a-entity id="camera-orbit" position="0 0.65 0">
                 <a-entity id="main-camera" camera position="0 0 1.7">
                     <a-entity light="type: spot; intensity: 2.0; distance: 25; angle: 45; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
@@ -168,16 +167,17 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENTORNO HOMBRE LOBO (ESCALADO SIMÉTRICO A 0.32) -->
-        <a-entity id="werewolf-rig" position="-12 0 -8" scale="0.32 0.32 0.32">
+        <!-- HOMBRE LOBO GIGANTE E IMPONENTE (ESCALA AUMENTADA A 0.55) -->
+        <a-entity id="werewolf-rig" position="-12 0 -8" scale="0.55 0.55 0.55">
             <a-entity id="ww-idle" gltf-model="#ww-idle-src" visible="true"
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
             <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false"
                       animation-mixer="clip: *; loop: repeat; timeScale: 1;">
             </a-entity>
+            <!-- ACCIÓN 3: COMPLETA MENTE ERGUIDO Y ESTÁTICO -->
             <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false"
-                      animation-mixer="clip: *; loop: repeat; timeScale: 1.3;">
+                      animation-mixer="clip: *; loop: repeat; timeScale: 0.8;">
             </a-entity>
         </a-entity>
 
@@ -188,22 +188,24 @@
 
         const SPAWN_X = 0; const SPAWN_Z = 15;
         const CASA_FACHADA_X = 17.44; const CASA_FACHADA_Z = 17.78;
-        const RADIO_DISPARADOR = 1.0; // Ajustado proporcionalmente a la nueva escala reducida
+        const RADIO_DISPARADOR = 1.0; 
         const CASA_INTERIOR_X = 17.50; const CASA_INTERIOR_Z = 15.50;
         
-        // VELOCIDADES ADAPTATIVAS
-        const VEL_CAMINAR = 0.04;
-        const VEL_CORRER = 0.095;
+        // VELOCIDADES DE TERROR AJUSTADAS
+        const VEL_CAMINAR = 0.035;
+        const VEL_CORRER = 0.068; // Un click más lento para preservar la inmersión
 
-        // MATRIZ DE COLISIÓN DE ENTORNO SÓLIDO (Evita atravesar arboledas y estructuras)
+        // MAPA FÍSICO DE OBSTÁCULOS RÍGIDOS (Bloquea tanto al jugador como al lobo)
         const obstaculosEntorno = [
-            {x: 17.44, z: 17.0, r: 2.2}, // Fachada e interior de la casa bloqueados hasta salvarse
-            {x: -6, z: 4, r: 1.8},       // Complejo arbolado oeste
-            {x: 6, z: -4, r: 1.5},       // Matorrales y rocas norte
-            {x: -12, z: 12, r: 2.0},     // Zona boscosa lateral
-            {x: 14, z: 5, r: 1.6}        // Estructura colindante este
+            {x: 17.44, z: 17.0, r: 2.3}, // Estructura de la casa principal
+            {x: -6, z: 4, r: 2.0},       // Árboles zona oeste
+            {x: 6, z: -4, r: 1.8},       // Rocas y vegetación norte
+            {x: -12, z: 12, r: 2.2},     // Bosque lateral izquierdo
+            {x: 14, z: 5, r: 1.9}        // Construcción este
         ];
 
+        const escena = document.getElementById('escena-principal');
+        const luzAmbiental = document.getElementById('luz-ambiental');
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
         const werewolfRig = document.getElementById('werewolf-rig');
@@ -236,26 +238,21 @@
         let modoCorrer = false;
         
         const loboWaypoints = [
-            {x: -12, z: -8}, {x: 0, z: 4}, {x: 10, z: 14}, {x: -4, z: 20}, {x: 6, z: 0}
+            {x: -12, z: -8}, {x: 2, z: 5}, {x: 9, z: 13}, {x: -5, z: 18}, {x: 5, z: -2}
         ];
         let waypointIndex = 0;
         let loboTimerEstado = 0;
         let ultimoAullido = 0; 
 
-        // DETECTOR Y SWITCH DEL BOTÓN DE CORRER/CAMINAR
         btnSprint.addEventListener('click', () => {
             if (jugadorEstado !== "EXPLORANDO") return;
             modoCorrer = !modoCorrer;
             if (modoCorrer) {
                 btnSprint.textContent = "🚶‍♂️ CAMINAR";
                 btnSprint.style.borderColor = "#00ffaa";
-                luisWalk.setAttribute('visible', 'false');
-                luisRun.setAttribute('visible', 'true');
             } else {
                 btnSprint.textContent = "🏃‍♂️ CORRER";
                 btnSprint.style.borderColor = "#ef4444";
-                luisWalk.setAttribute('visible', 'true');
-                luisRun.setAttribute('visible', 'false');
             }
         });
 
@@ -334,21 +331,40 @@
             let loboPos = werewolfRig.object3D.position;
             let ahora = Date.now();
 
-            // SENSOR DE COLISIÓN PROXIMIDAD JUGADOR VS LOBO (No se atraviesan)
             let distLoboJugador = Math.sqrt(Math.pow(pos.x - loboPos.x, 2) + Math.pow(pos.z - loboPos.z, 2));
-            if (distLoboJugador < 0.75 && jugadorEstado === "EXPLORANDO") {
-                alertUI.innerHTML = "🚨 ¡EL HOMBRE LOBO TE ESTÁ ATACANDO! 🚨<br>¡Usa el botón CORRER para escapar!";
-                // Vector de repulsión física inversa
-                let repelerX = (pos.x - loboPos.x) / distLoboJugador;
-                let repelerZ = (pos.z - loboPos.z) / distLoboJugador;
-                pos.x += repelerX * 0.08;
-                pos.z += repelerZ * 0.08;
+
+            // SISTEMA DINÁMICO DE BRUMA NEÓN ROJA DE PELIGRO
+            if (distLoboJugador < 6.8 && jugadorEstado === "EXPLORANDO") {
+                escena.setAttribute('fog', 'type: exponential; color: #ff0000; density: 0.05;');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.7; color: #ff2222');
+                
+                if (distLoboJugador < 0.9) {
+                    alertUI.innerHTML = "🚨 ¡EL HOMBRE LOBO TE ALCANZÓ! 🚨<br>¡Muévete rápido!";
+                    let repelerX = (pos.x - loboPos.x) / distLoboJugador;
+                    let repelerZ = (pos.z - loboPos.z) / distLoboJugador;
+                    pos.x += repelerX * 0.06; pos.z += repelerZ * 0.06;
+                } else {
+                    alertUI.innerHTML = "⚠️ SIENTO UNA PRESENCIA... ¡EL LOBO ESTÁ CERCA! 🐺";
+                }
+            } else if (jugadorEstado === "EXPLORANDO") {
+                // Restaurar bruma normal nocturna si está lejos
+                escena.setAttribute('fog', 'type: exponential; color: #02040a; density: 0.015;');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.4; color: #2e2a72');
+                alertUI.innerHTML = "⚠️ ¡Huye! Entra en la casa 🏡";
             }
 
-            // IA DEL LOBO
+            // GESTIÓN DE LA IA DEL HOMBRE LOBO + ACCIÓN 3 ERGUIDA
             if (loboEstado === 'howl') {
                 loboTimerEstado += 1;
                 if (loboTimerEstado > 180) { cambiarPoseLobo('idle'); loboTimerEstado = 0; }
+            } else if (loboEstado === 'beast') {
+                // Acción 3: Se queda erguido, quieto e imponente observando el entorno
+                loboTimerEstado += 1;
+                if (loboTimerEstado > 140) { // Tras 2.3 segundos quieto, cambia al siguiente punto
+                    waypointIndex = (waypointIndex + 1) % loboWaypoints.length;
+                    cambiarPoseLobo('idle');
+                    loboTimerEstado = 0;
+                }
             } else {
                 if (ahora - ultimoAullido > 60000 && Math.random() < 0.003) {
                     cambiarPoseLobo('howl'); ultimoAullido = ahora; loboTimerEstado = 0;
@@ -357,23 +373,30 @@
                     let dx = target.x - loboPos.x; let dz = target.z - loboPos.z;
                     let distLobo = Math.sqrt(dx*dx + dz*dz);
 
-                    if (distLobo > 0.6) {
-                        cambiarPoseLobo('beast');
-                        loboPos.x += (dx / distLobo) * 0.035;
-                        loboPos.z += (dz / distLobo) * 0.035;
-                        werewolfRig.object3D.rotation.y = Math.atan2(dx, dz);
-                    } else {
+                    if (distLobo > 0.5) {
                         cambiarPoseLobo('idle');
-                        loboTimerEstado += 1;
-                        if (loboTimerEstado > 120) { 
-                            waypointIndex = (waypointIndex + 1) % loboWaypoints.length;
-                            loboTimerEstado = 0;
+                        let viejoLoboX = loboPos.x; let viejoLoboZ = loboPos.z;
+                        loboPos.x += (dx / distLobo) * 0.032;
+                        loboPos.z += (dz / distLobo) * 0.032;
+                        werewolfRig.object3D.rotation.y = Math.atan2(dx, dz);
+
+                        // Evitar que el lobo atraviese árboles colisionando geométricamente
+                        for (let obs of obstaculosEntorno) {
+                            if (Math.sqrt(Math.pow(loboPos.x - obs.x, 2) + Math.pow(loboPos.z - obs.z, 2)) < obs.r) {
+                                loboPos.x = viejoLoboX; loboPos.z = viejoLoboZ;
+                                waypointIndex = (waypointIndex + 1) % loboWaypoints.length; // Desviar ruta
+                                break;
+                            }
                         }
+                    } else {
+                        // Al llegar al punto de destino activa el modo ERGUIDO Y QUIETO
+                        cambiarPoseLobo('beast');
+                        loboTimerEstado = 0;
                     }
                 }
             }
 
-            // MOVIMIENTO DINÁMICO REFACTORIZADO DE LUIS
+            // CONTROL DE MOVIMIENTO DINÁMICO E INTERRUPTOR DE PIERNAS CERRADAS
             if (jugadorEstado === "EXPLORANDO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -382,16 +405,15 @@
 
                 let moviendo = (inputX !== 0 || inputY !== 0);
                 
-                // Switch de animaciones fluido segun velocidad seleccionada
-                if (modoCorrer) {
-                    luisRun.setAttribute('animation-mixer', 'timeScale', moviendo ? 1.3 : 0);
-                    luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
-                } else {
-                    luisWalk.setAttribute('animation-mixer', 'timeScale', moviendo ? 1.2 : 0);
-                    luisRun.setAttribute('animation-mixer', 'timeScale', 0);
-                }
-
                 if (moviendo) {
+                    if (modoCorrer) {
+                        luisRun.setAttribute('visible', 'true'); luisWalk.setAttribute('visible', 'false');
+                        luisRun.setAttribute('animation-mixer', 'timeScale', 1.15);
+                    } else {
+                        luisWalk.setAttribute('visible', 'true'); luisRun.setAttribute('visible', 'false');
+                        luisWalk.setAttribute('animation-mixer', 'timeScale', 1.1);
+                    }
+
                     let oldX = pos.x; let oldZ = pos.z;
                     const velActual = modoCorrer ? VEL_CORRER : VEL_CAMINAR;
 
@@ -401,33 +423,41 @@
                     pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
                     pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual; 
 
-                    // COMPROBACIÓN FÍSICA DE OBSTÁCULOS (Árboles y Casas)
+                    // CONTROL TOTAL DE FÍSICAS SÓLIDAS EN EL ENTORNO
                     let choco = false;
                     for (let obs of obstaculosEntorno) {
                         let dObj = Math.sqrt(Math.pow(pos.x - obs.x, 2) + Math.pow(pos.z - obs.z, 2));
                         if (dObj < obs.r) { choco = true; break; }
                     }
-                    if (choco) { pos.x = oldX; pos.z = oldZ; } // Si choca, cancela el avance de coordenadas
+                    if (choco) { pos.x = oldX; pos.z = oldZ; } 
 
                     const targetAngle = camYaw + Math.atan2(inputX, inputY);
                     let deltaAngle = Math.atan2(Math.sin(targetAngle - avatarContainer.object3D.rotation.y), Math.cos(targetAngle - avatarContainer.object3D.rotation.y));
                     avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
+                } else {
+                    // PARADO SEGURO: Fuerza a cerrar las piernas volviendo a la pose base estática del mesh de caminata
+                    luisWalk.setAttribute('visible', 'true');
+                    luisRun.setAttribute('visible', 'false');
+                    luisLlama.setAttribute('visible', 'false');
+                    luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
                 }
                 pos.y = 0;
                 
-                // DETECCIÓN DE ENTRADA AL REFUGIO (CASA)
+                // DISPARADOR PARA ENTRAR AL REFUGIO (CASA)
                 let distA_Casa = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
                 if (distA_Casa <= RADIO_DISPARADOR) {
                     jugadorEstado = "LLAMANDO";
-                    luisWalk.setAttribute('visible', 'false');
-                    luisRun.setAttribute('visible', 'false');
+                    luisWalk.setAttribute('visible', 'false'); luisRun.setAttribute('visible', 'false');
                     luisLlama.setAttribute('visible', 'true'); 
                     luisLlama.setAttribute('animation-mixer', 'timeScale', 1);
                     alertUI.textContent = "🔊 ¡Llamando a la puerta! Esperando refugio...";
 
                     setTimeout(() => {
                         jugadorEstado = "SALVADO";
+                        // Pasa mágicamente a través de la puerta al interior seguro
                         pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
+                        escena.setAttribute('fog', 'type: exponential; color: #02040a; density: 0.015;');
+                        luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.4; color: #2e2a72');
                         
                         luisLlama.setAttribute('visible', 'false');
                         luisWalk.setAttribute('visible', 'true'); 
@@ -442,6 +472,7 @@
             if (!rig.object3D) return;
             jugadorEstado = "EXPLORANDO";
             modoCorrer = false;
+            btnSprint.textContent = "RETORNAR A EXPLORAR";
             btnSprint.textContent = "🏃‍♂️ CORRER";
             btnSprint.style.borderColor = "#ef4444";
             rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
