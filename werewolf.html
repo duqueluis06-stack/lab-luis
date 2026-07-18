@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v4.2</title>
+    <title>ARK - Werewolf Escape Simulator v4.2 FINAL</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -41,7 +41,7 @@
     <div id="custom-loader">
         <div class="spinner"></div>
         <div class="loader-title">ARK: Simulador v4.2</div>
-        <div class="loader-msg">Estabilizando mallas dinámicas y protegiendo el ciclo de renderizado...</div>
+        <div class="loader-msg">Estabilizando mallas dinámicas, activando colisiones sólidas y protegiendo el ciclo de renderizado...</div>
     </div>
 
     <div id="fade-screen"></div>
@@ -89,13 +89,14 @@
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DE LUIS -->
+        <!-- RIG DE LUIS CON COMPONENTE DE VISIBILIDAD BRUTAL -->
         <a-entity id="player-rig" position="0 0 12">
             <a-entity id="avatar-container" position="0 0 0" scale="0.38 0.38 0.38">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.15;"></a-entity>
                 <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.25;"></a-entity>
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+                <!-- COMPONENTE 'forzar-render' APLICADO DIRECTAMENTE AQUÍ -->
+                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;" forzar-render></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw">
@@ -117,6 +118,25 @@
     </a-scene>
 
     <script>
+        // SOLUCIÓN TÉCNICA #1: ELIMINAR EL FRUSTUM CULLING (FORZAR RENDERIZADO DEL AVATAR)
+        AFRAME.registerComponent('forzar-render', {
+            init: function () {
+                this.el.addEventListener('model-loaded', () => {
+                    const mesh = this.el.getObject3D('mesh');
+                    if (mesh) {
+                        mesh.traverse((node) => {
+                            if (node.isMesh) {
+                                node.frustumCulled = false; // El avatar NO desaparecerá si está estático
+                                node.castShadow = true;
+                                node.receiveShadow = true;
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        // BLOQUEO DEL CLIC DERECHO
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         const SPAWN_X = 0; const SPAWN_Z = 12;
@@ -125,6 +145,7 @@
         const CASA_INTERIOR_X = 17.44; const CASA_INTERIOR_Z = 16.10;
         
         const VEL_CAMINAR = 0.045; const VEL_CORRER = 0.082;
+
         const CASA_COLLIDER = { xMin: 14.5, xMax: 20.3, zMin: 11.5, zMax: 17.0 };
 
         const escena = document.getElementById('escena-principal');
@@ -168,7 +189,7 @@
         let loboTimerIA = 0;
         let loboAturdidoTimer = 0;
         let wwPoseActual = "idle";
-        let meshActualLuis = ""; // Guardián de estados de animación
+        let meshActualLuis = ""; // Guardián de estados
 
         function ocultarLoader() { if (loaderEliminado) return; loaderEliminado = true; document.getElementById('custom-loader').style.opacity = '0'; setTimeout(() => document.getElementById('custom-loader').remove(), 500); }
         document.getElementById('entorno').addEventListener('model-loaded', ocultarLoader);
@@ -255,7 +276,7 @@
             }
             staminaBar.style.width = `${stamina}%`;
 
-            // INTELIGENCIA ARTIFICIAL DEL LOBO REESTRUCTURADA
+            // MÁQUINA DE ESTADOS HOMBRE LOBO CORREGIDA
             switch (loboEstadoIA) {
                 case "acechando":
                     if (distLoboJugador < 5.0 && jugadorEstado === "EXPLORANDO") {
@@ -361,7 +382,7 @@
                     const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                     pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
-                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual; // CORREGIDO MULTIPLICADOR DIRECCIONAL DE LADO
+                    pos.z += (fwdZ * -inputY + rgtX * inputX) * velActual; // CORREGIDO MULTIPLICADOR DIRECCIONAL
 
                     let chocaConCasa = (pos.x >= CASA_COLLIDER.xMin && pos.x <= CASA_COLLIDER.xMax &&
                                         pos.z >= CASA_COLLIDER.zMin && pos.z <= CASA_COLLIDER.zMax);
@@ -375,13 +396,13 @@
                         avatarContainer.object3D.rotation.y += diffAngle * 0.25;
                     }
                 } else {
-                    // MANEJO DE ESTADOS ESTÁTICOS SEGUROS CONTRA INVISIBILIDADES
+                    // MANEJO DE ESTADOS ESTÁTICOS SEGUROS
                     if (jugadorEstado === "EXPLORANDO") {
-                        cambiarMeshLuis('hora'); // ¡Activado luis-hora de forma fluida y permanente!
+                        cambiarMeshLuis('hora'); // ¡Activado luis-hora estático protegido!
                     } else if (jugadorEstado === "LLAMANDO") {
                         cambiarMeshLuis('llama');
                     } else if (jugadorEstado === "SALVADO") {
-                        cambiarMeshLuis('ninguno'); // Escondido solo en primera persona para limpiar la vista interna de la cámara
+                        cambiarMeshLuis('ninguno'); // Escondido en primera persona
                     }
                 }
 
@@ -395,7 +416,7 @@
                     if (Math.abs(diferenciaAltura) < 0.4) { pos.y += diferenciaAltura * 0.3; }
                 }
 
-                // CAPTURA AUTOMÁTICA EN LA PUERTA
+                // DETECTOR DE PUERTA SEGURA
                 if (jugadorEstado === "EXPLORANDO") {
                     let distA_Casa = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
                     if (distA_Casa <= RADIO_DISPARADOR) {
@@ -412,7 +433,7 @@
                             jugadorEstado = "SALVADO";
                             pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
                             
-                            avatarContainer.setAttribute('visible', 'false'); // Ocultar el rig completo para evitar cliping loco en interiores
+                            avatarContainer.setAttribute('visible', 'false'); // Ocultar para interiors
                             mainCamera.setAttribute('position', '0 1.6 0'); 
                             camPitch = 0; camYaw = 3.14; 
                             
@@ -426,7 +447,7 @@
             }
         }
         
-        // BOTÓN REINICIAR RESET GLOBAL
+        // BOTÓN REINICIAR
         document.getElementById('btn-center').addEventListener('click', () => {
             if (!rig.object3D) return;
             jugadorEstado = "EXPLORANDO"; modoCorrer = false; stamina = 100; cooldowntimer = false; actualizarBotonSprintVisual();
@@ -441,7 +462,7 @@
             werewolfRig.object3D.position.set(5, 0, -4);
             loboEstadoIA = "acechando"; loboAullidoContador = 0; loboTimerIA = 0; loboAturdidoTimer = 0;
 
-            meshActualLuis = ""; // Forzar reset de mallas
+            meshActualLuis = ""; // Reset de mallas
             cambiarMeshLuis('hora');
             
             alertUI.innerHTML = "⚠️ El Werewolf acecha. Busca el refugio 🏡";
