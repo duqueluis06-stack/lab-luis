@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v5.8 Interior-Fix</title>
+    <title>ARK - Werewolf Escape Simulator v6.0 Production</title>
     
-    <!-- Librerías estables de A-Frame y Extras -->
+    <!-- Librerías estables de A-Frame y Extras de Animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
@@ -109,7 +109,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Iniciando entorno de supervivencia...</div>
+            <div class="loader-msg" id="loader-status">Cargando texturas y archivos de audio...</div>
         </div>
     </div>
 
@@ -150,6 +150,7 @@
              loading-screen="enabled: false">
         
         <a-assets>
+            <!-- Modelos 3D del repositorio Hugging Face -->
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb" crossorigin="anonymous"></a-asset-item>
@@ -159,43 +160,58 @@
             <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="luis-atento-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-atento.glb" crossorigin="anonymous"></a-asset-item>
+
+            <!-- Tus 4 Audios Personalizados -->
+            <audio id="sonido-limbo" src="audio/limbo.mp3" preload="auto"></audio>
+            <audio id="sonido-stalk" src="audio/wolf-stalk.mp3" preload="auto"></audio>
+            <audio id="sonido-enojado" src="audio/werewolf-enojado.mp3" preload="auto"></audio>
+            <audio id="sonido-aullido" src="audio/werewolf-aullido.mp3" preload="auto"></audio>
         </a-assets>
+
+        <!-- Entidades de Audio del Motor Nativo -->
+        <a-entity id="audio-global-limbo" sound="src: #sonido-limbo; loop: true; volume: 0.5; positional: false"></a-entity>
+        <a-entity id="audio-local-stalk" sound="src: #sonido-stalk; loop: true; volume: 0; positional: false"></a-entity>
+        <a-entity id="audio-local-enojado" sound="src: #sonido-enojado; loop: true; volume: 0; positional: false"></a-entity>
+        <a-entity id="audio-global-aullido" sound="src: #sonido-aullido; loop: false; volume: 0.95; positional: false"></a-entity>
 
         <a-sky color="#05050b"></a-sky>
         
-        <!-- LA LUNA (Visual e Inmune a la Niebla) -->
+        <!-- Luna Llena -->
         <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
         
+        <!-- Efecto de Lluvia -->
         <a-entity particle-system="preset: rain; color: #444; particleCount: 2000; size: 0.4; velocityValue: 0 15 0; opacity: 0.3;"></a-entity>
         
+        <!-- Iluminación Exterior -->
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #2a3550"></a-entity>
         <a-entity id="luz-luna" light="type: directional; intensity: 0.75; color: #9abaff;" position="20 55 -45"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
+        <!-- El Mapa/Pueblo Completo -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- FOGATA VIRTUAL REALISTA (ZONA DE SALVACIÓN) -->
+        <!-- SOLUCIÓN DE ILUMINACIÓN DE INTERIOR: Revela el primer piso y la cocina cuando entras -->
+        <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
+        <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
+
+        <!-- FOGATA VIRTUAL REALISTA (ZONA DE SALVACIÓN MÁGICA) -->
         <a-entity id="refugio-target" position="17.4 0.05 16.5">
-            <!-- Luz dinámica parpadeante de la fogata -->
             <a-entity light="type: point; intensity: 3.5; distance: 12; color: #ff5500;" 
                       animation="property: light.intensity; from: 2.7; to: 3.8; dur: 110; dir: alternate; loop: true"></a-entity>
             
-            <!-- Troncos cruzados estilizados -->
             <a-cylinder radius="0.08" height="0.9" color="#4a2e1b" rotation="20 45 30" position="0 0.05 0"></a-cylinder>
             <a-cylinder radius="0.08" height="0.9" color="#3d2516" rotation="25 -45 -20" position="0 0.05 0"></a-cylinder>
             <a-cylinder radius="0.08" height="0.9" color="#5c3a21" rotation="-30 90 10" position="0 0.05 0"></a-cylinder>
             
-            <!-- Fuego Central Animado (Doble cono asíncrono para dar volumen orgánico) -->
             <a-cone radius-bottom="0.35" radius-top="0.01" height="0.8" color="#ff6a00" material="shader: flat; transparent: true; opacity: 0.85" position="0 0.35 0"
                     animation="property: scale; from: 1 1 1; to: 1.15 1.3 1.15; dir: alternate; loop: true; dur: 220"></a-cone>
             <a-cone radius-bottom="0.22" radius-top="0.01" height="0.65" color="#ffcc00" material="shader: flat; transparent: true; opacity: 0.95" position="0 0.38 0"
                     animation="property: scale; from: 0.9 1 0.9; to: 1.2 1.4 1.2; dir: alternate; loop: true; dur: 160"></a-cone>
             
-            <!-- Base de cenizas oscuras -->
             <a-circle radius="0.6" color="#1a1a1a" rotation="-90 0 0" position="0 0.01 0"></a-circle>
         </a-entity>
 
-        <!-- RIG JUGADOR -->
+        <!-- RIG JUGADOR (Cámara con near: 0.1 evita recortes de pared al entrar) -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
@@ -243,8 +259,8 @@
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             pos: new THREE.Vector3(0, 0, 25), salud: 100, stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
-            loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
-            esInterior: false
+            juegoGanado: false, loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
+            esInterior: false, audioStalkPlaying: false, audioEnojadoPlaying: false
         };
 
         const UI = {
@@ -270,7 +286,7 @@
         };
 
         function initLoader() {
-            const assets = document.querySelectorAll('a-asset-item');
+            const assets = document.querySelectorAll('a-asset-item, audio');
             GAME_STATE.totalAssets = assets.length;
             if (GAME_STATE.totalAssets === 0) { showStartButton(); return; }
             assets.forEach(asset => {
@@ -296,11 +312,18 @@
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
                 
-                /* =============================================================
-                   ESPACIO PARA TUS 4 AUDIOS PERSONALIZADOS
-                   Cuando los tengas listos, puedes descomentar e inicializarlos aquí:
-                   ej: var miAudio = new Audio('url_de_tu_mp3'); miAudio.play();
-                   ============================================================= */
+                // --- ARRANQUE DEL ENGINE DE AUDIO INTEGRADO ---
+                if(document.getElementById('audio-global-limbo').components.sound) {
+                    document.getElementById('audio-global-limbo').components.sound.playSound();
+                }
+
+                // Disparador cíclico del aullido del lobo (exactamente cada 1 minuto)
+                setInterval(() => {
+                    if (GAME_STATE.juegoActivo && !GAME_STATE.isDead && !GAME_STATE.juegoGanado) {
+                        const sAullido = document.getElementById('audio-global-aullido').components.sound;
+                        if(sAullido) sAullido.playSound();
+                    }
+                }, 60000);
 
                 initControls();
                 GAME_STATE.juegoActivo = true;
@@ -394,15 +417,10 @@
 
         function switchWwMesh(target) {
             if (ENT.wwMeshes.activeName === target) return;
-            
-            // Apagamos el viejo
             ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('scale', '0 0 0');
             ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
-            
-            // Encendemos el nuevo de forma explícita para evitar pérdidas de contexto WebGL
             ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
             ENT.wwMeshes[target].setAttribute('visible', 'true');
-            
             ENT.wwMeshes.activeName = target;
         }
 
@@ -412,7 +430,7 @@
 
             if (!GAME_STATE.juegoActivo) { requestAnimationFrame(engineLoop); return; }
 
-            if (!GAME_STATE.isDead && ENT.rig.object3D) {
+            if (!GAME_STATE.isDead && !GAME_STATE.juegoGanado && ENT.rig.object3D) {
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
                 ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
@@ -423,7 +441,7 @@
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                // --- DETECTOR INTELIGENTE DE INTERIORES (CÁMARA FPV AUTO) ---
+                // --- DETECTOR INTELIGENTE DE BAJO TECHO (FPP INTERIOR AUTOMÁTICO) ---
                 let bajoTecho = false;
                 if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                     const rayoTecho = new THREE.Raycaster(
@@ -439,10 +457,10 @@
 
                 const camaraElemento = document.getElementById('main-camera');
                 if (GAME_STATE.esInterior) {
-                    camaraElemento.setAttribute('position', '0 1.55 0'); // Primera persona estable a la altura de los ojos
-                    ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0'); // Ocultar cuerpo propio para no estorbar la pantalla
+                    camaraElemento.setAttribute('position', '0 1.55 0'); // Primera persona para ver salón y cocina abajo
+                    ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
                 } else {
-                    camaraElemento.setAttribute('position', '0 1.5 2.2'); // Tercera persona original fuera de las estructuras
+                    camaraElemento.setAttribute('position', '0 1.5 2.2'); // Tercera persona fuera de las estructuras
                 }
 
                 if (GAME_STATE.inputMoviendo) {
@@ -455,10 +473,9 @@
                     GAME_STATE.pos.x += dx * speed;
                     GAME_STATE.pos.z += dz * speed;
 
-                    // --- AJUSTE DEL RAYCASTER DE PECHO (EVITA SEGUNDOS PISOS Y ÁRBOLES) ---
+                    // --- AJUSTE RAYCASTER ALTURA DEL PECHO (1.2m) CONTRA GLITCH EN ÁRBOLES ---
                     let alturaSuelo = GAME_STATE.pos.y;
                     if (ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                        // Lanzamos el rayo desde 1.2m (pecho) en lugar de un punto alto exterior
                         const rayoCaida = new THREE.Raycaster(
                             new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z),
                             new THREE.Vector3(0, -1, 0)
@@ -476,8 +493,6 @@
                                     impactoMasCercano = colisionesSuelo[i];
                                 }
                             }
-                            
-                            // Si el cambio de altura es un escalón lógico (< 1.0m), adaptamos la altura
                             if (diferenciaMinima < 1.0) {
                                 alturaSuelo = impactoMasCercano.point.y;
                             }
@@ -496,7 +511,7 @@
                     switchMesh('atento');
                 }
 
-                // Gestión de Resistencia (Stamina)
+                // Barra de Resistencia
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
                     if (GAME_STATE.stamina <= 0) {
@@ -511,9 +526,12 @@
                 }
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
-                // Lógica física de persecución del Hombre Lobo
+                // --- LÓGICA FÍSICA Y AUDIO DINÁMICO DE PROXIMIDAD DEL LOBO ---
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
+                
+                const soundStalk = document.getElementById('audio-local-stalk').components.sound;
+                const soundEnojado = document.getElementById('audio-local-enojado').components.sound;
 
                 if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
                     switchWwMesh('beast');
@@ -525,30 +543,58 @@
 
                     if (dist < CONFIG.distAtaqueLobo) {
                         GAME_STATE.loboEstado = 'ataque'; UI.damage.classList.add('active');
+                        
+                        // Audio: Modo Enfado Crítico
+                        if (!GAME_STATE.audioEnojadoPlaying && soundEnojado) {
+                            soundEnojado.playSound(); GAME_STATE.audioEnojadoPlaying = true;
+                        }
+                        if(soundEnojado) soundEnojado.setVolume(1.0);
+                        if(soundStalk) soundStalk.setVolume(0.15);
                     } else {
                         GAME_STATE.loboEstado = 'acecho'; UI.damage.classList.remove('active');
+                        
+                        // Audio: Modo Acecho Progresivo
+                        if (!GAME_STATE.audioStalkPlaying && soundStalk) {
+                            soundStalk.playSound(); GAME_STATE.audioStalkPlaying = true;
+                        }
+                        if (GAME_STATE.audioEnojadoPlaying && soundEnojado) {
+                            soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false;
+                        }
+                        let volMix = 1 - ((dist - CONFIG.distAtaqueLobo) / (CONFIG.distDeteccionLobo - CONFIG.distAtaqueLobo));
+                        if(soundStalk) soundStalk.setVolume(Math.max(0, volMix));
                     }
                 } else if (dist <= CONFIG.distMeleeLobo) {
                     if (GAME_STATE.loboEstado !== 'melee') {
                         GAME_STATE.loboEstado = 'melee'; switchWwMesh('howl'); ejecutarDaño();
                     }
                 } else {
+                    // Distancia Segura fuera de rango
                     switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
+                    if (GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.stopSound(); GAME_STATE.audioStalkPlaying = false; }
+                    if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
                 }
 
-                // Condición de victoria al tocar la fogata
+                // SOLUCIÓN AL "DÉPART" DEL FUEGO: Estado de Victoria sin reinicios automáticos molestos
                 if (GAME_STATE.pos.distanceTo(new THREE.Vector3(17.4, 0.05, 16.5)) <= CONFIG.radioVictoria) {
-                    GAME_STATE.isDead = true;
+                    GAME_STATE.juegoGanado = true;
                     UI.alert.textContent = "🎉 ¡CAMPAMENTO ALCANZADO! EL FUEGO TE PONE A SALVO LUIS 🎉";
                     UI.alert.style.borderColor = "var(--ui-green)"; UI.alert.style.color = "var(--ui-green)";
-                    setTimeout(resetGame, 4000);
+                    UI.damage.classList.remove('active');
+                    
+                    // Apagamos audios de peligro por seguridad
+                    if(soundStalk) soundStalk.stopSound();
+                    if(soundEnojado) soundEnojado.stopSound();
+                    
+                    // El lobo retrocede asustado por las llamas y se queda quieto
+                    switchWwMesh('idle');
+                    ENT.wwRig.object3D.position.set(15, 0, -5);
                 }
             }
             requestAnimationFrame(engineLoop);
         }
 
         function ejecutarDaño() {
-            if (GAME_STATE.isDead) return;
+            if (GAME_STATE.isDead || GAME_STATE.juegoGanado) return;
             GAME_STATE.salud -= 25;
             UI.alert.textContent = `🚨 ¡TE HA ALCANZADO! SALUD: ${GAME_STATE.salud}% 🚨`;
             if (GAME_STATE.salud <= 0) {
@@ -560,7 +606,7 @@
         }
 
         function triggerThunder() {
-            if (GAME_STATE.isDead || !GAME_STATE.juegoActivo) return;
+            if (GAME_STATE.isDead || GAME_STATE.juegoGanado || !GAME_STATE.juegoActivo) return;
             const luz = ENT.luzRelampago.object3D.element;
             if(luz) {
                 luz.setAttribute('light', 'intensity', '2.0');
@@ -575,8 +621,9 @@
         }
 
         function resetGame() {
-            GAME_STATE.salud = 100; GAME_STATE.stamina = CONFIG.staminaMax; GAME_STATE.isDead = false; GAME_STATE.loboEstado = 'idle';
+            GAME_STATE.salud = 100; GAME_STATE.stamina = CONFIG.staminaMax; GAME_STATE.isDead = false; GAME_STATE.juegoGanado = false; GAME_STATE.loboEstado = 'idle';
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
+            GAME_STATE.audioStalkPlaying = false; GAME_STATE.audioEnojadoPlaying = false;
             GAME_STATE.pos.set(0, 0, 25);
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(15, 0, -10);
@@ -586,7 +633,12 @@
             UI.alert.style.borderColor = "var(--ui-red)"; UI.alert.style.color = "#fca5a5";
             UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
             
-            // Reajuste de visibilidad y escalas limpias
+            // Forzar reseteo de stops de audio de proximidad
+            try {
+                document.getElementById('audio-local-stalk').components.sound.stopSound();
+                document.getElementById('audio-local-enojado').components.sound.stopSound();
+            } catch(e){}
+
             Object.keys(ENT.meshes).forEach(k => { if(k !== 'activeName') ENT.meshes[k].setAttribute('scale', '0 0 0'); });
             
             ENT.wwMeshes.idle.setAttribute('scale', '0.8 0.8 0.8');
