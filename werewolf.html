@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v7.0</title>
+    <title>ARK - Werewolf Escape Simulator v7.2</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -146,7 +146,6 @@
         
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
@@ -193,7 +192,7 @@
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-scale>
+                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
                 <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
             </a-entity>
@@ -207,10 +206,9 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO (HOMBRE LOBO) -->
+        <!-- ENEMIGO (HOMBRE LOBO) - Sin Mesh Idle pesado -->
         <a-entity id="werewolf-rig" position="15 0 -10">
-            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
         </a-entity>
@@ -233,7 +231,7 @@
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboPos: new THREE.Vector3(15, 0, -10), loboEstado: 'idle', lastFrameTime: 0,
             esInterior: false, audioStalkPlaying: false, audioEnojadoPlaying: false,
-            frameTicks: 0, cachedAlturaSuelo: 0
+            frameTicks: 0, cachedAlturaSuelo: 0, activeMesh: 'atento', wwActiveMesh: 'howl'
         };
 
         const UI = {
@@ -246,9 +244,17 @@
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
             rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
-            meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), llama: document.getElementById('luis-mesh-llama'), atento: document.getElementById('luis-mesh-atento'), activeName: 'atento' },
+            meshes: { 
+                walk: document.getElementById('luis-mesh-walk'), 
+                run: document.getElementById('luis-mesh-run'), 
+                llama: document.getElementById('luis-mesh-llama'), 
+                atento: document.getElementById('luis-mesh-atento') 
+            },
             wwRig: document.getElementById('werewolf-rig'),
-            wwMeshes: { idle: document.getElementById('ww-mesh-idle'), howl: document.getElementById('ww-mesh-howl'), beast: document.getElementById('ww-mesh-beast'), activeName: 'idle' }
+            wwMeshes: { 
+                howl: document.getElementById('ww-mesh-howl'), 
+                beast: document.getElementById('ww-mesh-beast') 
+            }
         };
 
         const INPUT = {
@@ -310,7 +316,7 @@
                 if(k === 's' || k === 'arrowdown') INPUT.keys.s = true;
                 if(k === 'a' || k === 'arrowleft') INPUT.keys.a = true;
                 if(k === 'd' || k === 'arrowright') INPUT.keys.d = true;
-                if(e.key === 'Shift') { e.preventDefault(); toggleSprint(!GAME_STATE.modoCorrerActive); }
+                if(e.key === 'Shift') { e.preventDefault(); toggleSprint(true); }
             });
             window.addEventListener('keyup', e => {
                 const k = e.key.toLowerCase();
@@ -318,20 +324,29 @@
                 if(k === 's' || k === 'arrowdown') INPUT.keys.s = false;
                 if(k === 'a' || k === 'arrowleft') INPUT.keys.a = false;
                 if(k === 'd' || k === 'arrowright') INPUT.keys.d = false;
+                if(e.key === 'Shift') { toggleSprint(false); }
             });
 
             window.addEventListener('pointerdown', e => {
                 if (e.target.closest('.ui-btn') || e.target.closest('.control-wrapper') || e.target.closest('#alert-ui')) return;
                 INPUT.isDraggingCam = true;
-                INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
+                INPUT.lastMouseX = e.clientX; 
+                INPUT.lastMouseY = e.clientY;
             });
+            
             window.addEventListener('pointermove', e => {
                 if (!INPUT.isDraggingCam) return;
-                let dx = e.clientX - INPUT.lastMouseX; let dy = e.clientY - INPUT.lastMouseY;
-                INPUT.camYaw -= dx * 0.0035; INPUT.camPitch -= dy * 0.0035;
+                let dx = e.clientX - INPUT.lastMouseX; 
+                let dy = e.clientY - INPUT.lastMouseY;
+                
+                INPUT.camYaw -= dx * 0.0035; 
+                INPUT.camPitch -= dy * 0.0035;
                 INPUT.camPitch = Math.max(-0.4, Math.min(0.4, INPUT.camPitch));
-                INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
+                
+                INPUT.lastMouseX = e.clientX; 
+                INPUT.lastMouseY = e.clientY;
             });
+            
             window.addEventListener('pointerup', () => INPUT.isDraggingCam = false);
 
             UI.btnReset.addEventListener('click', resetGame);
@@ -375,23 +390,40 @@
 
         function switchMesh(target) {
             if (GAME_STATE.esInterior) {
-                ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
-                ENT.meshes.activeName = target;
+                for (let key in ENT.meshes) {
+                    if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
+                }
+                GAME_STATE.activeMesh = target;
                 return;
             }
-            if (ENT.meshes.activeName === target) return;
-            ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
-            ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
-            ENT.meshes.activeName = target;
+            
+            if (GAME_STATE.activeMesh === target && ENT.meshes[target].getAttribute('scale').x > 0) return;
+
+            for (let key in ENT.meshes) {
+                if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
+            }
+            
+            if (ENT.meshes[target]) {
+                ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
+            }
+            GAME_STATE.activeMesh = target;
         }
 
         function switchWwMesh(target) {
-            if (ENT.wwMeshes.activeName === target) return;
-            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('scale', '0 0 0');
-            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
-            ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
-            ENT.wwMeshes[target].setAttribute('visible', 'true');
-            ENT.wwMeshes.activeName = target;
+            if (GAME_STATE.wwActiveMesh === target) return;
+            
+            for (let key in ENT.wwMeshes) {
+                if (ENT.wwMeshes[key]) {
+                    ENT.wwMeshes[key].setAttribute('scale', '0 0 0');
+                    ENT.wwMeshes[key].setAttribute('visible', 'false');
+                }
+            }
+            
+            if (ENT.wwMeshes[target]) {
+                ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
+                ENT.wwMeshes[target].setAttribute('visible', 'true');
+            }
+            GAME_STATE.wwActiveMesh = target;
         }
 
         function engineLoop(time) {
@@ -500,12 +532,14 @@
             const camaraElemento = document.getElementById('main-camera');
             if (GAME_STATE.esInterior) {
                 camaraElemento.setAttribute('position', '0 1.20 0');
-                ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
+                for (let key in ENT.meshes) {
+                    if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
+                }
             } else {
                 camaraElemento.setAttribute('position', '0 1.5 2.2');
             }
 
-            // --- SEGUIMIENTO Y AUDIO DEL LOBO LIBRE DE COLISIONES ---
+            // --- SEGUIMIENTO Y AUDIO DEL LOBO CON FALLBACK A HOWL ---
             let loboPos = ENT.wwRig.object3D.position;
             let dist = GAME_STATE.pos.distanceTo(loboPos);
             
@@ -534,7 +568,7 @@
                     if(soundStalk) soundStalk.setVolume(Math.max(0, volMix));
                 }
             } else {
-                switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
+                switchWwMesh('howl'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
                 if (GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.stopSound(); GAME_STATE.audioStalkPlaying = false; }
                 if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
             }
@@ -574,18 +608,19 @@
                 document.getElementById('audio-local-enojado').components.sound.stopSound();
             } catch(e){}
 
-            Object.keys(ENT.meshes).forEach(k => { if(k !== 'activeName') ENT.meshes[k].setAttribute('scale', '0 0 0'); });
+            for (let key in ENT.meshes) {
+                if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
+            }
             
-            ENT.wwMeshes.idle.setAttribute('scale', '0.8 0.8 0.8');
-            ENT.wwMeshes.idle.setAttribute('visible', 'true');
-            ENT.wwMeshes.howl.setAttribute('scale', '0 0 0');
-            ENT.wwMeshes.howl.setAttribute('visible', 'false');
+            GAME_STATE.activeMesh = 'atento';
+            GAME_STATE.wwActiveMesh = 'howl';
+
+            ENT.wwMeshes.howl.setAttribute('scale', '0.8 0.8 0.8');
+            ENT.wwMeshes.howl.setAttribute('visible', 'true');
             ENT.wwMeshes.beast.setAttribute('scale', '0 0 0');
             ENT.wwMeshes.beast.setAttribute('visible', 'false');
-            ENT.wwMeshes.activeName = 'idle';
 
             if (!GAME_STATE.esInterior) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
-            ENT.meshes.activeName = 'atento';
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') { initLoader(); }
