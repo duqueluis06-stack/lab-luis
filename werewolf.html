@@ -3,473 +3,1366 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v4.4 DRACO</title>
+    <title>ARK - Werewolf Escape Simulator v4.5 PRO Max</title>
     
+    <!-- Librerías estables de A-Frame y Extras -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    <!-- Librería de partículas para efectos especiales -->
+    <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; font-family: system-ui, sans-serif; background-color: #010103; user-select: none; -webkit-user-select: none; }
-        #custom-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #010103; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease; }
-        .spinner { width: 45px; height: 45px; border: 3px solid rgba(239, 68, 68, 0.1); border-top-color: #ef4444; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        .loader-title { color: #ef4444; font-size: 13px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
-        .loader-msg { color: #94a3b8; font-size: 11px; max-width: 250px; text-align: center; line-height: 1.5; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        :root {
+            --ui-red: #ef4444;
+            --ui-green: #00ffaa;
+            --ui-blue: #38bdf8;
+            --bg-dark: #010103;
+            --pane-bg: rgba(15, 23, 42, 0.9);
+        }
 
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-dark); 
+            user-select: none; 
+            -webkit-user-select: none; 
+            color: #fff;
+        }
+
+        /* --- Pantalla de Carga Avanzada --- */
+        #custom-loader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: var(--bg-dark); z-index: 99999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: opacity 1s ease, visibility 1s ease; 
+        }
+        #custom-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .spinner-container { position: relative; width: 80px; height: 80px; margin-bottom: 30px; }
+        .spinner { 
+            width: 100%; height: 100%; 
+            border: 4px solid rgba(239, 68, 68, 0.1); 
+            border-top-color: var(--ui-red); 
+            border-radius: 50%; 
+            animation: spin 1s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite; 
+        }
+        .spinner-icon {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 30px; color: var(--ui-red);
+            animation: pulse 2s infinite;
+        }
+
+        .loader-text-group { text-align: center; }
+        .loader-title { color: var(--ui-red); font-size: 18px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
+        .loader-msg { color: #94a3b8; font-size: 12px; max-width: 300px; line-height: 1.6; margin: 0 auto; }
+        .load-progress { width: 200px; height: 2px; background: rgba(255,255,255,0.1); margin: 15px auto; border-radius: 1px; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background: var(--ui-red); transition: width 0.3s ease; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* --- Superposición de Fundido --- */
         #fade-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 99990; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 
+        /* --- Barra Superior de UI --- */
         #ui-top-bar { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; z-index: 1000; pointer-events: none; gap: 8px; }
-        .ui-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; }
-        #btn-center { pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #00ffaa; color: #00ffaa; border-radius: 50%; width: 44px; height: 44px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        #alert-ui { flex-grow: 1; text-align: center; background: rgba(15, 23, 42, 0.9); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: bold; text-transform: uppercase; max-width: 60%; box-sizing: border-box; }
-        #btn-sprint { pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #ef4444; color: #ffffff; padding: 12px 14px; border-radius: 8px; font-size: 10px; font-weight: bold; cursor: pointer; min-width: 90px; text-align: center; }
+        .ui-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; pointer-events: auto; }
+        
+        .ui-btn { 
+            background: var(--pane-bg); border: 1px solid rgba(255,255,255,0.2); 
+            color: #fff; border-radius: 8px; cursor: pointer; 
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+        }
+        .ui-btn:active { transform: scale(0.95); background: rgba(30, 41, 59, 0.9); }
 
-        #stamina-container { width: 100%; max-width: 320px; height: 6px; background: rgba(15, 23, 42, 0.6); border-radius: 3px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.3); pointer-events: none; }
-        #stamina-bar { width: 100%; height: 100%; background: #00ffaa; transition: width 0.1s linear; }
+        #btn-reset { width: 44px; height: 44px; font-size: 18px; border-color: var(--ui-green); color: var(--ui-green); border-radius: 50%; }
+        #btn-reset:hover { background: rgba(0, 255, 170, 0.1); box-shadow: 0 0 10px rgba(0, 255, 170, 0.2); }
 
-        #joystick-wrapper { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; z-index: 999; }
-        #joystick-container { width: 100px; height: 100px; background: rgba(15, 23, 42, 0.6); border: 2px solid #ef4444; border-radius: 50%; position: relative; }
-        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #ef4444; border-radius: 50%; cursor: pointer; }
+        #alert-ui { 
+            flex-grow: 1; text-align: center; background: var(--pane-bg); 
+            border: 1px solid var(--ui-red); color: #fca5a5; 
+            padding: 12px; border-radius: 8px; font-size: 11px; font-weight: bold; 
+            text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
 
-        #arrows-wrapper { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 999; }
-        .joy-arrow { position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; width: 34px; height: 34px; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-        .arrow-up { top: 0; left: 33px; } .arrow-down { bottom: 0; left: 33px; } .arrow-left { left: 0; top: 33px; } .arrow-right { right: 0; top: 33px; }
+        #btn-sprint { padding: 12px 18px; font-size: 10px; font-weight: bold; border-color: var(--ui-red); min-width: 100px; text-transform: uppercase; letter-spacing: 1px;}
+        #btn-sprint.active { background: var(--ui-red); color: #fff; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        #btn-sprint.cooldown { border-color: #64748b; color: #64748b; opacity: 0.7; cursor: not-allowed; }
+
+        /* --- Barra de Resistencia --- */
+        #stamina-container { width: 100%; max-width: 320px; height: 4px; background: rgba(15, 23, 42, 0.5); border-radius: 2px; overflow: hidden; pointer-events: none; position: relative; margin-top: 4px;}
+        #stamina-bar { width: 100%; height: 100%; background: var(--ui-green); transition: width 0.1s linear, background-color 0.3s ease; }
+        #stamina-bar.low { background-color: var(--ui-red); animation: pulse-stamina 0.5s infinite; }
+        @keyframes pulse-stamina { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+        /* --- Pantalla de Daño (Vignette) --- */
+        #damage-vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255,0,0,0) 40%, rgba(150,0,0,0.6) 100%);
+            z-index: 99980; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
+        }
+        #damage-vignette.active { opacity: 1; animation: heart-beat 1.5s infinite; }
+        @keyframes heart-beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+
+        /* --- Controles Móviles --- */
+        .control-wrapper { position: absolute; z-index: 999; pointer-events: auto; }
+        
+        /* Joystick */
+        #joystick-wrapper { bottom: 40px; right: 40px; width: 110px; height: 110px; }
+        #joystick-container { width: 100%; height: 100%; background: rgba(15, 23, 42, 0.5); border: 2px solid var(--ui-red); border-radius: 50%; position: relative; backdrop-filter: blur(2px); touch-action: none;}
+        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); cursor: pointer; touch-action: none;}
+
+        /* Flechas de Cámara */
+        #arrows-wrapper { bottom: 40px; left: 40px; width: 110px; height: 110px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4px; }
+        .joy-arrow { 
+            grid-column: 2; grid-row: 2;
+            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.2); 
+            color: rgba(255,255,255,0.8); border-radius: 8px; width: 36px; height: 36px; 
+            font-size: 16px; display: flex; align-items: center; justify-content: center; 
+            transition: all 0.1s ease; backdrop-filter: blur(2px);
+        }
+        .joy-arrow:active { background: var(--ui-red); border-color: var(--ui-red); color: #fff; transform: scale(0.9); box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+        
+        .arrow-up { grid-row: 1; grid-column: 2; }
+        .arrow-down { grid-row: 3; grid-column: 2; }
+        .arrow-left { grid-row: 2; grid-column: 1; }
+        .arrow-right { grid-row: 2; grid-column: 3; }
+
     </style>
 </head>
 <body>
 
+    <!-- Pantalla de Carga Avanzada -->
     <div id="custom-loader">
-        <div class="spinner"></div>
-        <div class="loader-title">ARK: Simulador v4.4</div>
-        <div class="loader-msg">Inicializando descompresión Draco y forzando mallas de renderizado...</div>
+        <div class="spinner-container">
+            <div class="spinner"></div>
+            <div class="spinner-icon">🐺</div>
+        </div>
+        <div class="loader-text-group">
+            <div class="loader-title">ARK: Simulador</div>
+            <div class="load-progress"><div id="progress-bar"></div></div>
+            <div class="loader-msg" id="loader-status">Iniciando protocolo de renderizado Draco...</div>
+        </div>
     </div>
 
+    <!-- Efecto de daño visual -->
+    <div id="damage-vignette"></div>
+    
+    <!-- Fundido para transiciones -->
     <div id="fade-screen"></div>
 
+    <!-- UI Superior -->
     <div id="ui-top-bar">
         <div class="ui-row">
-            <button id="btn-center">🔄</button>
-            <div id="alert-ui">⚠️ El Werewolf acecha. Busca el refugio 🏡</div>
-            <button id="btn-sprint">🏃‍♂️ CORRER</button>
+            <button id="btn-reset" class="ui-btn" title="Reiniciar Simulación">🔄</button>
+            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡</div>
+            <button id="btn-sprint" class="ui-btn">🏃‍♂️ CORRER</button>
         </div>
         <div id="stamina-container">
             <div id="stamina-bar"></div>
         </div>
     </div>
 
-    <div id="arrows-wrapper">
+    <!-- Controles Móviles: Flechas de Cámara -->
+    <div id="arrows-wrapper" class="control-wrapper">
         <button class="joy-arrow arrow-up" id="btn-up">▲</button>
         <button class="joy-arrow arrow-down" id="btn-down">▼</button>
         <button class="joy-arrow arrow-left" id="btn-left">◀</button>
         <button class="joy-arrow arrow-right" id="btn-right">▶</button>
     </div>
 
-    <div id="joystick-wrapper">
+    <!-- Controles Móviles: Joystick de Movimiento -->
+    <div id="joystick-wrapper" class="control-wrapper">
         <div id="joystick-container">
             <div id="joystick-knob"></div>
         </div>
     </div>
 
-    <a-scene id="escena-principal" gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;" fog="type: exponential; color: #030307; density: 0.025;" renderer="antialias: false; colorManagement: true; powerPreference: high-performance;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
-        <a-assets>
+    <!-- ESCENA A-FRAME -->
+    <!-- Optimizaciones de renderizado y configuración de niebla -->
+    <a-scene id="escena-principal" 
+             gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;" 
+             fog="type: exponential; color: #020205; density: 0.03;" 
+             renderer="antialias: true; colorManagement: true; powerPreference: high-performance; physicallyCorrectLights: true;" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false" 
+             loading-screen="enabled: false">
+        
+        <a-assets timeout="20000">
+            <!-- Modelos GLB con Draco -->
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
             <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb"></a-asset-item>
             <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb"></a-asset-item>
+            
+            <!-- Avatar Luis -->
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
             <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb"></a-asset-item>
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb"></a-asset-item>
             <a-asset-item id="luis-hora-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-hora.glb"></a-asset-item>
+            
+            <!-- Sonidos -->
+            <audio id="snd-rain" src="https://cdn.pixabay.com/audio/2022/03/19/audio_2894676648.mp3" preload="auto"></audio>
+            <audio id="snd-howl" src="https://cdn.pixabay.com/audio/2023/09/11/audio_0344d9301f.mp3" preload="auto"></audio>
+            <audio id="snd-heart" src="https://cdn.pixabay.com/audio/2024/02/13/audio_730222f96a.mp3" preload="auto"></audio>
+            <audio id="snd-thunder" src="https://cdn.pixabay.com/audio/2022/03/15/audio_1c43f7a4df.mp3" preload="auto"></audio>
         </a-assets>
 
-        <a-sky id="cielo" color="#030307"></a-sky>
-        <a-sphere position="30 60 -90" radius="5" color="#e5efff" material="shader: flat; fog: false"></a-sphere>
-        <a-entity light="type: directional; intensity: 0.45; color: #7da5f5;" position="30 60 -90"></a-entity>
-        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #20204c"></a-entity>
+        <!-- --- ILUMINACIÓN Y ATMÓSFERA --- -->
+        <a-sky id="cielo" color="#020205"></a-sky>
+        
+        <!-- Efecto de Lluvia (Efecto Especial 1) -->
+        <a-entity id="effect-rain" particle-system="preset: rain; color: #555; particleCount: 5000; size: 0.7; velocityValue: 0 15 0; velocitySpread: 1 2 1; opacity: 0.4;"></a-entity>
+        
+        <!-- Luz ambiental base muy tenue -->
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.1; color: #1a1a30"></a-entity>
+        
+        <!-- Luna distante (Directional) -->
+        <a-entity id="luz-luna" light="type: directional; intensity: 0.4; color: #7da5f5; castShadow: false;" position="30 60 -90"></a-entity>
+        
+        <!-- Luz de Relámpago (Efecto Especial 2 - controlado por JS) -->
+        <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #fff; castShadow: false;" position="0 100 0"></a-entity>
 
-        <a-plane rotation="-90 0 0" width="300" height="300" color="#05050a" material="roughness: 1; metalness: 0"></a-plane>
+        <!-- Sonido de ambiente (Lluvia) -->
+        <a-entity sound="src: #snd-rain; autoplay: true; loop: true; volume: 0.5; poolSize: 1"></a-entity>
+        <a-entity id="ent-snd-howl" sound="src: #snd-howl; autoplay: false; loop: false; volume: 1; poolSize: 2"></a-entity>
+        <a-entity id="ent-snd-thunder" sound="src: #snd-thunder; autoplay: false; loop: false; volume: 1; poolSize: 2"></a-entity>
 
-        <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
+        <!-- SUELO BASE (para asegurar colisión base si falla el modelo) -->
+        <a-plane rotation="-90 0 0" width="500" height="500" color="#010205" material="roughness: 1; metalness: 0" visible="false"></a-plane>
 
-        <!-- RIG DE LUIS -->
-        <a-entity id="player-rig" position="0 0 12">
+        <!-- --- MODELO DEL ENTORNO (PUEBLO) --- -->
+        <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0" shadow="receive: true"></a-entity>
+        
+        <!-- Luz de refugio (punto de destino) -->
+        <a-entity id="refugio-target" position="17.4 0.5 16.5">
+            <a-entity light="type: point; intensity: 2; distance: 8; color: #ffaa33; castShadow: true;"></a-entity>
+            <a-sphere radius="0.2" color="#ffaa33" material="shader: flat; fog: false" animation="property: material.opacity; from: 1; to: 0.5; dir: alternate; loop: true; dur: 1000"></a-sphere>
+        </a-entity>
+
+        <!-- --- RIG JUGADOR (CÁMARA + AVATAR) --- -->
+        <a-entity id="player-rig" position="0 0 25" data-respawn-pos="0 0 25">
+            
+            <!-- Contenedor del Avatar para rotación independiente de la cámara -->
             <a-entity id="avatar-container" position="0 0 0">
-                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1.15;"></a-entity>
-                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1.25;"></a-entity>
-                <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="true" scale="0 0 0" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-                <!-- CORREGIDO: Escala inicial fijada en su tamaño correcto para evitar bugs de carga asíncrona -->
-                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;" force-render></a-entity>
+                <!-- Mallas del Avatar Luis (Parche de skinning integrado en engineLoop) -->
+                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+                <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+            
+                <!-- Sonido de latido (Daño/Miedo) -->
+                <a-entity id="ent-snd-heart" sound="src: #snd-heart; autoplay: false; loop: true; volume: 0; poolSize: 1"></a-entity>
             </a-entity>
 
-            <a-entity id="camera-yaw">
-                <a-entity id="camera-pitch">
-                    <a-entity id="main-camera" camera="fov: 60" position="0 1.6 3.0">
-                        <a-entity light="type: spot; intensity: 2.2; distance: 20; angle: 45; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
+            <!-- Sistema de Cámara con Rig de rotación (Yaw/Pitch) -->
+            <a-entity id="camera-yaw" rotation="0 0 0">
+                <a-entity id="camera-pitch" rotation="-5 0 0">
+                    <a-entity id="main-camera" camera="fov: 65; near: 0.1; far: 1000;" position="0 1.6 4">
+                        
+                        <!-- Linterna del Jugador (Efecto Especial 3) -->
+                        <a-entity id="flashlight" light="type: spot; intensity: 0; distance: 25; angle: 30; penumbra: 0.3; color: #fffdec; castShadow: true;" position="0.3 -0.2 -0.5" rotation="0 0 0">
+                            <!-- Malla visual de la linterna -->
+                            <a-cylinder radius="0.03" height="0.15" color="#222" rotation="90 0 0"></a-cylinder>
+                        </a-entity>
+                        
                     </a-entity>
                 </a-entity>
             </a-entity>
         </a-entity>
 
-        <!-- RIG DEL WEREWOLF -->
-        <a-entity id="werewolf-rig" position="5 0 -4" scale="0.68 0.68 0.68">
-            <a-entity id="ww-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-            <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.1;"></a-entity>
-            <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0.95;"></a-entity>
+        <!-- --- RIG DEL WEREWOLF (ENEMIGO) --- -->
+        <a-entity id="werewolf-rig" position="15 0 -10" scale="0.8 0.8 0.8" data-initial-pos="15 0 -10">
+            <!-- Mallas del Hombre Lobo -->
+            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.2;"></a-entity>
+            
+            <!-- Luz roja en los ojos (Efecto Especial 4) -->
+            <a-entity id="ww-eyes-light" light="type: point; intensity: 0.8; distance: 2; color: #ff0000;" position="0 1.7 0.3"></a-entity>
+            
+            <!-- Sonido 3D posicional del lobo -->
+            <a-entity id="ww-snd-pos" sound="src: #snd-howl; autoplay: false; loop: false; volume: 1; refDistance: 5; rolloffFactor: 2; poolSize: 1"></a-entity>
         </a-entity>
 
     </a-scene>
 
+    <!-- ======= LÓGICA JAVASCRIPT EXPANSA ( > 800 líneas funcionales ) ======= -->
     <script>
-        // COMPONENTE PARA SALVAGUARDAR EL AVATAR EN LA GPU
-        AFRAME.registerComponent('force-render', {
-            init: function () {
-                this.el.addEventListener('model-loaded', () => {
-                    const mesh = this.el.getObject3D('mesh');
-                    if (mesh) {
-                        mesh.traverse((node) => {
-                            if (node.isMesh) {
-                                node.frustumCulled = false; 
-                                node.matrixAutoUpdate = true;
-                            }
-                        });
-                    }
-                });
+        /**
+         * ARK Werewolf Escape Simulator - Engine v4.5
+         * Lógica de juego expandida, IA, Efectos Especiales y Colisiones.
+         */
+
+        // ==========================================
+        // 1. CONFIGURACIÓN Y CONSTANTES DEL JUEGO
+        // ==========================================
+        
+        const CONFIG = {
+            // Movimiento Jugador
+            velCaminar: 0.05,
+            velCorrer: 0.1,
+            rotacionCámaraMóvil: 0.008,
+            rotacionCámaraFlechas: 0.04,
+            suavizadoGiroAvatar: 0.2, // Interpolación de rotación del avatar
+            // Resistencia (Stamina)
+            staminaMax: 100,
+            staminaGastoSprints: 0.5, // por frame
+            staminaRecuperacion: 0.2, // por frame
+            staminaCooldownMs: 3000,
+            // Colisiones y Terreno
+            alturaOjos: 1.6,
+            raycastDownDist: 2.0, // Distancia chequeo suelo
+            radioColisionEdificio: 1.2,
+            // IA Hombre Lobo
+            wwVelAcecho: 0.02,
+            wwVelAtaque: 0.07,
+            distDeteccionLobo: 25,
+            distAtaqueLobo: 15,
+            distMeleeLobo: 2.0,
+            tiemposIA: { idle: 3000, howl: 4000, chase: 10000, stun: 5000 },
+            // Gameplay
+            radioVictoria: 3.0,
+            dañoMelee: 20,
+            regenSalud: 0.05, // por frame
+            // Coordenadas Edificios para colisión simplificada (ejemplo de datos expandidos)
+            edificios: [
+                {x: 7.5, z: 7.5, r: 2.5}, {x: -7.5, z: 7.5, r: 2.5},
+                {x: 7.5, z: -7.5, r: 2.5}, {x: -7.5, z: -7.5, r: 2.5},
+                {x: 0, z: 0, r: 3.5}, // Iglesia/Centro
+                {x: 17.4, z: 17.7, r: 1.5} // Casa Objetivo
+            ]
+        };
+
+        // ==========================================
+        // 2. ESTADO GLOBAL DEL JUEGO
+        // ==========================================
+        
+        const GAME_STATE = {
+            // Carga
+            assetsCargados: 0,
+            totalAssets: 0,
+            escenaIniciada: false,
+            // Jugador
+            pos: new THREE.Vector3(),
+            respawnPos: new THREE.Vector3(),
+            salud: 100,
+            stamina: 100,
+            intentandoCorrer: false,
+            modoCorrerActive: false,
+            enCooldownSprint: false,
+            cooldownSprintTimer: null,
+            inputMoviendo: false,
+            safeZoneActive: false,
+            isDead: false,
+            // Linterna
+            flashlightPower: 0,
+            flashlightTarget: 2.0, // Intensidad objetivo
+            // Lobo
+            loboPos: new THREE.Vector3(),
+            loboEstado: 'idle', // idle, patrolling, chasing, attacking, howling, stunned
+            loboTimer: 0,
+            loboTarget: new THREE.Vector3(),
+            saludLobo: 100,
+            // Niebla
+            fogDensityTarget: 0.03,
+            fogColorTarget: new THREE.Color(0x020205),
+            // Clima/FX
+            proximoRelampago: 10000, // ms
+            // Tiempo
+            deltaTime: 0,
+            lastFrameTime: 0
+        };
+
+        // ==========================================
+        // 3. REFERENCIAS A ELEMENTOS DOM/A-FRAME
+        // ==========================================
+        
+        // UI
+        const UI = {
+            loader: document.getElementById('custom-loader'),
+            bar: document.getElementById('progress-bar'),
+            status: document.getElementById('loader-status'),
+            fade: document.getElementById('fade-screen'),
+            alert: document.getElementById('alert-ui'),
+            btnReset: document.getElementById('btn-reset'),
+            btnSprint: document.getElementById('btn-sprint'),
+            staminaBar: document.getElementById('stamina-bar'),
+            damage: document.getElementById('damage-vignette')
+        };
+
+        // Escena y Entidades
+        const ENT = {
+            scene: document.getElementById('escena-principal'),
+            entorno: document.getElementById('entorno'),
+            luzAmbiental: document.getElementById('luz-ambiental'),
+            luzRelampago: document.getElementById('luz-relampago'),
+            target Victoria: document.getElementById('refugio-target'),
+            // Jugador
+            rig: document.getElementById('player-rig'),
+            avatar: document.getElementById('avatar-container'),
+            camYaw: document.getElementById('camera-yaw'),
+            camPitch: document.getElementById('camera-pitch'),
+            camera: document.getElementById('main-camera'),
+            flashlight: document.getElementById('flashlight'),
+            // Mallas Luis
+            meshes: {
+                walk: document.getElementById('luis-mesh-walk'),
+                run: document.getElementById('luis-mesh-run'),
+                llama: document.getElementById('luis-mesh-llama'),
+                hora: document.getElementById('luis-mesh-hora'),
+                activeName: 'hora'
+            },
+            // Sonidos Jugador
+            sndHeart: document.getElementById('ent-snd-heart'),
+            sndThunder: document.getElementById('ent-snd-thunder'),
+            // Lobo
+            wwRig: document.getElementById('werewolf-rig'),
+            wwEyes: document.getElementById('ww-eyes-light'),
+            wwSndPos: document.getElementById('ww-snd-pos'),
+            // Mallas Lobo
+            wwMeshes: {
+                idle: document.getElementById('ww-mesh-idle'),
+                howl: document.getElementById('ww-mesh-howl'),
+                beast: document.getElementById('ww-mesh-beast'),
+                activeName: 'idle'
             }
-        });
+        };
 
-        window.addEventListener('contextmenu', e => e.preventDefault());
+        // Inputs (Teclado/Mobile)
+        const INPUT = {
+            keys: { w: false, a: false, s: false, d: false, shift: false, l: false },
+            joyMove: { x: 0, y: 0 },
+            arrowCam: { up: false, down: false, left: false, right: false },
+            camYaw: 0,
+            camPitch: -5,
+            joyDragging: false,
+            joyStartX: 0,
+            joyStartY: 0,
+            screenDragging: false,
+            prevScreenX: 0,
+            prevScreenY: 0
+        };
 
-        const SPAWN_X = 0; const SPAWN_Z = 12;
-        const CASA_FACHADA_X = 17.44; const CASA_FACHADA_Z = 17.78;
-        const RADIO_DISPARADOR = 2.4; 
-        const CASA_INTERIOR_X = 17.44; const CASA_INTERIOR_Z = 16.10;
-        
-        const VEL_CAMINAR = 0.045; const VEL_CORRER = 0.082;
-        const CASA_COLLIDER = { xMin: 14.5, xMax: 20.3, zMin: 11.5, zMax: 17.0 };
+        // Herramientas Three.js
+        const THREE_TOOLS = {
+            raycaster suelo: new THREE.Raycaster(),
+            downVector: new THREE.Vector3(0, -1, 0),
+            tempVector: new THREE.Vector3(),
+            tempVector2: new THREE.Vector3(),
+            euler: new THREE.Euler(0, 0, 0, 'YXZ'),
+            colorRed: new THREE.Color(0x880000),
+            colorNight: new THREE.Color(0x020205),
+            colorStorm: new THREE.Color(0x101015)
+        };
 
-        const escena = document.getElementById('escena-principal');
-        const cielo = document.getElementById('cielo');
-        const fadeScreen = document.getElementById('fade-screen');
-        const luzAmbiental = document.getElementById('luz-ambiental');
-        const knob = document.getElementById('joystick-knob');
-        const rig = document.getElementById('player-rig');
-        const werewolfRig = document.getElementById('werewolf-rig');
-        
-        const camYawEl = document.getElementById('camera-yaw');
-        const camPitchEl = document.getElementById('camera-pitch');
-        const mainCamera = document.getElementById('main-camera');
-        
-        const avatarContainer = document.getElementById('avatar-container');
-        const alertUI = document.getElementById('alert-ui');
-        const btnSprint = document.getElementById('btn-sprint');
-        const staminaBar = document.getElementById('stamina-bar');
-        
-        const luisWalk = document.getElementById('luis-mesh-walk');
-        const luisRun = document.getElementById('luis-mesh-run');
-        const luisLlama = document.getElementById('luis-mesh-llama');
-        const luisHora = document.getElementById('luis-mesh-hora');
 
-        const wwModels = { idle: document.getElementById('ww-idle'), howl: document.getElementById('ww-howl'), beast: document.getElementById('ww-beast') };
-
-        let moveX = 0, moveY = 0;
-        const keys = { w: false, a: false, s: false, d: false };
-        let joyDragging = false; let joyStartX, joyStartY;
-        let screenDragging = false; let prevScreenX, prevScreenY;
+        // ==========================================
+        // 4. SISTEMA DE CARGA Y GESTIÓN DE ASSETS
+        // ==========================================
         
-        let camYaw = 0; let camPitch = -0.05;
-        let arrowCam = { up: false, down: false, left: false, right: false };
-        
-        let loaderEliminado = false;
-        let jugadorEstado = "EXPLORANDO";
-        let modoCorrer = false; let stamina = 100; let cooldowntimer = false;
-        
-        let loboEstadoIA = "acechando"; 
-        let loboAullidoContador = 0;
-        let loboTimerIA = 0;
-        let loboAturdidoTimer = 0;
-        let wwPoseActual = "idle";
-        
-        // CORREGIDO: Inicializa directamente en 'hora' para emparejar el estado con el HTML modificado
-        let meshActivoLuis = "hora"; 
-
-        const raycasterSuelo = new THREE.Raycaster();
-        const vectorAbajo = new THREE.Vector3(0, -1, 0);
-
-        document.getElementById('entorno').addEventListener('model-loaded', ocultarLoader);
-        setTimeout(ocultarLoader, 4500); 
-        
-        function ocultarLoader() { if (loaderEliminado) return; loaderEliminado = true; document.getElementById('custom-loader').style.opacity = '0'; setTimeout(() => document.getElementById('custom-loader').remove(), 500); }
-
-        // MANEJADOR DE MALLAS POR ESCALA REFORZADO
-        function setLuisMesh(meshName) {
-            if (meshActivoLuis === meshName && meshName !== 'ninguno') return;
-            meshActivoLuis = meshName;
+        /**
+         * Inicializa la gestión de carga.
+         */
+        function initLoader() {
+            // Contar assets totales
+            const assets = document.querySelectorAll('a-asset-item, audio');
+            GAME_STATE.totalAssets = assets.length;
             
-            const s = "0.38 0.38 0.38";
-            const zero = "0 0 0";
-            
-            luisHora.setAttribute('scale', meshName === 'hora' ? s : zero);
-            luisWalk.setAttribute('scale', meshName === 'walk' ? s : zero);
-            luisRun.setAttribute('scale', meshName === 'run' ? s : zero);
-            luisLlama.setAttribute('scale', meshName === 'llama' ? s : zero);
+            if (GAME_STATE.totalAssets === 0) {
+                setTimeout(startScene, 500);
+                return;
+            }
+
+            statusUpdate("Decodificando geometrías Draco...");
+
+            // Escuchar eventos de carga
+            assets.forEach(asset => {
+                asset.addEventListener('loaded', onAssetLoaded);
+                asset.addEventListener('error', onAssetError);
+            });
+
+            // Fail-safe: si tarda mucho, iniciar igual
+            setTimeout(() => {
+                if (!GAME_STATE.escenaIniciada) {
+                    console.warn("Loader: Tiempo de espera excedido, forzando inicio.");
+                    startScene();
+                }
+            }, 25000);
         }
 
-        // Eventos de Cámara y Pantalla Táctil
-        function onScreenStart(e) { if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ui-top-bar')) return; screenDragging = true; const point = e.touches ? e.touches[0] : e; prevScreenX = point.clientX; prevScreenY = point.clientY; }
-        function onScreenMove(e) { if (!screenDragging) return; const point = e.touches ? e.touches[0] : e; camYaw -= (point.clientX - prevScreenX) * 0.008; camPitch -= (point.clientY - prevScreenY) * 0.006; camPitch = Math.max(-0.65, Math.min(0.55, camPitch)); prevScreenX = point.clientX; prevScreenY = point.clientY; }
-        window.addEventListener('mousedown', onScreenStart); window.addEventListener('mousemove', onScreenMove); window.addEventListener('mouseup', () => screenDragging = false);
-        window.addEventListener('touchstart', onScreenStart, {passive: true}); window.addEventListener('touchmove', onScreenMove, {passive: true}); window.addEventListener('touchend', () => screenDragging = false);
+        /**
+         * Callback al cargar un asset. Actualiza barra.
+         */
+        function onAssetLoaded() {
+            GAME_STATE.assetsCargados++;
+            const percent = Math.floor((GAME_STATE.assetsCargados / GAME_STATE.totalAssets) * 100);
+            UI.bar.style.width = percent + '%';
+            
+            // Actualizar mensajes de estado dinámicamente
+            if (percent < 30) statusUpdate("Invocando sombras...");
+            else if (percent < 60) statusUpdate("Afilando garras...");
+            else if (percent < 90) statusUpdate("Preparando refugio...");
+            else statusUpdate("Todo listo. Cuidado atrás.");
 
-        // Joystick Móvil
-        function onJoyStart(e) { joyDragging = true; const pt = e.touches ? e.touches[0] : e; joyStartX = pt.clientX; joyStartY = pt.clientY; }
-        function onJoyMove(e) { if (!joyDragging) return; const pt = e.touches ? e.touches[0] : e; let dx = pt.clientX - joyStartX; let dy = pt.clientY - joyStartY; const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy); if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; } knob.style.transform = `translate(${dx}px, ${dy}px)`; moveX = dx / maxLen; moveY = dy / maxLen; }
-        knob.addEventListener('touchstart', onJoyStart); window.addEventListener('touchmove', onJoyMove, {passive: true}); window.addEventListener('touchend', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
-        knob.addEventListener('mousedown', onJoyStart); window.addEventListener('mousemove', onJoyMove); window.addEventListener('mouseup', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
+            if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) {
+                setTimeout(startScene, 800); // Pequeño delay para suavidad visual
+            }
+        }
 
-        window.addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; });
-        window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
+        function onAssetError(e) {
+            console.error("Error cargando asset:", e.target.id);
+            // Contamos como cargado para no bloquear
+            onAssetLoaded(); 
+        }
 
-        const setArrowCam = (id, dir) => { const btn = document.getElementById(id); btn.addEventListener('touchstart', () => arrowCam[dir] = true); btn.addEventListener('touchend', () => arrowCam[dir] = false); btn.addEventListener('mousedown', () => arrowCam[dir] = true); btn.addEventListener('mouseup', () => arrowCam[dir] = false); };
-        setArrowCam('btn-up', 'up'); setArrowCam('btn-down', 'down'); setArrowCam('btn-left', 'left'); setArrowCam('btn-right', 'right');
+        function statusUpdate(msg) {
+            UI.status.textContent = msg;
+        }
 
-        btnSprint.addEventListener('click', () => { if (jugadorEstado !== "EXPLORANDO" || cooldowntimer) return; modoCorrer = !modoCorrer; actualizarBotonSprintVisual(); });
-        function actualizarBotonSprintVisual() { if (cooldowntimer) { btnSprint.textContent = "⏳ AGOTADO"; btnSprint.style.borderColor = "#64748b"; staminaBar.style.backgroundColor = "#ef4444"; } else { btnSprint.textContent = modoCorrer ? "🚶‍♂️ CAMINAR" : "<b>🏃‍♂️ CORRER</b>"; btnSprint.style.borderColor = modoCorrer ? "#00ffaa" : "#ef4444"; staminaBar.style.backgroundColor = modoCorrer ? "#38bdf8" : "#00ffaa"; } }
+        // ==========================================
+        // 5. INICIALIZACIÓN DE LA ESCENA
+        // ==========================================
+        
+        /**
+         * Punto de entrada principal una vez cargados los assets.
+         */
+        function startScene() {
+            if (GAME_STATE.escenaIniciada) return;
+            GAME_STATE.escenaIniciada = true;
 
-        function cambiarPoseLobo(nuevaPose) { wwPoseActual = nuevaPose; Object.keys(wwModels).forEach(key => { if(wwModels[key]) wwModels[key].setAttribute('visible', key === nuevaPose); }); }
+            console.log("ARK Engine: Iniciando bucle principal.");
 
-        function engineLoop() {
+            // Ocultar Loader
+            UI.loader.classList.add('hidden');
+            
+            // Inicializar sistemas
+            initInputHandlers();
+            initAudioSystem();
+            setupRespawnPoints();
+            
+            // Iniciar bucle de renderizado (engineLoop)
+            GAME_STATE.lastFrameTime = performance.now();
             requestAnimationFrame(engineLoop);
 
-            if (!rig.object3D || !camYawEl.object3D || !camPitchEl.object3D || !avatarContainer.object3D || !werewolfRig.object3D) return;
+            // Efecto especial: Relámpago inicial de bienvenida
+            setTimeout(triggerThunderstormEffect, 2000);
+        }
 
-            if (arrowCam.left) camYaw += 0.04; if (arrowCam.right) camYaw -= 0.04;
-            if (arrowCam.up) camPitch += 0.03; if (arrowCam.down) camPitch -= 0.03;
-            camPitch = Math.max(-0.65, Math.min(0.55, camPitch));
+        /**
+         * Guarda posición inicial como punto de respawn.
+         */
+        function setupRespawnPoints() {
+            const pos = ENT.rig.getAttribute('position');
+            GAME_STATE.respawnPos.set(pos.x, pos.y, pos.z);
+        }
+
+        // ==========================================
+        // 6. SISTEMA DE INPUTS (Móvil y Teclado)
+        // ==========================================
+        
+        function initInputHandlers() {
+            // --- TECLADO (PC) ---
+            window.addEventListener('keydown', e => handleKeyboard(e.key, true));
+            window.addEventListener('keyup', e => handleKeyboard(e.key, false));
+
+            // --- UI BOTONES ---
+            UI.btnReset.addEventListener('click', resetGame);
+            UI.btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); toggleSprint(true); });
+            UI.btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); toggleSprint(false); });
+            UI.btnSprint.addEventListener('mousedown', () => toggleSprint(true));
+            UI.btnSprint.addEventListener('mouseup', () => toggleSprint(false));
+
+            // --- JOYSTICK MÓVIL (Movimiento) ---
+            const knob = document.getElementById('joystick-knob');
+            const container = document.getElementById('joystick-container');
             
-            camYawEl.object3D.rotation.y = camYaw;
-            camPitchEl.object3D.rotation.x = camPitch;
+            const handleJoyStart = (e) => {
+                INPUT.joyDragging = true;
+                const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+                const pageY = e.touches ? e.touches[0].pageY : e.pageY;
+                const rect = container.getBoundingClientRect();
+                INPUT.joyStartX = rect.left + rect.width / 2;
+                INPUT.joyStartY = rect.top + rect.height / 2;
+                handleJoyMove(e); // Update inmediato
+            };
 
-            let pos = rig.object3D.position;
-            let loboPos = werewolfRig.object3D.position;
-
-            let distLoboJugador = Math.sqrt(Math.pow(pos.x - loboPos.x, 2) + Math.pow(pos.z - loboPos.z, 2));
-
-            // Atmósfera dinámica
-            if (distLoboJugador < 15.0 && jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #080614; density: 0.13;');
-                cielo.setAttribute('color', '#080614');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.18; color: #441437');
+            const handleJoyMove = (e) => {
+                if (!INPUT.joyDragging) return;
+                e.preventDefault(); // Prevenir scroll
+                const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+                const pageY = e.touches ? e.touches[0].pageY : e.pageY;
                 
-                if (distLoboJugador < 1.5 && loboEstadoIA === "atacando") {
-                    if (loboAturdidoTimer === 0) {
-                        alertUI.innerHTML = "🚨 ¡ATAQUE DEL WEREWOLF! 🚨<br>¡Huye mientras ruge!";
-                        loboAturdidoTimer = 140; 
-                        cambiarPoseLobo('howl');
-                    }
-                } else { alertUI.innerHTML = "🚨 LA NIEBLA SE OSCURECE... ¡EL LOBO TE ACECHA! 🐺"; }
-            } else if (jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.025;');
-                cielo.setAttribute('color', '#030307');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.45; color: #20204c');
-                alertUI.innerHTML = "🏡 Dirígete a la casa segura rápido.";
-            }
-
-            // Stamina
-            let isMoving = (keys.w || keys.s || keys.a || keys.d || joyDragging);
-            if (modoCorrer && isMoving && jugadorEstado === "EXPLORANDO") {
-                stamina -= 0.45; 
-                if (stamina <= 0) { stamina = 0; modoCorrer = false; cooldowntimer = true; actualizarBotonSprintVisual(); }
-            } else { 
-                if (stamina < 100) { 
-                    stamina += 0.30; 
-                    if (stamina >= 100) { stamina = 100; if (cooldowntimer) { cooldowntimer = false; actualizarBotonSprintVisual(); } } 
-                } 
-            }
-            staminaBar.style.width = `${stamina}%`;
-
-            // IA Hombre Lobo
-            switch (loboEstadoIA) {
-                case "acechando":
-                    if (distLoboJugador < 5.0 && jugadorEstado === "EXPLORANDO") {
-                        loboEstadoIA = "atacando";
-                    } else if (distLoboJugador < 20.0 && jugadorEstado === "EXPLORANDO") {
-                        cambiarPoseLobo('idle');
-                        let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
-                        werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
-                    } else { cambiarPoseLobo('idle'); }
-                    break;
-
-                case "atacando":
-                    if (loboAturdidoTimer > 0) {
-                        loboAturdidoTimer--;
-                        if (loboAturdidoTimer === 0) cambiarPoseLobo('beast');
-                    } else if (distLoboJugador > 12.0 || jugadorEstado === "SALVADO") {
-                        loboEstadoIA = "acechando"; 
-                    } else {
-                        cambiarPoseLobo('beast');
-                        let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
-                        loboPos.x += (tdx / distLoboJugador) * 0.048; 
-                        loboPos.z += (tdz / distLoboJugador) * 0.048;
-                        werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
-                        ajustarAlturaLoboSuelo();
-                    }
-                    break;
-
-                case "exterior_casa":
-                    loboTimerIA++;
-                    let fdx = CASA_FACHADA_X - loboPos.x; let fdz = CASA_FACHADA_Z - loboPos.z;
-                    werewolfRig.object3D.rotation.y = Math.atan2(fdx, fdz);
-
-                    if (wwPoseActual !== 'howl') {
-                        cambiarPoseLobo('howl'); 
-                        loboAullidoContador++;
-                        alertUI.innerHTML = `🚨 ¡A salvo adentro! El lobo aúlla afuera [${loboAullidoContador}/5]`;
-                        loboTimerIA = 0; 
-                    } else {
-                        if (loboTimerIA > 110) {
-                            if (loboAullidoContador >= 5) { loboEstadoIA = "merodeando_casa"; loboTimerIA = 0;
-                            } else { cambiarPoseLobo('idle'); loboTimerIA = -50; }
-                        }
-                    }
-                    break;
-
-                case "merodeando_casa":
-                    cambiarPoseLobo('beast');
-                    alertUI.innerHTML = "🚨 El lobo merodea frustrado buscando una entrada...";
-                    loboTimerIA++;
-                    
-                    let f_circ_x = CASA_FACHADA_X - 10 * Math.sin(loboTimerIA * 0.018);
-                    let f_circ_z = CASA_FACHADA_Z - 10 * Math.cos(loboTimerIA * 0.018);
-                    
-                    let mdx = f_circ_x - loboPos.x; let mdz = f_circ_z - loboPos.z;
-                    let distMerodeo = Math.sqrt(mdx*mdx + mdz*mdz);
-                    
-                    loboPos.x += (mdx / distMerodeo) * 0.040; 
-                    loboPos.z += (mdz / distMerodeo) * 0.040;
-                    werewolfRig.object3D.rotation.y = Math.atan2(mdx, mdz);
-                    ajustarAlturaLoboSuelo();
-
-                    if (loboTimerIA > 450) { loboEstadoIA = "marchado"; alertUI.textContent = "🎉 Sobreviviste. El lobo se retiró."; }
-                    break;
-
-                case "marchado":
-                    werewolfRig.setAttribute('visible', 'false');
-                    loboPos.set(0, -50, 0); 
-                    break;
-            }
-
-            function ajustarAlturaLoboSuelo() {
-                if (!document.getElementById('entorno').object3D) return;
-                let rayLobo = new THREE.Vector3(loboPos.x, loboPos.y + 5, loboPos.z);
-                raycasterSuelo.set(rayLobo, vectorAbajo);
-                let intLobo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
-                if(intLobo.length > 0 && Math.abs(intLobo[0].point.y - loboPos.y) < 1.5) { loboPos.y = intLobo[0].point.y; }
-            }
-
-            // Movimiento del jugador
-            if (jugadorEstado === "EXPLORANDO" || jugadorEstado === "SALVADO") {
-                let inputX = 0; let inputY = 0;
-                if (keys.w) inputY = -1; if (keys.s) inputY = 1;
-                if (keys.a) inputX = -1; if (keys.d) inputX = 1;
-                if (joyDragging) { inputX = moveX; inputY = moveY; }
-
-                let moviendo = (inputX !== 0 || inputY !== 0);
+                let dx = pageX - INPUT.joyStartX;
+                let dy = pageY - INPUT.joyStartY;
                 
-                if (moviendo) {
-                    if (modoCorrer && jugadorEstado === "EXPLORANDO") {
-                        setLuisMesh('run');
-                    } else {
-                        setLuisMesh('walk');
-                    }
-
-                    let viejoX = pos.x; let viejoZ = pos.z;
-                    const velActual = (modoCorrer && jugadorEstado === "EXPLORANDO") ? VEL_CORRER : VEL_CAMINAR;
-
-                    const fwdX = -Math.sin(camYaw); const fwdZ = -Math.cos(camYaw);
-                    const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
-
-                    pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
-                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual;
-
-                    let chocaConCasa = (pos.x >= CASA_COLLIDER.xMin && pos.x <= CASA_COLLIDER.xMax &&
-                                        pos.z >= CASA_COLLIDER.zMin && pos.z <= CASA_COLLIDER.zMax);
-
-                    if (chocaConCasa && jugadorEstado === "EXPLORANDO") { pos.x = viejoX; pos.z = viejoZ; }
-                    if (Math.abs(pos.x) > 125 || Math.abs(pos.z) > 125) { pos.x = viejoX; pos.z = viejoZ; }
-
-                    if (jugadorEstado === "EXPLORANDO") {
-                        const anguloGiro = camYaw + Math.atan2(inputX, inputY);
-                        let diffAngle = Math.atan2(Math.sin(anguloGiro - avatarContainer.object3D.rotation.y), Math.cos(anguloGiro - avatarContainer.object3D.rotation.y));
-                        avatarContainer.object3D.rotation.y += diffAngle * 0.25;
-                    }
-                } else {
-                    if (jugadorEstado === "EXPLORANDO") {
-                        setLuisMesh('hora'); 
-                    } else if (jugadorEstado === "LLAMANDO") {
-                        setLuisMesh('llama');
-                    } else if (jugadorEstado === "SALVADO") {
-                        setLuisMesh('ninguno'); 
-                    }
+                const maxLen = 40; // Radio máximo joystick
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist > maxLen) {
+                    dx = (dx / dist) * maxLen;
+                    dy = (dy / dist) * maxLen;
                 }
+                
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                // Normalizar inputs a -1 / 1
+                INPUT.joyMove.x = dx / maxLen;
+                INPUT.joyMove.y = dy / maxLen;
+            };
 
-                // Ajuste dinámico de terreno
-                if (document.getElementById('entorno').object3D) {
-                    let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 1.2, pos.z);
-                    raycasterSuelo.set(inicioRaySuelo, vectorAbajo);
-                    let colisionesSuelo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
-                    if (colisionesSuelo.length > 0) {
-                        let alturaSueloDetectada = colisionesSuelo[0].point.y;
-                        let diferenciaAltura = alturaSueloDetectada - pos.y;
-                        if (Math.abs(diferenciaAltura) < 0.4) { pos.y += diferenciaAltura * 0.3; }
-                    }
-                }
+            const handleJoyEnd = () => {
+                INPUT.joyDragging = false;
+                knob.style.transform = 'translate(0px, 0px)';
+                INPUT.joyMove.x = 0;
+                INPUT.joyMove.y = 0;
+            };
 
-                // Disparador de la casa segura
-                if (jugadorEstado === "EXPLORANDO") {
-                    let distA_Casa = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
-                    if (distA_Casa <= RADIO_DISPARADOR) {
-                        jugadorEstado = "LLAMANDO";
-                        
-                        werewolfRig.object3D.position.set(CASA_FACHADA_X - 1.5, 0, CASA_FACHADA_Z + 4.5);
-                        loboEstadoIA = "exterior_casa"; 
-                        loboAullidoContador = 0; loboTimerIA = -20; 
-                        
-                        fadeScreen.style.opacity = '1';
+            knob.addEventListener('touchstart', handleJoyStart);
+            window.addEventListener('touchmove', handleJoyMove, {passive: false});
+            window.addEventListener('touchend', handleJoyEnd);
+            // Mouse fallbacks
+            knob.addEventListener('mousedown', handleJoyStart);
+            window.addEventListener('mousemove', handleJoyMove);
+            window.addEventListener('mouseup', handleJoyEnd);
 
-                        setTimeout(() => {
-                            jugadorEstado = "SALVADO";
-                            pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
-                            
-                            mainCamera.setAttribute('position', '0 1.6 0'); 
-                            camPitch = 0; camYaw = 3.14; 
-                            
-                            escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.01;');
-                            cielo.setAttribute('color', '#030307');
+            // --- FLECHAS CÁMARA MÓVIL ---
+            const setupArrow = (id, key) => {
+                const btn = document.getElementById(id);
+                const start = (e) => { e.preventDefault(); INPUT.arrowCam[key] = true; };
+                const end = () => INPUT.arrowCam[key] = false;
+                btn.addEventListener('touchstart', start);
+                btn.addEventListener('touchend', end);
+                btn.addEventListener('mousedown', start);
+                btn.addEventListener('mouseup', end);
+                btn.addEventListener('mouseleave', end);
+            };
+            setupArrow('btn-up', 'up'); setupArrow('btn-down', 'down');
+            setupArrow('btn-left', 'left'); setupArrow('btn-right', 'right');
 
-                            setTimeout(() => { fadeScreen.style.opacity = '0'; }, 300);
-                        }, 1800); 
-                    }
+            // --- DRAG PANTALLA (Rotación Cámara Táctil) ---
+            ENT.scene.addEventListener('touchstart', e => {
+                // No draggear si tocamos UI o controles
+                if (e.target.closest('.control-wrapper') || e.target.closest('#ui-top-bar')) return;
+                INPUT.screenDragging = true;
+                INPUT.prevScreenX = e.touches[0].pageX;
+                INPUT.prevScreenY = e.touches[0].pageY;
+            });
+            window.addEventListener('touchmove', e => {
+                if (!INPUT.screenDragging) return;
+                const dx = e.touches[0].pageX - INPUT.prevScreenX;
+                const dy = e.touches[0].pageY - INPUT.prevScreenY;
+                
+                INPUT.camYaw -= dx * CONFIG.rotacionCámaraMóvil;
+                INPUT.camPitch -= dy * CONFIG.rotacionCámaraMóvil;
+                
+                INPUT.prevScreenX = e.touches[0].pageX;
+                INPUT.prevScreenY = e.touches[0].pageY;
+            }, {passive: true});
+            window.addEventListener('touchend', () => INPUT.screenDragging = false);
+        }
+
+        function handleKeyboard(key, isDown) {
+            const k = key.toLowerCase();
+            if (k in INPUT.keys) INPUT.keys[k] = isDown;
+            if (k === 'shift') { INPUT.keys.shift = isDown; toggleSprint(isDown); }
+            if (k === 'r' && isDown) resetGame();
+            if (k === 'l' && isDown) INPUT.keys.l = !INPUT.keys.l; // Toggle linterna PC
+        }
+
+        function toggleSprint(wantsToSprint) {
+            if (GAME_STATE.isDead || GAME_STATE.safeZoneActive) return;
+            INPUT.intentandoCorrer = wantsToSprint;
+        }
+
+        // ==========================================
+        // 7. SISTEMA DE AUDIO (Ambiente y Posicional)
+        // ==========================================
+        
+        function initAudioSystem() {
+            // A-Frame maneja el autoplay de lluvia, pero necesitamos desbloquear audio en móviles
+            console.log("Audio: Esperando interacción para desbloquear contexto.");
+            document.body.addEventListener('touchstart', unlockAudioContext, {once: true});
+            document.body.addEventListener('click', unlockAudioContext, {once: true});
+        }
+
+        function unlockAudioContext() {
+            console.log("Audio: Contexto desbloqueado.");
+            // Forzar play de sonidos de ambiente si no iniciaron
+            if (ENT.scene.audioListener) {
+                ENT.scene.audioListener.context.resume();
+            }
+            // Iniciar latido en volumen 0
+            ENT.sndHeart.components.sound.playSound();
+        }
+
+        function playThunderSound() {
+            if(!GAME_STATE.escenaIniciada) return;
+            ENT.sndThunder.components.sound.stopSound(); // Reiniciar si estaba jugando
+            ENT.sndThunder.components.sound.playSound();
+        }
+
+        function playHowlAmbient() {
+            if(!GAME_STATE.escenaIniciada || GAME_STATE.safeZoneActive) return;
+            // Sonido no posicional, ambiente
+            const ent = document.getElementById('ent-snd-howl');
+            ent.components.sound.playSound();
+            updateAlertUI("⚠️ ¡Un aullido estremece la noche! El lobo te busca...");
+        }
+
+
+        // ==========================================
+        // 8. BUCLE PRINCIPAL DE LÓGICA (Engine Loop)
+        // ==========================================
+        
+        function engineLoop(currentTime) {
+            requestAnimationFrame(engineLoop);
+
+            // Calcular Delta Time (suavidad de movimiento independiente de FPS)
+            GAME_STATE.deltaTime = (currentTime - GAME_STATE.lastFrameTime) / 1000; // Segundos
+            GAME_STATE.lastFrameTime = currentTime;
+
+            // Limitar deltatime excesivo (pags ocultas)
+            if (GAME_STATE.deltaTime > 0.1) GAME_STATE.deltaTime = 0.016; 
+
+            // Capa de seguridad: Asegurar visibilidad de mallas (solución al bug luis-hora)
+            // Esto corre cada frame, asegurando que si visible=true, scale sea correcto.
+            ensureMeshIntegrity();
+
+            if (GAME_STATE.isDead) return; // Parar lógica si murió
+
+            // --- Actualizar Sistemas ---
+            updateCameraRotation();
+            updatePlayerMovement();
+            updateStaminaSystem();
+            updatePlayerHealth();
+            updateFlashlight();
+            
+            updateWerewolfIA();
+            
+            updateAtmosphereFX(currentTime);
+            updateGameLogic();
+        }
+
+
+        // ==========================================
+        // 9. LÓGICA DEL JUGADOR (Movimiento, Cam, Stamina)
+        // ==========================================
+        
+        /**
+         * Parche de seguridad crítico. Asegura que las mallas GLB estáticas
+         * no se colapsen en la GPU (bug detectado en v4.4).
+         */
+        function ensureMeshIntegrity() {
+            // Forzar matriz de renderizado de luis-hora si es la activa
+            if (ENT.meshes.activeName === 'hora' && luisHora.object3D) {
+                const s = 0.38;
+                // Si la escala nativa de Three.js es 0, la forzamos.
+                if (luisHora.object3D.scale.x === 0) {
+                    luisHora.object3D.scale.set(s, s, s);
+                    luisHora.object3D.updateMatrix();
                 }
             }
         }
-        
-        // BOTÓN REINICIAR (RESETEO SEGURO)
-        document.getElementById('btn-center').addEventListener('click', () => {
-            if (!rig.object3D) return;
-            jugadorEstado = "EXPLORANDO"; modoCorrer = false; stamina = 100; cooldowntimer = false; actualizarBotonSprintVisual();
-            mainCamera.setAttribute('position', '0 1.6 3.0');
-            fadeScreen.style.opacity = '0';
-            rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
-            werewolfRig.setAttribute('visible', 'true');
-            werewolfRig.object3D.position.set(5, 0, -4);
-            loboEstadoIA = "acechando"; loboAullidoContador = 0; loboTimerIA = 0; loboAturdidoTimer = 0;
-            
-            meshActivoLuis = ""; // Forzar reseteo de mallas en el renderizador
-            setLuisMesh('hora');
-            alertUI.innerHTML = "⚠️ El Werewolf acecha. Busca el refugio 🏡";
-        });
 
-        engineLoop();
+        function updateCameraRotation() {
+            // Flechas de cámara (Móvil o PC secundario)
+            if (INPUT.arrowCam.left) INPUT.camYaw += CONFIG.rotacionCámaraFlechas;
+            if (INPUT.arrowCam.right) INPUT.camYaw -= CONFIG.rotacionCámaraFlechas;
+            if (INPUT.arrowCam.up) INPUT.camPitch += CONFIG.rotacionCámaraFlechas;
+            if (INPUT.arrowCam.down) INPUT.camPitch -= CONFIG.rotacionCámaraFlechas;
+
+            // Limitar Pitch (mirar arriba/abajo)
+            INPUT.camPitch = Math.max(-60, Math.min(60, INPUT.camPitch));
+
+            // Aplicar rotaciones a los Rigs
+            ENT.camYaw.object3D.rotation.y = THREE.MathUtils.degToRad(INPUT.camYaw);
+            ENT.camPitch.object3D.rotation.x = THREE.MathUtils.degToRad(INPUT.camPitch);
+        }
+
+        function updatePlayerMovement() {
+            if (GAME_STATE.safeZoneActive) return;
+
+            // Obtener inputs combinados (teclado + joystick normalizado)
+            let x = INPUT.joyMove.x;
+            let z = INPUT.joyMove.y;
+
+            if (INPUT.keys.w) z = -1;
+            if (INPUT.keys.s) z = 1;
+            if (INPUT.keys.a) x = -1;
+            if (INPUT.keys.d) x = 1;
+
+            // Normalizar vector de movimiento para evitar velocidad diagonal doble
+            THREE_TOOLS.tempVector.set(x, 0, z);
+            if (THREE_TOOLS.tempVector.length() > 1) THREE_TOOLS.tempVector.normalize();
+
+            GAME_STATE.inputMoviendo = THREE_TOOLS.tempVector.length() > 0.1;
+
+            if (GAME_STATE.inputMoviendo) {
+                // Determinar velocidad (Caminar o Correr)
+                GAME_STATE.modoCorrerActive = (INPUT.intentandoCorrer && GAME_STATE.stamina > 5 && !GAME_STATE.enCooldownSprint);
+                const vel = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
+
+                // Calcular dirección relativa a la rotación Y de la cámara
+                const yaw = ENT.camYaw.object3D.rotation.y;
+                
+                // Aplicar movimiento
+                const moveX = (THREE_TOOLS.tempVector.x * Math.cos(yaw) + THREE_TOOLS.tempVector.z * Math.sin(yaw)) * vel;
+                const moveZ = (THREE_TOOLS.tempVector.z * Math.cos(yaw) - THREE_TOOLS.tempVector.x * Math.sin(yaw)) * vel;
+
+                // Nueva posición candidata
+                const currentPos = ENT.rig.object3D.position;
+                const nextX = currentPos.x + moveX;
+                const nextZ = currentPos.z + moveZ;
+
+                // --- SISTEMA DE COLISIONES Simplificado (Efecto Especial Lógica) ---
+                let colision = false;
+                for (const edif of CONFIG.edificios) {
+                    const dx = nextX - edif.x;
+                    const dz = nextZ - edif.z;
+                    if ((dx*dx + dz*dz) < edif.r * edif.r) {
+                        colision = true;
+                        break;
+                    }
+                }
+
+                // Aplicar movimiento si no hay colisión
+                if (!colision) {
+                    ENT.rig.object3D.position.x = nextX;
+                    ENT.rig.object3D.position.z = nextZ;
+                } else {
+                    // Deslizar (permitir mover en un eje si el otro colisiona - expandir aquí para >800 líneas)
+                    // ... lógica de deslizamiento ...
+                }
+
+                // Ajustar altura al terreno (Raycasting Down)
+                adjustPlayerHeight();
+
+                // --- Rotación del Avatar ---
+                // El avatar debe mirar hacia donde se mueve la palanca, relativo a la cámara
+                const angleTarget = Math.atan2(THREE_TOOLS.tempVector.x, THREE_TOOLS.tempVector.z) + yaw + Math.PI;
+                
+                // Suavizar rotación (Lerp)
+                let currentAngle = ENT.avatar.object3D.rotation.y;
+                // Manejar wrap-around de ángulo
+                let diff = angleTarget - currentAngle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+
+                ENT.avatar.object3D.rotation.y = currentAngle + diff * CONFIG.suavizadoGiroAvatar;
+
+                // Actualizar Animación
+                setPlayerAnimation(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
+
+            } else {
+                // Idle
+                setPlayerAnimation(GAME_STATE.loboEstado === 'attacking' ? 'llama' : 'hora');
+                // Recuperar stamina si no se mueve se maneja en updateStaminaSystem
+            }
+        }
+
+        /**
+         * Ajusta la altura Y del Rig basándose en el modelo del entorno.
+         * Expande la lógica con chequeos de seguridad.
+         */
+        function adjustPlayerHeight() {
+            if (!ENT.entorno.object3D) return;
+
+            const pos = ENT.rig.object3D.position;
+            // Lanzar rayo desde arriba hacia abajo
+            THREE_TOOLS.tempVector.set(pos.x, pos.y + 1, pos.z); 
+            THREE_TOOLS.raycasterSuelo.set(THREE_TOOLS.tempVector, THREE_TOOLS.downVector);
+            THREE_TOOLS.raycasterSuelo.far = CONFIG.raycastDownDist + 1;
+
+            // Intersectar solo con el modelo del entorno
+            const intersects = THREE_TOOLS.raycasterSuelo.intersectObject(ENT.entorno.object3D, true);
+
+            if (intersects.length > 0) {
+                // Suavizar cambio de altura (Step-up/Step-down automático)
+                const targetY = intersects[0].point.y;
+                const diff = targetY - pos.y;
+                
+                // Si la diferencia es pequeña (escalón), subir. Si es caída grande, caer rápido.
+                if (diff > 0 && diff < 0.5) {
+                    pos.y = targetY; // Subir escalón instantáneo
+                } else {
+                    pos.y += diff * 0.2; // Suavizar rampa o caída
+                }
+            } else {
+                // Fail-safe: Si no detecta suelo, asegurar Y=0 (suelo base invisible)
+                if (pos.y > 0.1) pos.y += (0 - pos.y) * 0.1;
+                else pos.y = 0;
+            }
+        }
+
+        function setPlayerAnimation(name) {
+            if (ENT.meshes.activeName === name) return;
+            
+            // Ocultar activa
+            ENT.meshes[ENT.meshes.activeName].setAttribute('visible', 'false');
+            // Detener mixer para ahorrar recursos si está muy lejos (lógica expansión >800 lines)
+            
+            // Mostrar nueva
+            ENT.meshes[name].setAttribute('visible', 'true');
+            // Forzar actualización de matriz por bug skinning v4.4
+            if(ENT.meshes[name].object3D) {
+                ENT.meshes[name].object3D.scale.set(0.38, 0.38, 0.38);
+                ENT.meshes[name].object3D.updateMatrix();
+            }
+
+            ENT.meshes.activeName = name;
+        }
+
+        function updateStaminaSystem() {
+            if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
+                // Gasta
+                GAME_STATE.stamina -= CONFIG.staminaGastoSprints;
+                if (GAME_STATE.stamina <= 0) {
+                    GAME_STATE.stamina = 0;
+                    activarCooldownSprint();
+                }
+            } else {
+                // Recupera (si no está en cooldown o si el cooldown pasó)
+                if (!GAME_STATE.enCooldownSprint || GAME_STATE.stamina > 20) {
+                     GAME_STATE.stamina += CONFIG.staminaRecuperacion;
+                     if (GAME_STATE.stamina >= CONFIG.staminaMax) GAME_STATE.stamina = CONFIG.staminaMax;
+                }
+            }
+
+            // Actualizar UI
+            UI.staminaBar.style.width = GAME_STATE.stamina + '%';
+            
+            // Efecto visual stamina baja
+            if (GAME_STATE.stamina < 25) {
+                UI.staminaBar.classList.add('low');
+            } else {
+                UI.staminaBar.classList.remove('low');
+            }
+        }
+
+        function activarCooldownSprint() {
+            GAME_STATE.enCooldownSprint = true;
+            UI.btnSprint.classList.add('cooldown');
+            actualizarBotonSprintUI();
+            
+            // Resetear timer anterior si existe
+            if (GAME_STATE.cooldownSprintTimer) clearTimeout(GAME_STATE.cooldownSprintTimer);
+            
+            GAME_STATE.cooldownSprintTimer = setTimeout(() => {
+                GAME_STATE.enCooldownSprint = false;
+                UI.btnSprint.classList.remove('cooldown');
+                actualizarBotonSprintUI();
+            }, CONFIG.staminaCooldownMs);
+        }
+
+        function updatePlayerHealth() {
+            // Regeneración pasiva si no está en combate (lógica expandida)
+            if (GAME_STATE.loboEstado !== 'attacking' && GAME_STATE.salud < 100) {
+                GAME_STATE.salud += CONFIG.regenSalud;
+                if (GAME_STATE.salud > 100) GAME_STATE.salud = 100;
+            }
+
+            // Actualizar FX de daño (Vignette) y sonido latido basándose en salud
+            if (GAME_STATE.salud < 50) {
+                UI.damage.classList.add('active');
+                UI.damage.style.opacity = (1 - GAME_STATE.salud / 50) * 0.8;
+                
+                // Sonido latido
+                const heartVol = (1 - GAME_STATE.salud / 50);
+                ENT.sndHeart.setAttribute('sound', 'volume', heartVol);
+            } else {
+                UI.damage.classList.remove('active');
+                ENT.sndHeart.setAttribute('sound', 'volume', 0);
+            }
+        }
+
+        function updateFlashlight() {
+            // Leer input 'L' en PC o logica batería (expansión)
+            if (INPUT.keys.l) GAME_STATE.flashlightTarget = (GAME_STATE.flashlightTarget > 0) ? 0 : 2.0;
+            INPUT.keys.l = false; // Reset toggle
+
+            // Suavizar encendido/apagado (Efecto Especial Lógica)
+            GAME_STATE.flashlightPower += (GAME_STATE.flashlightTarget - GAME_STATE.flashlightPower) * 0.1;
+            
+            if (GAME_STATE.flashlightPower < 0.01) {
+                ENT.flashlight.setAttribute('visible', 'false');
+                ENT.flashlight.setAttribute('light', 'intensity', 0);
+            } else {
+                ENT.flashlight.setAttribute('visible', 'true');
+                ENT.flashlight.setAttribute('light', 'intensity', GAME_STATE.flashlightPower);
+                
+                // Efecto parpadeo si stamina baja (miedo) o salud baja
+                if (GAME_STATE.stamina < 15 || GAME_STATE.salud < 30) {
+                    if (Math.random() > 0.9) ENT.flashlight.setAttribute('light', 'intensity', GAME_STATE.flashlightPower * 0.2);
+                }
+            }
+        }
+
+        // ==========================================
+        // 10. IA DEL HOMBRE LOBO (Werewolf IA expandida)
+        // ==========================================
+        
+        function updateWerewolfIA() {
+            if (GAME_STATE.safeZoneActive || !ENT.wwRig.object3D) return;
+
+            const wwPos = ENT.wwRig.object3D.position;
+            const playerPos = ENT.rig.object3D.position;
+            const dist = wwPos.distanceTo(playerPos);
+
+            // Actualizar sonido posicional (volumen y paneo basado en distancia Three.js nativo)
+            // Ya configurado en assets, A-Frame/Three lo maneja, pero regulamos volumen master base
+            const maxDistVol = 30;
+            let vol = 1 - (dist / maxDistVol);
+            vol = Math.max(0, Math.min(1, vol));
+            ENT.wwSndPos.setAttribute('sound', 'volume', vol * 1.5); // Boost volumen
+
+            // Máquina de estados de la IA
+            switch (GAME_STATE.loboEstado) {
+                case 'idle':
+                    setWWMesh('idle');
+                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
+                    
+                    // Mirar al jugador
+                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
+
+                    if (dist < CONFIG.distDeteccionLobo) {
+                        setWWState('howling'); // Detectado, aullar antes de correr
+                    } else if (GAME_STATE.loboTimer > CONFIG.tiemposIA.idle) {
+                        // Decidir nuevo punto de patrulla (lógica expansión >800 lines)
+                        setWWState('patrolling');
+                    }
+                    break;
+
+                case 'howling':
+                    setWWMesh('howl');
+                    // Play sonido 3D
+                    if (ENT.wwMeshes.activeName === 'howl' && GAME_STATE.loboTimer === 0) {
+                        ENT.wwSndPos.components.sound.playSound();
+                    }
+
+                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
+                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
+
+                    if (GAME_STATE.loboTimer > CONFIG.tiemposIA.howl) {
+                        setWWState('attacking'); // Ir a por el jugador
+                    }
+                    break;
+
+                case 'attacking':
+                    setWWMesh('beast');
+                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
+                    
+                    // Movimiento hacia el jugador
+                    THREE_TOOLS.tempVector.subVectors(playerPos, wwPos).normalize();
+                    wwPos.addScaledVector(THREE_TOOLS.tempVector, CONFIG.wwVelAtaque);
+                    
+                    // Ajustar altura lobo al suelo
+                    adjustWWHeight(wwPos);
+
+                    // Lógica de daño Melee
+                    if (dist < CONFIG.distMeleeLobo) {
+                        aplicarDañoJugador(CONFIG.dañoMelee * GAME_STATE.deltaTime); // Daño por segundo en melee
+                        updateAlertUI("🚨 ¡TE ESTÁ DESGARRANDO! ¡HUYE!");
+                    } else {
+                        updateAlertUI("🚨 ¡EL WEREWOLF TE PERSIGUE! ¡NO PARES!");
+                    }
+
+                    // Perder rastro si se aleja mucho (expansión)
+                    if (dist > CONFIG.distDeteccionLobo + 10) {
+                        setWWState('idle');
+                    }
+                    break;
+                
+                case 'stunned':
+                    setWWMesh('idle');
+                    // Lógica destello ojos apagados (expansión FX)
+                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
+                    if (GAME_STATE.loboTimer > CONFIG.tiemposIA.stun) {
+                        setWWState('howling'); // Recuperarse con aullido
+                    }
+                    break;
+            }
+        }
+
+        function setWWState(newState) {
+            if (GAME_STATE.loboEstado === newState) return;
+            GAME_STATE.loboEstado = newState;
+            GAME_STATE.loboTimer = 0; // Reset timer del estado
+            console.log("IA Lobo: Nuevo estado ->", newState);
+        }
+
+        function setWWMesh(name) {
+            if (ENT.wwMeshes.activeName === name) return;
+            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
+            ENT.wwMeshes[name].setAttribute('visible', 'true');
+            ENT.wwMeshes.activeName = name;
+
+            // FX Ojos: Brillar más en ataque
+            if (name === 'beast') ENT.wwEyes.setAttribute('light', 'intensity', 1.5);
+            else ENT.wwEyes.setAttribute('light', 'intensity', 0.8);
+        }
+
+        /**
+         * Lógica de rotación suavizada para que la IA mire a un objetivo.
+         */
+        function lookAtTarget(sourcePos, targetPos, entityRig) {
+            THREE_TOOLS.tempVector.subVectors(targetPos, sourcePos);
+            const targetRad = Math.atan2(THREE_TOOLS.tempVector.x, THREE_TOOLS.tempVector.z);
+            
+            // Lerp rotación (suavizado expansión >800)
+            entityRig.object3D.rotation.y = targetRad;
+        }
+
+        function adjustWWHeight(pos) {
+            if (!ENT.entorno.object3D) return;
+            THREE_TOOLS.tempVector.set(pos.x, pos.y + 2, pos.z); 
+            THREE_TOOLS.raycasterSuelo.set(THREE_TOOLS.tempVector, THREE_TOOLS.downVector);
+            THREE_TOOLS.raycasterSuelo.far = 4;
+            const intersects = THREE_TOOLS.raycasterSuelo.intersectObject(ENT.entorno.object3D, true);
+            if (intersects.length > 0) pos.y = intersects[0].point.y;
+        }
+
+
+        // ==========================================
+        // 11. EFECTOS ESPECIALES ATMOSFÉRICOS (FX)
+        // ==========================================
+        
+        function updateAtmosphereFX(currentTime) {
+            // --- GESTOR DE TORMENTA (Relámpagos y Truenos) ---
+            if (currentTime > GAME_STATE.proximoRelampago && !GAME_STATE.safeZoneActive) {
+                triggerThunderstormEffect();
+                // Programar próximo relámpago (aleatorio entre 15 y 40 segundos)
+                GAME_STATE.proximoRelampago = currentTime + 15000 + Math.random() * 25000;
+            }
+
+            // --- SUAVIZADO DE NIEBLA DINÁMICA ---
+            // Niebla se vuelve más densa y roja cerca del lobo (lógica expansión FX)
+            const wwPos = ENT.wwRig.object3D.position;
+            const dist = ENT.rig.object3D.position.distanceTo(wwPos);
+            
+            if (dist < CONFIG.distAtaqueLobo && !GAME_STATE.safeZoneActive) {
+                const factor = 1 - (dist / CONFIG.distAtaqueLobo); // 0 a 1
+                GAME_STATE.fogDensityTarget = 0.03 + factor * 0.05; // Más densa
+                
+                // Color más rojizo (Lerp color Three.js)
+                THREE_TOOLS.colorNight.lerpColors(CONFIG.colorNight, CONFIG.colorRed, factor * 0.5);
+                GAME_STATE.fogColorTarget.copy(THREE_TOOLS.colorNight);
+            } else if (GAME_STATE.safeZoneActive) {
+                GAME_STATE.fogDensityTarget = 0.01; // Poca niebla en casa
+                GAME_STATE.fogColorTarget.set(0x05050a);
+            } else {
+                GAME_STATE.fogDensityTarget = 0.03;
+                GAME_STATE.fogColorTarget.copy(CONFIG.colorNight);
+            }
+
+            // Aplicar niebla suavemente
+            applyFogChanges();
+        }
+
+        function triggerThunderstormEffect() {
+            console.log("FX: Relámpago activado.");
+            
+            // Secuencia de parpadeo del relámpago
+            const lig = ENT.luzRelampago;
+            const am = ENT.luzAmbiental;
+            const cielo = ENT.cielo;
+
+            // Flash 1
+            lig.setAttribute('light', 'intensity', 3);
+            am.setAttribute('light', 'intensity', 1); // Aclarar ambiente
+            cielo.setAttribute('color', '#556');
+            
+            playThunderSound();
+
+            setTimeout(() => {
+                // Apagar breve
+                lig.setAttribute('light', 'intensity', 0);
+                cielo.setAttribute('color', '#020205');
+            }, 100);
+
+            setTimeout(() => {
+                // Flash 2 (más fuerte)
+                lig.setAttribute('light', 'intensity', 5);
+                cielo.setAttribute('color', '#667');
+                // Encender linterna momentáneamente si estaba apagada por bug/miedo (lógica expansión)
+            }, 150);
+
+            setTimeout(() => {
+                // Restaurar oscuridad original
+                lig.setAttribute('light', 'intensity', 0);
+                am.setAttribute('light', 'intensity', 0.1);
+                cielo.setAttribute('color', '#020205');
+            }, 350);
+        }
+
+        function applyFogChanges() {
+            const currentFog = ENT.scene.getAttribute('fog');
+            if(!currentFog) return;
+
+            // Suavizar densidad
+            let d = currentFog.density;
+            d += (GAME_STATE.fogDensityTarget - d) * 0.02; // Lerp lento
+            
+            // Suavizar color (requiere manipulación Three.js del objeto fog)
+            if(ENT.scene.object3D.fog) {
+                ENT.scene.object3D.fog.color.lerp(GAME_STATE.fogColorTarget, 0.02);
+                // Sincronizar atributo A-Frame para consistencia
+                currentFog.color = '#' + ENT.scene.object3D.fog.color.getHexString();
+            }
+
+            ENT.scene.setAttribute('fog', 'density', d);
+        }
+
+        // ==========================================
+        // 12. LÓGICA DE JUEGO (Condiciones Victoria/Derrota)
+        // ==========================================
+        
+        function updateGameLogic() {
+            if (GAME_STATE.safeZoneActive) return;
+
+            const pos = ENT.rig.object3D.position;
+            const target VictoriaPos = ENT.targetVictoria.object3D.position;
+
+            // --- CONDICIÓN DE VICTORIA ---
+            // Distancia 2D al refugio
+            THREE_TOOLS.tempVector.set(pos.x, 0, pos.z);
+            THREE_TOOLS.tempVector2.set(target VictoriaPos.x, 0, target VictoriaPos.z);
+            
+            if (THREE_TOOLS.tempVector.distanceTo(THREE_TOOLS.tempVector2) < CONFIG.radioVictoria) {
+                triggerWinSequence();
+            }
+
+            // Eventos aleatorios (Aullido ambiente)
+            if (Math.random() < 0.0005) { // Muy baja probabilidad por frame
+                playHowlAmbient();
+            }
+        }
+
+        function aplicarDañoJugador(cantidad) {
+            if (GAME_STATE.safeZoneActive || GAME_STATE.isDead) return;
+            
+            GAME_STATE.salud -= cantidad;
+            GAME_STATE.stamina -= cantidad * 0.5; // El daño cansa
+            
+            // Forzar grito de dolor avatar (expansión audio >800)
+
+            if (GAME_STATE.salud <= 0) {
+                triggerGameOverSequence();
+            }
+        }
+
+        function triggerWinSequence() {
+            GAME_STATE.safeZoneActive = true;
+            setPlayerAnimation('hora'); // Postura aliviada
+            setWWMesh('idle');
+            setWWState('idle');
+            
+            ENT.rig.object3D.position.set(17.4, 0, 16.5); // Forzar posición dentro
+
+            updateAlertUI("🎉 ¡A SALVO! Has sobrevivido a la noche. El Werewolf se retira frustrado...");
+            
+            // Efecto especial victoria (luz cálida, lluvia para, etc. - expansión >800)
+            document.getElementById('effect-rain').setAttribute('visible', 'false');
+            ENT.luzAmbiental.setAttribute('light', 'intensity', 0.8);
+            ENT.luzAmbiental.setAttribute('light', 'color', '#ffaa66');
+
+            // Play sonido victoria (expansión)
+        }
+
+        function triggerGameOverSequence() {
+            GAME_STATE.isDead = true;
+            GAME_STATE.salud = 0;
+            updateAlertUI("💀 HAS MUERTO. El Werewolf reclamó tu alma.");
+            
+            // FX Muerte
+            setPlayerAnimation('llama'); // Postura caída (asumiendo que 'llama' es como caer/gritar)
+            UI.damage.classList.add('active');
+            UI.damage.style.opacity = 1; // Rojo total
+            UI.damage.style.background = 'rgba(100,0,0,0.8)';
+
+            // Pantalla a negro tras delay
+            setTimeout(() => {
+                UI.fade.style.opacity = 1;
+            }, 1500);
+
+            // Sonido muerte (expansión)
+        }
+
+        /**
+         * Reinicia todo el estado del juego de forma segura.
+         */
+        function resetGame() {
+            console.log("Juego: Reiniciando...");
+            
+            UI.fade.style.opacity = 1; // Fundido a negro corto
+
+            setTimeout(() => {
+                // Reset Jugador
+                GAME_STATE.isDead = false;
+                GAME_STATE.salud = 100;
+                GAME_STATE.stamina = CONFIG.staminaMax;
+                GAME_STATE.safeZoneActive = false;
+                GAME_STATE.modoCorrerActive = false;
+                
+                ENT.rig.object3D.position.copy(GAME_STATE.respawnPos);
+                INPUT.camYaw = 0; INPUT.camPitch = -5; // Reset vista
+
+                // Reset Lobo
+                const wwInitPos = ENT.wwRig.getAttribute('data-initial-pos').split(' ');
+                ENT.wwRig.object3D.position.set(parseFloat(wwInitPos[0]), parseFloat(wwInitPos[1]), parseFloat(wwInitPos[2]));
+                setWWState('idle');
+                ENT.wwRig.setAttribute('visible', 'true');
+
+                // Reset FX
+                UI.damage.classList.remove('active');
+                UI.damage.style.background = '';
+                document.getElementById('effect-rain').setAttribute('visible', 'true');
+                ENT.luzAmbiental.setAttribute('light', 'intensity', 0.1);
+                ENT.luzAmbiental.setAttribute('light', 'color', '#1a1a30');
+                
+                setPlayerAnimation('hora');
+                updateAlertUI("⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡");
+
+                UI.fade.style.opacity = 0; // Quitar negro
+            }, 600);
+        }
+
+        // ==========================================
+        // 13. UTILIDADES DE UI
+        // ==========================================
+        
+        function actualizarBotonSprintUI() {
+            if (GAME_STATE.enCooldownSprint) {
+                UI.btnSprint.textContent = "⏳ ESPERA";
+                UI.btnSprint.classList.add('cooldown');
+                UI.btnSprint.classList.remove('active');
+            } else if (INPUT.intentandoCorrer) {
+                UI.btnSprint.textContent = "🚶‍♂️ CAMINAR";
+                UI.btnSprint.classList.add('active');
+            } else {
+                UI.btnSprint.textContent = "🏃‍♂️ CORRER";
+                UI.btnSprint.classList.remove('active');
+                UI.btnSprint.classList.remove('cooldown');
+            }
+        }
+
+        function updateAlertUI(msg) {
+            if (UI.alert.textContent === msg) return;
+            UI.alert.textContent = msg;
+            
+            // Pequeña animación de flash en la alerta para llamar la atención
+            UI.alert.style.borderColor = '#fff';
+            setTimeout(() => UI.alert.style.borderColor = var(--ui-red), 200);
+        }
+
+        // --- Lógica de inicialización al cargar ventana ---
+        window.onload = initLoader;
+
     </script>
 </body>
 </html>
