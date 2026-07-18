@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v2.5</title>
+    <title>ARK - Werewolf Escape Simulator v3.0</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -19,18 +19,18 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #020205; z-index: 99999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.6s ease;
+            transition: opacity 0.5s ease;
         }
 
         .spinner {
-            width: 50px; height: 50px;
+            width: 45px; height: 45px;
             border: 3px solid rgba(239, 68, 68, 0.1);
             border-top-color: #ef4444; border-radius: 50%;
             animation: spin 1s linear infinite; margin-bottom: 20px;
         }
 
-        .loader-title { color: #ef4444; font-size: 14px; font-weight: bold; letter-spacing: 2px; margin-bottom: 8px; }
-        .loader-msg { color: #94a3b8; font-size: 11px; max-width: 280px; text-align: center; line-height: 1.6; }
+        .loader-title { color: #ef4444; font-size: 13px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
+        .loader-msg { color: #94a3b8; font-size: 11px; max-width: 250px; text-align: center; line-height: 1.5; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         #ui-top-bar {
@@ -58,7 +58,7 @@
 
         #joystick-wrapper { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; z-index: 999; }
         #joystick-container { width: 100px; height: 100px; background: rgba(15, 23, 42, 0.6); border: 2px solid #ef4444; border-radius: 50%; position: relative; }
-        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 15px #ef4444; cursor: pointer; }
+        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #ef4444; border-radius: 50%; cursor: pointer; }
 
         #arrows-wrapper { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 999; }
         .joy-arrow {
@@ -76,13 +76,13 @@
 
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Buscando Refugio</div>
-        <div class="loader-msg">Mapeando geometría tridimensional, mallas de colisión y físicas de escaleras...</div>
+        <div class="loader-title">Estabilizando Sistema</div>
+        <div class="loader-msg">Corrigiendo vectores de elevación y fijando amortiguación física de colisiones...</div>
     </div>
 
     <div id="ui-top-bar">
         <button id="btn-center">🔄</button>
-        <div id="alert-ui">⚠️ Explora el pueblo. Evita al Werewolf.</div>
+        <div id="alert-ui">⚠️ Alerta: El Werewolf te busca en el bosque.</div>
         <button id="btn-sprint">🏃‍♂️ CORRER</button>
     </div>
 
@@ -99,7 +99,7 @@
         </div>
     </div>
 
-    <a-scene id="escena-principal" fog="type: exponential; color: #020205; density: 0.02;"
+    <a-scene id="escena-principal" fog="type: exponential; color: #030307; density: 0.025;"
              renderer="antialias: false; colorManagement: true; powerPreference: high-performance;" 
              vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
         
@@ -113,16 +113,14 @@
             <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb"></a-asset-item>
         </a-assets>
 
-        <a-sky id="cielo" color="#020205"></a-sky>
+        <a-sky id="cielo" color="#030307"></a-sky>
+        <a-sphere id="luna" position="30 60 -90" radius="5" color="#e5efff" material="shader: flat; fog: false"></a-sphere>
+        <a-entity light="type: directional; intensity: 0.45; color: #7da5f5;" position="30 60 -90"></a-entity>
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #20204c"></a-entity>
 
-        <a-sphere id="luna-llena" position="40 80 -100" radius="6" color="#e2efff" material="shader: flat; fog: false"></a-sphere>
-        <a-entity light="type: directional; intensity: 0.4; color: #7faaf5;" position="40 80 -100"></a-entity>
-        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.4; color: #222055"></a-entity>
-
-        <!-- MODELO DEL ENTORNO COMPLETO -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DEL AVATAR CON SEGUIDOR DE TERRENO Y CÁMARA MEJORADA -->
+        <!-- PLAYER RIG CON ARQUITECTURA DE CÁMARA FLUIDA ANTITEMBLOR -->
         <a-entity id="player-rig" position="0 0 12">
             <a-entity id="avatar-container" position="0 0 0" scale="0.38 0.38 0.38">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 0;"></a-entity>
@@ -130,21 +128,20 @@
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0;"></a-entity>
             </a-entity>
 
-            <!-- CONTROLLER DE ORIENTACIÓN SEPARADO (MÁXIMA LIBERTAD GRÁFICA) -->
             <a-entity id="camera-yaw">
                 <a-entity id="camera-pitch">
                     <a-entity id="main-camera" camera="fov: 60" position="0 1.6 3.0">
-                        <a-entity light="type: spot; intensity: 2.0; distance: 22; angle: 50; penumbra: 0.6; color: #fffdec;" position="0 0 0"></a-entity>
+                        <a-entity light="type: spot; intensity: 2.2; distance: 20; angle: 45; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
                     </a-entity>
                 </a-entity>
             </a-entity>
         </a-entity>
 
-        <!-- ENEMY RIG: HOMBRE LOBO CON INTELIGENCIA ARTIFICIAL MÓVIL -->
-        <a-entity id="werewolf-rig" position="0 0 -8" scale="0.68 0.68 0.68">
+        <!-- WEREWOLF RIG CONFIGURADO PARA MOVERSE EN RUTAS SEGUIDAS -->
+        <a-entity id="werewolf-rig" position="5 0 -4" scale="0.68 0.68 0.68">
             <a-entity id="ww-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
             <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-            <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0.85;"></a-entity>
+            <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0.9;"></a-entity>
         </a-entity>
 
     </a-scene>
@@ -154,14 +151,20 @@
 
         const SPAWN_X = 0; const SPAWN_Z = 12;
         const CASA_FACHADA_X = 17.44; const CASA_FACHADA_Z = 17.78;
-        const RADIO_DISPARADOR = 1.5; 
-        const CASA_INTERIOR_X = 17.44; const CASA_INTERIOR_Z = 16.20;
+        const RADIO_DISPARADOR = 1.4;
+        const CASA_INTERIOR_X = 17.44; const CASA_INTERIOR_Z = 16.10;
         
-        const VEL_CAMINAR = 0.045;
-        const VEL_CORRER = 0.085; 
+        const VEL_CAMINAR = 0.042;
+        const VEL_CORRER = 0.078;
 
-        // ARRAY DINÁMICO DE COLISIONES REALES GENERADAS DESDE EL GLTF
-        let cajasColisionMundo = [];
+        // MAPA MATEMÁTICO DE COLISIONES SÓLIDAS DETERMINISTAS (PREVIENE ENTRAR A ÁRBOLES O ATRAVESAR LA CASA)
+        const paredesMundo = [
+            {x: 17.44, z: 14.5, r: 2.8}, // Bloque central estructural de la casa segura
+            {x: 14.50, z: 16.5, r: 1.5}, // Pared lateral izquierda de la entrada
+            {x: -7.5, z: 5.0, r: 2.2},   // Grupo de árboles densos 1
+            {x: 8.2, z: -6.0, r: 2.5},   // Grupo de árboles densos 2
+            {x: -14.0, z: -10.0, r: 3.0} // Zona exterior del bosque intransitable
+        ];
 
         const escena = document.getElementById('escena-principal');
         const cielo = document.getElementById('cielo');
@@ -197,57 +200,26 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         
         let loaderEliminado = false;
-        let jugadorEstado = "EXPLORANDO"; 
-        let loboEstado = "idle"; 
+        let jugadorEstado = "EXPLORANDO";
+        let loboEstado = "idle";
         let modoCorrer = false;
         
-        let loboTimer = 0;
+        let loboAturdidoTimer = 0; // Evita el arrastre infinito del avatar
         let ultimoAullido = 0;
-
-        // INSTANCIAS REUTILIZABLES PARA PASAR AL MOTOR DE TRES CASI A VELOCIDAD CERO LUZ
+        
         const raycasterSuelo = new THREE.Raycaster();
         const vectorAbajo = new THREE.Vector3(0, -1, 0);
-        let bboxJugador = new THREE.Box3();
-        let centroJugador = new THREE.Vector3();
-
-        btnSprint.addEventListener('click', () => {
-            if (jugadorEstado !== "EXPLORANDO") return;
-            modoCorrer = !modoCorrer;
-            btnSprint.textContent = modoCorrer ? "🚶‍♂️ CAMINAR" : "🏃‍♂️ CORRER";
-            btnSprint.style.borderColor = modoCorrer ? "#00ffaa" : "#ef4444";
-        });
 
         function ocultarLoader() {
             if (loaderEliminado) return;
             loaderEliminado = true;
             const loader = document.getElementById('custom-loader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => { loader.remove(); }, 600);
-            }
+            if (loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 500); }
         }
+        document.getElementById('entorno').addEventListener('model-loaded', ocultarLoader);
+        setTimeout(ocultarLoader, 4000);
 
-        // SCANNER DE COLISIONES AUTOMÁTICO EN CUANTO EL MODELO SE CARGA EN MEMORIA GPU
-        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
-            ocultarLoader();
-            const modeloMundo = e.detail.model;
-            
-            // Recorremos los sub-objetos del mapa para generar zonas físicas reales basadas en volumen
-            modeloMundo.traverse((nodo) => {
-                if (nodo.isMesh) {
-                    let nombre = nodo.name.toLowerCase();
-                    // Filtramos mallas gigantescas de piso para evitar atascos falsos
-                    if (!nombre.includes('floor') && !nombre.includes('ground') && !nombre.includes('terrain') && !nombre.includes('piso')) {
-                        nodo.geometry.computeBoundingBox();
-                        let boxClonada = new THREE.Box3().setFromObject(nodo);
-                        cajasColisionMundo.push(boxClonada);
-                    }
-                }
-            });
-        });
-        setTimeout(ocultarLoader, 5000); 
-
-        // SENSIBILIDAD MEJORADA Y ROTACIÓN LIBRE 360 GRADOS
+        // SENSIBILIDAD CONTROLADA Y SUAVE SIN TEMBLORES
         function onScreenStart(e) {
             if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ui-top-bar')) return;
             screenDragging = true; const point = e.touches ? e.touches[0] : e;
@@ -255,10 +227,9 @@
         }
         function onScreenMove(e) {
             if (!screenDragging) return; const point = e.touches ? e.touches[0] : e;
-            // Sensibilidad aumentada significativamente para giros rápidos de supervivencia
-            camYaw -= (point.clientX - prevScreenX) * 0.009;
-            camPitch += (point.clientY - prevScreenY) * 0.006;
-            camPitch = Math.max(-0.75, Math.min(0.60, camPitch)); // Rango vertical natural
+            camYaw -= (point.clientX - prevScreenX) * 0.007;
+            camPitch += (point.clientY - prevScreenY) * 0.005;
+            camPitch = Math.max(-0.60, Math.min(0.50, camPitch));
             prevScreenX = point.clientX; prevScreenY = point.clientY;
         }
         window.addEventListener('mousedown', onScreenStart); window.addEventListener('mousemove', onScreenMove);
@@ -266,16 +237,16 @@
         window.addEventListener('touchstart', onScreenStart, {passive: true}); window.addEventListener('touchmove', onScreenMove, {passive: true});
         window.addEventListener('touchend', () => screenDragging = false);
 
-        function onJoyStart(e) { joyDragging = true; const pt = e.touches ? e.touches[0] : e; joyStartX = pt.clientX; joyStartY = pt.clientY; e.stopPropagation(); }
+        function onJoyStart(e) { joyDragging = true; const pt = e.touches ? e.touches[0] : e; joyStartX = pt.clientX; joyStartY = pt.clientY; }
         function onJoyMove(e) {
             if (!joyDragging) return; const pt = e.touches ? e.touches[0] : e;
             let dx = pt.clientX - joyStartX; let dy = pt.clientY - joyStartY;
             const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
             knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            moveX = dx / maxLen; moveY = dy / maxLen; e.stopPropagation();
+            moveX = dx / maxLen; moveY = dy / maxLen;
         }
-        knob.addEventListener('touchstart', onJoyStart); window.addEventListener('touchmove', onJoyMove, {passive: false});
+        knob.addEventListener('touchstart', onJoyStart); window.addEventListener('touchmove', onJoyMove, {passive: true});
         window.addEventListener('touchend', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
         knob.addEventListener('mousedown', onJoyStart); window.addEventListener('mousemove', onJoyMove);
         window.addEventListener('mouseup', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
@@ -285,10 +256,17 @@
 
         const setArrowCam = (id, dir) => {
             const btn = document.getElementById(id);
-            btn.addEventListener('mousedown', () => arrowCam[dir] = true); btn.addEventListener('mouseup', () => arrowCam[dir] = false);
             btn.addEventListener('touchstart', () => arrowCam[dir] = true); btn.addEventListener('touchend', () => arrowCam[dir] = false);
+            btn.addEventListener('mousedown', () => arrowCam[dir] = true); btn.addEventListener('mouseup', () => arrowCam[dir] = false);
         };
         setArrowCam('btn-up', 'up'); setArrowCam('btn-down', 'down'); setArrowCam('btn-left', 'left'); setArrowCam('btn-right', 'right');
+
+        btnSprint.addEventListener('click', () => {
+            if (jugadorEstado !== "EXPLORANDO") return;
+            modoCorrer = !modoCorrer;
+            btnSprint.textContent = modoCorrer ? "🚶‍♂️ CAMINAR" : "🏃‍♂️ CORRER";
+            btnSprint.style.borderColor = modoCorrer ? "#00ffaa" : "#ef4444";
+        });
 
         function cambiarPoseLobo(nuevaPose) {
             loboEstado = nuevaPose;
@@ -297,16 +275,15 @@
             });
         }
 
-        // BUCLE PRINCIPAL DE RENDERIZADO Y FÍSICAS CON ALTO RENDIMIENTO
+        // MOTOR PRINCIPAL DE SIMULACIÓN Y RENDERIZADO
         function engineLoop() {
             requestAnimationFrame(engineLoop);
 
             if (!rig.object3D || !camYawEl.object3D || !camPitchEl.object3D || !avatarContainer.object3D || !werewolfRig.object3D) return;
 
-            // CONTROLADORES DE CÁMARA AUMENTADOS POR BOTONES DE PANTALLA
-            if (arrowCam.left) camYaw += 0.045; if (arrowCam.right) camYaw -= 0.045;
-            if (arrowCam.up) camPitch -= 0.030; if (arrowCam.down) camPitch += 0.030;
-            camPitch = Math.max(-0.75, Math.min(0.60, camPitch));
+            if (arrowCam.left) camYaw += 0.035; if (arrowCam.right) camYaw -= 0.035;
+            if (arrowCam.up) camPitch -= 0.025; if (arrowCam.down) camPitch += 0.025;
+            camPitch = Math.max(-0.60, Math.min(0.50, camPitch));
             
             camYawEl.object3D.rotation.y = camYaw;
             camPitchEl.object3D.rotation.x = camPitch;
@@ -317,54 +294,59 @@
 
             let distLoboJugador = Math.sqrt(Math.pow(pos.x - loboPos.x, 2) + Math.pow(pos.z - loboPos.z, 2));
 
-            // SISTEMA INTENSIFICADO DE BRUMA DE TERROR Y CAMBIO DE COLOR DE ENTORNOS
-            if (distLoboJugador < 12.0 && jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #0a0618; density: 0.16;');
-                cielo.setAttribute('color', '#0a0618');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.15; color: #401235');
+            // SISTEMA DE NIEBLA EXPO DE TERROR REAL (SIN CUADRADOS NI CAÍDAS DE FPS)
+            if (distLoboJugador < 14.0 && jugadorEstado === "EXPLORANDO") {
+                escena.setAttribute('fog', 'type: exponential; color: #070512; density: 0.12;');
+                cielo.setAttribute('color', '#070512');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.20; color: #44183a');
                 
-                if (distLoboJugador < 1.4) {
-                    alertUI.innerHTML = "🚨 ¡EL WEREWOLF TE ALCANZÓ! 🚨<br>¡Escapa!";
-                    let rx = (pos.x - loboPos.x) / distLoboJugador;
-                    let rz = (pos.z - loboPos.z) / distLoboJugador;
-                    pos.x += rx * 0.12; pos.z += rz * 0.12; // Empuje físico de agresión
-                } else {
-                    alertUI.innerHTML = "🚨 BRUMA DE TERROR DETECTADA... ¡EL LOBO TE ACECHA! 🐺";
+                if (distLoboJugador < 1.5) {
+                    if (loboAturdidoTimer === 0) {
+                        alertUI.innerHTML = "🚨 ¡EL LOBO TE ATACÓ! 🚨<br>¡Aprovecha su rugido para huir!";
+                        loboAturdidoTimer = 150; // El lobo se detiene 2.5 segundos (150 frames)
+                        cambiarPoseLobo('howl');
+                    }
+                } else if (loboAturdidoTimer === 0) {
+                    alertUI.innerHTML = "🚨 LA NIEBLA DE SANGRE SE ESPESA... ¡VIENE HACIA TI! 🐺";
                 }
             } else if (jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #020205; density: 0.02;');
-                cielo.setAttribute('color', '#020205');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.4; color: #222055');
-                alertUI.innerHTML = "⚠️ Explora el pueblo. Evita al Werewolf.";
+                escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.025;');
+                cielo.setAttribute('color', '#030307');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.45; color: #20204c');
+                alertUI.innerHTML = "⚠️ Busca la casa segura con el símbolo 🏡";
             }
 
-            // MÓDULO DE INTELIGENCIA ARTIFICIAL DEL ENEMIGO CON MOVIMIENTO FLUIDO Y VERTICALIDAD
-            if (loboEstado === 'howl') {
-                loboTimer++;
-                if (loboTimer > 160) { cambiarPoseLobo('idle'); loboTimer = 0; }
+            // GESTIÓN DE LA IA INTELIGENTE DEL HOMBRE LOBO (SIN PERSECUCIÓN CIEGA ENTRE ÁRBOLES)
+            if (loboAturdidoTimer > 0) {
+                loboAturdidoTimer--;
+                if (loboAturdidoTimer === 0) cambiarPoseLobo('idle');
             } else {
-                if (distLoboJugador < 22.0 && jugadorEstado === "EXPLORANDO") {
+                if (distLoboJugador < 25.0 && jugadorEstado === "EXPLORANDO") {
                     cambiarPoseLobo('beast');
                     let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
-                    loboPos.x += (tdx / distLoboJugador) * 0.048; // Velocidad de acecho inteligente
-                    loboPos.z += (tdz / distLoboJugador) * 0.048;
+                    
+                    // El lobo avanza fluidamente hacia tu posición horizontal
+                    loboPos.x += (tdx / distLoboJugador) * 0.046;
+                    loboPos.z += (tdz / distLoboJugador) * 0.046;
                     werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
                     
-                    // Ajuste vertical inteligente del lobo para evitar que flote en lomas o escaleras
-                    let rayLobo = new THREE.Vector3(loboPos.x, loboPos.y + 10, loboPos.z);
+                    // Raycast vertical del lobo exclusivo para suelo firme (evita que aparezca colgado de ramas)
+                    let rayLobo = new THREE.Vector3(loboPos.x, loboPos.y + 6, loboPos.z);
                     raycasterSuelo.set(rayLobo, vectorAbajo);
                     let intLobo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
-                    if(intLobo.length > 0) loboPos.y = intLobo[0].point.y;
+                    if(intLobo.length > 0 && Math.abs(intLobo[0].point.y - loboPos.y) < 2.0) {
+                        loboPos.y = intLobo[0].point.y;
+                    }
                 } else {
-                    if (ahora - ultimoAullido > 30000 && Math.random() < 0.003) {
-                        cambiarPoseLobo('howl'); ultimoAullido = ahora; loboTimer = 0;
-                    } else {
+                    if (ahora - ultimoAullido > 25000 && Math.random() < 0.002) {
+                        cambiarPoseLobo('howl'); ultimoAullido = ahora;
+                    } else if (loboEstado !== 'howl') {
                         cambiarPoseLobo('idle');
                     }
                 }
             }
 
-            // CONTROLADOR DEL SISTEMA DE MOVIMIENTO Y ADAPTACIÓN VERTICAL (ESCALERAS)
+            // DESPLAZAMIENTO DEL AVATAR CON FILTRO DE ALTURA ESTABLECIDO (ADIÓS LEVITACIÓN)
             if (jugadorEstado === "EXPLORANDO" || jugadorEstado === "SALVADO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -376,10 +358,10 @@
                 if (moviendo) {
                     if (modoCorrer && jugadorEstado === "EXPLORANDO") {
                         luisRun.setAttribute('visible', 'true'); luisWalk.setAttribute('visible', 'false');
-                        luisRun.setAttribute('animation-mixer', 'timeScale', 1.25);
+                        luisRun.setAttribute('animation-mixer', 'timeScale', 1.2);
                     } else {
                         luisWalk.setAttribute('visible', 'true'); luisRun.setAttribute('visible', 'false');
-                        luisWalk.setAttribute('animation-mixer', 'timeScale', 1.15);
+                        luisWalk.setAttribute('animation-mixer', 'timeScale', 1.1);
                     }
 
                     let viejoX = pos.x; let viejoZ = pos.z;
@@ -389,48 +371,49 @@
                     const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                     pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
-                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual; 
+                    pos.z += (fwdZ * -inputY + rgtX * inputX) * velActual; // Se calcula sobre el plano horizontal
 
-                    // DETECTOR DE COLISIÓN INTEGRADO A LAS MALLAS REALES DEL GLTF
-                    centroJugador.set(pos.x, pos.y + 0.5, pos.z);
-                    bboxJugador.setFromCenterAndSize(centroJugador, new THREE.Vector3(0.6, 1.2, 0.6));
-
-                    let choqueSolido = false;
-                    for (let i = 0; i < cajasColisionMundo.length; i++) {
-                        if (bboxJugador.intersectsBox(cajasColisionMundo[i])) {
-                            // Validar margen de entrada a la puerta de refugio para que no te bloquee afuera
-                            let distPuerta = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
-                            if (distPuerta > RADIO_DISPARADOR) {
-                                choqueSolido = true;
+                    // VERIFICADOR DE MAPA DE COLISIONES DETERMINISTA RE-OPTIMIZADO
+                    let choqueEstructural = false;
+                    for (let obs of paredesMundo) {
+                        let distObstaculo = Math.sqrt(Math.pow(pos.x - obs.x, 2) + Math.pow(pos.z - obs.z, 2));
+                        if (distObstaculo < obs.r) {
+                            // Si estamos en rango de la puerta, permitimos el acceso, de lo contrario colisiona
+                            let distPuertaRefugio = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
+                            if (distPuertaRefugio > RADIO_DISPARADOR) {
+                                choqueEstructural = true;
                                 break;
                             }
                         }
                     }
 
-                    if (choqueSolido) { pos.x = viejoX; pos.z = viejoZ; } // Frena en seco al avatar
+                    if (choqueEstructural) { pos.x = viejoX; pos.z = viejoZ; }
+                    if (Math.abs(pos.x) > 120 || Math.abs(pos.z) > 120) { pos.x = viejoX; pos.z = viejoZ; }
 
-                    if (Math.abs(pos.x) > 130 || Math.abs(pos.z) > 130) { pos.x = viejoX; pos.z = viejoZ; }
-
-                    const anguloCuerpo = camYaw + Math.atan2(inputX, inputY);
-                    let difAngulo = Math.atan2(Math.sin(anguloCuerpo - avatarContainer.object3D.rotation.y), Math.cos(anguloCuerpo - avatarContainer.object3D.rotation.y));
-                    avatarContainer.object3D.rotation.y += difAngulo * 0.28;
+                    const anguloGiro = camYaw + Math.atan2(inputX, inputY);
+                    let diffAngle = Math.atan2(Math.sin(anguloGiro - avatarContainer.object3D.rotation.y), Math.cos(anguloGiro - avatarContainer.object3D.rotation.y));
+                    avatarContainer.object3D.rotation.y += diffAngle * 0.22;
                 } else {
                     luisWalk.setAttribute('visible', 'true'); luisRun.setAttribute('visible', 'false'); luisLlama.setAttribute('visible', 'false');
                     luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
                 }
 
-                // 🚀 SOLUCIÓN MAGISTRAL DE UN SOLO RAYO INVERSO PARA SUBIR ESCALERAS
-                let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 8, pos.z);
+                // 🚀 ADAPTACIÓN VERTICAL EXCLUSIVA PARA ESCALERAS (CON FILTRO DE AMORTIGUACIÓN)
+                let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 6, pos.z);
                 raycasterSuelo.set(inicioRaySuelo, vectorAbajo);
                 let colisionesSuelo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
                 
                 if (colisionesSuelo.length > 0) {
                     let alturaSueloDetectada = colisionesSuelo[0].point.y;
-                    // Suavizado de subida para evitar saltos toscos de cámara
-                    pos.y += (alturaSueloDetectada - pos.y) * 0.3;
+                    let diferenciaAltura = alturaSueloDetectada - pos.y;
+
+                    // FILTRO DE SEGURIDAD MÁXIMO: Evita saltos bruscos a tejados u objetos colgados (Filtrado de levitación)
+                    if (Math.abs(diferenciaAltura) < 0.6) {
+                        pos.y += diferenciaAltura * 0.25; // Sube de forma fluida y controlada peldaño a peldaño
+                    }
                 }
 
-                // ACTIVADOR DE ENTRADA AL REFUGIO SEGURO
+                // ACTIVADOR DE REFUGIO SEGURO EN LA ZONA CORRECTA
                 if (jugadorEstado === "EXPLORANDO") {
                     let distA_Casa = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
                     if (distA_Casa <= RADIO_DISPARADOR) {
@@ -442,37 +425,37 @@
 
                         setTimeout(() => {
                             jugadorEstado = "SALVADO";
-                            pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z;
+                            pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
                             
-                            // MEJORA: Acercamos la cámara al entrar para que no se oculte tras los techos
-                            mainCamera.setAttribute('position', '0 1.2 1.6');
+                            // MEJORA INTERIOR: Ajuste de cámara cercano para ver perfectamente el entorno dentro de la casa
+                            mainCamera.setAttribute('position', '0 1.1 1.4');
                             
-                            escena.setAttribute('fog', 'type: exponential; color: #020205; density: 0.01;');
-                            cielo.setAttribute('color', '#020205');
+                            escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.015;');
+                            cielo.setAttribute('color', '#030307');
                             
                             luisLlama.setAttribute('visible', 'false');
                             luisWalk.setAttribute('visible', 'true'); 
                             luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
-                            alertUI.textContent = "🏡 ¡A SALVO! Puedes usar las escaleras y explorar los pisos.";
+                            alertUI.textContent = "🏡 ¡A SALVO! Sube las escaleras para inspeccionar el segundo piso.";
                         }, 1800); 
                     }
                 }
             }
         }
         
-        // BOTÓN REINICIAR ESCENA / VOLVER A EMPEZAR
+        // BOTÓN REINICIAR ESCENA COMPLETAMENTE
         document.getElementById('btn-center').addEventListener('click', () => {
             if (!rig.object3D) return;
             jugadorEstado = "EXPLORANDO";
             modoCorrer = false;
+            loboAturdidoTimer = 0;
             btnSprint.textContent = "🏃‍♂️ CORRER";
             btnSprint.style.borderColor = "#ef4444";
             
-            // Reestablecer cámara exterior en tercera persona estándar
             mainCamera.setAttribute('position', '0 1.6 3.0');
             
             rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
-            werewolfRig.object3D.position.set(0, 0, -8);
+            werewolfRig.object3D.position.set(5, 0, -4);
             
             luisWalk.setAttribute('visible', 'true');
             luisRun.setAttribute('visible', 'false');
