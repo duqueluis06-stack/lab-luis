@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v7.3</title>
+    <title>ARK - Werewolf Escape Simulator v7.4 - Fixed</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -25,7 +25,7 @@
             -webkit-user-select: none; color: #fff;
         }
 
-        /* --- Pantalla de Carga Optimizada --- */
+        /* --- Pantalla de Carga --- */
         #custom-loader { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background-color: var(--bg-dark); z-index: 99999; 
@@ -76,12 +76,12 @@
         #stamina-container { width: 100%; max-width: 320px; height: 5px; background: rgba(0,0,0,0.4); border-radius: 3px; overflow: hidden; pointer-events: none; }
         #stamina-bar { width: 100%; height: 100%; background: var(--ui-green); }
 
-        /* --- Efectos --- */
+        /* --- Efectos Visuales --- */
         #damage-vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(255,0,0,0) 40%, rgba(180,0,0,0.5) 100%); z-index: 9998; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
         #damage-vignette.active { opacity: 1; }
         #fade-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9990; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
 
-        /* --- Controles --- */
+        /* --- Elementos de Control --- */
         .control-wrapper { position: absolute; z-index: 999; pointer-events: auto; }
         #joystick-wrapper { bottom: 30px; right: 30px; width: 100px; height: 100px; }
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
@@ -427,172 +427,219 @@
         }
 
         function engineLoop(time) {
+            // SEGURO DE VIDA: Garantizar el siguiente frame inmediatamente pase lo que pase
+            requestAnimationFrame(engineLoop);
+
             const dt = (time - GAME_STATE.lastFrameTime) / 1000;
             GAME_STATE.lastFrameTime = time;
 
-            if (!GAME_STATE.juegoActivo) { requestAnimationFrame(engineLoop); return; }
+            if (!GAME_STATE.juegoActivo) return;
 
-            if (ENT.rig.object3D) {
-                GAME_STATE.frameTicks++;
-                const ejecutarRaycastPesado = (GAME_STATE.frameTicks % 6 === 0);
+            // BLOQUE TRY-CATCH: Si el bosque lanza un error imprevisto, se registra pero NO congela los controles
+            try {
+                if (ENT.rig.object3D) {
+                    GAME_STATE.frameTicks++;
+                    const ejecutarRaycastPesado = (GAME_STATE.frameTicks % 6 === 0);
 
-                ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
-                ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
+                    ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
+                    ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
-                let mx = 0; let mz = 0;
-                if (INPUT.keys.w) mz = -1; if (INPUT.keys.s) mz = 1;
-                if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
-                if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
+                    let mx = 0; let mz = 0;
+                    if (INPUT.keys.w) mz = -1; if (INPUT.keys.s) mz = 1;
+                    if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
+                    if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
 
-                GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
+                    GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                if (GAME_STATE.inputMoviendo) {
-                    let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
-                    let angle = INPUT.camYaw;
-                    
-                    let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
-                    let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
-
-                    GAME_STATE.pos.x += dx * speed;
-                    GAME_STATE.pos.z += dz * speed;
-
-                    if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                        const rayoCaida = new THREE.Raycaster(
-                            new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z),
-                            new THREE.Vector3(0, -1, 0)
-                        );
-                        const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                    if (GAME_STATE.inputMoviendo) {
+                        let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
+                        let angle = INPUT.camYaw;
                         
-                        if (colisionesSuelo.length > 0) {
-                            let mejorImpacto = null;
-                            let menorDiferencia = Infinity;
+                        let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
+                        let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
+
+                        GAME_STATE.pos.x += dx * speed;
+                        GAME_STATE.pos.z += dz * speed;
+
+                        if (ejecutarRaycastPesado && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                            const rayoCaida = new THREE.Raycaster(
+                                new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z),
+                                new THREE.Vector3(0, -1, 0)
+                            );
+                            const colisionesSuelo = rayoCaida.intersectObject(ENT.entorno.getObject3D('mesh'), true);
                             
-                            for (let i = 0; i < colisionesSuelo.length; i++) {
-                                let obj = colisionesSuelo[i].object;
-                                let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
+                            if (colisionesSuelo.length > 0) {
+                                let mejorImpacto = null;
+                                let menorDiferencia = Infinity;
                                 
-                                // Filtros extendidos para ignorar vegetación densa del bosque
-                                if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
-                                    nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
-                                    nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
-                                    nombreMesh.includes('trunk') || nombreMesh.includes('foliage') || 
-                                    nombreMesh.includes('wood') || nombreMesh.includes('plant') ||
-                                    nombreMesh.includes('bosque') || nombreMesh.includes('forest')) {
-                                    continue; 
+                                for (let i = 0; i < colisionesSuelo.length; i++) {
+                                    if (!colisionesSuelo[i] || !colisionesSuelo[i].object) continue;
+                                    let obj = colisionesSuelo[i].object;
+                                    let nombreMesh = obj.name ? obj.name.toLowerCase() : "";
+                                    
+                                    if (nombreMesh.includes('tree') || nombreMesh.includes('arbol') || 
+                                        nombreMesh.includes('leaf') || nombreMesh.includes('hoja') || 
+                                        nombreMesh.includes('branch') || nombreMesh.includes('rama') || 
+                                        nombreMesh.includes('trunk') || nombreMesh.includes('foliage') || 
+                                        nombreMesh.includes('wood') || nombreMesh.includes('plant') ||
+                                        nombreMesh.includes('bosque') || nombreMesh.includes('forest')) {
+                                        continue; 
+                                    }
+                                    
+                                    let difActual = Math.abs(colisionesSuelo[i].point.y - GAME_STATE.pos.y);
+                                    if (difActual < menorDiferencia) {
+                                        menorDiferencia = difActual;
+                                        mejorImpacto = colisionesSuelo[i];
+                                    }
                                 }
                                 
-                                let difActual = Math.abs(colisionesSuelo[i].point.y - GAME_STATE.pos.y);
-                                if (difActual < menorDiferencia) {
-                                    menorDiferencia = difActual;
-                                    mejorImpacto = colisionesSuelo[i];
+                                if (mejorImpacto && menorDiferencia < 2.0) {
+                                    let valY = mejorImpacto.point.y;
+                                    if (!isNaN(valY) && isFinite(valY)) {
+                                        GAME_STATE.cachedAlturaSuelo = valY;
+                                    }
                                 }
-                            }
-                            
-                            // Ajuste de rango a 2.0 metros para evitar bloqueos en desniveles forestales
-                            if (mejorImpacto && menorDiferencia < 2.0) {
-                                GAME_STATE.cachedAlturaSuelo = mejorImpacto.point.y;
                             }
                         }
+                        
+                        GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                        ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
+
+                        let targetAngle = Math.atan2(dx, dz);
+                        let diff = targetAngle - ENT.avatar.object3D.rotation.y;
+                        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
+
+                        switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
+                    } else {
+                        switchMesh('atento');
                     }
-                    
-                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
-                    ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                    let targetAngle = Math.atan2(dx, dz);
-                    let diff = targetAngle - ENT.avatar.object3D.rotation.y;
-                    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-                    ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
-
-                    switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
-                } else {
-                    switchMesh('atento');
+                    // Gestión de estamina segura
+                    if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
+                        GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
+                        if (GAME_STATE.stamina <= 0) {
+                            toggleSprint(false); GAME_STATE.enCooldownSprint = true;
+                            UI.btnSprint.classList.add('cooldown');
+                        }
+                    } else {
+                        GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
+                        if (GAME_STATE.stamina >= 50 && GAME_STATE.enCooldownSprint) {
+                            GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown');
+                        }
+                    }
+                    UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
                 }
 
-                if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
-                    GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
-                    if (GAME_STATE.stamina <= 0) {
-                        toggleSprint(false); GAME_STATE.enCooldownSprint = true;
-                        UI.btnSprint.classList.add('cooldown');
-                    }
-                } else {
-                    GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
-                    if (GAME_STATE.stamina >= 50 && GAME_STATE.enCooldownSprint) {
-                        GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown');
+                // Detección segura de techos (interiores)
+                if (GAME_STATE.frameTicks % 6 === 0 && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
+                    const rayoTecho = new THREE.Raycaster(
+                        new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
+                        new THREE.Vector3(0, 1, 0)
+                    );
+                    const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                    GAME_STATE.esInterior = (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5);
+                }
+
+                // Adaptación de cámara limpia y baja para interiores (0.85m)
+                const camaraElemento = document.getElementById('main-camera');
+                if (camaraElemento) {
+                    if (GAME_STATE.esInterior) {
+                        camaraElemento.setAttribute('position', '0 0.85 0');
+                        for (let key in ENT.meshes) {
+                            if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
+                        }
+                    } else {
+                        camaraElemento.setAttribute('position', '0 1.5 2.2');
                     }
                 }
-                UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
-            }
 
-            if (GAME_STATE.frameTicks % 6 === 0 && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                const rayoTecho = new THREE.Raycaster(
-                    new THREE.Vector3(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.2, GAME_STATE.pos.z),
-                    new THREE.Vector3(0, 1, 0)
-                );
-                const colisionesTecho = rayoTecho.intersectObject(ENT.entorno.getObject3D('mesh'), true);
-                GAME_STATE.esInterior = (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5);
-            }
-
-            const camaraElemento = document.getElementById('main-camera');
-            if (GAME_STATE.esInterior) {
-                // Cámara bajada a 0.85 para un punto de vista idóneo en interiores bajos
-                camaraElemento.setAttribute('position', '0 0.85 0');
-                for (let key in ENT.meshes) {
-                    if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
-                }
-            } else {
-                camaraElemento.setAttribute('position', '0 1.5 2.2');
-            }
-
-            // --- SEGUIMIENTO Y AUDIO DEL LOBO ---
-            let loboPos = ENT.wwRig.object3D.position;
-            let dist = GAME_STATE.pos.distanceTo(loboPos);
-            
-            const soundStalk = document.getElementById('audio-local-stalk').components.sound;
-            const soundEnojado = document.getElementById('audio-local-enojado').components.sound;
-
-            if (dist < CONFIG.distDeteccionLobo) {
-                switchWwMesh('beast');
-                let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
-                dir.y = 0; dir.normalize();
+                // --- SISTEMA SANITIZADO DEL LOBO (Evita desbordamientos y caídas de audio) ---
+                let loboPos = ENT.wwRig.object3D.position;
+                let dist = GAME_STATE.pos.distanceTo(loboPos);
                 
-                let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
-                loboPos.x += dir.x * vLobo; loboPos.z += dir.z * vLobo;
-                ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
-
-                if (dist < CONFIG.distAtaqueLobo) {
-                    GAME_STATE.loboEstado = 'ataque'; UI.damage.classList.add('active');
-                    if (!GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.playSound(); GAME_STATE.audioEnojadoPlaying = true; }
-                    if(soundEnojado) soundEnojado.setVolume(1.0);
-                    if(soundStalk) soundStalk.setVolume(0.15);
-                } else {
-                    GAME_STATE.loboEstado = 'acecho'; UI.damage.classList.remove('active');
-                    if (!GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.playSound(); GAME_STATE.audioStalkPlaying = true; }
-                    if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
-                    let volMix = 1 - ((dist - CONFIG.distAtaqueLobo) / (CONFIG.distDeteccionLobo - CONFIG.distAtaqueLobo));
-                    if(soundStalk) soundStalk.setVolume(Math.max(0, volMix));
+                // Evitar cálculos con distancias imposibles o nulas
+                if (isNaN(dist) || !isFinite(dist) || dist < 0.01) {
+                    dist = 0.5;
                 }
-            } else {
-                switchWwMesh('howl'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
-                if (GAME_STATE.audioStalkPlaying && soundStalk) { soundStalk.stopSound(); GAME_STATE.audioStalkPlaying = false; }
-                if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { soundEnojado.stopSound(); GAME_STATE.audioEnojadoPlaying = false; }
-            }
 
-            requestAnimationFrame(engineLoop);
+                // Control defensivo para interceptar componentes de audio que aún no se han instanciado en el DOM
+                const elStalk = document.getElementById('audio-local-stalk');
+                const elEnojado = document.getElementById('audio-local-enojado');
+                const soundStalk = (elStalk && elStalk.components) ? elStalk.components.sound : null;
+                const soundEnojado = (elEnojado && elEnojado.components) ? elEnojado.components.sound : null;
+
+                if (dist < CONFIG.distDeteccionLobo) {
+                    switchWwMesh('beast');
+                    let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
+                    dir.y = 0; 
+                    dir.normalize();
+                    
+                    // Asegurar que la dirección sea válida antes de aplicar movimiento
+                    if (!isNaN(dir.x) && !isNaN(dir.z)) {
+                        let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
+                        loboPos.x += dir.x * vLobo; 
+                        loboPos.z += dir.z * vLobo;
+                        ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
+                    }
+
+                    if (dist < CONFIG.distAtaqueLobo) {
+                        GAME_STATE.loboEstado = 'ataque'; 
+                        if(UI.damage) UI.damage.classList.add('active');
+                        
+                        if (!GAME_STATE.audioEnojadoPlaying && soundEnojado) { 
+                            try { soundEnojado.playSound(); } catch(e){} 
+                            GAME_STATE.audioEnojadoPlaying = true; 
+                        }
+                        if(soundEnojado && typeof soundEnojado.setVolume === 'function') soundEnojado.setVolume(1.0);
+                        if(soundStalk && typeof soundStalk.setVolume === 'function') soundStalk.setVolume(0.15);
+                    } else {
+                        GAME_STATE.loboEstado = 'acecho'; 
+                        if(UI.damage) UI.damage.classList.remove('active');
+                        
+                        if (!GAME_STATE.audioStalkPlaying && soundStalk) { 
+                            try { soundStalk.playSound(); } catch(e){} 
+                            GAME_STATE.audioStalkPlaying = true; 
+                        }
+                        if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { 
+                            try { soundEnojado.stopSound(); } catch(e){} 
+                            GAME_STATE.audioEnojadoPlaying = false; 
+                        }
+                        
+                        let volMix = 1 - ((dist - CONFIG.distAtaqueLobo) / (CONFIG.distDeteccionLobo - CONFIG.distAtaqueLobo));
+                        if(isNaN(volMix) || !isFinite(volMix)) volMix = 0;
+                        volMix = Math.max(0, Math.min(1, volMix)); // Clampeado estricto antierror
+                        
+                        if(soundStalk && typeof soundStalk.setVolume === 'function') soundStalk.setVolume(volMix);
+                    }
+                } else {
+                    switchWwMesh('howl'); 
+                    GAME_STATE.loboEstado = 'idle'; 
+                    if(UI.damage) UI.damage.classList.remove('active');
+                    if (GAME_STATE.audioStalkPlaying && soundStalk) { try{soundStalk.stopSound();}catch(e){} GAME_STATE.audioStalkPlaying = false; }
+                    if (GAME_STATE.audioEnojadoPlaying && soundEnojado) { try{soundEnojado.stopSound();}catch(e){} GAME_STATE.audioEnojadoPlaying = false; }
+                }
+            } catch (err) {
+                // Si algo falla catastróficamente en el bosque, se imprime aquí pero el juego NO colapsa
+                console.warn("Intercepción del motor de simulación para prevenir cuelgues:", err);
+            }
         }
 
         function triggerThunder() {
             if (!GAME_STATE.juegoActivo) return;
-            const luz = ENT.luzRelampago.object3D.element;
-            if(luz) {
-                luz.setAttribute('light', 'intensity', '2.0');
-                setTimeout(() => {
-                    luz.setAttribute('light', 'intensity', '0');
+            try {
+                const luz = ENT.luzRelampago.object3D.element;
+                if(luz) {
+                    luz.setAttribute('light', 'intensity', '2.0');
                     setTimeout(() => {
-                        luz.setAttribute('light', 'intensity', '1.5');
-                        setTimeout(() => luz.setAttribute('light', 'intensity', '0'), 80);
-                    }, 60);
-                }, 100);
-            }
+                        luz.setAttribute('light', 'intensity', '0');
+                        setTimeout(() => {
+                            luz.setAttribute('light', 'intensity', '1.5');
+                            setTimeout(() => luz.setAttribute('light', 'intensity', '0'), 80);
+                        }, 60);
+                    }, 100);
+                }
+            } catch(e){}
         }
 
         function resetGame() {
@@ -600,16 +647,20 @@
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.audioStalkPlaying = false; GAME_STATE.audioEnojadoPlaying = false;
             GAME_STATE.pos.set(0, 0, 25); GAME_STATE.cachedAlturaSuelo = 0;
-            ENT.rig.object3D.position.set(0, 0, 25);
-            ENT.wwRig.object3D.position.set(15, 0, -10);
+            
+            if(ENT.rig && ENT.rig.object3D) ENT.rig.object3D.position.set(0, 0, 25);
+            if(ENT.wwRig && ENT.wwRig.object3D) ENT.wwRig.object3D.position.set(15, 0, -10);
+            
             INPUT.camYaw = 0; INPUT.camPitch = 0;
             UI.btnSprint.classList.remove('active', 'cooldown');
             UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. ¡Evita al Hombre Lobo! 🐺";
             UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
             
             try {
-                document.getElementById('audio-local-stalk').components.sound.stopSound();
-                document.getElementById('audio-local-enojado').components.sound.stopSound();
+                const sStalk = document.getElementById('audio-local-stalk').components.sound;
+                const sEnojado = document.getElementById('audio-local-enojado').components.sound;
+                if(sStalk) sStalk.stopSound();
+                if(sEnojado) sEnojado.stopSound();
             } catch(e){}
 
             for (let key in ENT.meshes) {
@@ -619,12 +670,10 @@
             GAME_STATE.activeMesh = 'atento';
             GAME_STATE.wwActiveMesh = 'howl';
 
-            ENT.wwMeshes.howl.setAttribute('scale', '0.8 0.8 0.8');
-            ENT.wwMeshes.howl.setAttribute('visible', 'true');
-            ENT.wwMeshes.beast.setAttribute('scale', '0 0 0');
-            ENT.wwMeshes.beast.setAttribute('visible', 'false');
+            if(ENT.wwMeshes.howl) { ENT.wwMeshes.howl.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.howl.setAttribute('visible', 'true'); }
+            if(ENT.wwMeshes.beast) { ENT.wwMeshes.beast.setAttribute('scale', '0 0 0'); ENT.wwMeshes.beast.setAttribute('visible', 'false'); }
 
-            if (!GAME_STATE.esInterior) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
+            if (!GAME_STATE.esInterior && ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') { initLoader(); }
