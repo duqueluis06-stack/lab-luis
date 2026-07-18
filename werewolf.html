@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v5.1 Fixed</title>
+    <title>ARK - Werewolf Escape Simulator v5.2 Optimized</title>
     
     <!-- Librerías estables de A-Frame y Extras -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -112,7 +112,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Alineando malla del avatar Luis...</div>
+            <div class="loader-msg" id="loader-status">Despertando motores de animación...</div>
         </div>
     </div>
 
@@ -185,7 +185,7 @@
         <!-- El Pueblo/Entorno -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- Zona de Refugio Clara (Meta) -->
+        <!-- Zona de Refugio -->
         <a-entity id="refugio-target" position="17.4 0.2 16.5">
             <a-entity light="type: point; intensity: 3.0; distance: 15; color: #ff8822;"></a-entity>
             <a-cylinder radius="3" height="0.1" color="#ff8822" material="opacity: 0.3; transparent: true; shader: flat;"></a-cylinder>
@@ -195,16 +195,16 @@
         <!-- RIG JUGADOR -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
-                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
+                <!-- OPTIMIZACIÓN CLAVE: Cambiamos visible="false" por scale="0 0 0". Las mallas están siempre vivas en el motor -->
+                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
                     <a-entity id="main-camera" camera="fov: 60; near: 0.1; far: 500;" position="0 1.8 4.5">
-                        <!-- Linterna -->
                         <a-entity id="flashlight" light="type: spot; intensity: 2.5; distance: 45; angle: 40; penumbra: 0.4; color: #fffee0;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -212,10 +212,11 @@
         </a-entity>
 
         <!-- ENEMIGO: WEREWOLF -->
-        <a-entity id="werewolf-rig" position="15 0 -10" scale="0.8 0.8 0.8">
-            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
-            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat;"></a-entity>
+        <a-entity id="werewolf-rig" position="15 0 -10">
+            <!-- Optimización de escala también para las fases del lobo -->
+            <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" scale="0.8 0.8 0.8" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
         </a-entity>
 
@@ -297,7 +298,6 @@
         }
 
         function initControls() {
-            // Teclado PC
             window.addEventListener('keydown', e => {
                 const k = e.key.toLowerCase();
                 if(k === 'w' || k === 'arrowup') INPUT.keys.w = true;
@@ -315,7 +315,6 @@
                 if(!e.shiftKey) toggleSprint(false);
             });
 
-            // Rotación de Cámara Inteligente (Arrastrar ratón o dedo por la pantalla)
             window.addEventListener('pointerdown', e => {
                 if (e.target.closest('.ui-btn') || e.target.closest('.control-wrapper') || e.target.closest('#alert-ui')) return;
                 INPUT.isDraggingCam = true;
@@ -334,12 +333,10 @@
             });
             window.addEventListener('pointerup', () => INPUT.isDraggingCam = false);
 
-            // Botones de UI
             UI.btnReset.addEventListener('click', resetGame);
             UI.btnSprint.addEventListener('pointerdown', () => toggleSprint(true));
             UI.btnSprint.addEventListener('pointerup', () => toggleSprint(false));
 
-            // Joystick Móvil
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
             let joyActive = false;
@@ -368,7 +365,6 @@
             window.addEventListener('pointermove', e => { if(joyActive) handleJoyMove(e); });
             window.addEventListener('pointerup', handleJoyEnd);
 
-            // Flechas en pantalla auxiliares
             const bindArrow = (id, k, val) => {
                 const btn = document.getElementById(id);
                 btn.addEventListener('pointerdown', () => INPUT.keys[k] = val);
@@ -388,17 +384,18 @@
             }
         }
 
+        // CONTROL DE ESCALA INTERNOCUANDO CAMBIA EL ESTADO ANIMADO
         function switchMesh(target) {
             if (ENT.meshes.activeName === target) return;
-            ENT.meshes[ENT.meshes.activeName].setAttribute('visible', 'false');
-            ENT.meshes[target].setAttribute('visible', 'true');
+            ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
+            ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
             ENT.meshes.activeName = target;
         }
 
         function switchWwMesh(target) {
             if (ENT.wwMeshes.activeName === target) return;
-            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
-            ENT.wwMeshes[target].setAttribute('visible', 'true');
+            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('scale', '0 0 0');
+            ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
             ENT.wwMeshes.activeName = target;
         }
 
@@ -407,22 +404,17 @@
             GAME_STATE.lastFrameTime = time;
 
             if (!GAME_STATE.isDead && ENT.rig.object3D) {
-                // Sincronizar Cámara
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
                 ENT.camPitch.object3D.rotation.x = INPUT.camPitch;
 
-                // Capturar valores de Entrada (Teclado o Joystick)
-                let mx = 0;
-                let mz = 0;
-                
-                if (INPUT.keys.w) mz = -1; // -1 significa avanzar hacia donde mira la cámara
+                let mx = 0; let mz = 0;
+                if (INPUT.keys.w) mz = -1;
                 if (INPUT.keys.s) mz = 1;
                 if (INPUT.keys.a) mx = -1;
                 if (INPUT.keys.d) mx = 1;
 
                 if (Math.abs(INPUT.joyMove.x) > 0.1 || Math.abs(INPUT.joyMove.y) > 0.1) {
-                    mx = INPUT.joyMove.x;
-                    mz = INPUT.joyMove.y;
+                    mx = INPUT.joyMove.x; mz = INPUT.joyMove.y;
                 }
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
@@ -431,7 +423,6 @@
                     let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
                     let angle = INPUT.camYaw;
                     
-                    // Cálculo de matriz vectorial correcto según orientación de cámara
                     let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
                     let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
 
@@ -439,19 +430,17 @@
                     GAME_STATE.pos.z += dz * speed;
                     ENT.rig.object3D.position.set(GAME_STATE.pos.x, 0, GAME_STATE.pos.z);
 
-                    // CORRECCIÓN CLAVE: El ángulo se calcula directamente sobre la marcha. 
-                    // Eliminamos el desfase estático para que mire al frente del avance de forma natural.
                     let targetAngle = Math.atan2(dx, dz);
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
 
+                    // Asignación de escala dinámicamente correcta
                     switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
                 } else {
                     switchMesh('atento');
                 }
 
-                // Gestión de Estamina
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
                     if (GAME_STATE.stamina <= 0) {
@@ -466,7 +455,6 @@
                 }
                 UI.staminaBar.style.width = GAME_STATE.stamina + '%';
 
-                // Inteligencia Artificial del Hombre Lobo
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
 
@@ -492,7 +480,6 @@
                     switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
                 }
 
-                // Condición de Victoria
                 if (GAME_STATE.pos.distanceTo(new THREE.Vector3(17.4, 0.2, 16.5)) <= CONFIG.radioVictoria) {
                     GAME_STATE.isDead = true;
                     UI.alert.textContent = "🎉 ¡REFUGIO ALCANZADO! HAS GANADO LUIS 🎉";
@@ -537,7 +524,12 @@
             UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Corre hacia la luz naranja del refugio 🏡";
             UI.alert.style.borderColor = "var(--ui-red)"; UI.alert.style.color = "#fca5a5";
             UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
-            switchMesh('atento'); switchWwMesh('idle');
+            
+            // Forzar reseteo físico absoluto de escalas al reiniciar
+            Object.keys(ENT.meshes).forEach(k => { if(k !== 'activeName') ENT.meshes[k].setAttribute('scale', '0 0 0'); });
+            Object.keys(ENT.wwMeshes).forEach(k => { if(k !== 'activeName') ENT.wwMeshes[k].setAttribute('scale', '0 0 0'); });
+            ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38'); ENT.meshes.activeName = 'atento';
+            ENT.wwMeshes.idle.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.activeName = 'idle';
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') { initLoader(); }
