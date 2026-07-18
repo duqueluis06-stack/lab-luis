@@ -183,9 +183,8 @@
         </div>
     </div>
 
-    <!-- ESCENA A-FRAME (Con Decoder Draco inyectado de forma segura) -->
+    <!-- ESCENA A-FRAME -->
     <a-scene id="escena-principal" 
-             gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/versioned/decoders/1.5.6/;"
              fog="type: exponential; color: #020205; density: 0.03;" 
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance; physicallyCorrectLights: true;" 
              vr-mode-ui="enabled: false" 
@@ -280,7 +279,7 @@
 
     </a-scene>
 
-    <!-- ======= LÓGICA JAVASCRIPT TOTALMENTE SANEADA ======= -->
+    <!-- ======= LÓGICA JAVASCRIPT TOTALMENTE COMPLETA ======= -->
     <script>
         // ==========================================
         // 1. CONFIGURACIÓN Y CONSTANTES DEL JUEGO
@@ -435,7 +434,6 @@
         }
 
         function initInputHandlers() {
-            // Teclado PC
             window.addEventListener('keydown', e => {
                 const k = e.key.toLowerCase();
                 if(k === 'w' || k === 'arrowup') INPUT.keys.w = true;
@@ -456,11 +454,9 @@
 
             UI.btnReset.addEventListener('click', resetGame);
             
-            // Botón Sprint Móvil
             UI.btnSprint.addEventListener('touchstart', e => { e.preventDefault(); toggleSprint(true); });
             UI.btnSprint.addEventListener('touchend', e => { e.preventDefault(); toggleSprint(false); });
 
-            // Configuración Joystick de Movimiento Móvil
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
             
@@ -504,7 +500,6 @@
             window.addEventListener('touchmove', handleJoyMove, {passive: false});
             window.addEventListener('touchend', handleJoyEnd);
 
-            // Setup de Flechas de Cámara Móvil
             const setupArrow = (id, key) => {
                 const btn = document.getElementById(id);
                 btn.addEventListener('touchstart', e => { e.preventDefault(); INPUT.arrowCam[key] = true; });
@@ -639,74 +634,106 @@
                 let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, GAME_STATE.loboPos).normalize();
                 let speed = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
                 
-                GAME_STATE.loboPos.addScaledVector(dir, speed);
+                GAME_STATE.loboPos.x += dir.x * speed;
+                GAME_STATE.loboPos.z += dir.z * speed;
                 ENT.wwRig.setAttribute('position', `${GAME_STATE.loboPos.x} 0 ${GAME_STATE.loboPos.z}`);
                 
-                let targetRot = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-                ENT.wwRig.setAttribute('rotation', `0 ${targetRot} 0`);
+                let angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+                ENT.wwRig.setAttribute('rotation', `0 ${angle} 0`);
+                
+                if (dist < CONFIG.distAtaqueLobo) {
+                    GAME_STATE.loboEstado = 'ataque';
+                    UI.damage.classList.add('active');
+                } else {
+                    GAME_STATE.loboEstado = 'acecho';
+                    UI.damage.classList.remove('active');
+                }
             } else if (dist <= CONFIG.distMeleeLobo) {
-                executeDamage();
+                if (GAME_STATE.loboEstado !== 'melee') {
+                    GAME_STATE.loboEstado = 'melee';
+                    switchWwMesh('howl');
+                    aplicarDañoJugador();
+                }
             } else {
                 switchWwMesh('idle');
+                GAME_STATE.loboEstado = 'idle';
+                UI.damage.classList.remove('active');
             }
+        }
+
+        function aplicarDañoJugador() {
+            if (GAME_STATE.isDead) return;
+            GAME_STATE.salud -= CONFIG.dañoMelee;
+            UI.alert.textContent = `¡EL LOBO TE ATACÓ! SALUD: ${GAME_STATE.salud}%`;
+            
+            if (GAME_STATE.salud <= 0) {
+                ejecutarMuerte();
+            } else {
+                setTimeout(() => {
+                    if (GAME_STATE.loboEstado === 'melee') GAME_STATE.loboEstado = 'idle';
+                }, 1500);
+            }
+        }
+
+        function ejecutarMuerte() {
+            GAME_STATE.isDead = true;
+            UI.alert.textContent = "💥 HAS MUERTO. LA SIMULACIÓN SE REINICIARÁ... 💥";
+            UI.fade.style.opacity = "1";
+            setTimeout(resetGame, 3000);
         }
 
         function checkGameplayConditions() {
-            let targetPosStr = ENT.targetVictoria.getAttribute('position');
-            let targetPos = new THREE.Vector3(targetPosStr.x, targetPosStr.y, targetPosStr.z);
+            let targetPos = new THREE.Vector3(17.4, 0.5, 16.5);
+            let distVictoria = GAME_STATE.pos.distanceTo(targetPos);
             
-            if (GAME_STATE.pos.distanceTo(targetPos) < CONFIG.radioVictoria) {
+            if (distVictoria <= CONFIG.radioVictoria) {
                 GAME_STATE.isDead = true;
+                UI.alert.textContent = "🎉 ¡LOGRASTE LLEGAR AL REFUGIO! SOBREVIVISTE 🎉";
                 UI.alert.style.borderColor = "var(--ui-green)";
-                UI.alert.textContent = "¡SIMULACIÓN COMPLETADA! LOGRASTE ENTRAR AL REFUGIO 🏡✓";
-                switchMesh('llama');
-            }
-        }
-
-        function executeDamage() {
-            GAME_STATE.salud = Math.max(0, GAME_STATE.salud - CONFIG.dañoMelee);
-            UI.damage.classList.add('active');
-            setTimeout(() => UI.damage.classList.remove('active'), 500);
-
-            if (GAME_STATE.salud <= 0) {
-                GAME_STATE.isDead = true;
-                UI.alert.textContent = "💀 SINK DETECTED. HAS SIDO CAZADO. PRESIONA REINICIAR.";
+                UI.alert.style.color = "var(--ui-green)";
+                setTimeout(resetGame, 5000);
             }
         }
 
         function triggerThunderstormEffect() {
-            if (GAME_STATE.isDead) return;
-            ENT.sndThunder.components.sound.playSound();
-            ENT.luzRelampago.setAttribute('light', 'intensity: 3.5');
+            if (GAME_STATE.isDead || !GAME_STATE.escenaIniciada) return;
+            
+            if (ENT.sndThunder && ENT.sndThunder.components.sound) {
+                ENT.sndThunder.components.sound.playSound();
+            }
+            
+            ENT.luzRelampago.setAttribute('light', 'intensity', '2.5');
             setTimeout(() => {
-                ENT.luzRelampago.setAttribute('light', 'intensity: 0');
+                ENT.luzRelampago.setAttribute('light', 'intensity', '0');
                 setTimeout(() => {
-                    ENT.luzRelampago.setAttribute('light', 'intensity: 2');
+                    ENT.luzRelampago.setAttribute('light', 'intensity', '1.8');
                     setTimeout(() => {
-                        ENT.luzRelampago.setAttribute('light', 'intensity: 0');
-                    }, 150);
-                }, 100);
-            }, 200);
+                        ENT.luzRelampago.setAttribute('light', 'intensity', '0');
+                    }, 100);
+                }, 80);
+            }, 150);
         }
 
         function resetGame() {
-            UI.fade.style.opacity = '1';
-            setTimeout(() => {
-                GAME_STATE.salud = 100;
-                GAME_STATE.stamina = 100;
-                GAME_STATE.isDead = false;
-                GAME_STATE.pos.copy(GAME_STATE.respawnPos);
-                GAME_STATE.loboPos.set(15, 0, -10);
-                
-                ENT.rig.setAttribute('position', `${GAME_STATE.respawnPos.x} 0 ${GAME_STATE.respawnPos.z}`);
-                ENT.wwRig.setAttribute('position', '15 0 -10');
-                UI.alert.style.borderColor = "var(--ui-red)";
-                UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡";
-                
-                switchMesh('atento');
-                switchWwMesh('idle');
-                UI.fade.style.opacity = '0';
-            }, 600);
+            GAME_STATE.salud = 100;
+            GAME_STATE.stamina = 100;
+            GAME_STATE.isDead = false;
+            GAME_STATE.loboEstado = 'idle';
+            
+            GAME_STATE.pos.copy(GAME_STATE.respawnPos);
+            ENT.rig.setAttribute('position', `${GAME_STATE.pos.x} 0 ${GAME_STATE.pos.z}`);
+            
+            GAME_STATE.loboPos.set(15, 0, -10);
+            ENT.wwRig.setAttribute('position', `${GAME_STATE.loboPos.x} 0 ${GAME_STATE.loboPos.z}`);
+            
+            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡";
+            UI.alert.style.borderColor = "var(--ui-red)";
+            UI.alert.style.color = "#fca5a5";
+            UI.fade.style.opacity = "0";
+            UI.damage.classList.remove('active');
+            
+            switchMesh('atento');
+            switchWwMesh('idle');
         }
 
         window.addEventListener('DOMContentLoaded', initLoader);
