@@ -3,67 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v3.5</title>
+    <title>ARK - Werewolf Escape Simulator v4.0</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <style>
-        body {
-            margin: 0; padding: 0; overflow: hidden;
-            font-family: system-ui, sans-serif;
-            background-color: #020205; user-select: none; -webkit-user-select: none;
-        }
-
-        #custom-loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #020205; z-index: 99999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.5s ease;
-        }
-
-        .spinner {
-            width: 45px; height: 45px;
-            border: 3px solid rgba(239, 68, 68, 0.1);
-            border-top-color: #ef4444; border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-
+        body { margin: 0; padding: 0; overflow: hidden; font-family: system-ui, sans-serif; background-color: #010103; user-select: none; -webkit-user-select: none; }
+        #custom-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #010103; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease; }
+        .spinner { width: 45px; height: 45px; border: 3px solid rgba(239, 68, 68, 0.1); border-top-color: #ef4444; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         .loader-title { color: #ef4444; font-size: 13px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
         .loader-msg { color: #94a3b8; font-size: 11px; max-width: 250px; text-align: center; line-height: 1.5; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        #ui-top-bar {
-            position: fixed; top: 16px; left: 16px; right: 16px;
-            display: flex; flex-direction: column; align-items: center;
-            z-index: 1000; pointer-events: none; gap: 8px;
-        }
+        /* FADE-IN/OUT PARA LA TRANSICIÓN DE CÁMARA INTERNA */
+        #fade-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 99990; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 
+        #ui-top-bar { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; z-index: 1000; pointer-events: none; gap: 8px; }
         .ui-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 12px; }
+        #btn-center { pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #00ffaa; color: #00ffaa; border-radius: 50%; width: 44px; height: 44px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        #alert-ui { flex-grow: 1; text-align: center; background: rgba(15, 23, 42, 0.9); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: bold; text-transform: uppercase; max-width: 60%; box-sizing: border-box; }
+        #btn-sprint { pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #ef4444; color: #ffffff; padding: 12px 14px; border-radius: 8px; font-size: 10px; font-weight: bold; cursor: pointer; min-width: 90px; text-align: center; }
 
-        #btn-center {
-            pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #00ffaa;
-            color: #00ffaa; border-radius: 50%; width: 44px; height: 44px; font-size: 18px;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
-
-        #alert-ui {
-            flex-grow: 1; text-align: center; background: rgba(15, 23, 42, 0.9); border: 1px solid #ef4444;
-            color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: bold;
-            text-transform: uppercase; box-sizing: border-box;
-        }
-
-        #btn-sprint {
-            pointer-events: auto; background: rgba(15, 23, 42, 0.85); border: 2px solid #ef4444;
-            color: #ffffff; padding: 12px 14px; border-radius: 8px; font-size: 10px; font-weight: bold; cursor: pointer;
-            min-width: 90px; text-align: center;
-        }
-
-        /* BARRA DE ENERGÍA / STAMINA */
-        #stamina-container {
-            width: 100%; max-width: 320px; height: 6px; background: rgba(15, 23, 42, 0.6);
-            border-radius: 3px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.3); pointer-events: none;
-        }
+        #stamina-container { width: 100%; max-width: 320px; height: 6px; background: rgba(15, 23, 42, 0.6); border-radius: 3px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.3); pointer-events: none; }
         #stamina-bar { width: 100%; height: 100%; background: #00ffaa; transition: width 0.1s linear, background-color 0.3s ease; }
 
         #joystick-wrapper { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; z-index: 999; }
@@ -71,29 +33,25 @@
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #ef4444; border-radius: 50%; cursor: pointer; }
 
         #arrows-wrapper { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 999; }
-        .joy-arrow {
-            position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid #ef4444;
-            color: #ef4444; border-radius: 8px; width: 34px; height: 34px; font-size: 14px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .arrow-up { top: 0; left: 33px; }
-        .arrow-down { bottom: 0; left: 33px; }
-        .arrow-left { left: 0; top: 33px; }
-        .arrow-right { right: 0; top: 33px; }
+        .joy-arrow { position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid #ef4444; color: #ef4444; border-radius: 8px; width: 34px; height: 34px; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .arrow-up { top: 0; left: 33px; } .arrow-down { bottom: 0; left: 33px; } .arrow-left { left: 0; top: 33px; } .arrow-right { right: 0; top: 33px; }
     </style>
 </head>
 <body>
 
     <div id="custom-loader">
         <div class="spinner"></div>
-        <div class="loader-title">Físicas de Nueva Generación</div>
-        <div class="loader-msg">Filtrando mallas altas, invirtiendo ejes ópticos y mapeando árboles en tiempo real...</div>
+        <div class="loader-title">ARK: Simulador v4.0</div>
+        <div class="loader-msg">Inicializando colisiones estructurales, físicas de escaleras y micro-cámara de interiores...</div>
     </div>
+
+    <!-- PANTALLA DE FADE PARA LA TRANSICIÓN DE CÁMARA INTELIGENTE -->
+    <div id="fade-screen"></div>
 
     <div id="ui-top-bar">
         <div class="ui-row">
             <button id="btn-center">🔄</button>
-            <div id="alert-ui">⚠️ Alerta: El Werewolf te busca en el bosque.</div>
+            <div id="alert-ui">⚠️ El Werewolf acecha. Busca el refugio 🏡</div>
             <button id="btn-sprint">🏃‍♂️ CORRER</button>
         </div>
         <div id="stamina-container">
@@ -114,10 +72,7 @@
         </div>
     </div>
 
-    <a-scene id="escena-principal" fog="type: exponential; color: #030307; density: 0.025;"
-             renderer="antialias: false; colorManagement: true; powerPreference: high-performance;" 
-             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
-        
+    <a-scene id="escena-principal" fog="type: exponential; color: #030307; density: 0.025;" renderer="antialias: false; colorManagement: true; powerPreference: high-performance;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
             <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb"></a-asset-item>
@@ -129,13 +84,13 @@
         </a-assets>
 
         <a-sky id="cielo" color="#030307"></a-sky>
-        <a-sphere id="luna" position="30 60 -90" radius="5" color="#e5efff" material="shader: flat; fog: false"></a-sphere>
+        <a-sphere position="30 60 -90" radius="5" color="#e5efff" material="shader: flat; fog: false"></a-sphere>
         <a-entity light="type: directional; intensity: 0.45; color: #7da5f5;" position="30 60 -90"></a-entity>
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.45; color: #20204c"></a-entity>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
 
-        <!-- RIG DE LUIS -->
+        <!-- RIG DE LUIS (AVATAR) -->
         <a-entity id="player-rig" position="0 0 12">
             <a-entity id="avatar-container" position="0 0 0" scale="0.38 0.38 0.38">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 0;"></a-entity>
@@ -143,8 +98,10 @@
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0;"></a-entity>
             </a-entity>
 
+            <!-- ARQUITECTURA DE CÁMARA AJUSTABLE (TERCERA Y PRIMERA PERSONA) -->
             <a-entity id="camera-yaw">
                 <a-entity id="camera-pitch">
+                    <!-- main-camera: posición externa por defecto -->
                     <a-entity id="main-camera" camera="fov: 60" position="0 1.6 3.0">
                         <a-entity light="type: spot; intensity: 2.2; distance: 20; angle: 45; penumbra: 0.5; color: #fffdec;" position="0 0 0"></a-entity>
                     </a-entity>
@@ -152,11 +109,11 @@
             </a-entity>
         </a-entity>
 
-        <!-- RIG DEL WEREWOLF -->
+        <!-- RIG DEL WEREWOLF CON MÁQUINA DE ESTADOS REFINADA -->
         <a-entity id="werewolf-rig" position="5 0 -4" scale="0.68 0.68 0.68">
             <a-entity id="ww-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-            <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-            <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0.9;"></a-entity>
+            <a-entity id="ww-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.1;"></a-entity>
+            <a-entity id="ww-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 0.95;"></a-entity>
         </a-entity>
 
     </a-scene>
@@ -166,19 +123,23 @@
 
         const SPAWN_X = 0; const SPAWN_Z = 12;
         const CASA_FACHADA_X = 17.44; const CASA_FACHADA_Z = 17.78;
-        const RADIO_DISPARADOR = 2.4; // Ampliado para asegurar la detección de la acción "Llama"
+        const RADIO_DISPARADOR = 2.4; 
         const CASA_INTERIOR_X = 17.44; const CASA_INTERIOR_Z = 16.10;
         
-        const VEL_CAMINAR = 0.045;
-        const VEL_CORRER = 0.085;
+        const VEL_CAMINAR = 0.045; const VEL_CORRER = 0.082;
 
-        const CASA_COLLIDER = { xMin: 14.2, xMax: 20.8, zMin: 11.5, zMax: 17.0 };
-        
-        // ARRAY DINÁMICO DONDE EL MOTOR GUARDARÁ LOS ÁRBOLES DETECTADOS AUTOMÁTICAMENTE
-        let obstaculosArboles = [];
+        // FÍSICAS DE COLISIÓN SÓLIDAS PERIMETRALES EXACTAS PARA LA CASA (ZONA DE PARREDES REALES)
+        // Ya no atravesarás las paredes visuales como un fantasma
+        const CASA_COLLIDER = {
+            xMin: 14.5,
+            xMax: 20.3,
+            zMin: 11.5,
+            zMax: 17.0
+        };
 
         const escena = document.getElementById('escena-principal');
         const cielo = document.getElementById('cielo');
+        const fadeScreen = document.getElementById('fade-screen');
         const luzAmbiental = document.getElementById('luz-ambiental');
         const knob = document.getElementById('joystick-knob');
         const rig = document.getElementById('player-rig');
@@ -197,11 +158,7 @@
         const luisRun = document.getElementById('luis-mesh-run');
         const luisLlama = document.getElementById('luis-mesh-llama');
 
-        const wwModels = {
-            idle: document.getElementById('ww-idle'),
-            howl: document.getElementById('ww-howl'),
-            beast: document.getElementById('ww-beast')
-        };
+        const wwModels = { idle: document.getElementById('ww-idle'), howl: document.getElementById('ww-howl'), beast: document.getElementById('ww-beast') };
 
         let moveX = 0, moveY = 0;
         const keys = { w: false, a: false, s: false, d: false };
@@ -213,130 +170,55 @@
         
         let loaderEliminado = false;
         let jugadorEstado = "EXPLORANDO";
-        let loboEstado = "idle";
+        let modoCorrer = false; let stamina = 100; let cooldowntimer = false;
         
-        // NUEVAS VARIABLES DE CONTROL DE ESTAMINA (CORRER CADA CIERTO TIEMPO)
-        let modoCorrer = false;
-        let stamina = 100;
-        let cooldowntimer = false;
-
-        let loboAturdidoTimer = 0;
+        // MÁQUINA DE ESTADOS DEL LOBO
+        let loboEstadoIA = "acechando"; // acechando, atacando, aturdido, exterior_casa, merodeando_casa, marchado
+        let loboAullidoContador = 0;
+        let loboTimerIA = 0;
         let ultimoAullido = 0;
         
         const raycasterSuelo = new THREE.Raycaster();
         const vectorAbajo = new THREE.Vector3(0, -1, 0);
 
-        // ESCÁNER AVANZADO DE ENTORNOS GLB PARA AUTO-DETECCIÓN DE ÁRBOLES FÍSICOS
-        document.getElementById('entorno').addEventListener('model-loaded', (e) => {
-            if (loaderEliminado) return;
-            loaderEliminado = true;
-            const loader = document.getElementById('custom-loader');
-            if (loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 500); }
+        function ocultarLoader() { if (loaderEliminado) return; loaderEliminado = true; document.getElementById('custom-loader').style.opacity = '0'; setTimeout(() => document.getElementById('custom-loader').remove(), 500); }
+        document.getElementById('entorno').addEventListener('model-loaded', ocultarLoader);
+        setTimeout(ocultarLoader, 4000);
 
-            const modelo = e.detail.model;
-            obstaculosArboles = [];
-            
-            modelo.traverse((nodo) => {
-                if (nodo.isMesh) {
-                    const nombre = nodo.name.toLowerCase();
-                    // Identificamos mecánicamente troncos o árboles del escenario visual
-                    if (nombre.includes('tree') || nombre.includes('arbol') || nombre.includes('trunk') || nombre.includes('tronco')) {
-                        let posMundial = new THREE.Vector3();
-                        nodo.getWorldPosition(posMundial);
-                        
-                        // Añadimos un radio de colisión protector para que el avatar no los atraviese
-                        obstaculosArboles.push({
-                            x: posMundial.x,
-                            z: posMundial.z,
-                            r: 1.1
-                        });
-                    }
-                }
-            });
-        });
-        setTimeout(() => { if(!loaderEliminado) ocultarLoader(); }, 4000);
-
-        function ocultarLoader() {
-            loaderEliminado = true;
-            const loader = document.getElementById('custom-loader');
-            if (loader) { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 500); }
-        }
-
-        // CONTROL TÁCTIL Y RATÓN CORREGIDO (EJE VERTICAL NATURAL NO INVERTIDO)
-        function onScreenStart(e) {
-            if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ui-top-bar')) return;
-            screenDragging = true; const point = e.touches ? e.touches[0] : e;
-            prevScreenX = point.clientX; prevScreenY = point.clientY;
-        }
-        function onScreenMove(e) {
-            if (!screenDragging) return; const point = e.touches ? e.touches[0] : e;
-            camYaw -= (point.clientX - prevScreenX) * 0.008;
-            // CAMBIO CRÍTICO: Usamos '-' en vez de '+' para corregir la inversión de cámara vertical
-            camPitch -= (point.clientY - prevScreenY) * 0.006;
-            camPitch = Math.max(-0.65, Math.min(0.55, camPitch));
-            prevScreenX = point.clientX; prevScreenY = point.clientY;
-        }
-        window.addEventListener('mousedown', onScreenStart); window.addEventListener('mousemove', onScreenMove);
-        window.addEventListener('mouseup', () => screenDragging = false);
-        window.addEventListener('touchstart', onScreenStart, {passive: true}); window.addEventListener('touchmove', onScreenMove, {passive: true});
-        window.addEventListener('touchend', () => screenDragging = false);
+        // SENSIBILIDAD CONTROLADA Y SUAVE SIN TEMBLORES (CAMBIO VERTICAL CORREGIDO)
+        function onScreenStart(e) { if (e.target.closest('#arrows-wrapper') || e.target.closest('#joystick-wrapper') || e.target.closest('#ui-top-bar')) return; screenDragging = true; const point = e.touches ? e.touches[0] : e; prevScreenX = point.clientX; prevScreenY = point.clientY; }
+        function onScreenMove(e) { if (!screenDragging) return; const point = e.touches ? e.touches[0] : e; camYaw -= (point.clientX - prevScreenX) * 0.008; camPitch -= (point.clientY - prevScreenY) * 0.006; camPitch = Math.max(-0.65, Math.min(0.55, camPitch)); prevScreenX = point.clientX; prevScreenY = point.clientY; }
+        window.addEventListener('mousedown', onScreenStart); window.addEventListener('mousemove', onScreenMove); window.addEventListener('mouseup', () => screenDragging = false);
+        window.addEventListener('touchstart', onScreenStart, {passive: true}); window.addEventListener('touchmove', onScreenMove, {passive: true}); window.addEventListener('touchend', () => screenDragging = false);
 
         function onJoyStart(e) { joyDragging = true; const pt = e.touches ? e.touches[0] : e; joyStartX = pt.clientX; joyStartY = pt.clientY; }
-        function onJoyMove(e) {
-            if (!joyDragging) return; const pt = e.touches ? e.touches[0] : e;
-            let dx = pt.clientX - joyStartX; let dy = pt.clientY - joyStartY;
-            const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
-            knob.style.transform = `translate(${dx}px, ${dy}px)`;
-            moveX = dx / maxLen; moveY = dy / maxLen;
-        }
-        knob.addEventListener('touchstart', onJoyStart); window.addEventListener('touchmove', onJoyMove, {passive: true});
-        window.addEventListener('touchend', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
-        knob.addEventListener('mousedown', onJoyStart); window.addEventListener('mousemove', onJoyMove);
-        window.addEventListener('mouseup', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
+        function onJoyMove(e) { if (!joyDragging) return; const pt = e.touches ? e.touches[0] : e; let dx = pt.clientX - joyStartX; let dy = pt.clientY - joyStartY; const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy); if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; } knob.style.transform = `translate(${dx}px, ${dy}px)`; moveX = dx / maxLen; moveY = dy / maxLen; }
+        knob.addEventListener('touchstart', onJoyStart); window.addEventListener('touchmove', onJoyMove, {passive: true}); window.addEventListener('touchend', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
+        knob.addEventListener('mousedown', onJoyStart); window.addEventListener('mousemove', onJoyMove); window.addEventListener('mouseup', () => { joyDragging = false; knob.style.transform = 'translate(0,0)'; moveX = 0; moveY = 0; });
 
         window.addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; });
         window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
 
-        const setArrowCam = (id, dir) => {
-            const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', () => arrowCam[dir] = true); btn.addEventListener('touchend', () => arrowCam[dir] = false);
-            btn.addEventListener('mousedown', () => arrowCam[dir] = true); btn.addEventListener('mouseup', () => arrowCam[dir] = false);
-        };
+        const setArrowCam = (id, dir) => { const btn = document.getElementById(id); btn.addEventListener('touchstart', () => arrowCam[dir] = true); btn.addEventListener('touchend', () => arrowCam[dir] = false); btn.addEventListener('mousedown', () => arrowCam[dir] = true); btn.addEventListener('mouseup', () => arrowCam[dir] = false); };
         setArrowCam('btn-up', 'up'); setArrowCam('btn-down', 'down'); setArrowCam('btn-left', 'left'); setArrowCam('btn-right', 'right');
 
-        btnSprint.addEventListener('click', () => {
-            if (jugadorEstado !== "EXPLORANDO" || cooldowntimer) return;
-            modoCorrer = !modoCorrer;
-            actualizarBotonSprintVisual();
-        });
-
-        function actualizarBotonSprintVisual() {
-            if (cooldowntimer) {
-                btnSprint.textContent = "⏳ AGOTADO";
-                btnSprint.style.borderColor = "#64748b";
-                staminaBar.style.backgroundColor = "#ef4444";
-            } else {
-                btnSprint.textContent = modoCorrer ? "🚶‍♂️ CAMINAR" : "🏃‍♂️ CORRER";
-                btnSprint.style.borderColor = modoCorrer ? "#00ffaa" : "#ef4444";
-                staminaBar.style.backgroundColor = modoCorrer ? "#38bdf8" : "#00ffaa";
-            }
-        }
+        btnSprint.addEventListener('click', () => { if (jugadorEstado !== "EXPLORANDO" || cooldowntimer) return; modoCorrer = !modoCorrer; actualizarBotonSprintVisual(); });
+        function actualizarBotonSprintVisual() { if (cooldowntimer) { btnSprint.textContent = "⏳ AGOTADO"; btnSprint.style.borderColor = "#64748b"; staminaBar.style.backgroundColor = "#ef4444"; } else { btnSprint.textContent = modoCorrer ? "🚶‍♂️ CAMINAR" : "🏃‍♂️ CORRER"; btnSprint.style.borderColor = modoCorrer ? "#00ffaa" : "#ef4444"; staminaBar.style.backgroundColor = modoCorrer ? "#38bdf8" : "#00ffaa"; } }
 
         function cambiarPoseLobo(nuevaPose) {
-            loboEstado = nuevaPose;
+            wwPoseActual = nuevaPose;
             Object.keys(wwModels).forEach(key => {
                 if(wwModels[key]) wwModels[key].setAttribute('visible', key === nuevaPose);
             });
         }
 
+        // BUCLE PRINCIPAL DE SIMULACIÓN Y RENDERIZADO
         function engineLoop() {
             requestAnimationFrame(engineLoop);
 
             if (!rig.object3D || !camYawEl.object3D || !camPitchEl.object3D || !avatarContainer.object3D || !werewolfRig.object3D) return;
 
             if (arrowCam.left) camYaw += 0.04; if (arrowCam.right) camYaw -= 0.04;
-            // Ajustamos las flechas también al formato de cámara natural
             if (arrowCam.up) camPitch += 0.03; if (arrowCam.down) camPitch -= 0.03;
             camPitch = Math.max(-0.65, Math.min(0.55, camPitch));
             
@@ -349,92 +231,133 @@
 
             let distLoboJugador = Math.sqrt(Math.pow(pos.x - loboPos.x, 2) + Math.pow(pos.z - loboPos.z, 2));
 
-            // SISTEMA DE NIEBLA REGULADO (NUNCA CEGA EL PANORAMA, DENSIDAD BAJA DE SEGURIDAD)
-            if (distLoboJugador < 16.0 && jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #080614; density: 0.045;');
+            // NIEBLA DE TERROR REGULADA
+            if (distLoboJugador < 15.0 && jugadorEstado === "EXPLORANDO") {
+                escena.setAttribute('fog', 'type: exponential; color: #080614; density: 0.13;');
                 cielo.setAttribute('color', '#080614');
-                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.22; color: #441437');
+                luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.18; color: #441437');
                 
-                if (distLoboJugador < 1.5) {
+                if (distLoboJugador < 1.5 && loboEstadoIA === "atacando") {
                     if (loboAturdidoTimer === 0) {
-                        alertUI.innerHTML = "🚨 ¡EL HOMBRE LOBO TE ALCANZÓ! 🚨<br>¡Huye mientras se recupera!";
+                        alertUI.innerHTML = "🚨 ¡ATAQUE DEL WEREWOLF! 🚨<br>¡Huye mientras ruge!";
                         loboAturdidoTimer = 140; 
                         cambiarPoseLobo('howl');
                     }
-                } else if (loboAturdidoTimer === 0) {
-                    alertUI.innerHTML = "🚨 EL WEREWOLF ACECHA EN LAS CERCANÍAS... ¡CORRE! 🐺";
+                } else {
+                    alertUI.innerHTML = "🚨 LA NIEBLA SE OSCURECE... ¡EL LOBO TE ACECHA! 🐺";
                 }
             } else if (jugadorEstado === "EXPLORANDO") {
-                escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.022;');
+                escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.025;');
                 cielo.setAttribute('color', '#030307');
                 luzAmbiental.setAttribute('light', 'type: ambient; intensity: 0.45; color: #20204c');
                 alertUI.innerHTML = "🏡 Dirígete a la casa segura rápido.";
             }
 
-            // GESTIÓN DE ENERGÍA / SPRINT (TIEMPO DE CORRER LIMITADO)
+            // GESTIÓN DE LA ENERGÍA (STAMINA) Mantener genial como pediste
             if (modoCorrer && (keys.w || keys.s || keys.a || keys.d || joyDragging) && jugadorEstado === "EXPLORANDO") {
-                stamina -= 0.4; // Consumo de energía por frame
-                if (stamina <= 0) {
-                    stamina = 0;
-                    modoCorrer = false;
-                    cooldowntimer = true; // Forzamos enfriamiento
-                    actualizarBotonSprintVisual();
-                }
-            } else {
-                if (stamina < 100) {
-                    stamina += 0.2; // Recuperación paulatina
-                    if (stamina >= 100) {
-                        stamina = 100;
-                        if (cooldowntimer) {
-                            cooldowntimer = false;
-                            actualizarBotonSprintVisual();
-                        }
-                    }
-                }
-            }
+                stamina -= 0.35; 
+                if (stamina <= 0) { stamina = 0; modoCorrer = false; cooldowntimer = true; actualizarBotonSprintVisual(); }
+            } else { if (stamina < 100) { stamina += 0.15; if (stamina >= 100) { stamina = 100; if (cooldowntimer) { cooldowntimer = false; actualizarBotonSprintVisual(); } } } }
             staminaBar.style.width = `${stamina}%`;
 
-            // IA DEL ENEMIGO CON FILTRADO DE COPA DE ÁRBOLES (NUNCA VUELA)
-            if (loboAturdidoTimer > 0) {
-                loboAturdidoTimer--;
-                if (loboAturdidoTimer === 0) cambiarPoseLobo('idle');
-            } else {
-                if (distLoboJugador < 26.0 && jugadorEstado === "EXPLORANDO") {
-                    cambiarPoseLobo('beast');
-                    let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
-                    
-                    loboPos.x += (tdx / distLoboJugador) * 0.048;
-                    loboPos.z += (tdz / distLoboJugador) * 0.048;
-                    werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
-                    
-                    // Raycast inteligente para fijar altura del lobo
-                    let rayLobo = new THREE.Vector3(loboPos.x, loboPos.y + 6, loboPos.z);
-                    raycasterSuelo.set(rayLobo, vectorAbajo);
-                    let intLobo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
-                    
-                    if(intLobo.length > 0) {
-                        // Buscamos un impacto de suelo válido que NO contenga hojas, ramas ni techos altos
-                        let sueloReal = intLobo.find(i => {
-                            let n = i.object.name.toLowerCase();
-                            return !n.includes('tree') && !n.includes('leaf') && !n.includes('hoja') && !n.includes('roof') && i.point.y < 3.0;
-                        });
+            // MÁQUINA DE ESTADOS REFINADA DEL HOMBRE LOBO (INTELIGENCIA ARTIFICIAL)
+            switch (loboEstadoIA) {
+                case "acechando":
+                    if (distLoboJugador < 5.0 && jugadorEstado === "EXPLORANDO") {
+                        loboEstadoIA = "atacando";
+                    } else if (distLoboJugador < 20.0 && jugadorEstado === "EXPLORANDO") {
+                        // Acecho: No se mueve, te mira amenazante en idle
+                        cambiarPoseLobo('idle');
+                        let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
+                        werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
+                    } else { cambiarPoseLobo('idle'); }
+                    break;
 
-                        if (sueloReal) {
-                            loboPos.y = sueloReal.point.y;
-                        } else {
-                            loboPos.y = 0; // Obligamos al plano base cero si detecta obstáculos de altura flotantes
+                case "atacando":
+                    if (loboAturdidoTimer > 0) {
+                        loboAturdidoTimer--;
+                        if (loboAturdidoTimer === 0) cambiarPoseLobo('beast');
+                    } else if (distLoboJugador > 10.0 || jugadorEstado === "SALVADO") {
+                        loboEstadoIA = "acechando"; // Se cansa si huyes mucho
+                    } else {
+                        // Ataque directo en beast
+                        cambiarPoseLobo('beast');
+                        let tdx = pos.x - loboPos.x; let tdz = pos.z - loboPos.z;
+                        loboPos.x += (tdx / distLoboJugador) * 0.048; // Persecución agresiva
+                        loboPos.z += (tdz / distLoboJugador) * 0.048;
+                        werewolfRig.object3D.rotation.y = Math.atan2(tdx, tdz);
+                        ajustarAlturaLoboSuelo();
+                    }
+                    break;
+
+                // LÓGICA REFINADA AL SALVARSE (AÚLLA 5 VECES, MERODEA Y SE VA)
+                case "exterior_casa":
+                    loboTimerIA++;
+                    
+                    // Asegurar que mira a la puerta
+                    let fdx = CASA_FACHADA_X - loboPos.x; let fdz = CASA_FACHADA_Z - loboPos.z;
+                    werewolfRig.object3D.rotation.y = Math.atan2(fdx, fdz);
+
+                    if (wwPoseActual !== 'howl') {
+                        cambiarPoseLobo('howl'); 
+                        loboAullidoContador++;
+                        alertUI.innerHTML = `🚨 ¡PERSEGUIDO! El lobo ruge afuera. Aullido ${loboAullidoContador}/5.`;
+                        loboTimerIA = 0; // Reiniciar timer para la duración del aullido
+                    } else {
+                        // El aullido dura un tiempo específico dramático
+                        if (loboTimerIA > 120) {
+                            if (loboAullidoContador >= 5) {
+                                loboEstadoIA = "merodeando_casa";
+                                loboTimerIA = 0;
+                            } else {
+                                // Pequeña pausa entre aullidos
+                                cambiarPoseLobo('idle'); 
+                                loboTimerIA = -60; 
+                            }
                         }
                     }
-                } else {
-                    if (ahora - ultimoAullido > 25000 && Math.random() < 0.002) {
-                        cambiarPoseLobo('howl'); ultimoAullido = ahora;
-                    } else if (loboEstado !== 'howl') {
-                        cambiarPoseLobo('idle');
+                    break;
+
+                case "merodeando_casa":
+                    cambiarPoseLobo('beast');
+                    alertUI.innerHTML = "🚨 El lobo merodea en círculos buscando una entrada...";
+                    loboTimerIA++;
+                    
+                    // Merodeo en círculo dramático alrededor de la casa segura
+                    let f_circ_x = CASA_FACHADA_X - 12 * Math.sin(loboTimerIA * 0.015);
+                    let f_circ_z = CASA_FACHADA_Z - 12 * Math.cos(loboTimerIA * 0.015);
+                    
+                    // Movemos hacia el punto del círculo con orientación
+                    let mdx = f_circ_x - loboPos.x; let mdz = f_circ_z - loboPos.z;
+                    let distMerodeo = Math.sqrt(mdx*mdx + mdz*mdz);
+                    
+                    loboPos.x += (mdx / distMerodeo) * 0.035; // Movimiento fluido del merodeo
+                    loboPos.z += (mdz / distMerodeo) * 0.035;
+                    werewolfRig.object3D.rotation.y = Math.atan2(mdx, mdz);
+                    ajustarAlturaLoboSuelo();
+
+                    // Tras unos segundos, se rinde y se va
+                    if (loboTimerIA > 480) { // Merodeo de 8 segundos aprox (480 frames)
+                        loboEstadoIA = "marchado";
+                        alertUI.textContent = "🎉 ¡Felicidades! Sobreviviste a la noche. El Werewolf se ha ido.";
                     }
-                }
+                    break;
+
+                case "marchado":
+                    // Desaparece definitivamente del escenario
+                    werewolfRig.setAttribute('visible', 'false');
+                    loboPos.set(0, -50, 0); // Lo mandamos bajo el mapa
+                    break;
             }
 
-            // COORDENADAS Y DESPLAZAMIENTO DEL AVATAR
+            function ajustarAlturaLoboSuelo() {
+                let rayLobo = new THREE.Vector3(loboPos.x, loboPos.y + 5, loboPos.z);
+                raycasterSuelo.set(rayLobo, vectorAbajo);
+                let intLobo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
+                if(intLobo.length > 0 && Math.abs(intLobo[0].point.y - loboPos.y) < 1.5) { loboPos.y = intLobo[0].point.y; }
+            }
+
+            // DESPLAZAMIENTO DEL AVATAR CON COLISIONES FÍSICAS REIGNATURADAS (RAYCASTING TOTAL)
             if (jugadorEstado === "EXPLORANDO" || jugadorEstado === "SALVADO") {
                 let inputX = 0; let inputY = 0;
                 if (keys.w) inputY = -1; if (keys.s) inputY = 1;
@@ -459,29 +382,15 @@
                     const rgtX = Math.cos(camYaw); const rgtZ = -Math.sin(camYaw);
 
                     pos.x += (fwdX * -inputY + rgtX * inputX) * velActual;
-                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual;
+                    pos.z += (fwdZ * -inputY + rgtZ * inputX) * velActual; 
 
-                    // VALIDACIÓN DE COLISIÓN MANUAL DE LA CASA SEGURA
+                    // VALIDACIÓN FÍSICA SÓLIDA DE COLISIÓN CON LA CAJA PERIMETRAL DE LA CASA (ZONA DE PARREDES FÍSICAS)
+                    // Ya no atravesarás las paredes visuales como un fantasma
                     let chocaConCasa = (pos.x >= CASA_COLLIDER.xMin && pos.x <= CASA_COLLIDER.xMax &&
                                         pos.z >= CASA_COLLIDER.zMin && pos.z <= CASA_COLLIDER.zMax);
 
-                    // VALIDACIÓN AUTOMÁTICA CONTRA TODOS LOS ÁRBOLES DETECTADOS DEL ESCENARIO
-                    let chocaConArbol = false;
-                    for (let arb of obstaculosArboles) {
-                        let distAlArbol = Math.sqrt(Math.pow(pos.x - arb.x, 2) + Math.pow(pos.z - arb.z, 2));
-                        if (distAlArbol < arb.r) {
-                            chocaConArbol = true;
-                            break;
-                        }
-                    }
-
-                    // Si colisiona con la estructura o con un tronco del bosque, denegamos el paso
-                    if ((chocaConCasa || chocaConArbol) && jugadorEstado === "EXPLORANDO") {
-                        // Dejamos libre la zona de la puerta exclusivamente
-                        let distPuertaRefugio = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
-                        if (distPuertaRefugio > RADIO_DISPARADOR) {
-                            pos.x = viejoX; pos.z = viejoZ; 
-                        }
+                    if (chocaConCasa && jugadorEstado === "EXPLORANDO") {
+                        pos.x = viejoX; pos.z = viejoZ; 
                     }
 
                     if (Math.abs(pos.x) > 125 || Math.abs(pos.z) > 125) { pos.x = viejoX; pos.z = viejoZ; }
@@ -489,60 +398,66 @@
                     const anguloGiro = camYaw + Math.atan2(inputX, inputY);
                     let diffAngle = Math.atan2(Math.sin(anguloGiro - avatarContainer.object3D.rotation.y), Math.cos(anguloGiro - avatarContainer.object3D.rotation.y));
                     avatarContainer.object3D.rotation.y += diffAngle * 0.25;
-                } else {
-                    if(jugadorEstado !== "LLAMANDO") {
-                        luisWalk.setAttribute('visible', 'true'); luisRun.setAttribute('visible', 'false'); luisLlama.setAttribute('visible', 'false');
-                        luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
-                    }
+                } else if(jugadorEstado !== "LLAMANDO"){
+                    luisWalk.setAttribute('visible', 'true');
+                    luisRun.setAttribute('visible', 'false');
+                    luisLlama.setAttribute('visible', 'false');
+                    luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
                 }
 
-                // DETECCIÓN DE SUELO (EVITA LEVITACIÓN)
-                let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 5, pos.z);
+                // 🚀 ADAPTACIÓN VERTICAL EXCLUSIVA PARA ESCALERAS (CON FILTRO DE AMORTIGUACIÓN)
+                // Usamos un raycast local desde la cintura para que Luis detecte peldaños altos y los suba.
+                let inicioRaySuelo = new THREE.Vector3(pos.x, pos.y + 1.2, pos.z);
                 raycasterSuelo.set(inicioRaySuelo, vectorAbajo);
                 let colisionesSuelo = raycasterSuelo.intersectObject(document.getElementById('entorno').object3D, true);
                 
                 if (colisionesSuelo.length > 0) {
-                    // Filtramos para no pararnos sobre hojas bajas
-                    let sueloValidoJugador = colisionesSuelo.find(i => !i.object.name.toLowerCase().includes('leaf') && !i.object.name.toLowerCase().includes('hoja'));
-                    if (sueloValidoJugador) {
-                        let alturaSueloDetectada = sueloValidoJugador.point.y;
-                        let diferenciaAltura = alturaSueloDetectada - pos.y;
-                        if (Math.abs(diferenciaAltura) < 0.45) {
-                            pos.y += diferenciaAltura * 0.3;
-                        }
+                    let alturaSueloDetectada = colisionesSuelo[0].point.y;
+                    let diferenciaAltura = alturaSueloDetectada - pos.y;
+
+                    // Filtro de seguridad: solo sube si es un escalón o rampa real (< 0.4 de golpe por frame)
+                    if (Math.abs(diferenciaAltura) < 0.4) {
+                        pos.y += diferenciaAltura * 0.3; // Sube de forma fluida peldaño a peldaño
                     }
                 }
 
-                // ACTIVACIÓN INTEGRAL DE LA ACCIÓN DE LLAMADO (TERCERA POSE "LUIS-LLAMA")
+                // ZONA DE DISPARADOR ENTRADA REFUGIO (AHORA TOTALMENTE ACCESIBLE)
                 if (jugadorEstado === "EXPLORANDO") {
                     let distA_Casa = Math.sqrt(Math.pow(pos.x - CASA_FACHADA_X, 2) + Math.pow(pos.z - CASA_FACHADA_Z, 2));
-                    
-                    // Si estás muy cerca de la fachada, se detiene y llama obligatoriamente
                     if (distA_Casa <= RADIO_DISPARADOR) {
                         jugadorEstado = "LLAMANDO";
-                        modoCorrer = false;
-                        actualizarBotonSprintVisual();
-
-                        luisWalk.setAttribute('visible', 'false'); 
-                        luisRun.setAttribute('visible', 'false');
+                        
+                        // Detenemos la IA de persecución y forzamos el aullido dramático exterior
+                        loboEstadoIA = "exterior_casa"; 
+                        loboTimerIA = -20; // Pequeña pausa antes de empezar los aullidos
+                        
+                        // Físicas del avatar se detienen para llamar
+                        luisWalk.setAttribute('visible', 'false'); luisRun.setAttribute('visible', 'false');
                         luisLlama.setAttribute('visible', 'true'); 
                         luisLlama.setAttribute('animation-mixer', {clip: '*', loop: 'repeat', timeScale: 1});
                         
-                        alertUI.innerHTML = "🔊 ¡LLEGASTE! Luis está golpeando la puerta... Abriendo cerrojo.";
+                        // Fade a negro rápido para el cambio dramático de cámara
+                        fadeScreen.style.opacity = '1';
 
                         setTimeout(() => {
                             jugadorEstado = "SALVADO";
                             pos.x = CASA_INTERIOR_X; pos.z = CASA_INTERIOR_Z; pos.y = 0;
                             
-                            mainCamera.setAttribute('position', '0 1.2 1.5');
+                            // MEJORA INTERIOR: CAMBIO A MICRO-CÁMARA EN PRIMERA PERSONA (IN-EYES CAMERA)
+                            // Resolvemos el problema de perder de vista al avatar en interiors estrechos
+                            mainCamera.setAttribute('position', '0 0.6 0.15'); // Cámara justo en los ojos del avatar
+                            camPitch = 0; camYaw = rig.object3D.rotation.y; // Sincronizamos la mirada
+                            
                             escena.setAttribute('fog', 'type: exponential; color: #030307; density: 0.01;');
                             cielo.setAttribute('color', '#030307');
                             
                             luisLlama.setAttribute('visible', 'false');
                             luisWalk.setAttribute('visible', 'true'); 
                             luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
-                            alertUI.textContent = "🏡 ¡DENTRO DEL REFUGIO! Explora las escaleras con total seguridad.";
-                        }, 2500); 
+
+                            // Fade in de vuelta a primera persona
+                            setTimeout(() => { fadeScreen.style.opacity = '0'; }, 300);
+                        }, 1800); 
                     }
                 }
             }
@@ -551,22 +466,24 @@
         // BOTÓN REINICIAR
         document.getElementById('btn-center').addEventListener('click', () => {
             if (!rig.object3D) return;
-            jugadorEstado = "EXPLORANDO";
-            modoCorrer = false;
-            stamina = 100;
-            cooldowntimer = false;
-            loboAturdidoTimer = 0;
-            actualizarBotonSprintVisual();
+            jugadorEstado = "EXPLORANDO"; modoCorrer = false; stamina = 100; cooldowntimer = false; actualizarBotonSprintVisual();
             
+            // Reestablecer cámara exterior en tercera persona estándar
             mainCamera.setAttribute('position', '0 1.6 3.0');
             
-            rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
-            werewolfRig.object3D.position.set(5, 0, -4);
+            fadeScreen.style.opacity = '0'; // Asegurar que no hay fade negro
             
-            luisWalk.setAttribute('visible', 'true');
-            luisRun.setAttribute('visible', 'false');
-            luisLlama.setAttribute('visible', 'false');
+            rig.object3D.position.set(SPAWN_X, 0, SPAWN_Z);
+            
+            // Reubicar al lobo en su spawn y resetear IA
+            werewolfRig.setAttribute('visible', 'true');
+            werewolfRig.object3D.position.set(5, 0, -4);
+            loboEstadoIA = "acechando"; loboAullidoContador = 0; loboTimerIA = 0;
+
+            luisWalk.setAttribute('visible', 'true'); luisRun.setAttribute('visible', 'false'); luisLlama.setAttribute('visible', 'false');
             luisWalk.setAttribute('animation-mixer', 'timeScale', 0);
+            
+            alertUI.innerHTML = "⚠️ El Werewolf acecha. Busca el refugio 🏡";
         });
 
         engineLoop();
