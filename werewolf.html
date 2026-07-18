@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v8.6 (GitHub Audio Fix)</title>
+    <title>ARK - Werewolf Nightmare v8.7 (Mobile Delta Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -160,7 +160,9 @@
 
         <a-sky color="#040408"></a-sky>
         <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
-        <a-entity particle-system="preset: rain; color: #444; particleCount: 1200; size: 0.3; velocityValue: 0 15 0; opacity: 0.2;"></a-entity>
+        
+        <!-- OPTIMIZACIÓN TÉRMICA: Partículas reducidas a 500 para enfriar la GPU móvil -->
+        <a-entity particle-system="preset: rain; color: #444; particleCount: 500; size: 0.3; velocityValue: 0 15 0; opacity: 0.2;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.4; color: #2a3550"></a-entity>
         <a-entity id="luz-luna" light="type: directional; intensity: 0.7; color: #9abaff;" position="20 55 -45"></a-entity>
@@ -199,7 +201,6 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        // --- SISTEMA CORREGIDO: RUTAS RELATIVAS DE TU GITHUB ---
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
             enojado: new Audio("audio/werewolf-enojado.mp3"),
@@ -207,7 +208,6 @@
             aullido: new Audio("audio/werewolf-aullido.mp3")
         };
 
-        // Configuración inicial de las pistas
         Pistas.limbo.loop = true;
         Pistas.limbo.volume = 0.45;
         Pistas.stalk.loop = true;
@@ -217,12 +217,11 @@
 
         const AudioController = {
             reproducirMusicaFondo() {
-                Pistas.limbo.play().catch(e => console.log("Interacción requerida por el navegador para activar audio"));
+                Pistas.limbo.play().catch(e => console.log("Interacción requerida para activar audio"));
                 Pistas.stalk.play().catch(() => {});
                 Pistas.enojado.play().catch(() => {});
             },
             actualizarProximidad(estado, distancia) {
-                // Mezcla cruzada limpia según el peligro
                 if (estado === 'ATAQUE') {
                     this.fadeTo(Pistas.enojado, 0.95);
                     this.fadeTo(Pistas.stalk, 0.0);
@@ -252,11 +251,18 @@
             }
         };
 
+        // VALORES ESCALADOS POR SEGUNDO (Métricas reales independientes de los FPS)
         const CONFIG = {
-            velCaminar: 0.06, velCorrer: 0.13, suavizadoGiroAvatar: 0.25,
-            staminaMax: 200, staminaGasto: 0.22, staminaRecuperacion: 0.4,
-            wwVelAcecho: 0.024, wwVelAtaque: 0.065,
-            distDeteccionLobo: 32, distAtaqueLobo: 15
+            velCaminar: 3.6,           // Metros por segundo
+            velCorrer: 6.8,            // Sprint realista
+            suavizadoGiroAvatar: 0.25,
+            staminaMax: 200, 
+            staminaGasto: 14.0,        // Gasto balanceado por segundo
+            staminaRecuperacion: 22.0,  // Recuperación estable por segundo
+            wwVelAcecho: 1.6, 
+            wwVelAtaque: 4.2,
+            distDeteccionLobo: 32, 
+            distAtaqueLobo: 15
         };
 
         const GAME_STATE = {
@@ -373,7 +379,7 @@
             window.addEventListener('pointermove', e => {
                 if (!joyActive) return;
                 let dx = e.clientX - jStartX; let dy = e.clientY - jStartY;
-                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dx);
+                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
                 knob.style.transform = `translate(${dx}px, ${dy}px)`;
                 INPUT.joyMove.x = dx / maxLen; INPUT.joyMove.y = dy / maxLen;
@@ -448,7 +454,6 @@
                 GAME_STATE.frameTicks++;
                 const ejecutarRaycast = (GAME_STATE.frameTicks % 4 === 0);
 
-                // --- DISPARO DE AULLIDO DE 1 MINUTO ---
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
                     GAME_STATE.tiempoUltimoAullido = time;
@@ -476,8 +481,9 @@
                     let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
                     let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
 
-                    let siguienteX = GAME_STATE.pos.x + dx * speed;
-                    let siguienteZ = GAME_STATE.pos.z + dz * speed;
+                    // MEJORA INTERNA: Movimiento multiplicado por el factor Delta Time (dt)
+                    let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
+                    let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
                     if (enPerimetroCasa) {
                         if (siguienteZ > CASA_LIMITS.zMax && (siguienteX < -1.0 || siguienteX > 1.0)) {
@@ -497,7 +503,6 @@
                             GAME_STATE.cachedAlturaSuelo = 0;
                         }
                     } else {
-                        // --- FILTRO DE CONTROL VERTICAL ANTI-ARBOLES ---
                         if (ejecutarRaycast && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
                             const rayo = new THREE.Raycaster(new THREE.Vector3(siguienteX, 10, siguienteZ), new THREE.Vector3(0, -1, 0));
                             const colisiones = rayo.intersectObject(ENT.entorno.getObject3D('mesh'), true);
@@ -535,16 +540,16 @@
                     }
                 }
 
+                // MEJORA INTERNA: Estamina calculada por tiempo real transcurrido
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
-                    GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGasto);
+                    GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - (CONFIG.staminaGasto * dt));
                     if (GAME_STATE.stamina <= 0) { toggleSprint(false); GAME_STATE.enCooldownSprint = true; UI.btnSprint.classList.add('cooldown'); }
                 } else {
-                    GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
+                    GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + (CONFIG.staminaRecuperacion * dt));
                     if (GAME_STATE.stamina >= 50 && GAME_STATE.enCooldownSprint) { GAME_STATE.enCooldownSprint = false; UI.btnSprint.classList.remove('cooldown'); }
                 }
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
-                // --- INTELIGENCIA LOBO Y EVALUACIÓN REACTIVA ---
                 let loboPos = ENT.wwRig.object3D.position;
                 let distJugadorLobo = GAME_STATE.pos.distanceTo(loboPos);
                 GAME_STATE.aiTimer += dt;
@@ -564,8 +569,9 @@
 
                         if (distAlPunto > 0.5) {
                             dirALugar.normalize();
-                            loboPos.x += dirALugar.x * CONFIG.wwVelAcecho;
-                            loboPos.z += dirALugar.z * CONFIG.wwVelAcecho;
+                            // Aplicación de Delta Fix al Merodeo
+                            loboPos.x += dirALugar.x * CONFIG.wwVelAcecho * dt;
+                            loboPos.z += dirALugar.z * CONFIG.wwVelAcecho * dt;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(dirALugar.x, dirALugar.z);
                         } else {
                             switchWwMesh('beast');
@@ -583,8 +589,9 @@
                         dirAlBosque.y = 0;
                         if (dirAlBosque.length() > 1.0) {
                             dirAlBosque.normalize();
-                            loboPos.x += dirAlBosque.x * CONFIG.wwVelAcecho;
-                            loboPos.z += dirAlBosque.z * CONFIG.wwVelAcecho;
+                            // Aplicación de Delta Fix a la Retirada
+                            loboPos.x += dirAlBosque.x * CONFIG.wwVelAcecho * dt;
+                            loboPos.z += dirAlBosque.z * CONFIG.wwVelAcecho * dt;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(dirAlBosque.x, dirAlBosque.z);
                             switchWwMesh('beast');
                         } else {
@@ -602,8 +609,9 @@
                         dirHaciaTi.normalize();
 
                         let velocidadLobo = (distJugadorLobo < CONFIG.distAtaqueLobo) ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
-                        loboPos.x += dirHaciaTi.x * velocidadLobo;
-                        loboPos.z += dirHaciaTi.z * velocidadLobo;
+                        // Aplicación de Delta Fix a la persecución del Lobo
+                        loboPos.x += dirHaciaTi.x * velocidadLobo * dt;
+                        loboPos.z += dirHaciaTi.z * velocidadLobo * dt;
                         ENT.wwRig.object3D.rotation.y = Math.atan2(dirHaciaTi.x, dirHaciaTi.z);
 
                         if (distJugadorLobo < CONFIG.distAtaqueLobo) {
