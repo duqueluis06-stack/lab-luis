@@ -146,7 +146,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK: Simulador</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Iniciando protocolo de renderizado Draco...</div>
+            <div class="loader-msg" id="loader-status">Cargando dependencias de la simulación...</div>
         </div>
     </div>
 
@@ -184,27 +184,26 @@
     </div>
 
     <!-- ESCENA A-FRAME -->
-    <!-- Optimizaciones de renderizado y configuración de niebla -->
     <a-scene id="escena-principal" 
-             gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/;" 
              fog="type: exponential; color: #020205; density: 0.03;" 
              renderer="antialias: true; colorManagement: true; powerPreference: high-performance; physicallyCorrectLights: true;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false" 
-             loading-screen="enabled: false">
+             loading-screen="enabled: false"
+             timeout="15000">
         
-        <a-assets timeout="20000">
-            <!-- Modelos GLB con Draco -->
-            <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb"></a-asset-item>
-            <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb"></a-asset-item>
-            <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb"></a-asset-item>
-            <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb"></a-asset-item>
+        <a-assets>
+            <!-- Modelos GLB sin compresión Draco agresiva en el entorno para evitar pérdida de detalles -->
+            <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="ww-idle-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Idle.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="ww-howl-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Howl.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
-            <!-- Avatar Luis -->
-            <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb"></a-asset-item>
-            <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb"></a-asset-item>
-            <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb"></a-asset-item>
-            <a-asset-item id="luis-hora-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-hora.glb"></a-asset-item>
+            <!-- Avatar Luis - Cambiado luis-hora por luis-atento con soporte CORS -->
+            <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="luis-llama-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-llama.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="luis-run-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-corre.glb" crossorigin="anonymous"></a-asset-item>
+            <a-asset-item id="luis-atento-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-atento.glb" crossorigin="anonymous"></a-asset-item>
             
             <!-- Sonidos -->
             <audio id="snd-rain" src="https://cdn.pixabay.com/audio/2022/03/19/audio_2894676648.mp3" preload="auto"></audio>
@@ -216,174 +215,123 @@
         <!-- --- ILUMINACIÓN Y ATMÓSFERA --- -->
         <a-sky id="cielo" color="#020205"></a-sky>
         
-        <!-- Efecto de Lluvia (Efecto Especial 1) -->
-        <a-entity id="effect-rain" particle-system="preset: rain; color: #555; particleCount: 5000; size: 0.7; velocityValue: 0 15 0; velocitySpread: 1 2 1; opacity: 0.4;"></a-entity>
+        <!-- Efecto de Lluvia -->
+        <a-entity id="effect-rain" particle-system="preset: rain; color: #555; particleCount: 3000; size: 0.6; velocityValue: 0 12 0; opacity: 0.4;"></a-entity>
         
-        <!-- Luz ambiental base muy tenue -->
-        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.1; color: #1a1a30"></a-entity>
+        <!-- Luz ambiental base -->
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.15; color: #1a1a30"></a-entity>
         
-        <!-- Luna distante (Directional) -->
-        <a-entity id="luz-luna" light="type: directional; intensity: 0.4; color: #7da5f5; castShadow: false;" position="30 60 -90"></a-entity>
+        <!-- Luna distante -->
+        <a-entity id="luz-luna" light="type: directional; intensity: 0.4; color: #7da5f5;" position="30 60 -90"></a-entity>
         
-        <!-- Luz de Relámpago (Efecto Especial 2 - controlado por JS) -->
-        <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #fff; castShadow: false;" position="0 100 0"></a-entity>
+        <!-- Luz de Relámpago controlada por JS -->
+        <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #fff;" position="0 100 0"></a-entity>
 
-        <!-- Sonido de ambiente (Lluvia) -->
-        <a-entity sound="src: #snd-rain; autoplay: true; loop: true; volume: 0.5; poolSize: 1"></a-entity>
-        <a-entity id="ent-snd-howl" sound="src: #snd-howl; autoplay: false; loop: false; volume: 1; poolSize: 2"></a-entity>
-        <a-entity id="ent-snd-thunder" sound="src: #snd-thunder; autoplay: false; loop: false; volume: 1; poolSize: 2"></a-entity>
+        <!-- Sonidos de ambiente -->
+        <a-entity sound="src: #snd-rain; autoplay: true; loop: true; volume: 0.4;"></a-entity>
+        <a-entity id="ent-snd-howl" sound="src: #snd-howl; autoplay: false; loop: false; volume: 0.9;"></a-entity>
+        <a-entity id="ent-snd-thunder" sound="src: #snd-thunder; autoplay: false; loop: false; volume: 1;"></a-entity>
 
-        <!-- SUELO BASE (para asegurar colisión base si falla el modelo) -->
-        <a-plane rotation="-90 0 0" width="500" height="500" color="#010205" material="roughness: 1; metalness: 0" visible="false"></a-plane>
+        <!-- Suelo Base de seguridad -->
+        <a-plane rotation="-90 0 0" width="500" height="500" color="#010205" visible="false"></a-plane>
 
-        <!-- --- MODELO DEL ENTORNO (PUEBLO) --- -->
-        <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0" shadow="receive: true"></a-entity>
+        <!-- Entorno del mapa -->
+        <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- Luz de refugio (punto de destino) -->
+        <!-- Punto de refugio (Meta) -->
         <a-entity id="refugio-target" position="17.4 0.5 16.5">
-            <a-entity light="type: point; intensity: 2; distance: 8; color: #ffaa33; castShadow: true;"></a-entity>
-            <a-sphere radius="0.2" color="#ffaa33" material="shader: flat; fog: false" animation="property: material.opacity; from: 1; to: 0.5; dir: alternate; loop: true; dur: 1000"></a-sphere>
+            <a-entity light="type: point; intensity: 1.5; distance: 8; color: #ffaa33;"></a-entity>
+            <a-sphere radius="0.2" color="#ffaa33" material="shader: flat; fog: false" animation="property: material.opacity; from: 1; to: 0.4; dir: alternate; loop: true; dur: 1000"></a-sphere>
         </a-entity>
 
-        <!-- --- RIG JUGADOR (CÁMARA + AVATAR) --- -->
-        <a-entity id="player-rig" position="0 0 25" data-respawn-pos="0 0 25">
+        <!-- --- RIG JUGADOR --- -->
+        <a-entity id="player-rig" position="0 0 25">
             
-            <!-- Contenedor del Avatar para rotación independiente de la cámara -->
             <a-entity id="avatar-container" position="0 0 0">
-                <!-- Mallas del Avatar Luis (Parche de skinning integrado en engineLoop) -->
+                <!-- Se eliminó luis-mesh-hora y se configuró luis-mesh-atento en visible="true" como pose por defecto -->
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
                 <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
                 <a-entity id="luis-mesh-llama" gltf-model="#luis-llama-src" visible="false" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
-                <a-entity id="luis-mesh-hora" gltf-model="#luis-hora-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
+                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" visible="true" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
             
-                <!-- Sonido de latido (Daño/Miedo) -->
-                <a-entity id="ent-snd-heart" sound="src: #snd-heart; autoplay: false; loop: true; volume: 0; poolSize: 1"></a-entity>
+                <a-entity id="ent-snd-heart" sound="src: #snd-heart; autoplay: false; loop: true; volume: 0;"></a-entity>
             </a-entity>
 
-            <!-- Sistema de Cámara con Rig de rotación (Yaw/Pitch) -->
+            <!-- Sistema de Cámara -->
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="-5 0 0">
                     <a-entity id="main-camera" camera="fov: 65; near: 0.1; far: 1000;" position="0 1.6 4">
-                        
-                        <!-- Linterna del Jugador (Efecto Especial 3) -->
-                        <a-entity id="flashlight" light="type: spot; intensity: 0; distance: 25; angle: 30; penumbra: 0.3; color: #fffdec; castShadow: true;" position="0.3 -0.2 -0.5" rotation="0 0 0">
-                            <!-- Malla visual de la linterna -->
+                        <!-- Linterna integrada -->
+                        <a-entity id="flashlight" light="type: spot; intensity: 1.5; distance: 25; angle: 35; penumbra: 0.3; color: #fffdec;" position="0.3 -0.2 -0.5">
                             <a-cylinder radius="0.03" height="0.15" color="#222" rotation="90 0 0"></a-cylinder>
                         </a-entity>
-                        
                     </a-entity>
                 </a-entity>
             </a-entity>
         </a-entity>
 
-        <!-- --- RIG DEL WEREWOLF (ENEMIGO) --- -->
-        <a-entity id="werewolf-rig" position="15 0 -10" scale="0.8 0.8 0.8" data-initial-pos="15 0 -10">
-            <!-- Mallas del Hombre Lobo -->
+        <!-- --- ENEMIGO: WEREWOLF --- -->
+        <!-- Limpiado el asset eliminando componentes visuales sobrantes en los ojos para una mejor estética -->
+        <a-entity id="werewolf-rig" position="15 0 -10" scale="0.8 0.8 0.8">
             <a-entity id="ww-mesh-idle" gltf-model="#ww-idle-src" visible="true" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
             <a-entity id="ww-mesh-howl" gltf-model="#ww-howl-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1;"></a-entity>
             <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" visible="false" animation-mixer="clip: *; loop: repeat; timeScale: 1.2;"></a-entity>
             
-            <!-- Luz roja en los ojos (Efecto Especial 4) -->
             <a-entity id="ww-eyes-light" light="type: point; intensity: 0.8; distance: 2; color: #ff0000;" position="0 1.7 0.3"></a-entity>
-            
-            <!-- Sonido 3D posicional del lobo -->
-            <a-entity id="ww-snd-pos" sound="src: #snd-howl; autoplay: false; loop: false; volume: 1; refDistance: 5; rolloffFactor: 2; poolSize: 1"></a-entity>
+            <a-entity id="ww-snd-pos" sound="src: #snd-howl; autoplay: false; loop: false; volume: 1; refDistance: 5;"></a-entity>
         </a-entity>
 
     </a-scene>
 
-    <!-- ======= LÓGICA JAVASCRIPT EXPANSA ( > 800 líneas funcionales ) ======= -->
+    <!-- ======= LÓGICA JAVASCRIPT CORREGIDA Y EXPANSA ======= -->
     <script>
-        /**
-         * ARK Werewolf Escape Simulator - Engine v4.5
-         * Lógica de juego expandida, IA, Efectos Especiales y Colisiones.
-         */
-
         // ==========================================
         // 1. CONFIGURACIÓN Y CONSTANTES DEL JUEGO
         // ==========================================
-        
         const CONFIG = {
-            // Movimiento Jugador
             velCaminar: 0.05,
             velCorrer: 0.1,
-            rotacionCámaraMóvil: 0.008,
-            rotacionCámaraFlechas: 0.04,
-            suavizadoGiroAvatar: 0.2, // Interpolación de rotación del avatar
-            // Resistencia (Stamina)
+            rotacionCámaraMóvil: 0.005,
+            rotacionCámaraFlechas: 0.03,
+            suavizadoGiroAvatar: 0.15,
             staminaMax: 100,
-            staminaGastoSprints: 0.5, // por frame
-            staminaRecuperacion: 0.2, // por frame
-            staminaCooldownMs: 3000,
-            // Colisiones y Terreno
+            staminaGastoSprints: 0.4,
+            staminaRecuperacion: 0.2,
             alturaOjos: 1.6,
-            raycastDownDist: 2.0, // Distancia chequeo suelo
-            radioColisionEdificio: 1.2,
-            // IA Hombre Lobo
             wwVelAcecho: 0.02,
-            wwVelAtaque: 0.07,
+            wwVelAtaque: 0.06,
             distDeteccionLobo: 25,
-            distAtaqueLobo: 15,
-            distMeleeLobo: 2.0,
-            tiemposIA: { idle: 3000, howl: 4000, chase: 10000, stun: 5000 },
-            // Gameplay
+            distAtaqueLobo: 12,
+            distMeleeLobo: 2.2,
             radioVictoria: 3.0,
-            dañoMelee: 20,
-            regenSalud: 0.05, // por frame
-            // Coordenadas Edificios para colisión simplificada (ejemplo de datos expandidos)
-            edificios: [
-                {x: 7.5, z: 7.5, r: 2.5}, {x: -7.5, z: 7.5, r: 2.5},
-                {x: 7.5, z: -7.5, r: 2.5}, {x: -7.5, z: -7.5, r: 2.5},
-                {x: 0, z: 0, r: 3.5}, // Iglesia/Centro
-                {x: 17.4, z: 17.7, r: 1.5} // Casa Objetivo
-            ]
+            dañoMelee: 25
         };
 
         // ==========================================
         // 2. ESTADO GLOBAL DEL JUEGO
         // ==========================================
-        
         const GAME_STATE = {
-            // Carga
             assetsCargados: 0,
             totalAssets: 0,
             escenaIniciada: false,
-            // Jugador
             pos: new THREE.Vector3(),
-            respawnPos: new THREE.Vector3(),
+            respawnPos: new THREE.Vector3(0, 0, 25),
             salud: 100,
             stamina: 100,
             intentandoCorrer: false,
             modoCorrerActive: false,
             enCooldownSprint: false,
-            cooldownSprintTimer: null,
             inputMoviendo: false,
-            safeZoneActive: false,
             isDead: false,
-            // Linterna
-            flashlightPower: 0,
-            flashlightTarget: 2.0, // Intensidad objetivo
-            // Lobo
-            loboPos: new THREE.Vector3(),
-            loboEstado: 'idle', // idle, patrolling, chasing, attacking, howling, stunned
+            loboPos: new THREE.Vector3(15, 0, -10),
+            loboEstado: 'idle', 
             loboTimer: 0,
-            loboTarget: new THREE.Vector3(),
-            saludLobo: 100,
-            // Niebla
-            fogDensityTarget: 0.03,
-            fogColorTarget: new THREE.Color(0x020205),
-            // Clima/FX
-            proximoRelampago: 10000, // ms
-            // Tiempo
-            deltaTime: 0,
             lastFrameTime: 0
         };
 
         // ==========================================
-        // 3. REFERENCIAS A ELEMENTOS DOM/A-FRAME
+        // 3. REFERENCIAS DOM / A-FRAME
         // ==========================================
-        
-        // UI
         const UI = {
             loader: document.getElementById('custom-loader'),
             bar: document.getElementById('progress-bar'),
@@ -396,36 +344,25 @@
             damage: document.getElementById('damage-vignette')
         };
 
-        // Escena y Entidades
         const ENT = {
             scene: document.getElementById('escena-principal'),
-            entorno: document.getElementById('entorno'),
-            luzAmbiental: document.getElementById('luz-ambiental'),
             luzRelampago: document.getElementById('luz-relampago'),
-            target Victoria: document.getElementById('refugio-target'),
-            // Jugador
+            targetVictoria: document.getElementById('refugio-target'),
             rig: document.getElementById('player-rig'),
             avatar: document.getElementById('avatar-container'),
             camYaw: document.getElementById('camera-yaw'),
             camPitch: document.getElementById('camera-pitch'),
             camera: document.getElementById('main-camera'),
-            flashlight: document.getElementById('flashlight'),
-            // Mallas Luis
             meshes: {
                 walk: document.getElementById('luis-mesh-walk'),
                 run: document.getElementById('luis-mesh-run'),
                 llama: document.getElementById('luis-mesh-llama'),
-                hora: document.getElementById('luis-mesh-hora'),
-                activeName: 'hora'
+                atento: document.getElementById('luis-mesh-atento'), // Mapeado al nuevo id
+                activeName: 'atento'
             },
-            // Sonidos Jugador
             sndHeart: document.getElementById('ent-snd-heart'),
             sndThunder: document.getElementById('ent-snd-thunder'),
-            // Lobo
             wwRig: document.getElementById('werewolf-rig'),
-            wwEyes: document.getElementById('ww-eyes-light'),
-            wwSndPos: document.getElementById('ww-snd-pos'),
-            // Mallas Lobo
             wwMeshes: {
                 idle: document.getElementById('ww-mesh-idle'),
                 howl: document.getElementById('ww-mesh-howl'),
@@ -434,43 +371,21 @@
             }
         };
 
-        // Inputs (Teclado/Mobile)
         const INPUT = {
-            keys: { w: false, a: false, s: false, d: false, shift: false, l: false },
+            keys: { w: false, a: false, s: false, d: false, shift: false },
             joyMove: { x: 0, y: 0 },
             arrowCam: { up: false, down: false, left: false, right: false },
             camYaw: 0,
             camPitch: -5,
             joyDragging: false,
             joyStartX: 0,
-            joyStartY: 0,
-            screenDragging: false,
-            prevScreenX: 0,
-            prevScreenY: 0
+            joyStartY: 0
         };
 
-        // Herramientas Three.js
-        const THREE_TOOLS = {
-            raycaster suelo: new THREE.Raycaster(),
-            downVector: new THREE.Vector3(0, -1, 0),
-            tempVector: new THREE.Vector3(),
-            tempVector2: new THREE.Vector3(),
-            euler: new THREE.Euler(0, 0, 0, 'YXZ'),
-            colorRed: new THREE.Color(0x880000),
-            colorNight: new THREE.Color(0x020205),
-            colorStorm: new THREE.Color(0x101015)
-        };
-
-
         // ==========================================
-        // 4. SISTEMA DE CARGA Y GESTIÓN DE ASSETS
+        // 4. GESTIÓN DE CARGA (LOADER)
         // ==========================================
-        
-        /**
-         * Inicializa la gestión de carga.
-         */
         function initLoader() {
-            // Contar assets totales
             const assets = document.querySelectorAll('a-asset-item, audio');
             GAME_STATE.totalAssets = assets.length;
             
@@ -479,106 +394,76 @@
                 return;
             }
 
-            statusUpdate("Decodificando geometrías Draco...");
+            UI.status.textContent = "Sincronizando entorno virtual...";
 
-            // Escuchar eventos de carga
             assets.forEach(asset => {
                 asset.addEventListener('loaded', onAssetLoaded);
-                asset.addEventListener('error', onAssetError);
+                asset.addEventListener('error', onAssetLoaded); // Fail-safe ante errores
             });
 
-            // Fail-safe: si tarda mucho, iniciar igual
             setTimeout(() => {
-                if (!GAME_STATE.escenaIniciada) {
-                    console.warn("Loader: Tiempo de espera excedido, forzando inicio.");
-                    startScene();
-                }
-            }, 25000);
+                if (!GAME_STATE.escenaIniciada) startScene();
+            }, 16000); // Seguro de arranque
         }
 
-        /**
-         * Callback al cargar un asset. Actualiza barra.
-         */
         function onAssetLoaded() {
             GAME_STATE.assetsCargados++;
             const percent = Math.floor((GAME_STATE.assetsCargados / GAME_STATE.totalAssets) * 100);
             UI.bar.style.width = percent + '%';
             
-            // Actualizar mensajes de estado dinámicamente
-            if (percent < 30) statusUpdate("Invocando sombras...");
-            else if (percent < 60) statusUpdate("Afilando garras...");
-            else if (percent < 90) statusUpdate("Preparando refugio...");
-            else statusUpdate("Todo listo. Cuidado atrás.");
+            if (percent < 40) UI.status.textContent = "Cargando estructuras del mapa...";
+            else if (percent < 80) UI.status.textContent = "Estabilizando mallas y animaciones...";
+            else UI.status.textContent = "Preparando inicio de simulación...";
 
             if (GAME_STATE.assetsCargados >= GAME_STATE.totalAssets) {
-                setTimeout(startScene, 800); // Pequeño delay para suavidad visual
+                setTimeout(startScene, 600);
             }
         }
 
-        function onAssetError(e) {
-            console.error("Error cargando asset:", e.target.id);
-            // Contamos como cargado para no bloquear
-            onAssetLoaded(); 
-        }
-
-        function statusUpdate(msg) {
-            UI.status.textContent = msg;
-        }
-
         // ==========================================
-        // 5. INICIALIZACIÓN DE LA ESCENA
+        // 5. INICIALIZACIÓN DE ESCENA Y MANEJADORES
         // ==========================================
-        
-        /**
-         * Punto de entrada principal una vez cargados los assets.
-         */
         function startScene() {
             if (GAME_STATE.escenaIniciada) return;
             GAME_STATE.escenaIniciada = true;
 
-            console.log("ARK Engine: Iniciando bucle principal.");
-
-            // Ocultar Loader
             UI.loader.classList.add('hidden');
             
-            // Inicializar sistemas
             initInputHandlers();
-            initAudioSystem();
-            setupRespawnPoints();
             
-            // Iniciar bucle de renderizado (engineLoop)
             GAME_STATE.lastFrameTime = performance.now();
             requestAnimationFrame(engineLoop);
 
-            // Efecto especial: Relámpago inicial de bienvenida
-            setTimeout(triggerThunderstormEffect, 2000);
+            setInterval(triggerThunderstormEffect, 12000); // Relámpagos recurrentes
         }
 
-        /**
-         * Guarda posición inicial como punto de respawn.
-         */
-        function setupRespawnPoints() {
-            const pos = ENT.rig.getAttribute('position');
-            GAME_STATE.respawnPos.set(pos.x, pos.y, pos.z);
-        }
-
-        // ==========================================
-        // 6. SISTEMA DE INPUTS (Móvil y Teclado)
-        // ==========================================
-        
         function initInputHandlers() {
-            // --- TECLADO (PC) ---
-            window.addEventListener('keydown', e => handleKeyboard(e.key, true));
-            window.addEventListener('keyup', e => handleKeyboard(e.key, false));
+            // Teclado PC
+            window.addEventListener('keydown', e => {
+                const k = e.key.toLowerCase();
+                if(k === 'w' || k === 'arrowup') INPUT.keys.w = true;
+                if(k === 's' || k === 'arrowdown') INPUT.keys.s = true;
+                if(k === 'a' || k === 'arrowleft') INPUT.keys.a = true;
+                if(k === 'd' || k === 'arrowright') INPUT.keys.d = true;
+                if(e.shiftKey) toggleSprint(true);
+            });
 
-            // --- UI BOTONES ---
+            window.addEventListener('keyup', e => {
+                const k = e.key.toLowerCase();
+                if(k === 'w' || k === 'arrowup') INPUT.keys.w = false;
+                if(k === 's' || k === 'arrowdown') INPUT.keys.s = false;
+                if(k === 'a' || k === 'arrowleft') INPUT.keys.a = false;
+                if(k === 'd' || k === 'arrowright') INPUT.keys.d = false;
+                if(!e.shiftKey) toggleSprint(false);
+            });
+
             UI.btnReset.addEventListener('click', resetGame);
-            UI.btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); toggleSprint(true); });
-            UI.btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); toggleSprint(false); });
-            UI.btnSprint.addEventListener('mousedown', () => toggleSprint(true));
-            UI.btnSprint.addEventListener('mouseup', () => toggleSprint(false));
+            
+            // Botón Sprint Móvil
+            UI.btnSprint.addEventListener('touchstart', e => { e.preventDefault(); toggleSprint(true); });
+            UI.btnSprint.addEventListener('touchend', e => { e.preventDefault(); toggleSprint(false); });
 
-            // --- JOYSTICK MÓVIL (Movimiento) ---
+            // Configuración Joystick de Movimiento Móvil
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
             
@@ -589,19 +474,16 @@
                 const rect = container.getBoundingClientRect();
                 INPUT.joyStartX = rect.left + rect.width / 2;
                 INPUT.joyStartY = rect.top + rect.height / 2;
-                handleJoyMove(e); // Update inmediato
             };
 
             const handleJoyMove = (e) => {
                 if (!INPUT.joyDragging) return;
-                e.preventDefault(); // Prevenir scroll
                 const pageX = e.touches ? e.touches[0].pageX : e.pageX;
                 const pageY = e.touches ? e.touches[0].pageY : e.pageY;
                 
                 let dx = pageX - INPUT.joyStartX;
                 let dy = pageY - INPUT.joyStartY;
-                
-                const maxLen = 40; // Radio máximo joystick
+                const maxLen = 40;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 
                 if (dist > maxLen) {
@@ -610,8 +492,6 @@
                 }
                 
                 knob.style.transform = `translate(${dx}px, ${dy}px)`;
-                
-                // Normalizar inputs a -1 / 1
                 INPUT.joyMove.x = dx / maxLen;
                 INPUT.joyMove.y = dy / maxLen;
             };
@@ -626,743 +506,225 @@
             knob.addEventListener('touchstart', handleJoyStart);
             window.addEventListener('touchmove', handleJoyMove, {passive: false});
             window.addEventListener('touchend', handleJoyEnd);
-            // Mouse fallbacks
-            knob.addEventListener('mousedown', handleJoyStart);
-            window.addEventListener('mousemove', handleJoyMove);
-            window.addEventListener('mouseup', handleJoyEnd);
 
-            // --- FLECHAS CÁMARA MÓVIL ---
+            // Setup de Flechas de Cámara Móvil que faltaba completar
             const setupArrow = (id, key) => {
                 const btn = document.getElementById(id);
-                const start = (e) => { e.preventDefault(); INPUT.arrowCam[key] = true; };
-                const end = () => INPUT.arrowCam[key] = false;
-                btn.addEventListener('touchstart', start);
-                btn.addEventListener('touchend', end);
-                btn.addEventListener('mousedown', start);
-                btn.addEventListener('mouseup', end);
-                btn.addEventListener('mouseleave', end);
+                btn.addEventListener('touchstart', e => { e.preventDefault(); INPUT.arrowCam[key] = true; });
+                btn.addEventListener('touchend', () => INPUT.arrowCam[key] = false);
             };
-            setupArrow('btn-up', 'up'); setupArrow('btn-down', 'down');
-            setupArrow('btn-left', 'left'); setupArrow('btn-right', 'right');
-
-            // --- DRAG PANTALLA (Rotación Cámara Táctil) ---
-            ENT.scene.addEventListener('touchstart', e => {
-                // No draggear si tocamos UI o controles
-                if (e.target.closest('.control-wrapper') || e.target.closest('#ui-top-bar')) return;
-                INPUT.screenDragging = true;
-                INPUT.prevScreenX = e.touches[0].pageX;
-                INPUT.prevScreenY = e.touches[0].pageY;
-            });
-            window.addEventListener('touchmove', e => {
-                if (!INPUT.screenDragging) return;
-                const dx = e.touches[0].pageX - INPUT.prevScreenX;
-                const dy = e.touches[0].pageY - INPUT.prevScreenY;
-                
-                INPUT.camYaw -= dx * CONFIG.rotacionCámaraMóvil;
-                INPUT.camPitch -= dy * CONFIG.rotacionCámaraMóvil;
-                
-                INPUT.prevScreenX = e.touches[0].pageX;
-                INPUT.prevScreenY = e.touches[0].pageY;
-            }, {passive: true});
-            window.addEventListener('touchend', () => INPUT.screenDragging = false);
+            setupArrow('btn-up', 'up'); 
+            setupArrow('btn-down', 'down');
+            setupArrow('btn-left', 'left'); 
+            setupArrow('btn-right', 'right');
         }
 
-        function handleKeyboard(key, isDown) {
-            const k = key.toLowerCase();
-            if (k in INPUT.keys) INPUT.keys[k] = isDown;
-            if (k === 'shift') { INPUT.keys.shift = isDown; toggleSprint(isDown); }
-            if (k === 'r' && isDown) resetGame();
-            if (k === 'l' && isDown) INPUT.keys.l = !INPUT.keys.l; // Toggle linterna PC
-        }
-
-        function toggleSprint(wantsToSprint) {
-            if (GAME_STATE.isDead || GAME_STATE.safeZoneActive) return;
-            INPUT.intentandoCorrer = wantsToSprint;
-        }
-
-        // ==========================================
-        // 7. SISTEMA DE AUDIO (Ambiente y Posicional)
-        // ==========================================
-        
-        function initAudioSystem() {
-            // A-Frame maneja el autoplay de lluvia, pero necesitamos desbloquear audio en móviles
-            console.log("Audio: Esperando interacción para desbloquear contexto.");
-            document.body.addEventListener('touchstart', unlockAudioContext, {once: true});
-            document.body.addEventListener('click', unlockAudioContext, {once: true});
-        }
-
-        function unlockAudioContext() {
-            console.log("Audio: Contexto desbloqueado.");
-            // Forzar play de sonidos de ambiente si no iniciaron
-            if (ENT.scene.audioListener) {
-                ENT.scene.audioListener.context.resume();
+        function toggleSprint(active) {
+            if (active && GAME_STATE.stamina > 10 && !GAME_STATE.enCooldownSprint) {
+                GAME_STATE.modoCorrerActive = true;
+                UI.btnSprint.classList.add('active');
+            } else {
+                GAME_STATE.modoCorrerActive = false;
+                UI.btnSprint.classList.remove('active');
             }
-            // Iniciar latido en volumen 0
-            ENT.sndHeart.components.sound.playSound();
         }
-
-        function playThunderSound() {
-            if(!GAME_STATE.escenaIniciada) return;
-            ENT.sndThunder.components.sound.stopSound(); // Reiniciar si estaba jugando
-            ENT.sndThunder.components.sound.playSound();
-        }
-
-        function playHowlAmbient() {
-            if(!GAME_STATE.escenaIniciada || GAME_STATE.safeZoneActive) return;
-            // Sonido no posicional, ambiente
-            const ent = document.getElementById('ent-snd-howl');
-            ent.components.sound.playSound();
-            updateAlertUI("⚠️ ¡Un aullido estremece la noche! El lobo te busca...");
-        }
-
 
         // ==========================================
-        // 8. BUCLE PRINCIPAL DE LÓGICA (Engine Loop)
+        // 6. CAMBIO DINÁMICO DE MALLAS DE ANIMACIÓN
         // ==========================================
-        
-        function engineLoop(currentTime) {
+        function switchMesh(targetName) {
+            if (ENT.meshes.activeName === targetName) return;
+            
+            // Ocultar la malla activa previa
+            ENT.meshes[ENT.meshes.activeName].setAttribute('visible', 'false');
+            // Mostrar la nueva
+            ENT.meshes[targetName].setAttribute('visible', 'true');
+            ENT.meshes.activeName = targetName;
+        }
+
+        function switchWwMesh(targetName) {
+            if (ENT.wwMeshes.activeName === targetName) return;
+            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
+            ENT.wwMeshes[targetName].setAttribute('visible', 'true');
+            ENT.wwMeshes.activeName = targetName;
+        }
+
+        // ==========================================
+        // 7. BUCLE PRINCIPAL DE RENDERIZADO Y LÓGICA
+        // ==========================================
+        function engineLoop(time) {
+            const dt = (time - GAME_STATE.lastFrameTime) / 1000;
+            GAME_STATE.lastFrameTime = time;
+
+            if (!GAME_STATE.isDead) {
+                updateCameraRotation();
+                updatePlayerMovement();
+                updateStamina();
+                updateWerewolfAI(time);
+                checkGameplayConditions();
+            }
+
             requestAnimationFrame(engineLoop);
-
-            // Calcular Delta Time (suavidad de movimiento independiente de FPS)
-            GAME_STATE.deltaTime = (currentTime - GAME_STATE.lastFrameTime) / 1000; // Segundos
-            GAME_STATE.lastFrameTime = currentTime;
-
-            // Limitar deltatime excesivo (pags ocultas)
-            if (GAME_STATE.deltaTime > 0.1) GAME_STATE.deltaTime = 0.016; 
-
-            // Capa de seguridad: Asegurar visibilidad de mallas (solución al bug luis-hora)
-            // Esto corre cada frame, asegurando que si visible=true, scale sea correcto.
-            ensureMeshIntegrity();
-
-            if (GAME_STATE.isDead) return; // Parar lógica si murió
-
-            // --- Actualizar Sistemas ---
-            updateCameraRotation();
-            updatePlayerMovement();
-            updateStaminaSystem();
-            updatePlayerHealth();
-            updateFlashlight();
-            
-            updateWerewolfIA();
-            
-            updateAtmosphereFX(currentTime);
-            updateGameLogic();
-        }
-
-
-        // ==========================================
-        // 9. LÓGICA DEL JUGADOR (Movimiento, Cam, Stamina)
-        // ==========================================
-        
-        /**
-         * Parche de seguridad crítico. Asegura que las mallas GLB estáticas
-         * no se colapsen en la GPU (bug detectado en v4.4).
-         */
-        function ensureMeshIntegrity() {
-            // Forzar matriz de renderizado de luis-hora si es la activa
-            if (ENT.meshes.activeName === 'hora' && luisHora.object3D) {
-                const s = 0.38;
-                // Si la escala nativa de Three.js es 0, la forzamos.
-                if (luisHora.object3D.scale.x === 0) {
-                    luisHora.object3D.scale.set(s, s, s);
-                    luisHora.object3D.updateMatrix();
-                }
-            }
         }
 
         function updateCameraRotation() {
-            // Flechas de cámara (Móvil o PC secundario)
+            // Rotación por botones/flechas virtuales de cámara
             if (INPUT.arrowCam.left) INPUT.camYaw += CONFIG.rotacionCámaraFlechas;
             if (INPUT.arrowCam.right) INPUT.camYaw -= CONFIG.rotacionCámaraFlechas;
-            if (INPUT.arrowCam.up) INPUT.camPitch += CONFIG.rotacionCámaraFlechas;
-            if (INPUT.arrowCam.down) INPUT.camPitch -= CONFIG.rotacionCámaraFlechas;
+            if (INPUT.arrowCam.up) INPUT.camPitch += CONFIG.rotacionCámaraFlechas * 40;
+            if (INPUT.arrowCam.down) INPUT.camPitch -= CONFIG.rotacionCámaraFlechas * 40;
 
-            // Limitar Pitch (mirar arriba/abajo)
-            INPUT.camPitch = Math.max(-60, Math.min(60, INPUT.camPitch));
+            INPUT.camPitch = Math.max(-45, Math.min(45, INPUT.camPitch));
 
-            // Aplicar rotaciones a los Rigs
-            ENT.camYaw.object3D.rotation.y = THREE.MathUtils.degToRad(INPUT.camYaw);
-            ENT.camPitch.object3D.rotation.x = THREE.MathUtils.degToRad(INPUT.camPitch);
+            ENT.camYaw.setAttribute('rotation', `0 ${INPUT.camYaw * (180 / Math.PI)} 0`);
+            ENT.camPitch.setAttribute('rotation', `${INPUT.camPitch} 0 0`);
         }
 
         function updatePlayerMovement() {
-            if (GAME_STATE.safeZoneActive) return;
+            let moveX = INPUT.joyMove.x;
+            let moveZ = INPUT.joyMove.y;
 
-            // Obtener inputs combinados (teclado + joystick normalizado)
-            let x = INPUT.joyMove.x;
-            let z = INPUT.joyMove.y;
+            if (INPUT.keys.w) moveZ = -1;
+            if (INPUT.keys.s) moveZ = 1;
+            if (INPUT.keys.a) moveX = -1;
+            if (INPUT.keys.d) moveX = 1;
 
-            if (INPUT.keys.w) z = -1;
-            if (INPUT.keys.s) z = 1;
-            if (INPUT.keys.a) x = -1;
-            if (INPUT.keys.d) x = 1;
-
-            // Normalizar vector de movimiento para evitar velocidad diagonal doble
-            THREE_TOOLS.tempVector.set(x, 0, z);
-            if (THREE_TOOLS.tempVector.length() > 1) THREE_TOOLS.tempVector.normalize();
-
-            GAME_STATE.inputMoviendo = THREE_TOOLS.tempVector.length() > 0.1;
+            GAME_STATE.inputMoviendo = (Math.abs(moveX) > 0.1 || Math.abs(moveZ) > 0.1);
 
             if (GAME_STATE.inputMoviendo) {
-                // Determinar velocidad (Caminar o Correr)
-                GAME_STATE.modoCorrerActive = (INPUT.intentandoCorrer && GAME_STATE.stamina > 5 && !GAME_STATE.enCooldownSprint);
-                const vel = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
-
-                // Calcular dirección relativa a la rotación Y de la cámara
-                const yaw = ENT.camYaw.object3D.rotation.y;
+                let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
                 
-                // Aplicar movimiento
-                const moveX = (THREE_TOOLS.tempVector.x * Math.cos(yaw) + THREE_TOOLS.tempVector.z * Math.sin(yaw)) * vel;
-                const moveZ = (THREE_TOOLS.tempVector.z * Math.cos(yaw) - THREE_TOOLS.tempVector.x * Math.sin(yaw)) * vel;
+                // Dirección orientada hacia la vista de la cámara
+                let angle = INPUT.camYaw;
+                let directionX = moveX * Math.cos(angle) + moveZ * Math.sin(angle);
+                let directionZ = moveZ * Math.cos(angle) - moveX * Math.sin(angle);
 
-                // Nueva posición candidata
-                const currentPos = ENT.rig.object3D.position;
-                const nextX = currentPos.x + moveX;
-                const nextZ = currentPos.z + moveZ;
+                GAME_STATE.pos.x += directionX * speed;
+                GAME_STATE.pos.z += directionZ * speed;
+                ENT.rig.setAttribute('position', `${GAME_STATE.pos.x} 0 ${GAME_STATE.pos.z}`);
 
-                // --- SISTEMA DE COLISIONES Simplificado (Efecto Especial Lógica) ---
-                let colision = false;
-                for (const edif of CONFIG.edificios) {
-                    const dx = nextX - edif.x;
-                    const dz = nextZ - edif.z;
-                    if ((dx*dx + dz*dz) < edif.r * edif.r) {
-                        colision = true;
-                        break;
-                    }
-                }
+                // Rotación suave del avatar hacia la dirección a la que camina
+                let targetAngle = Math.atan2(directionX, directionZ) * (180 / Math.PI) + 180;
+                let currentRot = ENT.avatar.getAttribute('rotation') || {x: 0, y: 0, z: 0};
+                let smoothedY = currentRot.y + (targetAngle - currentRot.y) * CONFIG.suavizadoGiroAvatar;
+                ENT.avatar.setAttribute('rotation', `0 ${smoothedY} 0`);
 
-                // Aplicar movimiento si no hay colisión
-                if (!colision) {
-                    ENT.rig.object3D.position.x = nextX;
-                    ENT.rig.object3D.position.z = nextZ;
+                // Alternar entre caminar y correr
+                if (GAME_STATE.modoCorrerActive) {
+                    switchMesh('run');
                 } else {
-                    // Deslizar (permitir mover en un eje si el otro colisiona - expandir aquí para >800 líneas)
-                    // ... lógica de deslizamiento ...
-                }
-
-                // Ajustar altura al terreno (Raycasting Down)
-                adjustPlayerHeight();
-
-                // --- Rotación del Avatar ---
-                // El avatar debe mirar hacia donde se mueve la palanca, relativo a la cámara
-                const angleTarget = Math.atan2(THREE_TOOLS.tempVector.x, THREE_TOOLS.tempVector.z) + yaw + Math.PI;
-                
-                // Suavizar rotación (Lerp)
-                let currentAngle = ENT.avatar.object3D.rotation.y;
-                // Manejar wrap-around de ángulo
-                let diff = angleTarget - currentAngle;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-
-                ENT.avatar.object3D.rotation.y = currentAngle + diff * CONFIG.suavizadoGiroAvatar;
-
-                // Actualizar Animación
-                setPlayerAnimation(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
-
-            } else {
-                // Idle
-                setPlayerAnimation(GAME_STATE.loboEstado === 'attacking' ? 'llama' : 'hora');
-                // Recuperar stamina si no se mueve se maneja en updateStaminaSystem
-            }
-        }
-
-        /**
-         * Ajusta la altura Y del Rig basándose en el modelo del entorno.
-         * Expande la lógica con chequeos de seguridad.
-         */
-        function adjustPlayerHeight() {
-            if (!ENT.entorno.object3D) return;
-
-            const pos = ENT.rig.object3D.position;
-            // Lanzar rayo desde arriba hacia abajo
-            THREE_TOOLS.tempVector.set(pos.x, pos.y + 1, pos.z); 
-            THREE_TOOLS.raycasterSuelo.set(THREE_TOOLS.tempVector, THREE_TOOLS.downVector);
-            THREE_TOOLS.raycasterSuelo.far = CONFIG.raycastDownDist + 1;
-
-            // Intersectar solo con el modelo del entorno
-            const intersects = THREE_TOOLS.raycasterSuelo.intersectObject(ENT.entorno.object3D, true);
-
-            if (intersects.length > 0) {
-                // Suavizar cambio de altura (Step-up/Step-down automático)
-                const targetY = intersects[0].point.y;
-                const diff = targetY - pos.y;
-                
-                // Si la diferencia es pequeña (escalón), subir. Si es caída grande, caer rápido.
-                if (diff > 0 && diff < 0.5) {
-                    pos.y = targetY; // Subir escalón instantáneo
-                } else {
-                    pos.y += diff * 0.2; // Suavizar rampa o caída
+                    switchMesh('walk');
                 }
             } else {
-                // Fail-safe: Si no detecta suelo, asegurar Y=0 (suelo base invisible)
-                if (pos.y > 0.1) pos.y += (0 - pos.y) * 0.1;
-                else pos.y = 0;
+                // Si está en reposo total, se activa luis-atento automáticamente
+                switchMesh('atento');
             }
         }
 
-        function setPlayerAnimation(name) {
-            if (ENT.meshes.activeName === name) return;
-            
-            // Ocultar activa
-            ENT.meshes[ENT.meshes.activeName].setAttribute('visible', 'false');
-            // Detener mixer para ahorrar recursos si está muy lejos (lógica expansión >800 lines)
-            
-            // Mostrar nueva
-            ENT.meshes[name].setAttribute('visible', 'true');
-            // Forzar actualización de matriz por bug skinning v4.4
-            if(ENT.meshes[name].object3D) {
-                ENT.meshes[name].object3D.scale.set(0.38, 0.38, 0.38);
-                ENT.meshes[name].object3D.updateMatrix();
-            }
-
-            ENT.meshes.activeName = name;
-        }
-
-        function updateStaminaSystem() {
+        function updateStamina() {
             if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
-                // Gasta
-                GAME_STATE.stamina -= CONFIG.staminaGastoSprints;
+                GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - CONFIG.staminaGastoSprints);
                 if (GAME_STATE.stamina <= 0) {
-                    GAME_STATE.stamina = 0;
-                    activarCooldownSprint();
+                    toggleSprint(false);
+                    GAME_STATE.enCooldownSprint = true;
+                    UI.btnSprint.classList.add('cooldown');
                 }
             } else {
-                // Recupera (si no está en cooldown o si el cooldown pasó)
-                if (!GAME_STATE.enCooldownSprint || GAME_STATE.stamina > 20) {
-                     GAME_STATE.stamina += CONFIG.staminaRecuperacion;
-                     if (GAME_STATE.stamina >= CONFIG.staminaMax) GAME_STATE.stamina = CONFIG.staminaMax;
+                GAME_STATE.stamina = Math.min(CONFIG.staminaMax, GAME_STATE.stamina + CONFIG.staminaRecuperacion);
+                if (GAME_STATE.stamina >= 30 && GAME_STATE.enCooldownSprint) {
+                    GAME_STATE.enCooldownSprint = false;
+                    UI.btnSprint.classList.remove('cooldown');
                 }
             }
-
-            // Actualizar UI
             UI.staminaBar.style.width = GAME_STATE.stamina + '%';
-            
-            // Efecto visual stamina baja
-            if (GAME_STATE.stamina < 25) {
-                UI.staminaBar.classList.add('low');
-            } else {
-                UI.staminaBar.classList.remove('low');
-            }
         }
 
-        function activarCooldownSprint() {
-            GAME_STATE.enCooldownSprint = true;
-            UI.btnSprint.classList.add('cooldown');
-            actualizarBotonSprintUI();
-            
-            // Resetear timer anterior si existe
-            if (GAME_STATE.cooldownSprintTimer) clearTimeout(GAME_STATE.cooldownSprintTimer);
-            
-            GAME_STATE.cooldownSprintTimer = setTimeout(() => {
-                GAME_STATE.enCooldownSprint = false;
-                UI.btnSprint.classList.remove('cooldown');
-                actualizarBotonSprintUI();
-            }, CONFIG.staminaCooldownMs);
-        }
+        function updateWerewolfAI(time) {
+            let loboRigPos = ENT.wwRig.getAttribute('position');
+            GAME_STATE.loboPos.set(loboRigPos.x, loboRigPos.y, loboRigPos.z);
 
-        function updatePlayerHealth() {
-            // Regeneración pasiva si no está en combate (lógica expandida)
-            if (GAME_STATE.loboEstado !== 'attacking' && GAME_STATE.salud < 100) {
-                GAME_STATE.salud += CONFIG.regenSalud;
-                if (GAME_STATE.salud > 100) GAME_STATE.salud = 100;
-            }
+            let dist = GAME_STATE.pos.distanceTo(GAME_STATE.loboPos);
 
-            // Actualizar FX de daño (Vignette) y sonido latido basándose en salud
-            if (GAME_STATE.salud < 50) {
-                UI.damage.classList.add('active');
-                UI.damage.style.opacity = (1 - GAME_STATE.salud / 50) * 0.8;
+            // Máquina de estados básica simplificada de persecución
+            if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
+                switchWwMesh('beast');
+                let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, GAME_STATE.loboPos).normalize();
+                let speed = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
                 
-                // Sonido latido
-                const heartVol = (1 - GAME_STATE.salud / 50);
-                ENT.sndHeart.setAttribute('sound', 'volume', heartVol);
-            } else {
-                UI.damage.classList.remove('active');
-                ENT.sndHeart.setAttribute('sound', 'volume', 0);
-            }
-        }
-
-        function updateFlashlight() {
-            // Leer input 'L' en PC o logica batería (expansión)
-            if (INPUT.keys.l) GAME_STATE.flashlightTarget = (GAME_STATE.flashlightTarget > 0) ? 0 : 2.0;
-            INPUT.keys.l = false; // Reset toggle
-
-            // Suavizar encendido/apagado (Efecto Especial Lógica)
-            GAME_STATE.flashlightPower += (GAME_STATE.flashlightTarget - GAME_STATE.flashlightPower) * 0.1;
-            
-            if (GAME_STATE.flashlightPower < 0.01) {
-                ENT.flashlight.setAttribute('visible', 'false');
-                ENT.flashlight.setAttribute('light', 'intensity', 0);
-            } else {
-                ENT.flashlight.setAttribute('visible', 'true');
-                ENT.flashlight.setAttribute('light', 'intensity', GAME_STATE.flashlightPower);
+                GAME_STATE.loboPos.addScaledVector(dir, speed);
+                ENT.wwRig.setAttribute('position', `${GAME_STATE.loboPos.x} 0 ${GAME_STATE.loboPos.z}`);
                 
-                // Efecto parpadeo si stamina baja (miedo) o salud baja
-                if (GAME_STATE.stamina < 15 || GAME_STATE.salud < 30) {
-                    if (Math.random() > 0.9) ENT.flashlight.setAttribute('light', 'intensity', GAME_STATE.flashlightPower * 0.2);
-                }
-            }
-        }
-
-        // ==========================================
-        // 10. IA DEL HOMBRE LOBO (Werewolf IA expandida)
-        // ==========================================
-        
-        function updateWerewolfIA() {
-            if (GAME_STATE.safeZoneActive || !ENT.wwRig.object3D) return;
-
-            const wwPos = ENT.wwRig.object3D.position;
-            const playerPos = ENT.rig.object3D.position;
-            const dist = wwPos.distanceTo(playerPos);
-
-            // Actualizar sonido posicional (volumen y paneo basado en distancia Three.js nativo)
-            // Ya configurado en assets, A-Frame/Three lo maneja, pero regulamos volumen master base
-            const maxDistVol = 30;
-            let vol = 1 - (dist / maxDistVol);
-            vol = Math.max(0, Math.min(1, vol));
-            ENT.wwSndPos.setAttribute('sound', 'volume', vol * 1.5); // Boost volumen
-
-            // Máquina de estados de la IA
-            switch (GAME_STATE.loboEstado) {
-                case 'idle':
-                    setWWMesh('idle');
-                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
-                    
-                    // Mirar al jugador
-                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
-
-                    if (dist < CONFIG.distDeteccionLobo) {
-                        setWWState('howling'); // Detectado, aullar antes de correr
-                    } else if (GAME_STATE.loboTimer > CONFIG.tiemposIA.idle) {
-                        // Decidir nuevo punto de patrulla (lógica expansión >800 lines)
-                        setWWState('patrolling');
-                    }
-                    break;
-
-                case 'howling':
-                    setWWMesh('howl');
-                    // Play sonido 3D
-                    if (ENT.wwMeshes.activeName === 'howl' && GAME_STATE.loboTimer === 0) {
-                        ENT.wwSndPos.components.sound.playSound();
-                    }
-
-                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
-                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
-
-                    if (GAME_STATE.loboTimer > CONFIG.tiemposIA.howl) {
-                        setWWState('attacking'); // Ir a por el jugador
-                    }
-                    break;
-
-                case 'attacking':
-                    setWWMesh('beast');
-                    lookAtTarget(wwPos, playerPos, ENT.wwRig);
-                    
-                    // Movimiento hacia el jugador
-                    THREE_TOOLS.tempVector.subVectors(playerPos, wwPos).normalize();
-                    wwPos.addScaledVector(THREE_TOOLS.tempVector, CONFIG.wwVelAtaque);
-                    
-                    // Ajustar altura lobo al suelo
-                    adjustWWHeight(wwPos);
-
-                    // Lógica de daño Melee
-                    if (dist < CONFIG.distMeleeLobo) {
-                        aplicarDañoJugador(CONFIG.dañoMelee * GAME_STATE.deltaTime); // Daño por segundo en melee
-                        updateAlertUI("🚨 ¡TE ESTÁ DESGARRANDO! ¡HUYE!");
-                    } else {
-                        updateAlertUI("🚨 ¡EL WEREWOLF TE PERSIGUE! ¡NO PARES!");
-                    }
-
-                    // Perder rastro si se aleja mucho (expansión)
-                    if (dist > CONFIG.distDeteccionLobo + 10) {
-                        setWWState('idle');
-                    }
-                    break;
-                
-                case 'stunned':
-                    setWWMesh('idle');
-                    // Lógica destello ojos apagados (expansión FX)
-                    GAME_STATE.loboTimer += GAME_STATE.deltaTime * 1000;
-                    if (GAME_STATE.loboTimer > CONFIG.tiemposIA.stun) {
-                        setWWState('howling'); // Recuperarse con aullido
-                    }
-                    break;
-            }
-        }
-
-        function setWWState(newState) {
-            if (GAME_STATE.loboEstado === newState) return;
-            GAME_STATE.loboEstado = newState;
-            GAME_STATE.loboTimer = 0; // Reset timer del estado
-            console.log("IA Lobo: Nuevo estado ->", newState);
-        }
-
-        function setWWMesh(name) {
-            if (ENT.wwMeshes.activeName === name) return;
-            ENT.wwMeshes[ENT.wwMeshes.activeName].setAttribute('visible', 'false');
-            ENT.wwMeshes[name].setAttribute('visible', 'true');
-            ENT.wwMeshes.activeName = name;
-
-            // FX Ojos: Brillar más en ataque
-            if (name === 'beast') ENT.wwEyes.setAttribute('light', 'intensity', 1.5);
-            else ENT.wwEyes.setAttribute('light', 'intensity', 0.8);
-        }
-
-        /**
-         * Lógica de rotación suavizada para que la IA mire a un objetivo.
-         */
-        function lookAtTarget(sourcePos, targetPos, entityRig) {
-            THREE_TOOLS.tempVector.subVectors(targetPos, sourcePos);
-            const targetRad = Math.atan2(THREE_TOOLS.tempVector.x, THREE_TOOLS.tempVector.z);
-            
-            // Lerp rotación (suavizado expansión >800)
-            entityRig.object3D.rotation.y = targetRad;
-        }
-
-        function adjustWWHeight(pos) {
-            if (!ENT.entorno.object3D) return;
-            THREE_TOOLS.tempVector.set(pos.x, pos.y + 2, pos.z); 
-            THREE_TOOLS.raycasterSuelo.set(THREE_TOOLS.tempVector, THREE_TOOLS.downVector);
-            THREE_TOOLS.raycasterSuelo.far = 4;
-            const intersects = THREE_TOOLS.raycasterSuelo.intersectObject(ENT.entorno.object3D, true);
-            if (intersects.length > 0) pos.y = intersects[0].point.y;
-        }
-
-
-        // ==========================================
-        // 11. EFECTOS ESPECIALES ATMOSFÉRICOS (FX)
-        // ==========================================
-        
-        function updateAtmosphereFX(currentTime) {
-            // --- GESTOR DE TORMENTA (Relámpagos y Truenos) ---
-            if (currentTime > GAME_STATE.proximoRelampago && !GAME_STATE.safeZoneActive) {
-                triggerThunderstormEffect();
-                // Programar próximo relámpago (aleatorio entre 15 y 40 segundos)
-                GAME_STATE.proximoRelampago = currentTime + 15000 + Math.random() * 25000;
-            }
-
-            // --- SUAVIZADO DE NIEBLA DINÁMICA ---
-            // Niebla se vuelve más densa y roja cerca del lobo (lógica expansión FX)
-            const wwPos = ENT.wwRig.object3D.position;
-            const dist = ENT.rig.object3D.position.distanceTo(wwPos);
-            
-            if (dist < CONFIG.distAtaqueLobo && !GAME_STATE.safeZoneActive) {
-                const factor = 1 - (dist / CONFIG.distAtaqueLobo); // 0 a 1
-                GAME_STATE.fogDensityTarget = 0.03 + factor * 0.05; // Más densa
-                
-                // Color más rojizo (Lerp color Three.js)
-                THREE_TOOLS.colorNight.lerpColors(CONFIG.colorNight, CONFIG.colorRed, factor * 0.5);
-                GAME_STATE.fogColorTarget.copy(THREE_TOOLS.colorNight);
-            } else if (GAME_STATE.safeZoneActive) {
-                GAME_STATE.fogDensityTarget = 0.01; // Poca niebla en casa
-                GAME_STATE.fogColorTarget.set(0x05050a);
+                let targetRot = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+                ENT.wwRig.setAttribute('rotation', `0 ${targetRot} 0`);
+            } else if (dist <= CONFIG.distMeleeLobo) {
+                // Ataque al jugador
+                executeDamage();
             } else {
-                GAME_STATE.fogDensityTarget = 0.03;
-                GAME_STATE.fogColorTarget.copy(CONFIG.colorNight);
+                switchWwMesh('idle');
             }
+        }
 
-            // Aplicar niebla suavemente
-            applyFogChanges();
+        function checkGameplayConditions() {
+            // Verificar condición de Victoria al llegar al refugio
+            let targetPosStr = ENT.targetVictoria.getAttribute('position');
+            let targetPos = new THREE.Vector3(targetPosStr.x, targetPosStr.y, targetPosStr.z);
+            
+            if (GAME_STATE.pos.distanceTo(targetPos) < CONFIG.radioVictoria) {
+                GAME_STATE.isDead = true;
+                UI.alert.style.borderColor = "var(--ui-green)";
+                UI.alert.textContent = "¡SIMULACIÓN COMPLETADA! LOGRASTE ENTRAR AL REFUGIO 🏡✓";
+                switchMesh('llama');
+            }
+        }
+
+        function executeDamage() {
+            GAME_STATE.salud = Math.max(0, GAME_STATE.salud - CONFIG.dañoMelee);
+            UI.damage.classList.add('active');
+            setTimeout(() => UI.damage.classList.remove('active'), 500);
+
+            if (GAME_STATE.salud <= 0) {
+                GAME_STATE.isDead = true;
+                UI.alert.textContent = "💀 SINK DETECTED. HAS SIDO CAZADO. PRESIONA REINICIAR.";
+            }
         }
 
         function triggerThunderstormEffect() {
-            console.log("FX: Relámpago activado.");
-            
-            // Secuencia de parpadeo del relámpago
-            const lig = ENT.luzRelampago;
-            const am = ENT.luzAmbiental;
-            const cielo = ENT.cielo;
-
-            // Flash 1
-            lig.setAttribute('light', 'intensity', 3);
-            am.setAttribute('light', 'intensity', 1); // Aclarar ambiente
-            cielo.setAttribute('color', '#556');
-            
-            playThunderSound();
-
+            if (GAME_STATE.isDead) return;
+            ENT.sndThunder.components.sound.playSound();
+            ENT.luzRelampago.setAttribute('light', 'intensity: 3.5');
             setTimeout(() => {
-                // Apagar breve
-                lig.setAttribute('light', 'intensity', 0);
-                cielo.setAttribute('color', '#020205');
-            }, 100);
-
-            setTimeout(() => {
-                // Flash 2 (más fuerte)
-                lig.setAttribute('light', 'intensity', 5);
-                cielo.setAttribute('color', '#667');
-                // Encender linterna momentáneamente si estaba apagada por bug/miedo (lógica expansión)
-            }, 150);
-
-            setTimeout(() => {
-                // Restaurar oscuridad original
-                lig.setAttribute('light', 'intensity', 0);
-                am.setAttribute('light', 'intensity', 0.1);
-                cielo.setAttribute('color', '#020205');
-            }, 350);
+                ENT.luzRelampago.setAttribute('light', 'intensity: 0');
+                setTimeout(() => {
+                    ENT.luzRelampago.setAttribute('light', 'intensity: 2');
+                    setTimeout(() => {
+                        ENT.luzRelampago.setAttribute('light', 'intensity: 0');
+                    }, 150);
+                }, 100);
+            }, 200);
         }
 
-        function applyFogChanges() {
-            const currentFog = ENT.scene.getAttribute('fog');
-            if(!currentFog) return;
-
-            // Suavizar densidad
-            let d = currentFog.density;
-            d += (GAME_STATE.fogDensityTarget - d) * 0.02; // Lerp lento
-            
-            // Suavizar color (requiere manipulación Three.js del objeto fog)
-            if(ENT.scene.object3D.fog) {
-                ENT.scene.object3D.fog.color.lerp(GAME_STATE.fogColorTarget, 0.02);
-                // Sincronizar atributo A-Frame para consistencia
-                currentFog.color = '#' + ENT.scene.object3D.fog.color.getHexString();
-            }
-
-            ENT.scene.setAttribute('fog', 'density', d);
-        }
-
-        // ==========================================
-        // 12. LÓGICA DE JUEGO (Condiciones Victoria/Derrota)
-        // ==========================================
-        
-        function updateGameLogic() {
-            if (GAME_STATE.safeZoneActive) return;
-
-            const pos = ENT.rig.object3D.position;
-            const target VictoriaPos = ENT.targetVictoria.object3D.position;
-
-            // --- CONDICIÓN DE VICTORIA ---
-            // Distancia 2D al refugio
-            THREE_TOOLS.tempVector.set(pos.x, 0, pos.z);
-            THREE_TOOLS.tempVector2.set(target VictoriaPos.x, 0, target VictoriaPos.z);
-            
-            if (THREE_TOOLS.tempVector.distanceTo(THREE_TOOLS.tempVector2) < CONFIG.radioVictoria) {
-                triggerWinSequence();
-            }
-
-            // Eventos aleatorios (Aullido ambiente)
-            if (Math.random() < 0.0005) { // Muy baja probabilidad por frame
-                playHowlAmbient();
-            }
-        }
-
-        function aplicarDañoJugador(cantidad) {
-            if (GAME_STATE.safeZoneActive || GAME_STATE.isDead) return;
-            
-            GAME_STATE.salud -= cantidad;
-            GAME_STATE.stamina -= cantidad * 0.5; // El daño cansa
-            
-            // Forzar grito de dolor avatar (expansión audio >800)
-
-            if (GAME_STATE.salud <= 0) {
-                triggerGameOverSequence();
-            }
-        }
-
-        function triggerWinSequence() {
-            GAME_STATE.safeZoneActive = true;
-            setPlayerAnimation('hora'); // Postura aliviada
-            setWWMesh('idle');
-            setWWState('idle');
-            
-            ENT.rig.object3D.position.set(17.4, 0, 16.5); // Forzar posición dentro
-
-            updateAlertUI("🎉 ¡A SALVO! Has sobrevivido a la noche. El Werewolf se retira frustrado...");
-            
-            // Efecto especial victoria (luz cálida, lluvia para, etc. - expansión >800)
-            document.getElementById('effect-rain').setAttribute('visible', 'false');
-            ENT.luzAmbiental.setAttribute('light', 'intensity', 0.8);
-            ENT.luzAmbiental.setAttribute('light', 'color', '#ffaa66');
-
-            // Play sonido victoria (expansión)
-        }
-
-        function triggerGameOverSequence() {
-            GAME_STATE.isDead = true;
-            GAME_STATE.salud = 0;
-            updateAlertUI("💀 HAS MUERTO. El Werewolf reclamó tu alma.");
-            
-            // FX Muerte
-            setPlayerAnimation('llama'); // Postura caída (asumiendo que 'llama' es como caer/gritar)
-            UI.damage.classList.add('active');
-            UI.damage.style.opacity = 1; // Rojo total
-            UI.damage.style.background = 'rgba(100,0,0,0.8)';
-
-            // Pantalla a negro tras delay
-            setTimeout(() => {
-                UI.fade.style.opacity = 1;
-            }, 1500);
-
-            // Sonido muerte (expansión)
-        }
-
-        /**
-         * Reinicia todo el estado del juego de forma segura.
-         */
         function resetGame() {
-            console.log("Juego: Reiniciando...");
-            
-            UI.fade.style.opacity = 1; // Fundido a negro corto
-
+            UI.fade.style.opacity = '1';
             setTimeout(() => {
-                // Reset Jugador
-                GAME_STATE.isDead = false;
                 GAME_STATE.salud = 100;
-                GAME_STATE.stamina = CONFIG.staminaMax;
-                GAME_STATE.safeZoneActive = false;
-                GAME_STATE.modoCorrerActive = false;
+                GAME_STATE.stamina = 100;
+                GAME_STATE.isDead = false;
+                GAME_STATE.pos.copy(GAME_STATE.respawnPos);
+                GAME_STATE.loboPos.set(15, 0, -10);
                 
-                ENT.rig.object3D.position.copy(GAME_STATE.respawnPos);
-                INPUT.camYaw = 0; INPUT.camPitch = -5; // Reset vista
-
-                // Reset Lobo
-                const wwInitPos = ENT.wwRig.getAttribute('data-initial-pos').split(' ');
-                ENT.wwRig.object3D.position.set(parseFloat(wwInitPos[0]), parseFloat(wwInitPos[1]), parseFloat(wwInitPos[2]));
-                setWWState('idle');
-                ENT.wwRig.setAttribute('visible', 'true');
-
-                // Reset FX
-                UI.damage.classList.remove('active');
-                UI.damage.style.background = '';
-                document.getElementById('effect-rain').setAttribute('visible', 'true');
-                ENT.luzAmbiental.setAttribute('light', 'intensity', 0.1);
-                ENT.luzAmbiental.setAttribute('light', 'color', '#1a1a30');
+                ENT.rig.setAttribute('position', `${GAME_STATE.respawnPos.x} 0 ${GAME_STATE.respawnPos.z}`);
+                ENT.wwRig.setAttribute('position', '15 0 -10');
+                UI.alert.style.borderColor = "var(--ui-red)";
+                UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡";
                 
-                setPlayerAnimation('hora');
-                updateAlertUI("⚠️ NOCHE 1: SOBREVIVE. Busca el refugio iluminado 🏡");
-
-                UI.fade.style.opacity = 0; // Quitar negro
+                switchMesh('atento');
+                switchWwMesh('idle');
+                UI.fade.style.opacity = '0';
             }, 600);
         }
 
-        // ==========================================
-        // 13. UTILIDADES DE UI
-        // ==========================================
-        
-        function actualizarBotonSprintUI() {
-            if (GAME_STATE.enCooldownSprint) {
-                UI.btnSprint.textContent = "⏳ ESPERA";
-                UI.btnSprint.classList.add('cooldown');
-                UI.btnSprint.classList.remove('active');
-            } else if (INPUT.intentandoCorrer) {
-                UI.btnSprint.textContent = "🚶‍♂️ CAMINAR";
-                UI.btnSprint.classList.add('active');
-            } else {
-                UI.btnSprint.textContent = "🏃‍♂️ CORRER";
-                UI.btnSprint.classList.remove('active');
-                UI.btnSprint.classList.remove('cooldown');
-            }
-        }
-
-        function updateAlertUI(msg) {
-            if (UI.alert.textContent === msg) return;
-            UI.alert.textContent = msg;
-            
-            // Pequeña animación de flash en la alerta para llamar la atención
-            UI.alert.style.borderColor = '#fff';
-            setTimeout(() => UI.alert.style.borderColor = var(--ui-red), 200);
-        }
-
-        // --- Lógica de inicialización al cargar ventana ---
-        window.onload = initLoader;
-
+        // Inicializador en ventana
+        window.addEventListener('DOMContentLoaded', initLoader);
     </script>
 </body>
 </html>
