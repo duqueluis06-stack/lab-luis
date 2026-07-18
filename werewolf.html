@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Escape Simulator v6.6 Performance</title>
+    <title>ARK - Werewolf Escape Simulator v6.7 Premium Protection</title>
     
     <!-- Librerías estables de A-Frame y Extras de Animación -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -109,7 +109,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Optimizando rendimiento de la maqueta...</div>
+            <div class="loader-msg" id="loader-status">Iniciando entorno protegido contra copias...</div>
         </div>
     </div>
 
@@ -190,11 +190,11 @@
         <!-- El Mapa/Pueblo Completo -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
-        <!-- Iluminación de Interior: Revela el primer piso cuando entras -->
+        <!-- Iluminación de Interior -->
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
 
-        <!-- FOGATA DECORATIVA (SÓLO LUZ Y PROYECCIÓN VISUAL, SIN ACCIONES DE REAPARECER) -->
+        <!-- FOGATA DECORATIVA (SÓLO LUZ Y PROYECCIÓN VISUAL) -->
         <a-entity id="refugio-decorativo" position="17.4 0.05 16.5">
             <a-entity light="type: point; intensity: 3.5; distance: 12; color: #ff5500;" 
                       animation="property: light.intensity; from: 2.7; to: 3.8; dur: 110; dir: alternate; loop: true"></a-entity>
@@ -211,7 +211,7 @@
             <a-circle radius="0.6" color="#1a1a1a" rotation="-90 0 0" position="0 0.01 0"></a-circle>
         </a-entity>
 
-        <!-- RIG JUGADOR (Cámara con near: 0.1 evita recortes de pared al entrar) -->
+        <!-- RIG JUGADOR -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
@@ -240,6 +240,11 @@
     </a-scene>
 
     <script>
+        // --- ESCUDO DE PROTECCIÓN PREMIUM: BLOQUEO DE CLIC DERECHO ---
+        window.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        }, false);
+
         const CONFIG = {
             velCaminar: 0.06,
             velCorrer: 0.13,
@@ -247,8 +252,8 @@
             staminaMax: 200,
             staminaGasto: 0.22,
             staminaRecuperacion: 0.4,
-            wwVelAcecho: 0.016,
-            wwVelAtaque: 0.048,
+            wwVelAcecho: 0.022,  // Ajustado para suavidad
+            wwVelAtaque: 0.055,  // Persecución fluida
             distDeteccionLobo: 30,
             distAtaqueLobo: 14,
             distMeleeLobo: 2.3
@@ -293,7 +298,6 @@
                 asset.addEventListener('loaded', onAssetLoaded);
                 asset.addEventListener('error', onAssetLoaded);
             });
-            // Seguridad: Si Hugging Face tarda demasiado, fuerza el botón a los 8 segundos
             setTimeout(() => { if (!GAME_STATE.escenaIniciada) showStartButton(); }, 8000);
         }
 
@@ -431,7 +435,6 @@
 
             if (!GAME_STATE.isDead && ENT.rig.object3D) {
                 GAME_STATE.frameTicks++;
-                // Ejecutar raycasting pesado solo una vez cada 6 frames (Throttling del motor 3D)
                 const ejecutarRaycastPesado = (GAME_STATE.frameTicks % 6 === 0);
 
                 ENT.camYaw.object3D.rotation.y = INPUT.camYaw;
@@ -454,9 +457,10 @@
                     GAME_STATE.esInterior = (colisionesTecho.length > 0 && colisionesTecho[0].distance < 3.5);
                 }
 
+                // --- AJUSTE DE ALTURA DE CÁMARA (PERFECTA EN INTERIORES) ---
                 const camaraElemento = document.getElementById('main-camera');
                 if (GAME_STATE.esInterior) {
-                    camaraElemento.setAttribute('position', '0 1.55 0');
+                    camaraElemento.setAttribute('position', '0 1.20 0'); // Bajado a 1.20m para realismo de techos
                     ENT.meshes[ENT.meshes.activeName].setAttribute('scale', '0 0 0');
                 } else {
                     camaraElemento.setAttribute('position', '0 1.5 2.2');
@@ -537,7 +541,7 @@
                 }
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
-                // IA Lobo
+                // --- IA Y PERSECUCIÓN CORREGIDA DEL HOMBRE LOBO ---
                 let loboPos = ENT.wwRig.object3D.position;
                 let dist = GAME_STATE.pos.distanceTo(loboPos);
                 
@@ -546,10 +550,16 @@
 
                 if (dist < CONFIG.distDeteccionLobo && dist > CONFIG.distMeleeLobo) {
                     switchWwMesh('beast');
-                    let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos).normalize();
+                    
+                    // SOLUCIÓN: Aplanamos la dirección en Y antes de normalizar para evitar que el relieve del mapa anule el movimiento del lobo
+                    let dir = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
+                    dir.y = 0; 
+                    dir.normalize();
+                    
                     let vLobo = dist < CONFIG.distAtaqueLobo ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
                     
-                    loboPos.x += dir.x * vLobo; loboPos.z += dir.z * vLobo;
+                    loboPos.x += dir.x * vLobo; 
+                    loboPos.z += dir.z * vLobo;
                     ENT.wwRig.object3D.rotation.y = Math.atan2(dir.x, dir.z);
 
                     if (dist < CONFIG.distAtaqueLobo) {
@@ -574,7 +584,9 @@
                     }
                 } else if (dist <= CONFIG.distMeleeLobo) {
                     if (GAME_STATE.loboEstado !== 'melee') {
-                        GAME_STATE.loboEstado = 'melee'; switchWwMesh('howl'); ejecutarDaño();
+                        GAME_STATE.loboEstado = 'melee'; 
+                        switchWwMesh('howl'); 
+                        ejecutarDaño();
                     }
                 } else {
                     switchWwMesh('idle'); GAME_STATE.loboEstado = 'idle'; UI.damage.classList.remove('active');
@@ -585,15 +597,31 @@
             requestAnimationFrame(engineLoop);
         }
 
+        // --- SISTEMA INTERACTIVO DE DAÑO CON KNOCKBACK (EMPUJE) ---
         function ejecutarDaño() {
             if (GAME_STATE.isDead) return;
             GAME_STATE.salud -= 25;
             UI.alert.textContent = `🚨 ¡TE HA ALCANZADO! SALUD: ${GAME_STATE.salud}% 🚨`;
+            
+            // MECÁNICA ANTI-BLOQUEO: Empuja al jugador hacia atrás lejos del lobo al recibir un golpe (2.5 metros)
+            let loboPos = ENT.wwRig.object3D.position;
+            let dirKnockback = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
+            dirKnockback.y = 0;
+            dirKnockback.normalize();
+            
+            // Aplicar el desplazamiento de impacto
+            GAME_STATE.pos.addScaledVector(dirKnockback, 2.5);
+            ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
+            
+            // Cancelar sprint por aturdimiento
+            toggleSprint(false);
+
             if (GAME_STATE.salud <= 0) {
                 GAME_STATE.isDead = true; UI.alert.textContent = "💥 SIMULACIÓN FALLIDA. REINICIANDO... 💥";
                 UI.fade.style.opacity = "1"; setTimeout(resetGame, 2500);
             } else {
-                setTimeout(() => { if (GAME_STATE.loboEstado === 'melee') GAME_STATE.loboEstado = 'idle'; }, 1200);
+                // Permite volver a evaluar el estado de combate tras recuperarse del impacto
+                setTimeout(() => { if (GAME_STATE.loboEstado === 'melee') GAME_STATE.loboEstado = 'idle'; }, 800);
             }
         }
 
