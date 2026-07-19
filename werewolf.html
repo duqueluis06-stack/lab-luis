@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v9.3 (Speed & Control Polish)</title>
+    <title>ARK - Werewolf Nightmare v9.4 (Moon & Horizon Fixed)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -14,7 +14,7 @@
             --ui-red: #ff2a2a;
             --ui-green: #00ffaa;
             --ui-blue: #38bdf8;
-            --bg-dark: #030307;
+            --bg-dark: #04040a; /* Unificado con el entorno 3D */
             --pane-bg: rgba(6, 10, 20, 0.9);
         }
 
@@ -144,8 +144,9 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
+    <!-- CORRECCIÓN: Niebla y cielo unificados en #04040a para eliminar el círculo fantasma del fondo -->
     <a-scene id="escena-principal" 
-             fog="type: linear; color: #080812; near: 15; far: 75;" 
+             fog="type: linear; color: #04040a; near: 8; far: 45;" 
              renderer="colorManagement: true; antialias: false; powerPreference: high-performance; precision: medium;" 
              vr-mode-ui="enabled: false" 
              device-orientation-permission-ui="enabled: false" 
@@ -160,13 +161,17 @@
             <a-asset-item id="luis-atento-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-atento.glb" crossorigin="anonymous"></a-asset-item>
         </a-assets>
 
-        <a-sky color="#040408"></a-sky>
-        <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
+        <a-sky color="#04040a"></a-sky>
         
-        <a-entity particle-system="preset: rain; color: #444; particleCount: 500; size: 0.3; velocityValue: 0 15 0; opacity: 0.2;"></a-entity>
+        <!-- CORRECCIÓN: Reincorporación de la Luna Física y su Luz de Ambiente -->
+        <a-entity id="luna-completa" position="15 35 -40">
+            <a-sphere radius="2.2" color="#e2e8f0" material="shader: flat; fog: false;"></a-sphere>
+            <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
+        </a-entity>
         
-        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.4; color: #2a3550"></a-entity>
-        <a-entity id="luz-luna" light="type: directional; intensity: 0.7; color: #9abaff;" position="20 55 -45"></a-entity>
+        <a-entity particle-system="preset: rain; color: #333; particleCount: 600; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
+        
+        <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
@@ -185,7 +190,7 @@
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
                     <a-entity id="main-camera" camera="fov: 70; near: 0.1; far: 300;" position="0 1.5 2.2">
-                        <a-entity id="flashlight" light="type: spot; intensity: 2.5; distance: 45; angle: 40; penumbra: 0.4; color: #fffee0;" position="0 -0.2 -0.2"></a-entity>
+                        <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
             </a-entity>
@@ -201,6 +206,19 @@
 
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
+
+        // ==========================================
+        // VECTORES Y OBJETOS GLOBALES REUTILIZABLES (ZERO-ALLOCATION)
+        // ==========================================
+        const V_POOL = {
+            dirALugar: new THREE.Vector3(),
+            dirAlBosque: new THREE.Vector3(),
+            dirHaciaTi: new THREE.Vector3(),
+            rayOrigin: new THREE.Vector3(),
+            rayDir: new THREE.Vector3(0, -1, 0)
+        };
+        const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
+        let entornoMeshCache = null;
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -252,7 +270,6 @@
             }
         };
 
-        // VELOCIDADES CORREGIDAS PARA EVITAR DESLIZAMIENTO
         const CONFIG = {
             velCaminar: 2.1,           
             velCorrer: 4.5,            
@@ -331,6 +348,12 @@
             ENT.wwRig.object3D.position.set(60, 0, -60);
             GAME_STATE.pos.set(0, 0, 25);
             
+            if (ENT.entorno) {
+                ENT.entorno.addEventListener('model-loaded', () => {
+                    entornoMeshCache = ENT.entorno.getObject3D('mesh');
+                });
+            }
+            
             UI.loader.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 13px; letter-spacing: 2px; box-shadow: 0 0 20px rgba(239,42,42,0.5); text-transform: uppercase;">¡ENTRAR AL SUEÑO!</button>`;
             
             document.getElementById('btn-play-engine').addEventListener('click', () => {
@@ -338,6 +361,10 @@
                 
                 AudioController.reproducirMusicaFondo();
                 initControls();
+                
+                if(!entornoMeshCache && ENT.entorno) {
+                    entornoMeshCache = ENT.entorno.getObject3D('mesh');
+                }
                 
                 GAME_STATE.juegoActivo = true;
                 GAME_STATE.lastFrameTime = performance.now();
@@ -511,9 +538,11 @@
                             GAME_STATE.cachedAlturaSuelo = 0;
                         }
                     } else {
-                        if (ejecutarRaycast && ENT.entorno && ENT.entorno.getObject3D('mesh')) {
-                            const rayo = new THREE.Raycaster(new THREE.Vector3(siguienteX, 10, siguienteZ), new THREE.Vector3(0, -1, 0));
-                            const colisiones = rayo.intersectObject(ENT.entorno.getObject3D('mesh'), true);
+                        if (ejecutarRaycast && entornoMeshCache) {
+                            V_POOL.rayOrigin.set(siguienteX, 10, siguienteZ);
+                            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+                            
+                            const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
                             if (colisiones.length > 0) {
                                 let validY = colisiones[0].point.y;
                                 if (!isNaN(validY) && Math.abs(validY - GAME_STATE.pos.y) < 0.75) {
@@ -578,15 +607,15 @@
                     }
 
                     if (GAME_STATE.loboEstado === 'MERODEANDO_CASA') {
-                        let dirALugar = new THREE.Vector3().subVectors(GAME_STATE.aiPuntoObjetivo, loboPos);
-                        dirALugar.y = 0;
-                        let distAlPunto = dirALugar.length();
+                        V_POOL.dirALugar.subVectors(GAME_STATE.aiPuntoObjetivo, loboPos);
+                        V_POOL.dirALugar.y = 0;
+                        let distAlPunto = V_POOL.dirALugar.length();
 
                         if (distAlPunto > 0.5) {
-                            dirALugar.normalize();
-                            loboPos.x += dirALugar.x * CONFIG.wwVelAcecho * dt;
-                            loboPos.z += dirALugar.z * CONFIG.wwVelAcecho * dt;
-                            ENT.wwRig.object3D.rotation.y = Math.atan2(dirALugar.x, dirALugar.z);
+                            V_POOL.dirALugar.normalize();
+                            loboPos.x += V_POOL.dirALugar.x * CONFIG.wwVelAcecho * dt;
+                            loboPos.z += V_POOL.dirALugar.z * CONFIG.wwVelAcecho * dt;
+                            ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirALugar.x, V_POOL.dirALugar.z);
                         } else {
                             if (GAME_STATE.frameTicks % 250 === 0) {
                                 GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
@@ -594,18 +623,18 @@
                             GAME_STATE.aiTimer += dt;
                             if (GAME_STATE.aiTimer > 20) {
                                 GAME_STATE.loboEstado = 'RETIRADA';
-                                GAME_STATE.aiPuntoObjetivo = new THREE.Vector3(60, 0, -60); 
+                                GAME_STATE.aiPuntoObjetivo.set(60, 0, -60); 
                                 UI.alert.textContent = "🔊 Los gruñidos se desvanecen en el bosque...";
                             }
                         }
                     } else if (GAME_STATE.loboEstado === 'RETIRADA') {
-                        let dirAlBosque = new THREE.Vector3().subVectors(GAME_STATE.aiPuntoObjetivo, loboPos);
-                        dirAlBosque.y = 0;
-                        if (dirAlBosque.length() > 1.0) {
-                            dirAlBosque.normalize();
-                            loboPos.x += dirAlBosque.x * CONFIG.wwVelAcecho * dt;
-                            loboPos.z += dirAlBosque.z * CONFIG.wwVelAcecho * dt;
-                            ENT.wwRig.object3D.rotation.y = Math.atan2(dirAlBosque.x, dirAlBosque.z);
+                        V_POOL.dirAlBosque.subVectors(GAME_STATE.aiPuntoObjetivo, loboPos);
+                        V_POOL.dirAlBosque.y = 0;
+                        if (V_POOL.dirAlBosque.length() > 1.0) {
+                            V_POOL.dirAlBosque.normalize();
+                            loboPos.x += V_POOL.dirAlBosque.x * CONFIG.wwVelAcecho * dt;
+                            loboPos.z += V_POOL.dirAlBosque.z * CONFIG.wwVelAcecho * dt;
+                            ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirAlBosque.x, V_POOL.dirAlBosque.z);
                         } else {
                             GAME_STATE.loboEstado = 'BOSQUE';
                             GAME_STATE.aiTimer = 0;
@@ -615,15 +644,15 @@
                     GAME_STATE.aiTimer = 0; 
                     
                     if (distJugadorLobo < CONFIG.distDeteccionLobo) {
-                        let dirHaciaTi = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
-                        dirHaciaTi.y = 0;
-                        dirHaciaTi.normalize();
+                        V_POOL.dirHaciaTi.subVectors(GAME_STATE.pos, loboPos);
+                        V_POOL.dirHaciaTi.y = 0;
+                        V_POOL.dirHaciaTi.normalize();
 
                         let velocidadLobo = (distJugadorLobo < CONFIG.distAtaqueLobo) ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
                         
-                        loboPos.x += dirHaciaTi.x * velocidadLobo * dt;
-                        loboPos.z += dirHaciaTi.z * velocidadLobo * dt;
-                        ENT.wwRig.object3D.rotation.y = Math.atan2(dirHaciaTi.x, dirHaciaTi.z);
+                        loboPos.x += V_POOL.dirHaciaTi.x * velocidadLobo * dt;
+                        loboPos.z += V_POOL.dirHaciaTi.z * velocidadLobo * dt;
+                        ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirHaciaTi.x, V_POOL.dirHaciaTi.z);
 
                         if (distJugadorLobo < 1.6) {
                             GAME_STATE.loboEstado = 'FORCEJEO';
