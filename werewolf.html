@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v10.5 (Production Audio & Load Fix)</title>
+    <title>ARK - Werewolf Nightmare v10.6 (Full Mobile Audio & Height Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -229,13 +229,34 @@
         Pistas.enojado.loop = true;
         Pistas.enojado.volume = 0.0;
 
+        // PUENTE DE CONTROL DE VOLUMEN MULTIPLATAFORMA (Web Audio API para iOS/Móvil)
+        let audioCtx = null;
+        const PistasGains = {};
+
         const AudioController = {
             reproducirMusicaFondo() {
+                try {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        Object.keys(Pistas).forEach(key => {
+                            const source = audioCtx.createMediaElementSource(Pistas[key]);
+                            const gainNode = audioCtx.createGain();
+                            source.connect(gainNode);
+                            gainNode.connect(audioCtx.destination);
+                            PistasGains[key] = gainNode;
+                            gainNode.gain.setValueAtTime(Pistas[key].volume, audioCtx.currentTime);
+                        });
+                    }
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                } catch(err) { console.log("Web Audio inicializado con restricciones."); }
+
                 Pistas.limbo.play().catch(e => console.log("Audio en espera."));
                 Pistas.stalk.play().catch(() => {});
                 Pistas.enojado.play().catch(() => {});
             },
-            // CORRECCIÓN INCONSISTENCIA 1: Filtrado acústico por distancia real estricta
+            // CORRECCIÓN AUDIO: Muteo radical si estás lejos o en gracia usando nodos de hardware
             actualizarProximidad(estado, distancia) {
                 if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35) {
                     this.fadeTo(Pistas.enojado, 0.0);
@@ -244,7 +265,7 @@
                 }
                 
                 if (estado === 'MERODEANDO_CASA') {
-                    this.fadeTo(Pistas.stalk, 0.35); // Eco amortiguado tras cristales
+                    this.fadeTo(Pistas.stalk, 0.35);
                     this.fadeTo(Pistas.enojado, 0.10);
                     return;
                 }
@@ -253,12 +274,10 @@
                     this.fadeTo(Pistas.enojado, 0.95);
                     this.fadeTo(Pistas.stalk, 0.90);
                 } else if (estado === 'ACECHO') {
-                    // El lobo te rastrea en el bosque, pero solo suena si rompe el umbral de cercanía
                     if (distancia < 30) {
                         let factorStalk = Math.max(0, Math.min(0.85, (30 - distancia) / 18));
                         this.fadeTo(Pistas.stalk, factorStalk);
                         
-                        // El gruñido pesado solo entra si está a tiro de piedra
                         if (distancia < 15) {
                             let factorEnojado = Math.max(0, Math.min(0.65, (15 - distancia) / 10));
                             this.fadeTo(Pistas.enojado, factorEnojado);
@@ -278,14 +297,29 @@
                 } else {
                     audio.volume = targetVolume;
                 }
+                
+                // Forzar el volumen real en el hardware móvil usando el nodo Web Audio
+                try {
+                    const key = Object.keys(Pistas).find(k => Pistas[k] === audio);
+                    if (key && PistasGains[key] && audioCtx) {
+                        PistasGains[key].gain.setValueAtTime(audio.volume, audioCtx.currentTime);
+                    }
+                } catch(e){}
             },
             dispararAullidoMinuto() {
                 Pistas.aullido.currentTime = 0;
                 Pistas.aullido.volume = 0.95;
+                try {
+                    const key = Object.keys(Pistas).find(k => Pistas[k] === Pistas.aullido);
+                    if (key && PistasGains[key] && audioCtx) PistasGains[key].gain.setValueAtTime(0.95, audioCtx.currentTime);
+                } catch(e){}
                 Pistas.aullido.play().catch(() => {});
             },
             detenerTodo() {
                 Object.values(Pistas).forEach(p => { try { p.pause(); } catch(e){} });
+                try {
+                    Object.keys(PistasGains).forEach(k => PistasGains[k].gain.setValueAtTime(0, audioCtx.currentTime));
+                } catch(e){}
             }
         };
 
@@ -305,13 +339,13 @@
 
         const GAME_STATE = {
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
-            introCompletada: false, // Blindaje anti-jumpscare durante la pantalla negra
+            introCompletada: false,
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
             esInterior: false, camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
-            tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0 // Ampliado a 10s seguros
+            tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
 
         const CASA_BOUNDS = { xMin: -5.5, xMax: 5.5, zMin: -6.0, zMax: 2.5 };
@@ -385,7 +419,6 @@
                     entornoMeshCache = ENT.entorno.getObject3D('mesh');
                 }
                 
-                // CORRECCIÓN INCONSISTENCIA 2: Cierre forzado de físicas hasta fin de transición visual
                 GAME_STATE.introCompletada = false; 
                 GAME_STATE.juegoActivo = true;
                 GAME_STATE.lastFrameTime = performance.now();
@@ -395,7 +428,7 @@
                 
                 setTimeout(() => {
                     GAME_STATE.introCompletada = true;
-                    GAME_STATE.lastFrameTime = performance.now(); // Resetear Delta para ignorar tirones de carga
+                    GAME_STATE.lastFrameTime = performance.now();
                 }, 1200);
                 
                 requestAnimationFrame(engineLoop);
@@ -545,7 +578,7 @@
 
                 if (estabaDentro) {
                     if (siguienteZ > CASA_BOUNDS.zMax) { if (siguienteX < -1.2 || siguienteX > 1.2) siguienteZ = CASA_BOUNDS.zMax; }
-                    siguienteX = Math.max(CASA_BOUNDS.xMin + 0.25, Math.min(CASA_BOUNDS.xMax - 0.25, siguienteX));
+                    siguienteX = Math.max(CASA_BOUNDS.xMin + 0.25, Math.min(CASA_BOUNDMax - 0.25, siguienteX));
                     siguienteZ = Math.max(CASA_BOUNDS.zMin + 0.25, Math.min(CASA_BOUNDS.zMax + 0.45, siguienteZ));
 
                     if (siguienteX > 1.5 && siguienteX < 3.5 && siguienteZ > -4.5 && siguienteZ < -1.0) {
@@ -558,7 +591,8 @@
                         if (GAME_STATE.pos.z > CASA_BOUNDS.zMax && siguienteX >= -1.2 && siguienteX <= 1.2) {} 
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
-                    if (ejecutarRaycast && entornoMeshCache && GAME_STATE.inputMoviendo) {
+                    // CORRECCIÓN PANTALLA NEGRA: Eliminada la compuerta de movimiento para evitar spawn subterráneo inicial
+                    if (ejecutarRaycast && entornoMeshCache) { 
                         V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
                         let sueloEncontrado = false;
@@ -600,18 +634,16 @@
                 let loboPos = ENT.wwRig.object3D.position;
                 let distJugadorLobo = GAME_STATE.pos.distanceTo(loboPos);
 
-                // CORRECCIÓN INCONSISTENCIA 2: Cierre estricto de IA de ataque si la carga o la gracia están activas
                 if (!GAME_STATE.introCompletada || GAME_STATE.tiempoGraciaInicial > 0) {
                     if (GAME_STATE.tiempoGraciaInicial > 0 && GAME_STATE.introCompletada) {
                         GAME_STATE.tiempoGraciaInicial -= dt;
                     }
                     GAME_STATE.loboEstado = 'GRACIA_INICIAL';
-                    loboPos.set(60, 0, -60); // Anclado firmemente en el extremo del mapa
-                    UI.alert.textContent = "👁️ PREPARANDO SUEÑO... CORRE A REFUGO";
+                    loboPos.set(60, 0, -60); 
+                    UI.alert.textContent = "👁️ PREPARANDO SUEÑO... CORRE A REFUGIO";
                     UI.damage.className = '';
                     GAME_STATE.tiempoContactoFisico = 0;
                     
-                    // Asegurar mutear ruidos de peligro durante la carga
                     AudioController.fadeTo(Pistas.enojado, 0.0);
                     AudioController.fadeTo(Pistas.stalk, 0.0);
                 } else if (GAME_STATE.esInterior) {
