@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v12.0 (Ultimate Physics Fixed)</title>
+    <title>ARK - Werewolf Nightmare v13.0 (Performance & Audio Fixed)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -214,6 +214,7 @@
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
         let entornoMeshCache = null;
+        let sueloMeshCache = []; // CACHE OPTIMIZADA: Solo mallas transitables
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -244,12 +245,22 @@
                             source.connect(gainNode);
                             gainNode.connect(audioCtx.destination);
                             PistasGains[key] = gainNode;
-                            gainNode.gain.setValueAtTime(Pistas[key].customVol, audioCtx.currentTime);
                         });
                     }
                     if (audioCtx && audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
+
+                    // FIJADO: Forzar restauración de volúmenes de los nodos tras llamadas de reset/limpieza
+                    Object.keys(Pistas).forEach(key => {
+                        if (PistasGains[key]) {
+                            let volOriginal = (key === 'limbo') ? 0.45 : 0.0;
+                            Pistas[key].customVol = volOriginal;
+                            PistasGains[key].gain.setValueAtTime(volOriginal, audioCtx.currentTime);
+                            Pistas[key].volume = volOriginal;
+                        }
+                    });
+
                 } catch(err) { console.log("Web Audio inicializado."); }
 
                 Pistas.limbo.play().catch(e => console.log("Audio en espera."));
@@ -321,7 +332,9 @@
             detenerTodo() {
                 Object.values(Pistas).forEach(p => { try { p.pause(); } catch(e){} });
                 try {
-                    Object.keys(PistasGains).forEach(k => PistasGains[k].gain.setValueAtTime(0, audioCtx.currentTime));
+                    Object.keys(PistasGains).forEach(k => {
+                        if(audioCtx) PistasGains[k].gain.setValueAtTime(0, audioCtx.currentTime);
+                    });
                 } catch(e){}
             }
         };
@@ -379,6 +392,32 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
+        // FILTRADO DE ENTRAMADO ÚNICO: Extrae solo los elementos que no sean follaje/árboles
+        function extraerMallasSuelo(objetoRaiz) {
+            if (!objetoRaiz) return;
+            sueloMeshCache = [];
+            objetoRaiz.traverse(child => {
+                if (child.isMesh) {
+                    const objName = (child.name || "").toLowerCase();
+                    const parentName = (child.parent && child.parent.name || "").toLowerCase();
+                    
+                    // Si el nombre contiene algo sospechoso de ser follaje denso, lo dejamos fuera de la física vertical
+                    if (objName.includes("tree") || objName.includes("arbol") || 
+                        objName.includes("leave") || objName.includes("hoja") || 
+                        objName.includes("trunk") || objName.includes("branch") || 
+                        objName.includes("foliage") || objName.includes("rama") ||
+                        objName.includes("wood") || objName.includes("log") ||
+                        objName.includes("bush") || objName.includes("arbusto") ||
+                        parentName.includes("tree") || parentName.includes("arbol") ||
+                        parentName.includes("foliage") || parentName.includes("trunk") ||
+                        parentName.includes("branch")) {
+                        return; // Omitir e ignorar por completo
+                    }
+                    sueloMeshCache.push(child);
+                }
+            });
+        }
+
         function initLoader() {
             const assets = document.querySelectorAll('a-asset-item');
             GAME_STATE.totalAssets = assets.length;
@@ -408,6 +447,7 @@
             if (ENT.entorno) {
                 ENT.entorno.addEventListener('model-loaded', () => {
                     entornoMeshCache = ENT.entorno.getObject3D('mesh');
+                    extraerMallasSuelo(entornoMeshCache);
                 });
             }
             
@@ -420,6 +460,7 @@
                 
                 if(!entornoMeshCache && ENT.entorno) {
                     entornoMeshCache = ENT.entorno.getObject3D('mesh');
+                    extraerMallasSuelo(entornoMeshCache);
                 }
                 
                 GAME_STATE.introCompletada = false; 
@@ -595,39 +636,21 @@
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
                     
-                    // RASTREO VERTICAL LOCALIZADO (CERO INTERFERENCIA CON ÁRBOLES)
-                    if (ejecutarRaycast && entornoMeshCache) { 
-                        // Lanzamos el rayo sólo 3 metros arriba del jugador actual para ignorar copas/techos altos automáticamente
+                    // FIJADO: ALTO RENDIMIENTO EXCLUSIVO CONTRA LA LISTA PRE-FILTRADA DE SUELO (EVITA SOBRECALENTAMIENTO)
+                    if (ejecutarRaycast && sueloMeshCache.length > 0) { 
                         V_POOL.rayOrigin.set(siguienteX, GAME_STATE.pos.y + 3.0, siguienteZ); 
                         RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                        const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
+                        
+                        // Buscamos colisiones directas sin recursión profunda (false) para ahorrar ciclos de GPU/CPU
+                        const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                         
                         let mejorAltura = null;
                         let minDiff = Infinity;
                         
                         for (let i = 0; i < colisiones.length; i++) {
                             const hit = colisiones[i];
-                            
-                            // Forzar que sea una cara orientada hacia arriba
-                            if (!hit.face || hit.face.normal.y < 0.5) continue;
-                            
-                            // Escaneo de texto con herencia de nodo padre (Blindaje contra agrupaciones GLB)
-                            const objName = (hit.object.name || "").toLowerCase();
-                            const parentName = (hit.object.parent && hit.object.parent.name || "").toLowerCase();
-                            
-                            if (objName.includes("tree") || objName.includes("arbol") || 
-                                objName.includes("leave") || objName.includes("hoja") || 
-                                objName.includes("trunk") || objName.includes("branch") || 
-                                objName.includes("foliage") || objName.includes("rama") ||
-                                objName.includes("wood") || objName.includes("log") ||
-                                objName.includes("bush") || objName.includes("arbusto") ||
-                                parentName.includes("tree") || parentName.includes("arbol") ||
-                                parentName.includes("foliage") || parentName.includes("trunk") ||
-                                parentName.includes("branch")) {
-                                continue;
-                            }
+                            if (!hit.face || hit.face.normal.y < 0.5) continue; // Descartar paredes verticales rígidas
 
-                            // Elegimos el impacto que tenga continuidad con la altura actual de nuestros pies
                             let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
                             if (diff < minDiff) {
                                 minDiff = diff;
@@ -635,16 +658,12 @@
                             }
                         }
                         
-                        // Aplicar nueva altura si supera los filtros de paso
                         if (mejorAltura !== null) {
                             let escalonArriba = mejorAltura - GAME_STATE.pos.y;
-                            // Evita trepar paredes verticales o raíces deformes altas de golpe
                             if (escalonArriba < 0.5) {
                                 GAME_STATE.cachedAlturaSuelo = mejorAltura;
                             }
                         }
-                        // Fallback: Si mejorAltura es null (bajo follaje denso sin suelo directo),
-                        // mantiene la última cachedAlturaSuelo calculada fija para evitar colapsar a 0.
                     }
                 }
 
