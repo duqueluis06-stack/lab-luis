@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v13.0 (Performance & Audio Fixed)</title>
+    <title>ARK - Werewolf Nightmare v14.0 (Audio & Safehouse Fixed)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -214,7 +214,7 @@
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
         let entornoMeshCache = null;
-        let sueloMeshCache = []; // CACHE OPTIMIZADA: Solo mallas transitables
+        let sueloMeshCache = []; 
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -235,7 +235,7 @@
         const PistasGains = {};
 
         const AudioController = {
-            reproducirMusicaFondo() {
+            async reproducirMusicaFondo() {
                 try {
                     if (!audioCtx) {
                         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -245,65 +245,80 @@
                             source.connect(gainNode);
                             gainNode.connect(audioCtx.destination);
                             PistasGains[key] = gainNode;
+                            
+                            // Forzar volumen nativo al máximo y controlarlo puramente con el GainNode de Web Audio
+                            Pistas[key].volume = 1.0; 
+                            gainNode.gain.setValueAtTime(Pistas[key].customVol, audioCtx.currentTime);
                         });
                     }
                     if (audioCtx && audioCtx.state === 'suspended') {
-                        audioCtx.resume();
+                        await audioCtx.resume();
                     }
 
-                    // FIJADO: Forzar restauración de volúmenes de los nodos tras llamadas de reset/limpieza
+                    // 🚨 FIJADO PARA iOS: El "Bautismo de Audio". Forzamos play/pause de todas las pistas 
+                    // bajo la interacción del usuario para desbloquear los canales del iPhone permanentemente.
+                    for (let key of Object.keys(Pistas)) {
+                        try {
+                            await Pistas[key].play();
+                            if (key !== 'limbo' && key !== 'stalk' && key !== 'enojado') {
+                                Pistas[key].pause();
+                                Pistas[key].currentTime = 0;
+                            }
+                        } catch(e) { console.log("Bautismo de canal diferido para: " + key); }
+                    }
+
+                    // Restauración estricta de volúmenes iniciales en los nodos de ganancia
                     Object.keys(Pistas).forEach(key => {
                         if (PistasGains[key]) {
-                            let volOriginal = (key === 'limbo') ? 0.45 : 0.0;
+                            let volOriginal = (key === 'limbo') ? 0.45 : ((key === 'aullido') ? 0.95 : 0.0);
                             Pistas[key].customVol = volOriginal;
                             PistasGains[key].gain.setValueAtTime(volOriginal, audioCtx.currentTime);
-                            Pistas[key].volume = volOriginal;
                         }
                     });
 
-                } catch(err) { console.log("Web Audio inicializado."); }
-
-                Pistas.limbo.play().catch(e => console.log("Audio en espera."));
-                Pistas.stalk.play().catch(() => {});
-                Pistas.enojado.play().catch(() => {});
+                } catch(err) { console.warn("Error inicializando Web Audio Engine:", err); }
             },
             actualizarProximidad(estado, distancia) {
-                if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35) {
-                    this.fadeTo(Pistas.enojado, 0.0);
-                    this.fadeTo(Pistas.stalk, 0.0);
+                if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35 || GAME_STATE.esInterior) {
+                    this.fadeTo('enojado', 0.0);
+                    this.fadeTo('stalk', 0.0);
                     return;
                 }
                 
                 if (estado === 'MERODEANDO_CASA') {
-                    this.fadeTo(Pistas.stalk, 0.35);
-                    this.fadeTo(Pistas.enojado, 0.10);
+                    this.fadeTo('stalk', 0.35);
+                    this.fadeTo('enojado', 0.10);
                     return;
                 }
 
                 if (estado === 'FORCEJEO' || estado === 'ATAQUE') {
-                    this.fadeTo(Pistas.enojado, 0.95);
-                    this.fadeTo(Pistas.stalk, 0.90);
+                    this.fadeTo('enojado', 0.95);
+                    this.fadeTo('stalk', 0.90);
                 } else if (estado === 'ACECHO') {
                     if (distancia < 30) {
                         let factorStalk = Math.max(0, Math.min(0.85, (30 - distancia) / 18));
-                        this.fadeTo(Pistas.stalk, factorStalk);
+                        this.fadeTo('stalk', factorStalk);
                         
                         if (distancia < 15) {
                             let factorEnojado = Math.max(0, Math.min(0.65, (15 - distancia) / 10));
-                            this.fadeTo(Pistas.enojado, factorEnojado);
+                            this.fadeTo('enojado', factorEnojado);
                         } else {
-                            this.fadeTo(Pistas.enojado, 0.0);
+                            this.fadeTo('enojado', 0.0);
                         }
                     } else {
-                        this.fadeTo(Pistas.enojado, 0.0);
-                        this.fadeTo(Pistas.stalk, 0.0);
+                        this.fadeTo('enojado', 0.0);
+                        this.fadeTo('stalk', 0.0);
                     }
                 }
             },
-            fadeTo(audio, targetVolume) {
+            fadeTo(key, targetVolume) {
+                const audio = Pistas[key];
+                const gainNode = PistasGains[key];
+                if (!audio || !gainNode) return;
+
                 let diff = targetVolume - audio.customVol;
                 if (Math.abs(diff) > 0.01) {
-                    audio.customVol += Math.sign(diff) * 0.05;
+                    audio.customVol += Math.sign(diff) * 0.06;
                     if ((diff > 0 && audio.customVol > targetVolume) || (diff < 0 && audio.customVol < targetVolume)) {
                         audio.customVol = targetVolume;
                     }
@@ -311,23 +326,21 @@
                     audio.customVol = targetVolume;
                 }
                 
-                try { audio.volume = audio.customVol; } catch(e){}
-                
                 try {
-                    const key = Object.keys(Pistas).find(k => Pistas[k] === audio);
-                    if (key && PistasGains[key] && audioCtx) {
-                        PistasGains[key].gain.setValueAtTime(audio.customVol, audioCtx.currentTime);
+                    if (audioCtx) {
+                        gainNode.gain.setValueAtTime(audio.customVol, audioCtx.currentTime);
                     }
                 } catch(e){}
             },
             dispararAullidoMinuto() {
-                Pistas.aullido.currentTime = 0;
-                Pistas.aullido.customVol = 0.95;
                 try {
-                    const key = Object.keys(Pistas).find(k => Pistas[k] === Pistas.aullido);
-                    if (key && PistasGains[key] && audioCtx) PistasGains[key].gain.setValueAtTime(0.95, audioCtx.currentTime);
+                    Pistas.aullido.currentTime = 0;
+                    Pistas.aullido.customVol = 0.95;
+                    if (PistasGains['aullido'] && audioCtx) {
+                        PistasGains['aullido'].gain.setValueAtTime(0.95, audioCtx.currentTime);
+                    }
+                    Pistas.aullido.play().catch(e => console.log("Fallo reproducción diferida de aullido:", e));
                 } catch(e){}
-                Pistas.aullido.play().catch(() => {});
             },
             detenerTodo() {
                 Object.values(Pistas).forEach(p => { try { p.pause(); } catch(e){} });
@@ -392,7 +405,6 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        // FILTRADO DE ENTRAMADO ÚNICO: Extrae solo los elementos que no sean follaje/árboles
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -401,7 +413,6 @@
                     const objName = (child.name || "").toLowerCase();
                     const parentName = (child.parent && child.parent.name || "").toLowerCase();
                     
-                    // Si el nombre contiene algo sospechoso de ser follaje denso, lo dejamos fuera de la física vertical
                     if (objName.includes("tree") || objName.includes("arbol") || 
                         objName.includes("leave") || objName.includes("hoja") || 
                         objName.includes("trunk") || objName.includes("branch") || 
@@ -411,7 +422,7 @@
                         parentName.includes("tree") || parentName.includes("arbol") ||
                         parentName.includes("foliage") || parentName.includes("trunk") ||
                         parentName.includes("branch")) {
-                        return; // Omitir e ignorar por completo
+                        return; 
                     }
                     sueloMeshCache.push(child);
                 }
@@ -549,7 +560,8 @@
 
             if (GAME_STATE.esInterior) {
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 1.1, -0.3);
+                    // 🚨 FIJADO: Altura de la cámara en primera persona rebajada de 1.1 a 0.75 para mayor inmersión
+                    camara.object3D.position.set(0, 0.75, -0.3);
                     camara.setAttribute('camera', 'fov', 48);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
@@ -569,6 +581,7 @@
         }
 
         function triggerJumpscare() {
+            // 🚨 SEGURIDAD INVIOLABLE: Si esInterior es true, se aborta instantáneamente cualquier ataque fatal
             if (GAME_STATE.isDead || !GAME_STATE.introCompletada || GAME_STATE.tiempoGraciaInicial > 0 || GAME_STATE.esInterior) return; 
             
             GAME_STATE.isDead = true;
@@ -595,6 +608,7 @@
                 GAME_STATE.frameTicks++;
                 const ejecutarRaycast = (GAME_STATE.frameTicks % 2 === 0);
 
+                // 🚨 FIJADO: Temporizador estricto de aullidos cada 60 segundos (60000ms)
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
                     GAME_STATE.tiempoUltimoAullido = time;
@@ -636,33 +650,21 @@
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
                     
-                    // FIJADO: ALTO RENDIMIENTO EXCLUSIVO CONTRA LA LISTA PRE-FILTRADA DE SUELO (EVITA SOBRECALENTAMIENTO)
                     if (ejecutarRaycast && sueloMeshCache.length > 0) { 
                         V_POOL.rayOrigin.set(siguienteX, GAME_STATE.pos.y + 3.0, siguienteZ); 
                         RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         
-                        // Buscamos colisiones directas sin recursión profunda (false) para ahorrar ciclos de GPU/CPU
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                        
-                        let mejorAltura = null;
-                        let minDiff = Infinity;
+                        let mejorAltura = null; let minDiff = Infinity;
                         
                         for (let i = 0; i < colisiones.length; i++) {
                             const hit = colisiones[i];
-                            if (!hit.face || hit.face.normal.y < 0.5) continue; // Descartar paredes verticales rígidas
-
+                            if (!hit.face || hit.face.normal.y < 0.5) continue;
                             let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
-                            if (diff < minDiff) {
-                                minDiff = diff;
-                                mejorAltura = hit.point.y;
-                            }
+                            if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
                         }
-                        
-                        if (mejorAltura !== null) {
-                            let escalonArriba = mejorAltura - GAME_STATE.pos.y;
-                            if (escalonArriba < 0.5) {
-                                GAME_STATE.cachedAlturaSuelo = mejorAltura;
-                            }
+                        if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 0.5) {
+                            GAME_STATE.cachedAlturaSuelo = mejorAltura;
                         }
                     }
                 }
@@ -706,9 +708,10 @@
                     UI.damage.className = '';
                     GAME_STATE.tiempoContactoFisico = 0;
                     
-                    AudioController.fadeTo(Pistas.enojado, 0.0);
-                    AudioController.fadeTo(Pistas.stalk, 0.0);
+                    AudioController.fadeTo('enojado', 0.0);
+                    AudioController.fadeTo('stalk', 0.0);
                 } else if (GAME_STATE.esInterior) {
+                    // 🚨 INMUNIDAD TOTAL EN INTERIORES ENFORZADA EN CADA FRAME
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
                     
@@ -744,6 +747,7 @@
                         } else { GAME_STATE.loboEstado = 'BOSQUE'; GAME_STATE.aiTimer = 0; }
                     }
                 } else {
+                    // Lógica Exterior Activa
                     GAME_STATE.aiTimer = 0;
                     if (distJugadorLobo >= CONFIG.distDeteccionLobo) {
                         GAME_STATE.loboEstado = 'BOSQUE';
