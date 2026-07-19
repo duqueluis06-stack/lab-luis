@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v9.8 (Final Spec Build)</title>
+    <title>ARK - Werewolf Nightmare v10.0 (Final Stable Physics)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -479,7 +479,7 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 3 === 0);
+                const ejecutarRaycast = (GAME_STATE.frameTicks % 2 === 0);
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -500,9 +500,9 @@
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                const enPerimetroCasa = (siguienteX, siguienteZ) => {
-                    return (siguienteX > CASA_LIMITS.xMin && siguienteX < CASA_LIMITS.xMax && 
-                            siguienteZ > CASA_LIMITS.zMin && siguienteZ < CASA_LIMITS.zMax);
+                const enPerimetroCasa = (x, z) => {
+                    return (x > CASA_LIMITS.xMin && x < CASA_LIMITS.xMax && 
+                            z > CASA_LIMITS.zMin && z < CASA_LIMITS.zMax);
                 };
 
                 let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
@@ -514,56 +514,61 @@
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
                 const estabaDentro = enPerimetroCasa(GAME_STATE.pos.x, GAME_STATE.pos.z);
-                const estaraDentro = enPerimetroCasa(siguienteX, siguienteZ);
 
+                // Sistema de Colisión Perimetral Blindado para Interiores
                 if (estabaDentro) {
                     if (siguienteZ > CASA_LIMITS.zMax) {
                         if (siguienteX < -1.0 || siguienteX > 1.0) {
-                            siguienteZ = CASA_LIMITS.zMax;
+                            siguienteZ = CASA_LIMITS.zMax; // Muro frontal estructural bloquea
                         }
                     }
                     siguienteX = Math.max(CASA_LIMITS.xMin + 0.25, Math.min(CASA_LIMITS.xMax - 0.25, siguienteX));
                     siguienteZ = Math.max(CASA_LIMITS.zMin + 0.25, Math.min(CASA_LIMITS.zMax + 0.45, siguienteZ));
 
+                    // Lógica matemática absoluta para las escaleras (Evita subir al techo por completo)
                     if (siguienteX > CASA_LIMITS.escaleraXMin && siguienteX < CASA_LIMITS.escaleraXMax &&
                         siguienteZ > CASA_LIMITS.escaleraZMin && siguienteZ < CASA_LIMITS.escaleraZMax) {
                         let pctSubida = (CASA_LIMITS.escaleraZMax - siguienteZ) / (CASA_LIMITS.escaleraZMax - CASA_LIMITS.escaleraZMin);
                         GAME_STATE.cachedAlturaSuelo = pctSubida * 3.0; 
                     } else if (siguienteZ <= CASA_LIMITS.escaleraZMin && siguienteX > CASA_LIMITS.escaleraXMin) {
-                        GAME_STATE.cachedAlturaSuelo = 3.0; 
+                        GAME_STATE.cachedAlturaSuelo = 3.0; // Piso 2 fijo
+                    } else if (GAME_STATE.pos.y > 1.5) {
+                        GAME_STATE.cachedAlturaSuelo = 3.0; // Techo matemático máximo bloqueado en 3m
                     } else {
-                        GAME_STATE.cachedAlturaSuelo = 0; 
+                        GAME_STATE.cachedAlturaSuelo = 0.0; // Planta baja fija
                     }
                 } else {
-                    if (estaraDentro) {
-                        if (GAME_STATE.pos.z > CASA_LIMITS.zMax) {
-                            if (siguienteX < -1.0 || siguienteX > 1.0) {
-                                siguienteZ = CASA_LIMITS.zMax + 0.1;
-                            }
+                    // Si está fuera de la casa, no puede entrar atravesando paredes físicas
+                    if (enPerimetroCasa(siguienteX, siguienteZ)) {
+                        if (GAME_STATE.pos.z > CASA_LIMITS.zMax && siguienteX >= -1.0 && siguienteX <= 1.0) {
+                            // Entra legal por la puerta frontal
                         } else {
                             siguienteX = GAME_STATE.pos.x;
                             siguienteZ = GAME_STATE.pos.z;
                         }
                     }
 
-                    // Corrección Bosque por Normales: Filtrado estricto para evitar que los árboles bloqueen o suban la cámara
+                    // Raycast Dinámico del Bosque desde el Cielo (Ignora copas de árboles y tejados altos)
                     if (ejecutarRaycast && entornoMeshCache && GAME_STATE.inputMoviendo) {
-                        V_POOL.rayOrigin.set(siguienteX, GAME_STATE.pos.y + 4.0, siguienteZ);
+                        V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); // Rayo absoluto vertical descendente
                         RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
+                        let sueloEncontrado = false;
+                        
                         if (colisiones.length > 0) {
                             for (let i = 0; i < colisiones.length; i++) {
                                 const hit = colisiones[i];
-                                // hit.face.normal.y > 0.7 filtra polígonos eminentemente horizontales (suelo) e ignora ramas/troncos verticales
-                                if (hit.face && hit.face.normal.y > 0.7) {
-                                    let validY = hit.point.y;
-                                    if (!isNaN(validY) && Math.abs(validY - GAME_STATE.pos.y) < 1.5) {
-                                        GAME_STATE.cachedAlturaSuelo = validY;
-                                        break; 
-                                    }
+                                // Filtra polígonos planos de tierra (<2.2m) e ignora troncos o copas de árboles
+                                if (hit.face && hit.face.normal.y > 0.85 && hit.point.y < 2.2) {
+                                    GAME_STATE.cachedAlturaSuelo = hit.point.y;
+                                    sueloEncontrado = true;
+                                    break;
                                 }
                             }
+                        }
+                        if (!sueloEncontrado) {
+                            GAME_STATE.cachedAlturaSuelo = 0.0; // Nivel de la tierra base por defecto
                         }
                     }
                 }
@@ -575,7 +580,9 @@
                     GAME_STATE.pos.z = siguienteZ;
                 }
 
-                GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * 0.25;
+                // Caída libre/Gravedad de retorno acelerada si el avatar intenta levitar
+                let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
+                GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
                 if (GAME_STATE.inputMoviendo) {
@@ -588,19 +595,17 @@
                     switchMesh('atento');
                 }
 
-                // Corrección Óptica y Perspectiva Cinematográfica (Ajuste Dinámico en Ventanas de la Cocina)
+                // Cámara Óptica Adaptativa en Interiores (Efecto Lupa/Zoom en Cocina)
                 const camaraElemento = document.getElementById('main-camera');
                 if (camaraElemento) {
                     if (GAME_STATE.esInterior) {
-                        // Modo Espía Interiores: Cámara baja a 1.1m (ojos a nivel de ventana) y zoom cerrado (FOV 48) para máxima visibilidad externa
                         if (camaraElemento.getAttribute('position').z !== -0.3) {
-                            camaraElemento.setAttribute('position', '0 1.1 -0.3'); 
-                            camaraElemento.setAttribute('camera', 'fov: 48; near: 0.1; far: 300;');
+                            camaraElemento.setAttribute('position', '0 1.1 -0.3'); // Altura de ojos para la ventana
+                            camaraElemento.setAttribute('camera', 'fov: 48; near: 0.1; far: 300;'); // Zoom de expectativa
                         }
                     } else {
-                        // Reset Exterior: Vista estándar en tercera persona (FOV 70)
                         if (camaraElemento.getAttribute('position').z !== 2.2) {
-                            camaraElemento.setAttribute('position', '0 1.5 2.2');
+                            camaraElemento.setAttribute('position', '0 1.5 2.2'); // Reset exterior a tercera persona
                             camaraElemento.setAttribute('camera', 'fov: 70; near: 0.1; far: 300;');
                         }
                     }
