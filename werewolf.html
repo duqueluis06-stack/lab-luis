@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v10.6 (Full Mobile Audio & Height Fix)</title>
+    <title>ARK - Werewolf Nightmare v10.7 (Audio Separation & House Sanctuary Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -223,13 +223,13 @@
         };
 
         Pistas.limbo.loop = true;
-        Pistas.limbo.volume = 0.45;
+        Pistas.limbo.customVol = 0.45;
         Pistas.stalk.loop = true;
-        Pistas.stalk.volume = 0.0;
+        Pistas.stalk.customVol = 0.0;
         Pistas.enojado.loop = true;
-        Pistas.enojado.volume = 0.0;
+        Pistas.enojado.customVol = 0.0;
+        Pistas.aullido.customVol = 0.95;
 
-        // PUENTE DE CONTROL DE VOLUMEN MULTIPLATAFORMA (Web Audio API para iOS/Móvil)
         let audioCtx = null;
         const PistasGains = {};
 
@@ -244,19 +244,19 @@
                             source.connect(gainNode);
                             gainNode.connect(audioCtx.destination);
                             PistasGains[key] = gainNode;
-                            gainNode.gain.setValueAtTime(Pistas[key].volume, audioCtx.currentTime);
+                            gainNode.gain.setValueAtTime(Pistas[key].customVol, audioCtx.currentTime);
                         });
                     }
                     if (audioCtx && audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
-                } catch(err) { console.log("Web Audio inicializado con restricciones."); }
+                } catch(err) { console.log("Web Audio inicializado."); }
 
                 Pistas.limbo.play().catch(e => console.log("Audio en espera."));
                 Pistas.stalk.play().catch(() => {});
                 Pistas.enojado.play().catch(() => {});
             },
-            // CORRECCIÓN AUDIO: Muteo radical si estás lejos o en gracia usando nodos de hardware
+            // CORRECCIÓN AUDIO: Muteo real y radical usando el customVol para saltear el bug de lectura de iOS
             actualizarProximidad(estado, distancia) {
                 if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35) {
                     this.fadeTo(Pistas.enojado, 0.0);
@@ -291,24 +291,29 @@
                 }
             },
             fadeTo(audio, targetVolume) {
-                let diff = targetVolume - audio.volume;
-                if (Math.abs(diff) > 0.05) {
-                    audio.volume += Math.sign(diff) * 0.05;
+                let diff = targetVolume - audio.customVol;
+                if (Math.abs(diff) > 0.01) {
+                    audio.customVol += Math.sign(diff) * 0.05;
+                    if ((diff > 0 && audio.customVol > targetVolume) || (diff < 0 && audio.customVol < targetVolume)) {
+                        audio.customVol = targetVolume;
+                    }
                 } else {
-                    audio.volume = targetVolume;
+                    audio.customVol = targetVolume;
                 }
                 
-                // Forzar el volumen real en el hardware móvil usando el nodo Web Audio
+                try { audio.volume = audio.customVol; } catch(e){}
+                
+                // Sincronizar directamente con el chip de sonido (Web Audio Node) para móviles
                 try {
                     const key = Object.keys(Pistas).find(k => Pistas[k] === audio);
                     if (key && PistasGains[key] && audioCtx) {
-                        PistasGains[key].gain.setValueAtTime(audio.volume, audioCtx.currentTime);
+                        PistasGains[key].gain.setValueAtTime(audio.customVol, audioCtx.currentTime);
                     }
                 } catch(e){}
             },
             dispararAullidoMinuto() {
                 Pistas.aullido.currentTime = 0;
-                Pistas.aullido.volume = 0.95;
+                Pistas.aullido.customVol = 0.95;
                 try {
                     const key = Object.keys(Pistas).find(k => Pistas[k] === Pistas.aullido);
                     if (key && PistasGains[key] && audioCtx) PistasGains[key].gain.setValueAtTime(0.95, audioCtx.currentTime);
@@ -348,13 +353,14 @@
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
 
-        const CASA_BOUNDS = { xMin: -5.5, xMax: 5.5, zMin: -6.0, zMax: 2.5 };
+        // CORRECCIÓN SANCTUARY: Ampliado el margen perimetral interior para evitar falsos negativos en esquinas y cuartos
+        const CASA_BOUNDS = { xMin: -6.5, xMax: 6.5, zMin: -8.0, zMax: 3.5 };
 
         const PUNTOS_MERODEO_CASA = [
-            new THREE.Vector3(0, 0, 5.0),    
-            new THREE.Vector3(-7.0, 0, -2),  
-            new THREE.Vector3(7.0, 0, -2),   
-            new THREE.Vector3(0, 0, -7.5)    
+            new THREE.Vector3(0, 0, 6.0),    
+            new THREE.Vector3(-8.0, 0, -2),  
+            new THREE.Vector3(8.0, 0, -2),   
+            new THREE.Vector3(0, 0, -9.5)    
         ];
 
         const UI = {
@@ -525,6 +531,7 @@
         }
 
         function triggerJumpscare() {
+            // DOBLE VALIDACIÓN: Si estás calificado como esInterior, es imposible disparar la muerte
             if (GAME_STATE.isDead || !GAME_STATE.introCompletada || GAME_STATE.tiempoGraciaInicial > 0 || GAME_STATE.esInterior) return; 
             
             GAME_STATE.isDead = true;
@@ -577,8 +584,8 @@
                 const quiereEntrar = siguienteX > CASA_BOUNDS.xMin && siguienteX < CASA_BOUNDS.xMax && siguienteZ > CASA_BOUNDS.zMin && siguienteZ < CASA_BOUNDS.zMax;
 
                 if (estabaDentro) {
-                    if (siguienteZ > CASA_BOUNDS.zMax) { if (siguienteX < -1.2 || siguienteX > 1.2) siguienteZ = CASA_BOUNDS.zMax; }
-                    siguienteX = Math.max(CASA_BOUNDS.xMin + 0.25, Math.min(CASA_BOUNDMax - 0.25, siguienteX));
+                    if (siguienteZ > CASA_BOUNDS.zMax) { if (siguienteX < -1.5 || siguienteX > 1.5) siguienteZ = CASA_BOUNDS.zMax; }
+                    siguienteX = Math.max(CASA_BOUNDS.xMin + 0.25, Math.min(CASA_BOUNDS.xMax - 0.25, siguienteX));
                     siguienteZ = Math.max(CASA_BOUNDS.zMin + 0.25, Math.min(CASA_BOUNDS.zMax + 0.45, siguienteZ));
 
                     if (siguienteX > 1.5 && siguienteX < 3.5 && siguienteZ > -4.5 && siguienteZ < -1.0) {
@@ -588,10 +595,9 @@
                     else { GAME_STATE.cachedAlturaSuelo = 0.0; }
                 } else {
                     if (quiereEntrar) {
-                        if (GAME_STATE.pos.z > CASA_BOUNDS.zMax && siguienteX >= -1.2 && siguienteX <= 1.2) {} 
+                        if (GAME_STATE.pos.z > CASA_BOUNDS.zMax && siguienteX >= -1.5 && siguienteX <= 1.5) {} 
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
-                    // CORRECCIÓN PANTALLA NEGRA: Eliminada la compuerta de movimiento para evitar spawn subterráneo inicial
                     if (ejecutarRaycast && entornoMeshCache) { 
                         V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
@@ -606,8 +612,10 @@
                     }
                 }
 
-                GAME_STATE.esInterior = siguienteX > CASA_BOUNDS.xMin && siguienteX < CASA_BOUNDS.xMax && siguienteZ > CASA_BOUNDS.zMin && siguienteZ < CASA_BOUNDS.zMax;
                 if (GAME_STATE.inputMoviendo) { GAME_STATE.pos.x = siguienteX; GAME_STATE.pos.z = siguienteZ; }
+
+                // BLINDAJE DE ENT ENTORNO: Es interior si cumple límites X/Z O si está elevado por encima del suelo (escaleras/piso de arriba de Luis)
+                GAME_STATE.esInterior = (GAME_STATE.pos.x > CASA_BOUNDS.xMin && GAME_STATE.pos.x < CASA_BOUNDS.xMax && GAME_STATE.pos.z > CASA_BOUNDS.zMin && GAME_STATE.pos.z < CASA_BOUNDS.zMax) || (GAME_STATE.pos.y > 0.2);
 
                 let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
