@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v9.4 (Moon & Horizon Fixed)</title>
+    <title>ARK - Werewolf Nightmare v9.5 (Physics & Camera Fixed)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -14,7 +14,7 @@
             --ui-red: #ff2a2a;
             --ui-green: #00ffaa;
             --ui-blue: #38bdf8;
-            --bg-dark: #04040a; /* Unificado con el entorno 3D */
+            --bg-dark: #04040a;
             --pane-bg: rgba(6, 10, 20, 0.9);
         }
 
@@ -144,7 +144,6 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- CORRECCIÓN: Niebla y cielo unificados en #04040a para eliminar el círculo fantasma del fondo -->
     <a-scene id="escena-principal" 
              fog="type: linear; color: #04040a; near: 8; far: 45;" 
              renderer="colorManagement: true; antialias: false; powerPreference: high-performance; precision: medium;" 
@@ -163,7 +162,6 @@
 
         <a-sky color="#04040a"></a-sky>
         
-        <!-- CORRECCIÓN: Reincorporación de la Luna Física y su Luz de Ambiente -->
         <a-entity id="luna-completa" position="15 35 -40">
             <a-sphere radius="2.2" color="#e2e8f0" material="shader: flat; fog: false;"></a-sphere>
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
@@ -207,9 +205,6 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        // ==========================================
-        // VECTORES Y OBJETOS GLOBALES REUTILIZABLES (ZERO-ALLOCATION)
-        // ==========================================
         const V_POOL = {
             dirALugar: new THREE.Vector3(),
             dirAlBosque: new THREE.Vector3(),
@@ -277,9 +272,9 @@
             staminaMax: 200, 
             staminaGasto: 15.0,        
             staminaRecuperacion: 20.0,  
-            wwVelAcecho: 1.3, 
-            wwVelAtaque: 3.4,          
-            distDeteccionLobo: 30, 
+            wwVelAcecho: 0.85,  // Reducido para evitar el efecto deslizamiento rápido
+            wwVelAtaque: 2.3,   // Ajustado al tempo de la animación de carrera
+            distDeteccionLobo: 85, // Rango ampliado para evitar que se pierda en el mapa del móvil
             distAtaqueLobo: 14,
             tiempoForcejeoMax: 2.5     
         };
@@ -484,7 +479,7 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 4 === 0);
+                const ejecutarRaycast = (GAME_STATE.frameTicks % 3 === 0);
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -505,74 +500,102 @@
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                const enPerimetroCasa = (GAME_STATE.pos.x > CASA_LIMITS.xMin && GAME_STATE.pos.x < CASA_LIMITS.xMax && 
-                                         GAME_STATE.pos.z > CASA_LIMITS.zMin && GAME_STATE.pos.z < CASA_LIMITS.zMax);
-                
-                GAME_STATE.esInterior = enPerimetroCasa;
+                // Sistema físico preventivo de colisiones
+                const enPerimetroCasa = (siguienteX, siguienteZ) => {
+                    return (siguienteX > CASA_LIMITS.xMin && siguienteX < CASA_LIMITS.xMax && 
+                            siguienteZ > CASA_LIMITS.zMin && siguienteZ < CASA_LIMITS.zMax);
+                };
 
-                if (GAME_STATE.inputMoviendo) {
-                    let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
-                    let angle = INPUT.camYaw;
-                    
-                    let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
-                    let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
+                let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
+                let angle = INPUT.camYaw;
+                let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
+                let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
 
-                    let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
-                    let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
+                let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
+                let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                    if (enPerimetroCasa) {
-                        if (siguienteZ > CASA_LIMITS.zMax && (siguienteX < -1.0 || siguienteX > 1.0)) {
-                            siguienteZ = CASA_LIMITS.zMax; 
+                const estabaDentro = enPerimetroCasa(GAME_STATE.pos.x, GAME_STATE.pos.z);
+                const estaraDentro = enPerimetroCasa(siguienteX, siguienteZ);
+
+                if (estabaDentro) {
+                    // Si está dentro, solo puede salir por el vano de la puerta frontal
+                    if (siguienteZ > CASA_LIMITS.zMax) {
+                        if (siguienteX < -1.0 || siguienteX > 1.0) {
+                            siguienteZ = CASA_LIMITS.zMax;
                         }
-                        siguienteX = Math.max(CASA_LIMITS.xMin + 0.2, Math.min(CASA_LIMITS.xMax - 0.2, siguienteX));
-                        siguienteZ = Math.max(CASA_LIMITS.zMin + 0.2, Math.min(CASA_LIMITS.zMax + 0.5, siguienteZ));
+                    }
+                    // Clampear movimiento dentro de las cuatro paredes estructurales
+                    siguienteX = Math.max(CASA_LIMITS.xMin + 0.25, Math.min(CASA_LIMITS.xMax - 0.25, siguienteX));
+                    siguienteZ = Math.max(CASA_LIMITS.zMin + 0.25, Math.min(CASA_LIMITS.zMax + 0.45, siguienteZ));
 
-                        if (siguienteX > CASA_LIMITS.escaleraXMin && siguienteX < CASA_LIMITS.escaleraXMax &&
-                            siguienteZ > CASA_LIMITS.escaleraZMin && siguienteZ < CASA_LIMITS.escaleraZMax) {
-                            
-                            let pctSubida = (CASA_LIMITS.escaleraZMax - siguienteZ) / (CASA_LIMITS.escaleraZMax - CASA_LIMITS.escaleraZMin);
-                            GAME_STATE.cachedAlturaSuelo = pctSubida * 3.2; 
-                        } else if (siguienteZ <= CASA_LIMITS.escaleraZMin && siguienteX > 0) {
-                            GAME_STATE.cachedAlturaSuelo = 3.2;
-                        } else if (siguienteZ >= CASA_LIMITS.escaleraZMax) {
-                            GAME_STATE.cachedAlturaSuelo = 0;
-                        }
+                    // Detección matemática de escaleras fijas internas
+                    if (siguienteX > CASA_LIMITS.escaleraXMin && siguienteX < CASA_LIMITS.escaleraXMax &&
+                        siguienteZ > CASA_LIMITS.escaleraZMin && siguienteZ < CASA_LIMITS.escaleraZMax) {
+                        let pctSubida = (CASA_LIMITS.escaleraZMax - siguienteZ) / (CASA_LIMITS.escaleraZMax - CASA_LIMITS.escaleraZMin);
+                        GAME_STATE.cachedAlturaSuelo = pctSubida * 3.0; 
+                    } else if (siguienteZ <= CASA_LIMITS.escaleraZMin && siguienteX > CASA_LIMITS.escaleraXMin) {
+                        GAME_STATE.cachedAlturaSuelo = 3.0; // Altura fija del piso 2
                     } else {
-                        if (ejecutarRaycast && entornoMeshCache) {
-                            V_POOL.rayOrigin.set(siguienteX, 10, siguienteZ);
-                            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                            
-                            const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
-                            if (colisiones.length > 0) {
-                                let validY = colisiones[0].point.y;
-                                if (!isNaN(validY) && Math.abs(validY - GAME_STATE.pos.y) < 0.75) {
-                                    GAME_STATE.cachedAlturaSuelo = validY;
-                                }
+                        GAME_STATE.cachedAlturaSuelo = 0; // Altura fija planta baja
+                    }
+                } else {
+                    // Si está fuera de la casa, evitar que atraviese los muros exteriores como fantasma
+                    if (estaraDentro) {
+                        if (GAME_STATE.pos.z > CASA_LIMITS.zMax) {
+                            if (siguienteX < -1.0 || siguienteX > 1.0) {
+                                siguienteZ = CASA_LIMITS.zMax + 0.1;
                             }
+                        } else {
+                            siguienteX = GAME_STATE.pos.x;
+                            siguienteZ = GAME_STATE.pos.z;
                         }
                     }
 
+                    // Corrección del Bosque: Lanzar raycast dinámico relativo al avatar, no desde el cielo absoluto
+                    if (ejecutarRaycast && entornoMeshCache && GAME_STATE.inputMoviendo) {
+                        V_POOL.rayOrigin.set(siguienteX, GAME_STATE.pos.y + 3.0, siguienteZ);
+                        RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+                        
+                        const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
+                        if (colisiones.length > 0) {
+                            let validY = colisiones[0].point.y;
+                            // Ignorar colisiones absurdas con copas de árboles fijas o techos exteriores
+                            if (!isNaN(validY) && Math.abs(validY - GAME_STATE.pos.y) < 1.2) {
+                                GAME_STATE.cachedAlturaSuelo = validY;
+                            }
+                        }
+                    }
+                }
+
+                GAME_STATE.esInterior = enPerimetroCasa(siguienteX, siguienteZ) && (siguienteZ <= CASA_LIMITS.zMax);
+
+                if (GAME_STATE.inputMoviendo) {
                     GAME_STATE.pos.x = siguienteX;
                     GAME_STATE.pos.z = siguienteZ;
-                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                }
 
-                    ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
+                // Interpolación lineal suave para evitar saltos locos de cámara y caídas al suelo
+                GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * 0.2;
+                ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
+                if (GAME_STATE.inputMoviendo) {
                     let targetAngle = Math.atan2(dx, dz);
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
-
                     switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
                 } else {
                     switchMesh('atento');
                 }
 
+                // Corrección Óptica: Ajustar cámara y perspectiva en tiempo real
                 const camaraElemento = document.getElementById('main-camera');
                 if (camaraElemento) {
                     if (GAME_STATE.esInterior) {
-                        camaraElemento.setAttribute('position', '0 0.05 0'); 
+                        // Ojos a la altura del primer piso, eliminando la fuga al segundo piso
+                        camaraElemento.setAttribute('position', '0 1.3 0'); 
                     } else {
+                        // Cámara normalizada en tercera persona al salir
                         camaraElemento.setAttribute('position', '0 1.5 2.2');
                     }
                 }
@@ -643,7 +666,18 @@
                 } else {
                     GAME_STATE.aiTimer = 0; 
                     
-                    if (distJugadorLobo < CONFIG.distDeteccionLobo) {
+                    // Rastreo Activo Móvil: Si el jugador está fuera del alcance visual directo, el lobo avanza hacia ti
+                    if (distJugadorLobo >= CONFIG.distDeteccionLobo) {
+                        GAME_STATE.loboEstado = 'BOSQUE';
+                        V_POOL.dirHaciaTi.subVectors(GAME_STATE.pos, loboPos);
+                        V_POOL.dirHaciaTi.y = 0;
+                        V_POOL.dirHaciaTi.normalize();
+                        loboPos.x += V_POOL.dirHaciaTi.x * CONFIG.wwVelAcecho * dt;
+                        loboPos.z += V_POOL.dirHaciaTi.z * CONFIG.wwVelAcecho * dt;
+                        ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirHaciaTi.x, V_POOL.dirHaciaTi.z);
+                        UI.alert.textContent = "🔊 Gruñidos profundos resuenan en la niebla...";
+                        UI.damage.className = '';
+                    } else if (distJugadorLobo < CONFIG.distDeteccionLobo) {
                         V_POOL.dirHaciaTi.subVectors(GAME_STATE.pos, loboPos);
                         V_POOL.dirHaciaTi.y = 0;
                         V_POOL.dirHaciaTi.normalize();
@@ -677,18 +711,13 @@
                             UI.alert.textContent = "⚠️ El Hombre Lobo sigue tu rastro...";
                             UI.damage.className = '';
                         }
-                    } else {
-                        GAME_STATE.loboEstado = 'BOSQUE';
-                        GAME_STATE.tiempoContactoFisico = 0;
-                        UI.damage.className = '';
-                        UI.alert.textContent = "BUSCANDO REFUGIO EN LA CASA...";
                     }
                 }
 
                 AudioController.actualizarProximidad(GAME_STATE.loboEstado, distJugadorLobo);
 
             } catch (err) {
-                console.warn("Error controlado:", err);
+                console.warn("Error controlado del bucle:", err);
             }
         }
 
