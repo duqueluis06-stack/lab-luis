@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v10.7 (Audio Separation & House Sanctuary Fix)</title>
+    <title>ARK - Werewolf Nightmare v10.8 (Anti-Tree Trapping & Smooth Gliding)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -256,7 +256,6 @@
                 Pistas.stalk.play().catch(() => {});
                 Pistas.enojado.play().catch(() => {});
             },
-            // CORRECCIÓN AUDIO: Muteo real y radical usando el customVol para saltear el bug de lectura de iOS
             actualizarProximidad(estado, distancia) {
                 if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35) {
                     this.fadeTo(Pistas.enojado, 0.0);
@@ -303,7 +302,6 @@
                 
                 try { audio.volume = audio.customVol; } catch(e){}
                 
-                // Sincronizar directamente con el chip de sonido (Web Audio Node) para móviles
                 try {
                     const key = Object.keys(Pistas).find(k => Pistas[k] === audio);
                     if (key && PistasGains[key] && audioCtx) {
@@ -353,7 +351,6 @@
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
 
-        // CORRECCIÓN SANCTUARY: Ampliado el margen perimetral interior para evitar falsos negativos en esquinas y cuartos
         const CASA_BOUNDS = { xMin: -6.5, xMax: 6.5, zMin: -8.0, zMax: 3.5 };
 
         const PUNTOS_MERODEO_CASA = [
@@ -531,7 +528,6 @@
         }
 
         function triggerJumpscare() {
-            // DOBLE VALIDACIÓN: Si estás calificado como esInterior, es imposible disparar la muerte
             if (GAME_STATE.isDead || !GAME_STATE.introCompletada || GAME_STATE.tiempoGraciaInicial > 0 || GAME_STATE.esInterior) return; 
             
             GAME_STATE.isDead = true;
@@ -598,6 +594,8 @@
                         if (GAME_STATE.pos.z > CASA_BOUNDS.zMax && siguienteX >= -1.5 && siguienteX <= 1.5) {} 
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
+                    
+                    // CORRECCIÓN PROTECCIÓN DE ÁRBOLES / FLOTABILIDAD INJUSTA
                     if (ejecutarRaycast && entornoMeshCache) { 
                         V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
@@ -605,7 +603,30 @@
                         if (colisiones.length > 0) {
                             for (let i = 0; i < colisiones.length; i++) {
                                 const hit = colisiones[i];
-                                if (hit.face && hit.face.normal.y > 0.85 && hit.point.y < 2.2) { GAME_STATE.cachedAlturaSuelo = hit.point.y; sueloEncontrado = true; break; }
+                                if (hit.face && hit.face.normal.y > 0.85) {
+                                    
+                                    // FILTRO 1: Descartar mallas que contengan nomenclatura de vegetación u objetos aéreos
+                                    const objName = (hit.object.name || "").toLowerCase();
+                                    if (objName.includes("tree") || objName.includes("arbol") || 
+                                        objName.includes("leave") || objName.includes("hoja") || 
+                                        objName.includes("trunk") || objName.includes("branch") || 
+                                        objName.includes("foliage") || objName.includes("rama") || 
+                                        objName.includes("wood")) {
+                                        continue;
+                                    }
+
+                                    // FILTRO 2: Control de escalón. Si el punto de colisión sube abruptamente > 0.35m del Y actual, es un obstáculo
+                                    let desniveles = hit.point.y - GAME_STATE.pos.y;
+                                    if (desniveles > 0.35) {
+                                        continue;
+                                    }
+
+                                    if (hit.point.y < 2.2) { 
+                                        GAME_STATE.cachedAlturaSuelo = hit.point.y; 
+                                        sueloEncontrado = true; 
+                                        break; 
+                                    }
+                                }
                             }
                         }
                         if (!sueloEncontrado) GAME_STATE.cachedAlturaSuelo = 0.0;
@@ -614,7 +635,6 @@
 
                 if (GAME_STATE.inputMoviendo) { GAME_STATE.pos.x = siguienteX; GAME_STATE.pos.z = siguienteZ; }
 
-                // BLINDAJE DE ENT ENTORNO: Es interior si cumple límites X/Z O si está elevado por encima del suelo (escaleras/piso de arriba de Luis)
                 GAME_STATE.esInterior = (GAME_STATE.pos.x > CASA_BOUNDS.xMin && GAME_STATE.pos.x < CASA_BOUNDS.xMax && GAME_STATE.pos.z > CASA_BOUNDS.zMin && GAME_STATE.pos.z < CASA_BOUNDS.zMax) || (GAME_STATE.pos.y > 0.2);
 
                 let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
