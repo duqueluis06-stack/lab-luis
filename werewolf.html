@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v10.8 (Anti-Tree Trapping & Smooth Gliding)</title>
+    <title>ARK - Werewolf Nightmare v11.0 (Fixed Terrain Physics)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -595,41 +595,43 @@
                         else { siguienteX = GAME_STATE.pos.x; siguienteZ = GAME_STATE.pos.z; }
                     }
                     
-                    // CORRECCIÓN PROTECCIÓN DE ÁRBOLES / FLOTABILIDAD INJUSTA
+                    // FISICAS REDISEÑADAS EN EXTERIORES (SÓLO SUELO ESTABLE)
                     if (ejecutarRaycast && entornoMeshCache) { 
-                        V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+                        V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); 
+                        RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
-                        let sueloEncontrado = false;
-                        if (colisiones.length > 0) {
-                            for (let i = 0; i < colisiones.length; i++) {
-                                const hit = colisiones[i];
-                                if (hit.face && hit.face.normal.y > 0.85) {
-                                    
-                                    // FILTRO 1: Descartar mallas que contengan nomenclatura de vegetación u objetos aéreos
-                                    const objName = (hit.object.name || "").toLowerCase();
-                                    if (objName.includes("tree") || objName.includes("arbol") || 
-                                        objName.includes("leave") || objName.includes("hoja") || 
-                                        objName.includes("trunk") || objName.includes("branch") || 
-                                        objName.includes("foliage") || objName.includes("rama") || 
-                                        objName.includes("wood")) {
-                                        continue;
-                                    }
+                        let alturaValida = null;
+                        
+                        for (let i = 0; i < colisiones.length; i++) {
+                            const hit = colisiones[i];
+                            
+                            // Verificar que la superficie impactada sea predominantemente plana/caminable
+                            if (hit.face && hit.face.normal.y > 0.6) {
+                                const objName = (hit.object.name || "").toLowerCase();
+                                
+                                // Filtrado estricto por nombre de malla (Vegetación y Troncos)
+                                if (objName.includes("tree") || objName.includes("arbol") || 
+                                    objName.includes("leave") || objName.includes("hoja") || 
+                                    objName.includes("trunk") || objName.includes("branch") || 
+                                    objName.includes("foliage") || objName.includes("rama") ||
+                                    objName.includes("wood")) {
+                                    continue;
+                                }
 
-                                    // FILTRO 2: Control de escalón. Si el punto de colisión sube abruptamente > 0.35m del Y actual, es un obstáculo
-                                    let desniveles = hit.point.y - GAME_STATE.pos.y;
-                                    if (desniveles > 0.35) {
-                                        continue;
-                                    }
-
-                                    if (hit.point.y < 2.2) { 
-                                        GAME_STATE.cachedAlturaSuelo = hit.point.y; 
-                                        sueloEncontrado = true; 
-                                        break; 
-                                    }
+                                // Seleccionar el punto que esté más cercano al eje Y del jugador
+                                if (alturaValida === null || Math.abs(hit.point.y - GAME_STATE.pos.y) < Math.abs(alturaValida - GAME_STATE.pos.y)) {
+                                    alturaValida = hit.point.y;
                                 }
                             }
                         }
-                        if (!sueloEncontrado) GAME_STATE.cachedAlturaSuelo = 0.0;
+                        
+                        // Si encontramos suelo real, actualizamos. Si no (bajo árbol espeso), mantiene la última cachedAlturaSuelo estable.
+                        if (alturaValida !== null) {
+                            // Control de Escalón Horizontal: evita trepar paredes u objetos verticales de golpe
+                            if (alturaValida - GAME_STATE.pos.y < 0.6) {
+                                GAME_STATE.cachedAlturaSuelo = alturaValida;
+                            }
+                        }
                     }
                 }
 
