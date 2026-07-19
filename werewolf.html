@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v10.0 (Final Stable Physics)</title>
+    <title>ARK - Werewolf Nightmare v10.2 (Absolute Physics Pass)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -239,8 +239,8 @@
                 if (estado === 'ATAQUE' || estado === 'FORCEJEO') {
                     this.fadeTo(Pistas.enojado, 0.95);
                     this.fadeTo(Pistas.stalk, 0.90);
-                } else if (estado === 'ACECHO') {
-                    this.fadeTo(Pistas.enojado, 0.45);
+                } else if (estado === 'ACECHO' || estado === 'MERODEANDO_CASA') {
+                    this.fadeTo(Pistas.enojado, 0.25);
                     this.fadeTo(Pistas.stalk, 0.80);
                 } else {
                     this.fadeTo(Pistas.enojado, 0.0);
@@ -284,18 +284,20 @@
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
-            esInterior: false, frameTicks: 0, cachedAlturaSuelo: 0, activeMesh: 'atento', wwActiveMesh: 'beast',
+            esInterior: false, camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 5.0
         };
 
-        const CASA_LIMITS = { xMin: -5.0, xMax: 5.0, zMin: -5.0, zMax: 1.5, escaleraXMin: 1.5, escaleraXMax: 3.5, escaleraZMin: -4.5, escaleraZMax: -1.0 };
+        // Perímetro ampliado y optimizado para cobertura completa de la casa
+        const CASA_BOUNDS = { xMin: -5.5, xMax: 5.5, zMin: -6.0, zMax: 2.5 };
 
+        // Puntos de acecho del hombre lobo estrictamente fuera de los muros de la casa
         const PUNTOS_MERODEO_CASA = [
-            new THREE.Vector3(0, 0, 4.5),   
-            new THREE.Vector3(-6.5, 0, -2), 
-            new THREE.Vector3(6.5, 0, -2),  
-            new THREE.Vector3(0, 0, -6.5)   
+            new THREE.Vector3(0, 0, 5.0),    
+            new THREE.Vector3(-7.0, 0, -2),  
+            new THREE.Vector3(7.0, 0, -2),   
+            new THREE.Vector3(0, 0, -7.5)    
         ];
 
         const UI = {
@@ -439,19 +441,45 @@
             }
         }
 
-        function switchMesh(target) {
+        // CONTROLADOR DE PERSPECTIVA UNIFICADO (Elimina el bucle de recreación de cámara)
+        function gestionarPerspectivaYAvatar() {
+            const camara = document.getElementById('main-camera');
+            if (!camara) return;
+
             if (GAME_STATE.esInterior) {
-                for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-                GAME_STATE.activeMesh = target; return;
+                // Forzar Estado Único de Primera Persona Interna
+                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
+                    camara.object3D.position.set(0, 1.1, -0.3); // Ojos fijos a ras de ventana
+                    camara.setAttribute('camera', 'fov', 48);   // Zoom óptico de expectativa activo
+                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
+                }
+                // Ocultación total e irrompible del avatar dentro de la casa
+                for (let key in ENT.meshes) {
+                    ENT.meshes[key].setAttribute('scale', '0 0 0');
+                }
+            } else {
+                // Forzar Estado Único de Tercera Persona Externa
+                if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
+                    camara.object3D.position.set(0, 1.5, 2.2); // Retroceso exterior standard
+                    camara.setAttribute('camera', 'fov', 70);   // Campo de visión normal de huida
+                    GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
+                }
+                // Renderizado dinámico normal en el bosque
+                let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
+                for (let key in ENT.meshes) {
+                    if (key === meshActivo) {
+                        ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
+                    } else {
+                        ENT.meshes[key].setAttribute('scale', '0 0 0');
+                    }
+                }
             }
-            if (GAME_STATE.activeMesh === target && ENT.meshes[target].getAttribute('scale').x > 0) return;
-            for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            if (ENT.meshes[target]) ENT.meshes[target].setAttribute('scale', '0.38 0.38 0.38');
-            GAME_STATE.activeMesh = target;
         }
 
         function triggerJumpscare() {
-            if (GAME_STATE.isDead || GAME_STATE.tiempoGraciaInicial > 0) return; 
+            // Guardacostas de Seguridad: Aborto instantáneo si estás a salvo dentro de la casa
+            if (GAME_STATE.isDead || GAME_STATE.tiempoGraciaInicial > 0 || GAME_STATE.esInterior) return; 
+            
             GAME_STATE.isDead = true;
             GAME_STATE.juegoActivo = false;
             
@@ -500,11 +528,6 @@
 
                 GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
 
-                const enPerimetroCasa = (x, z) => {
-                    return (x > CASA_LIMITS.xMin && x < CASA_LIMITS.xMax && 
-                            z > CASA_LIMITS.zMin && z < CASA_LIMITS.zMax);
-                };
-
                 let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
                 let angle = INPUT.camYaw;
                 let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
@@ -513,44 +536,45 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                const estabaDentro = enPerimetroCasa(GAME_STATE.pos.x, GAME_STATE.pos.z);
+                // Detección estricta de posición actual interna
+                const estabaDentro = GAME_STATE.pos.x > CASA_BOUNDS.xMin && GAME_STATE.pos.x < CASA_BOUNDS.xMax && GAME_STATE.pos.z > CASA_BOUNDS.zMin && GAME_STATE.pos.z < CASA_BOUNDS.zMax;
+                const quiereEntrar = siguienteX > CASA_BOUNDS.xMin && siguienteX < CASA_BOUNDS.xMax && siguienteZ > CASA_BOUNDS.zMin && siguienteZ < CASA_BOUNDS.zMax;
 
-                // Sistema de Colisión Perimetral Blindado para Interiores
                 if (estabaDentro) {
-                    if (siguienteZ > CASA_LIMITS.zMax) {
-                        if (siguienteX < -1.0 || siguienteX > 1.0) {
-                            siguienteZ = CASA_LIMITS.zMax; // Muro frontal estructural bloquea
+                    // Lógica física interna de la vivienda
+                    if (siguienteZ > CASA_BOUNDS.zMax) {
+                        if (siguienteX < -1.2 || siguienteX > 1.2) {
+                            siguienteZ = CASA_BOUNDS.zMax; // Bloqueo de impacto contra el muro frontal
                         }
                     }
-                    siguienteX = Math.max(CASA_LIMITS.xMin + 0.25, Math.min(CASA_LIMITS.xMax - 0.25, siguienteX));
-                    siguienteZ = Math.max(CASA_LIMITS.zMin + 0.25, Math.min(CASA_LIMITS.zMax + 0.45, siguienteZ));
+                    siguienteX = Math.max(CASA_BOUNDS.xMin + 0.25, Math.min(CASA_BOUNDS.xMax - 0.25, siguienteX));
+                    siguienteZ = Math.max(CASA_BOUNDS.zMin + 0.25, Math.min(CASA_BOUNDS.zMax + 0.45, siguienteZ));
 
-                    // Lógica matemática absoluta para las escaleras (Evita subir al techo por completo)
-                    if (siguienteX > CASA_LIMITS.escaleraXMin && siguienteX < CASA_LIMITS.escaleraXMax &&
-                        siguienteZ > CASA_LIMITS.escaleraZMin && siguienteZ < CASA_LIMITS.escaleraZMax) {
-                        let pctSubida = (CASA_LIMITS.escaleraZMax - siguienteZ) / (CASA_LIMITS.escaleraZMax - CASA_LIMITS.escaleraZMin);
+                    // Escaleras mecánicas controladas matemáticamente
+                    if (siguienteX > 1.5 && siguienteX < 3.5 && siguienteZ > -4.5 && siguienteZ < -1.0) {
+                        let pctSubida = (-1.0 - siguienteZ) / (-1.0 - (-4.5));
                         GAME_STATE.cachedAlturaSuelo = pctSubida * 3.0; 
-                    } else if (siguienteZ <= CASA_LIMITS.escaleraZMin && siguienteX > CASA_LIMITS.escaleraXMin) {
-                        GAME_STATE.cachedAlturaSuelo = 3.0; // Piso 2 fijo
+                    } else if (siguienteZ <= -4.5 && siguienteX > 1.5) {
+                        GAME_STATE.cachedAlturaSuelo = 3.0; 
                     } else if (GAME_STATE.pos.y > 1.5) {
-                        GAME_STATE.cachedAlturaSuelo = 3.0; // Techo matemático máximo bloqueado en 3m
+                        GAME_STATE.cachedAlturaSuelo = 3.0; 
                     } else {
-                        GAME_STATE.cachedAlturaSuelo = 0.0; // Planta baja fija
+                        GAME_STATE.cachedAlturaSuelo = 0.0; 
                     }
                 } else {
-                    // Si está fuera de la casa, no puede entrar atravesando paredes físicas
-                    if (enPerimetroCasa(siguienteX, siguienteZ)) {
-                        if (GAME_STATE.pos.z > CASA_LIMITS.zMax && siguienteX >= -1.0 && siguienteX <= 1.0) {
-                            // Entra legal por la puerta frontal
+                    // Lógica externa del bosque y control de entrada por puerta
+                    if (quiereEntrar) {
+                        if (GAME_STATE.pos.z > CASA_BOUNDS.zMax && siguienteX >= -1.2 && siguienteX <= 1.2) {
+                            // Entrada limpia permitida por el hueco de la puerta
                         } else {
                             siguienteX = GAME_STATE.pos.x;
                             siguienteZ = GAME_STATE.pos.z;
                         }
                     }
 
-                    // Raycast Dinámico del Bosque desde el Cielo (Ignora copas de árboles y tejados altos)
+                    // Sensor vertical anti-árboles optimizado
                     if (ejecutarRaycast && entornoMeshCache && GAME_STATE.inputMoviendo) {
-                        V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ); // Rayo absoluto vertical descendente
+                        V_POOL.rayOrigin.set(siguienteX, 50.0, siguienteZ);
                         RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                         
                         const colisiones = RAYCASTER_REUTILIZABLE.intersectObject(entornoMeshCache, true);
@@ -559,7 +583,6 @@
                         if (colisiones.length > 0) {
                             for (let i = 0; i < colisiones.length; i++) {
                                 const hit = colisiones[i];
-                                // Filtra polígonos planos de tierra (<2.2m) e ignora troncos o copas de árboles
                                 if (hit.face && hit.face.normal.y > 0.85 && hit.point.y < 2.2) {
                                     GAME_STATE.cachedAlturaSuelo = hit.point.y;
                                     sueloEncontrado = true;
@@ -568,19 +591,19 @@
                             }
                         }
                         if (!sueloEncontrado) {
-                            GAME_STATE.cachedAlturaSuelo = 0.0; // Nivel de la tierra base por defecto
+                            GAME_STATE.cachedAlturaSuelo = 0.0;
                         }
                     }
                 }
 
-                GAME_STATE.esInterior = enPerimetroCasa(siguienteX, siguienteZ) && (siguienteZ <= CASA_LIMITS.zMax);
+                // Fijar estado definitivo de interior/exterior recalculado
+                GAME_STATE.esInterior = siguienteX > CASA_BOUNDS.xMin && siguienteX < CASA_BOUNDS.xMax && siguienteZ > CASA_BOUNDS.zMin && siguienteZ < CASA_BOUNDS.zMax;
 
                 if (GAME_STATE.inputMoviendo) {
                     GAME_STATE.pos.x = siguienteX;
                     GAME_STATE.pos.z = siguienteZ;
                 }
 
-                // Caída libre/Gravedad de retorno acelerada si el avatar intenta levitar
                 let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
@@ -590,26 +613,10 @@
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
-                    switchMesh(GAME_STATE.modoCorrerActive ? 'run' : 'walk');
-                } else {
-                    switchMesh('atento');
                 }
 
-                // Cámara Óptica Adaptativa en Interiores (Efecto Lupa/Zoom en Cocina)
-                const camaraElemento = document.getElementById('main-camera');
-                if (camaraElemento) {
-                    if (GAME_STATE.esInterior) {
-                        if (camaraElemento.getAttribute('position').z !== -0.3) {
-                            camaraElemento.setAttribute('position', '0 1.1 -0.3'); // Altura de ojos para la ventana
-                            camaraElemento.setAttribute('camera', 'fov: 48; near: 0.1; far: 300;'); // Zoom de expectativa
-                        }
-                    } else {
-                        if (camaraElemento.getAttribute('position').z !== 2.2) {
-                            camaraElemento.setAttribute('position', '0 1.5 2.2'); // Reset exterior a tercera persona
-                            camaraElemento.setAttribute('camera', 'fov: 70; near: 0.1; far: 300;');
-                        }
-                    }
-                }
+                // Actualizar Perspectiva y visibilidad del Avatar de manera síncrona y limpia
+                gestionarPerspectivaYAvatar();
 
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - (CONFIG.staminaGasto * dt));
@@ -631,6 +638,7 @@
                     UI.damage.className = '';
                     GAME_STATE.tiempoContactoFisico = 0;
                 } else if (GAME_STATE.esInterior) {
+                    // BLINDAJE ANTI-DAÑO EN INTERIORES
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
                     
@@ -651,11 +659,11 @@
                             loboPos.z += V_POOL.dirALugar.z * CONFIG.wwVelAcecho * dt;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirALugar.x, V_POOL.dirALugar.z);
                         } else {
-                            if (GAME_STATE.frameTicks % 250 === 0) {
+                            if (GAME_STATE.frameTicks % 200 === 0) {
                                 GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
                             }
                             GAME_STATE.aiTimer += dt;
-                            if (GAME_STATE.aiTimer > 20) {
+                            if (GAME_STATE.aiTimer > 25) {
                                 GAME_STATE.loboEstado = 'RETIRADA';
                                 GAME_STATE.aiPuntoObjetivo.set(60, 0, -60); 
                                 UI.alert.textContent = "🔊 Los gruñidos se desvanecen en el bosque...";
@@ -675,6 +683,7 @@
                         }
                     }
                 } else {
+                    // LÓGICA DE ATAQUE EXCLUSIVA PARA EL EXTERIOR
                     GAME_STATE.aiTimer = 0; 
                     
                     if (distJugadorLobo >= CONFIG.distDeteccionLobo) {
@@ -753,7 +762,7 @@
             GAME_STATE.stamina = CONFIG.staminaMax; 
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
-            GAME_STATE.cachedAlturaSuelo = 0;
+            GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
             
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(60, 0, -60);
@@ -766,10 +775,8 @@
             UI.jumpscare.classList.remove('active');
 
             for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            GAME_STATE.activeMesh = 'atento'; GAME_STATE.wwActiveMesh = 'beast';
-
-            if(ENT.wwMeshes.beast) { ENT.wwMeshes.beast.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.beast.setAttribute('visible', 'true'); }
             if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
+            if (ENT.wwMeshes.beast) { ENT.wwMeshes.beast.setAttribute('scale', '0.8 0.8 0.8'); ENT.wwMeshes.beast.setAttribute('visible', 'true'); }
             
             AudioController.reproducirMusicaFondo();
             GAME_STATE.juegoActivo = true;
