@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v8.7 (Mobile Delta Fix)</title>
+    <title>ARK - Werewolf Nightmare v8.8 (Mobile Stability Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -74,8 +74,9 @@
         #stamina-container { width: 100%; max-width: 320px; height: 5px; background: rgba(0,0,0,0.4); border-radius: 3px; overflow: hidden; pointer-events: none; }
         #stamina-bar { width: 100%; height: 100%; background: var(--ui-green); }
 
-        #damage-vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 30%, rgba(255,0,0,0.8) 100%); z-index: 9998; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
-        #damage-vignette.active { opacity: 1; animation: bloodPulse 0.8s infinite alternate; }
+        #damage-vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 30%, rgba(255,0,0,0.85) 100%); z-index: 9998; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+        #damage-vignette.active { opacity: 1; animation: bloodPulse 0.6s infinite alternate; }
+        #damage-vignette.grabbed { opacity: 1; background: radial-gradient(circle, rgba(15,0,0,0.4) 20%, rgba(255,0,0,0.95) 100%); animation: screenShake 0.08s infinite; }
         
         #jumpscare-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f0000; z-index: 9999; opacity: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; transition: opacity 0.1s ease; }
         #jumpscare-screen.active { opacity: 1; animation: screenShake 0.1s infinite; }
@@ -90,6 +91,7 @@
 
         #arrows-wrapper { bottom: 30px; left: 30px; display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px; }
         .joy-arrow { background: var(--pane-bg); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .joy-arrow:active { background: var(--ui-red); }
         .arrow-up { grid-row: 1; grid-column: 2; }
         .arrow-down { grid-row: 3; grid-column: 2; }
         .arrow-left { grid-row: 2; grid-column: 1; }
@@ -97,8 +99,8 @@
         
         #pc-instruction { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 6px 16px; border-radius: 20px; font-size: 11px; letter-spacing: 1px; color: #a7f3d0; pointer-events: none; z-index: 1000; text-transform: uppercase; border: 1px solid rgba(0,255,170,0.2); }
 
-        @keyframes bloodPulse { from { opacity: 0.5; } to { opacity: 1; } }
-        @keyframes screenShake { 0% { transform: translate(2px, 2px) rotate(0deg); } 50% { transform: translate(-2px, -1px) rotate(1deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        @keyframes bloodPulse { from { opacity: 0.4; } to { opacity: 0.9; } }
+        @keyframes screenShake { 0% { transform: translate(3px, 3px) rotate(0deg); } 50% { transform: translate(-3px, -2px) rotate(1deg); } 100% { transform: translate(2px, -3px) rotate(-1deg); } }
     </style>
 </head>
 <body>
@@ -111,7 +113,7 @@
         <div class="loader-text-group">
             <div class="loader-title">ARK SIMULATOR</div>
             <div class="load-progress"><div id="progress-bar"></div></div>
-            <div class="loader-msg" id="loader-status">Conectando audios locales de tu repositorio GitHub...</div>
+            <div class="loader-msg" id="loader-status">Sincronizando hilos de renderizado móvil...</div>
         </div>
     </div>
 
@@ -123,7 +125,7 @@
     <div id="ui-top-bar">
         <div class="ui-row">
             <button id="btn-reset" class="ui-btn">🔄</button>
-            <div id="alert-ui">⚠️ NOCHE 1: SOBREVIVE. ¡Busca refugio en la casa! 🐺</div>
+            <div id="alert-ui">⚠️ PREPÁRATE: SOBREVIVE A LA BESTIA... 🐺</div>
             <button id="btn-sprint" class="ui-btn">SPRINT</button>
         </div>
         <div id="stamina-container">
@@ -161,7 +163,6 @@
         <a-sky color="#040408"></a-sky>
         <a-sphere id="luna-visual" position="20 55 -45" radius="4.5" color="#e2ebff" material="shader: flat; fog: false"></a-sphere>
         
-        <!-- OPTIMIZACIÓN TÉRMICA: Partículas reducidas a 500 para enfriar la GPU móvil -->
         <a-entity particle-system="preset: rain; color: #444; particleCount: 500; size: 0.3; velocityValue: 0 15 0; opacity: 0.2;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.4; color: #2a3550"></a-entity>
@@ -222,12 +223,13 @@
                 Pistas.enojado.play().catch(() => {});
             },
             actualizarProximidad(estado, distancia) {
-                if (estado === 'ATAQUE') {
+                // Modos de sonido por proximidad e intenciones claras
+                if (estado === 'ATAQUE' || estado === 'FORCEJEO') {
                     this.fadeTo(Pistas.enojado, 0.95);
                     this.fadeTo(Pistas.stalk, 0.0);
                 } else if (estado === 'ACECHO') {
                     this.fadeTo(Pistas.enojado, 0.0);
-                    this.fadeTo(Pistas.stalk, 0.80);
+                    this.fadeTo(Pistas.stalk, 0.85);
                 } else {
                     this.fadeTo(Pistas.enojado, 0.0);
                     this.fadeTo(Pistas.stalk, 0.0);
@@ -243,7 +245,7 @@
             },
             dispararAullidoMinuto() {
                 Pistas.aullido.currentTime = 0;
-                Pistas.aullido.volume = 0.85;
+                Pistas.aullido.volume = 0.90;
                 Pistas.aullido.play().catch(() => {});
             },
             detenerTodo() {
@@ -251,27 +253,28 @@
             }
         };
 
-        // VALORES ESCALADOS POR SEGUNDO (Métricas reales independientes de los FPS)
         const CONFIG = {
-            velCaminar: 3.6,           // Metros por segundo
-            velCorrer: 6.8,            // Sprint realista
+            velCaminar: 3.5,           
+            velCorrer: 6.5,            
             suavizadoGiroAvatar: 0.25,
             staminaMax: 200, 
-            staminaGasto: 14.0,        // Gasto balanceado por segundo
-            staminaRecuperacion: 22.0,  // Recuperación estable por segundo
-            wwVelAcecho: 1.6, 
-            wwVelAtaque: 4.2,
-            distDeteccionLobo: 32, 
-            distAtaqueLobo: 15
+            staminaGasto: 15.0,        
+            staminaRecuperacion: 20.0,  
+            wwVelAcecho: 1.5, 
+            wwVelAtaque: 3.9,          // Velocidad del lobo balanceada por segundo
+            distDeteccionLobo: 30, 
+            distAtaqueLobo: 14,
+            tiempoForcejeoMax: 2.5     // Segundos requeridos de contacto físico para morir
         };
 
         const GAME_STATE = {
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
-            loboEstado: 'BOSQUE', lastFrameTime: 0,
+            loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
             esInterior: false, frameTicks: 0, cachedAlturaSuelo: 0, activeMesh: 'atento', wwActiveMesh: 'beast',
-            aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(25, 0, -15), tiempoUltimoAullido: 0
+            aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(25, 0, -15), tiempoUltimoAullido: 0,
+            tiempoContactoFisico: 0, tiempoGraciaInicial: 3.0 // 3 segundos para estabilizar el renderizado móvil
         };
 
         const CASA_LIMITS = { xMin: -5.0, xMax: 5.0, zMin: -5.0, zMax: 1.5, escaleraXMin: 1.5, escaleraXMax: 3.5, escaleraZMin: -4.5, escaleraZMax: -1.0 };
@@ -327,11 +330,21 @@
             
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
+                
+                // Forzar posiciones limpias de inicio antes del bucle gráfico
+                ENT.rig.object3D.position.set(0, 0, 25);
+                ENT.wwRig.object3D.position.set(25, 0, -15);
+                GAME_STATE.pos.set(0, 0, 25);
+                
                 AudioController.reproducirMusicaFondo();
                 initControls();
+                
                 GAME_STATE.juegoActivo = true;
                 GAME_STATE.lastFrameTime = performance.now();
                 GAME_STATE.tiempoUltimoAullido = performance.now();
+                GAME_STATE.tiempoGraciaInicial = 3.0; // Iniciar cuenta de protección térmica/render
+                GAME_STATE.loboEstado = 'GRACIA_INICIAL';
+                
                 requestAnimationFrame(engineLoop);
                 setInterval(triggerThunder, 13000);
             });
@@ -413,19 +426,6 @@
             GAME_STATE.activeMesh = target;
         }
 
-        function switchWwMesh(target) {
-            if (GAME_STATE.wwActiveMesh === target) return;
-            for (let key in ENT.wwMeshes) {
-                ENT.wwMeshes[key].setAttribute('scale', '0 0 0');
-                ENT.wwMeshes[key].setAttribute('visible', 'false');
-            }
-            if (ENT.wwMeshes[target]) {
-                ENT.wwMeshes[target].setAttribute('scale', '0.8 0.8 0.8');
-                ENT.wwMeshes[target].setAttribute('visible', 'true');
-            }
-            GAME_STATE.wwActiveMesh = target;
-        }
-
         function triggerJumpscare() {
             if (GAME_STATE.isDead) return;
             GAME_STATE.isDead = true;
@@ -445,8 +445,12 @@
 
         function engineLoop(time) {
             requestAnimationFrame(engineLoop);
-            const dt = (time - GAME_STATE.lastFrameTime) / 1000;
+            
+            let dt = (time - GAME_STATE.lastFrameTime) / 1000;
             GAME_STATE.lastFrameTime = time;
+
+            // PROTECCIÓN MÓVIL: Evita saltos por congelamiento inicial o carga en segundo plano
+            if (dt > 0.1) dt = 0.1; 
 
             if (!GAME_STATE.juegoActivo || GAME_STATE.isDead) return;
 
@@ -454,6 +458,7 @@
                 GAME_STATE.frameTicks++;
                 const ejecutarRaycast = (GAME_STATE.frameTicks % 4 === 0);
 
+                // Reloj estricto del aullido del Hombre Lobo cada minuto (60 segundos)
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
                     GAME_STATE.tiempoUltimoAullido = time;
@@ -481,7 +486,6 @@
                     let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
                     let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
 
-                    // MEJORA INTERNA: Movimiento multiplicado por el factor Delta Time (dt)
                     let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                     let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
@@ -540,7 +544,6 @@
                     }
                 }
 
-                // MEJORA INTERNA: Estamina calculada por tiempo real transcurrido
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - (CONFIG.staminaGasto * dt));
                     if (GAME_STATE.stamina <= 0) { toggleSprint(false); GAME_STATE.enCooldownSprint = true; UI.btnSprint.classList.add('cooldown'); }
@@ -552,9 +555,18 @@
 
                 let loboPos = ENT.wwRig.object3D.position;
                 let distJugadorLobo = GAME_STATE.pos.distanceTo(loboPos);
-                GAME_STATE.aiTimer += dt;
 
-                if (GAME_STATE.esInterior) {
+                // LÓGICA DE INTELIGENCIA ARTIFICIAL Y TIEMPOS DE GRACIA
+                if (GAME_STATE.tiempoGraciaInicial > 0) {
+                    GAME_STATE.tiempoGraciaInicial -= dt;
+                    GAME_STATE.loboEstado = 'GRACIA_INICIAL';
+                    UI.alert.textContent = `⚠️ NOCHE 1: ¡CORRE! Buscando señal del satélite... (${Math.ceil(GAME_STATE.tiempoGraciaInicial)}s)`;
+                    UI.damage.className = '';
+                    GAME_STATE.tiempoContactoFisico = 0;
+                } else if (GAME_STATE.esInterior) {
+                    GAME_STATE.tiempoContactoFisico = 0;
+                    UI.damage.className = '';
+                    
                     if (GAME_STATE.loboEstado !== 'MERODEANDO_CASA' && GAME_STATE.loboEstado !== 'RETIRADA') {
                         GAME_STATE.loboEstado = 'MERODEANDO_CASA';
                         GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
@@ -562,23 +574,21 @@
                     }
 
                     if (GAME_STATE.loboEstado === 'MERODEANDO_CASA') {
-                        switchWwMesh('beast');
                         let dirALugar = new THREE.Vector3().subVectors(GAME_STATE.aiPuntoObjetivo, loboPos);
                         dirALugar.y = 0;
                         let distAlPunto = dirALugar.length();
 
                         if (distAlPunto > 0.5) {
                             dirALugar.normalize();
-                            // Aplicación de Delta Fix al Merodeo
                             loboPos.x += dirALugar.x * CONFIG.wwVelAcecho * dt;
                             loboPos.z += dirALugar.z * CONFIG.wwVelAcecho * dt;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(dirALugar.x, dirALugar.z);
                         } else {
-                            switchWwMesh('beast');
                             if (GAME_STATE.frameTicks % 250 === 0) {
                                 GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
                             }
-                            if (GAME_STATE.aiTimer > 25) {
+                            GAME_STATE.aiTimer += dt;
+                            if (GAME_STATE.aiTimer > 20) {
                                 GAME_STATE.loboEstado = 'RETIRADA';
                                 GAME_STATE.aiPuntoObjetivo = new THREE.Vector3(25, 0, -15); 
                                 UI.alert.textContent = "🔊 Los gruñidos se desvanecen. El lobo regresa a la profundidad del bosque...";
@@ -589,48 +599,59 @@
                         dirAlBosque.y = 0;
                         if (dirAlBosque.length() > 1.0) {
                             dirAlBosque.normalize();
-                            // Aplicación de Delta Fix a la Retirada
                             loboPos.x += dirAlBosque.x * CONFIG.wwVelAcecho * dt;
                             loboPos.z += dirAlBosque.z * CONFIG.wwVelAcecho * dt;
                             ENT.wwRig.object3D.rotation.y = Math.atan2(dirAlBosque.x, dirAlBosque.z);
-                            switchWwMesh('beast');
                         } else {
                             GAME_STATE.loboEstado = 'BOSQUE';
                             GAME_STATE.aiTimer = 0;
                         }
                     }
                 } else {
+                    // COMPORTAMIENTO EXTERIOR Y NUEVA CONDICIÓN DE EMBESTIDA/CONTACTO
                     GAME_STATE.aiTimer = 0; 
                     
                     if (distJugadorLobo < CONFIG.distDeteccionLobo) {
-                        switchWwMesh('beast');
                         let dirHaciaTi = new THREE.Vector3().subVectors(GAME_STATE.pos, loboPos);
                         dirHaciaTi.y = 0;
                         dirHaciaTi.normalize();
 
                         let velocidadLobo = (distJugadorLobo < CONFIG.distAtaqueLobo) ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
-                        // Aplicación de Delta Fix a la persecución del Lobo
+                        
+                        // Movimiento fluido del lobo
                         loboPos.x += dirHaciaTi.x * velocidadLobo * dt;
                         loboPos.z += dirHaciaTi.z * velocidadLobo * dt;
                         ENT.wwRig.object3D.rotation.y = Math.atan2(dirHaciaTi.x, dirHaciaTi.z);
 
-                        if (distJugadorLobo < CONFIG.distAtaqueLobo) {
-                            GAME_STATE.loboEstado = 'ATAQUE';
-                            UI.alert.textContent = "⚠️ ¡TE CORRE! ¡HUYE A LA CASA!";
-                            UI.damage.classList.add('active');
+                        if (distJugadorLobo < 1.6) {
+                            // NUEVA MECÁNICA: Sistema de forcejeo cuerpo a cuerpo
+                            GAME_STATE.loboEstado = 'FORCEJEO';
+                            GAME_STATE.tiempoContactoFisico += dt;
+                            
+                            UI.damage.className = 'grabbed'; // Efecto violento en pantalla
+                            
+                            let tiempoRestante = Math.max(0, CONFIG.tiempoForcejeoMax - GAME_STATE.tiempoContactoFisico);
+                            UI.alert.textContent = `🚨 ¡LA BESTIA TE SUJETA! ¡ZAFATE CON SPRINT! (${tiempoRestante.toFixed(1)}s)`;
 
-                            if (distJugadorLobo < 1.9) {
+                            if (GAME_STATE.tiempoContactoFisico >= CONFIG.tiempoForcejeoMax) {
                                 triggerJumpscare();
                             }
+                        } else if (distJugadorLobo < CONFIG.distAtaqueLobo) {
+                            GAME_STATE.loboEstado = 'ATAQUE';
+                            GAME_STATE.tiempoContactoFisico = 0;
+                            UI.alert.textContent = "⚠️ ¡TE CORRE! ¡HUYE A LA CASA!";
+                            UI.damage.className = 'active';
                         } else {
                             GAME_STATE.loboEstado = 'ACECHO';
+                            GAME_STATE.tiempoContactoFisico = 0;
                             UI.alert.textContent = "⚠️ El Hombre Lobo ha detectado tu rastro...";
-                            UI.damage.classList.remove('active');
+                            UI.damage.className = '';
                         }
                     } else {
                         GAME_STATE.loboEstado = 'BOSQUE';
-                        switchWwMesh('beast');
-                        UI.damage.classList.remove('active');
+                        GAME_STATE.tiempoContactoFisico = 0;
+                        UI.damage.className = '';
+                        UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. ¡Busca refugio en la casa! 🐺";
                     }
                 }
 
@@ -661,18 +682,19 @@
         function resetGame() {
             AudioController.detenerTodo();
             GAME_STATE.stamina = CONFIG.staminaMax; 
-            GAME_STATE.loboEstado = 'BOSQUE';
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
-            GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0;
-            GAME_STATE.pos.set(0, 0, 25); GAME_STATE.cachedAlturaSuelo = 0;
+            GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
+            GAME_STATE.cachedAlturaSuelo = 0;
             
-            if(ENT.rig && ENT.rig.object3D) ENT.rig.object3D.position.set(0, 0, 25);
-            if(ENT.wwRig && ENT.wwRig.object3D) ENT.wwRig.object3D.position.set(25, 0, -15);
+            // Reubicación física limpia instantánea
+            ENT.rig.object3D.position.set(0, 0, 25);
+            ENT.wwRig.object3D.position.set(25, 0, -15);
+            GAME_STATE.pos.set(0, 0, 25);
             
             INPUT.camYaw = 0; INPUT.camPitch = 0;
             UI.btnSprint.classList.remove('active', 'cooldown');
-            UI.alert.textContent = "⚠️ NOCHE 1: SOBREVIVE. ¡Busca refugio en la casa! 🐺";
-            UI.fade.style.opacity = "0"; UI.damage.classList.remove('active');
+            UI.fade.style.opacity = "0"; 
+            UI.damage.className = '';
             UI.jumpscare.classList.remove('active');
 
             for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
@@ -685,6 +707,8 @@
             GAME_STATE.juegoActivo = true;
             GAME_STATE.lastFrameTime = performance.now();
             GAME_STATE.tiempoUltimoAullido = performance.now();
+            GAME_STATE.tiempoGraciaInicial = 3.0; // Restablecer tiempo de gracia al morir
+            GAME_STATE.loboEstado = 'GRACIA_INICIAL';
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') { initLoader(); }
