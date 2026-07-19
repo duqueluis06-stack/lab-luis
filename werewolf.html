@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v9.1 (Exit Button Update)</title>
+    <title>ARK - Werewolf Nightmare v9.3 (Speed & Control Polish)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -59,7 +59,6 @@
         }
         .ui-btn:active { transform: scale(0.95); background: rgba(15, 23, 42, 0.9); }
 
-        /* Botones de control superiores */
         #btn-reset { width: 50px; height: 44px; font-size: 20px; border-color: var(--ui-blue); color: var(--ui-blue); flex-shrink: 0; }
         #btn-exit { padding: 0 16px; height: 44px; font-size: 11px; font-weight: bold; letter-spacing: 1px; border-color: rgba(255, 42, 42, 0.4); color: #fca5a5; text-transform: uppercase; flex-shrink: 0; }
         #btn-exit:active { border-color: var(--ui-red); background: rgba(255, 42, 42, 0.2); }
@@ -71,16 +70,15 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* Botón de Sprint Redondo RGB abajo a la izquierda */
         #btn-sprint { 
-            position: fixed; bottom: 50px; left: 165px; width: 64px; height: 64px; 
+            position: fixed; bottom: 30px; left: 30px; width: 68px; height: 68px; 
             border-radius: 50%; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;
             text-transform: uppercase; border: 3px solid transparent; background: #070a14;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.1); z-index: 1000; pointer-events: auto;
-            animation: rgbNeonAnimation 4s linear infinite; color: #fff;
+            animation: rgbNeonAnimation 4s linear infinite; color: #fff; cursor: pointer;
         }
         #btn-sprint:active { transform: scale(0.92); }
-        #btn-sprint.active { background: #111827; box-shadow: 0 0 25px #00ffaa !important; border-color: #00ffaa !important; }
+        #btn-sprint.active { background: #111827; box-shadow: 0 0 25px #00ffaa !important; border-color: #00ffaa !important; animation: none; }
         #btn-sprint.cooldown { animation: none; border-color: #334155; color: #475569; background: #0f172a; cursor: not-allowed; box-shadow: none; }
 
         #stamina-container { width: 100%; max-width: 320px; height: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden; pointer-events: none; }
@@ -97,9 +95,10 @@
         #fade-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9990; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
 
         .control-wrapper { position: absolute; z-index: 999; pointer-events: auto; }
-        #joystick-wrapper { bottom: 30px; left: 30px; width: 100px; height: 100px; }
+        #joystick-wrapper { bottom: 30px; right: 30px; width: 100px; height: 100px; }
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
-        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
+        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; cursor: grab; }
+        #joystick-knob:active { cursor: grabbing; }
 
         @keyframes rgbNeonAnimation {
             0% { border-color: #ff0055; box-shadow: 0 0 12px rgba(255, 0, 85, 0.5); }
@@ -219,7 +218,7 @@
 
         const AudioController = {
             reproducirMusicaFondo() {
-                Pistas.limbo.play().catch(e => console.log("Audio en espera de interacción."));
+                Pistas.limbo.play().catch(e => console.log("Audio en espera."));
                 Pistas.stalk.play().catch(() => {});
                 Pistas.enojado.play().catch(() => {});
             },
@@ -253,15 +252,16 @@
             }
         };
 
+        // VELOCIDADES CORREGIDAS PARA EVITAR DESLIZAMIENTO
         const CONFIG = {
-            velCaminar: 3.5,           
-            velCorrer: 6.5,            
+            velCaminar: 2.1,           
+            velCorrer: 4.5,            
             suavizadoGiroAvatar: 0.25,
             staminaMax: 200, 
             staminaGasto: 15.0,        
             staminaRecuperacion: 20.0,  
-            wwVelAcecho: 1.5, 
-            wwVelAtaque: 3.9,          
+            wwVelAcecho: 1.3, 
+            wwVelAtaque: 3.4,          
             distDeteccionLobo: 30, 
             distAtaqueLobo: 14,
             tiempoForcejeoMax: 2.5     
@@ -351,7 +351,6 @@
         }
 
         function initControls() {
-            // Controles de teclado duales (WASD + Cursores)
             window.addEventListener('keydown', e => {
                 const k = e.key.toLowerCase();
                 if(['w','arrowup'].includes(k)) INPUT.keys.w = true;
@@ -384,14 +383,15 @@
 
             UI.btnReset.addEventListener('click', resetGame);
             
-            // Evento estricto de redirección y cierre seguro de flujos de audio al salir
             UI.btnExit.addEventListener('click', () => {
                 AudioController.detenerTodo();
                 window.location.href = 'index.html';
             });
             
-            UI.btnSprint.addEventListener('pointerdown', () => { if (!GAME_STATE.enCooldownSprint) toggleSprint(true); });
-            UI.btnSprint.addEventListener('pointerup', () => toggleSprint(false));
+            UI.btnSprint.addEventListener('click', () => {
+                if (GAME_STATE.enCooldownSprint) return;
+                toggleSprint(!GAME_STATE.modoCorrerActive);
+            });
 
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
@@ -632,7 +632,7 @@
                             UI.damage.className = 'grabbed'; 
                             
                             let tiempoRestante = Math.max(0, CONFIG.tiempoForcejeoMax - GAME_STATE.tiempoContactoFisico);
-                            UI.alert.textContent = `🚨 ¡LA BESTIA TE SUJETA! ¡USA SPRINT! (${tiempoRestante.toFixed(1)}s)`;
+                            UI.alert.textContent = `🚨 ¡LA BESTIA TE SUJETA! ¡SPRINT ACTIVO! (${tiempoRestante.toFixed(1)}s)`;
 
                             if (GAME_STATE.tiempoContactoFisico >= CONFIG.tiempoForcejeoMax) {
                                 triggerJumpscare();
