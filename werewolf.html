@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v15.1 (Auto-Mesh Detection)</title>
+    <title>ARK - Werewolf Nightmare v15.2 (Radar HUD & Stair Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -95,11 +95,27 @@
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
 
+        /* 📡 HUD ESTILO RADAR NEÓN OPTIMIZADO */
         #telemetry-hud {
-            position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 10px;
-            color: #e2e8f0; z-index: 10000; pointer-events: none; text-align: center; letter-spacing: 0.5px;
+            position: fixed; 
+            bottom: 25px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            background: rgba(4, 10, 20, 0.88); 
+            border: 1px solid var(--ui-green); 
+            padding: 5px 14px; 
+            border-radius: 4px; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 9px; 
+            font-weight: bold;
+            color: var(--ui-green); 
+            text-shadow: 0 0 5px rgba(0, 255, 170, 0.6);
+            box-shadow: 0 0 10px rgba(0, 255, 170, 0.15);
+            z-index: 10000; 
+            pointer-events: none; 
+            text-align: center; 
+            letter-spacing: 1px;
+            white-space: nowrap;
         }
 
         @keyframes bloodPulse { from { opacity: 0.4; } to { opacity: 0.9; } }
@@ -140,7 +156,8 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <div id="telemetry-hud">MÓDULO DE SEGUIMIENTO ACTIVO</div>
+    <!-- Panel Asimut/Radar -->
+    <div id="telemetry-hud">SYS.RADAR // ONLINE</div>
 
     <a-scene id="escena-principal" 
              fog="type: linear; color: #04040a; near: 8; far: 45;" 
@@ -203,9 +220,6 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        // =======================================================
-        // 📌 CONFIG_CASA AUTOMÁTICA (Se sobrescribe dinámicamente)
-        // =======================================================
         let CONFIG_CASA = {
             centroX: 0.0,    
             centroZ: 0.0,   
@@ -431,14 +445,11 @@
             });
         }
 
-        // 🚨 FUNCIÓN CRUCIAL: ESCÁNER AUTOMÁTICO DE LA CASA DESDE B4ARTIST
         function escanearCasaAutomatica(rootNode) {
             if (!rootNode) return;
             
-            // Buscamos el nodo exacto que seleccionaste en la captura
             let casaMesh = rootNode.getObjectByName('casaluis_model');
             
-            // Si el importador anidó el nombre, hacemos búsqueda parcial segura
             if (!casaMesh) {
                 rootNode.traverse(child => {
                     if (child.name && (child.name === 'casaluis_model' || child.name.includes('casaluis_model'))) {
@@ -455,13 +466,11 @@
                 cajaVirtual.getCenter(centro);
                 cajaVirtual.getSize(tamano);
 
-                // Sobrescribimos el sistema físico con las medidas del objeto real
                 CONFIG_CASA.centroX = centro.x;
                 CONFIG_CASA.centroZ = centro.z;
-                CONFIG_CASA.radioX = (tamano.x / 2) + 0.4; // Margen de holgura extra para paredes
+                CONFIG_CASA.radioX = (tamano.x / 2) + 0.4; 
                 CONFIG_CASA.radioZ = (tamano.z / 2) + 0.4;
 
-                // Dinamizar puntos de merodeo del lobo alrededor de la nueva ubicación de la casa
                 PUNTOS_MERODEO_CASA = [
                     new THREE.Vector3(centro.x, 0, centro.z + CONFIG_CASA.radioZ + 3.0),
                     new THREE.Vector3(centro.x - CONFIG_CASA.radioX - 3.0, 0, centro.z),
@@ -610,14 +619,14 @@
 
             if (GAME_STATE.esInterior) {
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 0.75, -0.3); // Primera persona dentro de la casa
+                    camara.object3D.position.set(0, 0.75, -0.3); 
                     camara.setAttribute('camera', 'fov', 55);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
                 for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
             } else {
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camara.object3D.position.set(0, 1.5, 2.2); // Tercera persona fuera
+                    camara.object3D.position.set(0, 1.5, 2.2); 
                     camara.setAttribute('camera', 'fov', 70);
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
@@ -654,7 +663,7 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 8 === 0);
+                const ejecutarRaycast = (GAME_STATE.frameTicks % 6 === 0); // Raycast optimizado a 6 frames
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -678,50 +687,43 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                // 🚨 VERIFICACIÓN CON LOS DATOS TRIDIMENSIONALES DINÁMICOS
+                // 🚪 VERIFICACIÓN DE INMUNIDAD (¡Sin jaula física! Permite libre salida)
                 let deVerdadEstaDentro = (
                     Math.abs(siguienteX - CONFIG_CASA.centroX) < CONFIG_CASA.radioX &&
                     Math.abs(siguienteZ - CONFIG_CASA.centroZ) < CONFIG_CASA.radioZ
                 );
+                GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                if (deVerdadEstaDentro) {
-                    let limiteMinX = CONFIG_CASA.centroX - CONFIG_CASA.radioX + 0.3;
-                    let limiteMaxX = CONFIG_CASA.centroX + CONFIG_CASA.radioX - 0.3;
-                    let limiteMinZ = CONFIG_CASA.centroZ - CONFIG_CASA.radioZ + 0.3;
-                    let limiteMaxZ = CONFIG_CASA.centroZ + CONFIG_CASA.radioZ - 0.3;
+                if (GAME_STATE.inputMoviendo) { 
+                    GAME_STATE.pos.x = siguienteX; 
+                    GAME_STATE.pos.z = siguienteZ; 
+                }
+
+                // 🪜 DETECCIÓN DE ALTURA ACTIVA EN TODOS LADOS (Permite subir escaleras)
+                if (ejecutarRaycast && sueloMeshCache.length > 0) { 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 4.5, GAME_STATE.pos.z); 
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                     
-                    siguienteX = Math.max(limiteMinX, Math.min(limiteMaxX, siguienteX));
-                    siguienteZ = Math.max(limiteMinZ, Math.min(limiteMaxZ, siguienteZ));
-                    GAME_STATE.cachedAlturaSuelo = 0.0; 
-                } else {
-                    if (ejecutarRaycast && sueloMeshCache.length > 0) { 
-                        V_POOL.rayOrigin.set(siguienteX, GAME_STATE.pos.y + 3.0, siguienteZ); 
-                        RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                        
-                        const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                        let mejorAltura = null; let minDiff = Infinity;
-                        
-                        for (let i = 0; i < colisiones.length; i++) {
-                            const hit = colisiones[i];
-                            if (!hit.face || hit.face.normal.y < 0.4) continue;
-                            let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
-                            if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
-                        }
-                        if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 0.6) {
-                            GAME_STATE.cachedAlturaSuelo = mejorAltura;
-                        }
+                    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+                    let mejorAltura = null; let minDiff = Infinity;
+                    
+                    for (let i = 0; i < colisiones.length; i++) {
+                        const hit = colisiones[i];
+                        if (!hit.face || hit.face.normal.y < 0.35) continue; // Ángulo de escalón permisivo
+                        let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
+                        if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
+                    }
+                    if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 1.2) {
+                        GAME_STATE.cachedAlturaSuelo = mejorAltura;
                     }
                 }
 
-                if (GAME_STATE.inputMoviendo) { GAME_STATE.pos.x = siguienteX; GAME_STATE.pos.z = siguienteZ; }
-
-                GAME_STATE.esInterior = deVerdadEstaDentro;
-
-                let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.4;
+                let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                UI.telemetry.textContent = `X: ${GAME_STATE.pos.x.toFixed(1)} | Y: ${GAME_STATE.pos.y.toFixed(1)} | Z: ${GAME_STATE.pos.z.toFixed(1)} | RECOGNITION INTERIOR: ${GAME_STATE.esInterior ? 'SÍ (A SALVO)' : 'NO'}`;
+                // 📡 HUD RADAR RENOVADO
+                UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
                     let targetAngle = Math.atan2(dx, dz);
@@ -756,7 +758,6 @@
                     AudioController.fadeTo('enojado', 0.0);
                     AudioController.fadeTo('stalk', 0.0);
                 } else if (GAME_STATE.esInterior) {
-                    // 🚨 INMUNIDAD ABSOLUTA DENTRO DE LA CASA
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
                     
