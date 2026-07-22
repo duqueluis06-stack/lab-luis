@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v15.4 (Radar HUD & Barrio Collision Fix)</title>
+    <title>ARK - Werewolf Nightmare v15.5 (Fix Entrada Casa Luis)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -95,7 +95,6 @@
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
 
-        /* HUD RADAR */
         #telemetry-hud {
             position: fixed; 
             top: 75px; 
@@ -236,7 +235,6 @@
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
         
-        // Listas separadas para suelo y obstáculos del barrio
         let sueloMeshCache = []; 
         let colisionBarrioCache = [];
 
@@ -425,7 +423,7 @@
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
         /* ==========================================================
-           1. CLASIFICACIÓN Y CACHEADO DE MALLAS
+           1. CLASIFICACIÓN Y CACHEADO DE MALLAS CON FILTRADO DE CASA
            ========================================================== */
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
@@ -435,17 +433,25 @@
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
-                    const parentName = (child.parent && child.parent.name || "").toLowerCase();
                     
-                    // No incluir la casa en bloqueos rígidos de la calle para mantener tu acceso libre
-                    const esCasa = objName.includes("casaluis") || parentName.includes("casaluis");
+                    // Verificación profunda en la jerarquía de nodos para detectar casa_luis
+                    let esCasa = false;
+                    let p = child;
+                    while (p) {
+                        let pName = (p.name || "").toLowerCase();
+                        if (pName.includes("casaluis") || pName.includes("casa_luis") || pName.includes("luis_model")) {
+                            esCasa = true;
+                            break;
+                        }
+                        p = p.parent;
+                    }
 
-                    // Mallas para chocar de frente en el barrio (muros, paredes, rejas, árboles)
+                    // Las mallas de la casa quedan LIBRES del raycaster horizontal para dejar pasar al avatar
                     if (!esCasa) {
                         colisionBarrioCache.push(child);
                     }
 
-                    // Mallas para pisar sin hundirse (asfalto, acerados, terreno)
+                    // Mallas para pisar sin hundirse
                     if (!objName.includes("tree") && !objName.includes("arbol") && 
                         !objName.includes("leave") && !objName.includes("hoja") && 
                         !objName.includes("trunk") && !objName.includes("branch") && 
@@ -459,15 +465,13 @@
         function escanearCasaAutomatica(rootNode) {
             if (!rootNode) return;
             
-            let casaMesh = rootNode.getObjectByName('casaluis_model');
-            
-            if (!casaMesh) {
-                rootNode.traverse(child => {
-                    if (child.name && (child.name === 'casaluis_model' || child.name.includes('casaluis_model'))) {
-                        casaMesh = child;
-                    }
-                });
-            }
+            let casaMesh = null;
+            rootNode.traverse(child => {
+                let n = (child.name || "").toLowerCase();
+                if (n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
+                    casaMesh = child;
+                }
+            });
 
             if (casaMesh) {
                 let cajaVirtual = new THREE.Box3().setFromObject(casaMesh);
@@ -479,8 +483,8 @@
 
                 CONFIG_CASA.centroX = centro.x;
                 CONFIG_CASA.centroZ = centro.z;
-                CONFIG_CASA.radioX = (tamano.x / 2) + 0.4; 
-                CONFIG_CASA.radioZ = (tamano.z / 2) + 0.4;
+                CONFIG_CASA.radioX = (tamano.x / 2) + 0.5; 
+                CONFIG_CASA.radioZ = (tamano.z / 2) + 0.5;
 
                 PUNTOS_MERODEO_CASA = [
                     new THREE.Vector3(centro.x, 0, centro.z + CONFIG_CASA.radioZ + 3.0),
@@ -489,7 +493,7 @@
                     new THREE.Vector3(centro.x, 0, centro.z - CONFIG_CASA.radioZ - 3.0)
                 ];
 
-                console.log("🎯 Zona interior detectada:", CONFIG_CASA);
+                console.log("🎯 Zona refugio detectada:", CONFIG_CASA);
             }
         }
 
@@ -698,34 +702,41 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                // 🛑 A) RAYCAST HORIZONTAL: BLOQUEO CONTRA MUROS, PAREDES, REJAS Y ÁRBOLES EN EL BARRIO
+                // COMPROBACIÓN DE PROXIMIDAD A LA CASA
+                let cercaDeCasa = (
+                    Math.abs(siguienteX - CONFIG_CASA.centroX) < (CONFIG_CASA.radioX + 1.2) &&
+                    Math.abs(siguienteZ - CONFIG_CASA.centroZ) < (CONFIG_CASA.radioZ + 1.2)
+                );
+
+                // 🛑 A) RAYCAST HORIZONTAL: SOLAMENTE SE ACTIVA SI NO ESTÁS ENTRANDO/DENTRO DE LA CASA
                 let pasoPermitido = true;
-                if (GAME_STATE.inputMoviendo && colisionBarrioCache.length > 0) {
+                if (GAME_STATE.inputMoviendo && colisionBarrioCache.length > 0 && !cercaDeCasa) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 0.55; // Límite de colisión frontal (55 cm)
+                    RAYCASTER_REUTILIZABLE.far = 0.55; 
 
                     const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
                     if (choques.length > 0) {
-                        pasoPermitido = false; // Hay obstáculo en el barrio: no avanza
+                        pasoPermitido = false; 
                     }
                 }
 
+                // Detección precisa de refugio interior
                 let deVerdadEstaDentro = (
                     Math.abs(siguienteX - CONFIG_CASA.centroX) < CONFIG_CASA.radioX &&
                     Math.abs(siguienteZ - CONFIG_CASA.centroZ) < CONFIG_CASA.radioZ
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // Solo actualizar coordenadas si el paso está libre
+                // Desplazar avatar si no hay choques en el barrio o si está entrando a la casa
                 if (GAME_STATE.inputMoviendo && pasoPermitido) { 
                     GAME_STATE.pos.x = siguienteX; 
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // 👟 B) RAYCAST VERTICAL: DETECCIÓN DE ASFALTO Y PISO (SIN HUNDIMIENTO)
+                // 👟 B) RAYCAST VERTICAL: DETECCIÓN DE PISO
                 if (sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
@@ -737,7 +748,6 @@
                     
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        // Filtramos caras que miren hacia arriba (planas/asfalto)
                         if (!hit.face || hit.face.normal.y < 0.25) continue; 
                         let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
                         if (diff < minDiff) { 
@@ -750,7 +760,6 @@
                     }
                 }
 
-                // Fijar la altura firmemente sobre la calle
                 let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
