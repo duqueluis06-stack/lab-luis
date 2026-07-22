@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v15.4 (Radar HUD & Stair Fix)</title>
+    <title>ARK - Werewolf Nightmare v15.4 (Radar HUD & Barrio Collision Fix)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -95,7 +95,7 @@
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
 
-        /* HUD RADAR NEÓN */
+        /* HUD RADAR */
         #telemetry-hud {
             position: fixed; 
             top: 75px; 
@@ -231,37 +231,14 @@
             dirAlBosque: new THREE.Vector3(),
             dirHaciaTi: new THREE.Vector3(),
             rayOrigin: new THREE.Vector3(),
-            rayDir: new THREE.Vector3(0, -1, 0)
+            rayDir: new THREE.Vector3(0, -1, 0),
+            dirAvance: new THREE.Vector3()
         };
-
-        // RAYCASTERS
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
-        const RAYCASTER_PARED = new THREE.Raycaster();
-        const V_DIR_PARED = new THREE.Vector3();
-        const V_ORIGEN_PARED = new THREE.Vector3();
-
+        
+        // Listas separadas para suelo y obstáculos del barrio
         let sueloMeshCache = []; 
-
-        // DETECTOR DE PAREDES HORIZONTAL
-        function puedeMoverse(posActual, dirX, dirZ, paso) {
-            if (!sueloMeshCache || sueloMeshCache.length === 0 || (dirX === 0 && dirZ === 0)) return true;
-
-            V_DIR_PARED.set(dirX, 0, dirZ).normalize();
-            V_ORIGEN_PARED.set(posActual.x, posActual.y + 0.8, posActual.z); // Evalúa a la altura del pecho
-
-            RAYCASTER_PARED.set(V_ORIGEN_PARED, V_DIR_PARED);
-            RAYCASTER_PARED.far = paso + 0.45; // Radio físico del avatar
-
-            const impactos = RAYCASTER_PARED.intersectObjects(sueloMeshCache, false);
-
-            for (let i = 0; i < impactos.length; i++) {
-                // Si la superficie es un muro (normal vertical menor a 0.5)
-                if (Math.abs(impactos[i].face.normal.y) < 0.5) {
-                    return false; // Bloquea avance en esa dirección
-                }
-            }
-            return true;
-        }
+        let colisionBarrioCache = [];
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -447,26 +424,34 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
+        /* ==========================================================
+           1. CLASIFICACIÓN Y CACHEADO DE MALLAS
+           ========================================================== */
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
+            colisionBarrioCache = [];
+
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
                     const parentName = (child.parent && child.parent.name || "").toLowerCase();
                     
-                    if (objName.includes("tree") || objName.includes("arbol") || 
-                        objName.includes("leave") || objName.includes("hoja") || 
-                        objName.includes("trunk") || objName.includes("branch") || 
-                        objName.includes("foliage") || objName.includes("rama") ||
-                        objName.includes("wood") || objName.includes("log") ||
-                        objName.includes("bush") || objName.includes("arbusto") ||
-                        parentName.includes("tree") || parentName.includes("arbol") ||
-                        parentName.includes("foliage") || parentName.includes("trunk") ||
-                        parentName.includes("branch")) {
-                        return; 
+                    // No incluir la casa en bloqueos rígidos de la calle para mantener tu acceso libre
+                    const esCasa = objName.includes("casaluis") || parentName.includes("casaluis");
+
+                    // Mallas para chocar de frente en el barrio (muros, paredes, rejas, árboles)
+                    if (!esCasa) {
+                        colisionBarrioCache.push(child);
                     }
-                    sueloMeshCache.push(child);
+
+                    // Mallas para pisar sin hundirse (asfalto, acerados, terreno)
+                    if (!objName.includes("tree") && !objName.includes("arbol") && 
+                        !objName.includes("leave") && !objName.includes("hoja") && 
+                        !objName.includes("trunk") && !objName.includes("branch") && 
+                        !objName.includes("bush") && !objName.includes("reja")) {
+                        sueloMeshCache.push(child);
+                    }
                 }
             });
         }
@@ -504,9 +489,7 @@
                     new THREE.Vector3(centro.x, 0, centro.z - CONFIG_CASA.radioZ - 3.0)
                 ];
 
-                console.log("🎯 Módulo inyectado con éxito", CONFIG_CASA);
-            } else {
-                console.warn("⚠️ No se detectó 'casaluis_model'. Usando parámetros de contingencia.");
+                console.log("🎯 Zona interior detectada:", CONFIG_CASA);
             }
         }
 
@@ -678,6 +661,9 @@
             }, 1500);
         }
 
+        /* ==========================================================
+           2. BUCLE PRINCIPAL DEL MOTOR (ENGINE LOOP)
+           ========================================================== */
         function engineLoop(time) {
             requestAnimationFrame(engineLoop);
             
@@ -689,7 +675,6 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 6 === 0); 
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -713,45 +698,64 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
+                // 🛑 A) RAYCAST HORIZONTAL: BLOQUEO CONTRA MUROS, PAREDES, REJAS Y ÁRBOLES EN EL BARRIO
+                let pasoPermitido = true;
+                if (GAME_STATE.inputMoviendo && colisionBarrioCache.length > 0) {
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
+                    V_POOL.dirAvance.set(dx, 0, dz).normalize();
+
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+                    RAYCASTER_REUTILIZABLE.far = 0.55; // Límite de colisión frontal (55 cm)
+
+                    const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
+                    if (choques.length > 0) {
+                        pasoPermitido = false; // Hay obstáculo en el barrio: no avanza
+                    }
+                }
+
                 let deVerdadEstaDentro = (
                     Math.abs(siguienteX - CONFIG_CASA.centroX) < CONFIG_CASA.radioX &&
                     Math.abs(siguienteZ - CONFIG_CASA.centroZ) < CONFIG_CASA.radioZ
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // MOVIMIENTO CON COLISIÓN Y DESLIZAMIENTO DE MUROS
-                if (GAME_STATE.inputMoviendo) { 
-                    let distStep = speed * dt;
-                    if (puedeMoverse(GAME_STATE.pos, dx, 0, distStep)) {
-                        GAME_STATE.pos.x = siguienteX; 
-                    }
-                    if (puedeMoverse(GAME_STATE.pos, 0, dz, distStep)) {
-                        GAME_STATE.pos.z = siguienteZ; 
-                    }
+                // Solo actualizar coordenadas si el paso está libre
+                if (GAME_STATE.inputMoviendo && pasoPermitido) { 
+                    GAME_STATE.pos.x = siguienteX; 
+                    GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                if (ejecutarRaycast && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 4.5, GAME_STATE.pos.z); 
+                // 👟 B) RAYCAST VERTICAL: DETECCIÓN DE ASFALTO Y PISO (SIN HUNDIMIENTO)
+                if (sueloMeshCache.length > 0) { 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+                    RAYCASTER_REUTILIZABLE.far = 6.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                    let mejorAltura = null; let minDiff = Infinity;
+                    let mejorAltura = null; 
+                    let minDiff = Infinity;
                     
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (!hit.face || hit.face.normal.y < 0.35) continue; 
+                        // Filtramos caras que miren hacia arriba (planas/asfalto)
+                        if (!hit.face || hit.face.normal.y < 0.25) continue; 
                         let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
-                        if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
+                        if (diff < minDiff) { 
+                            minDiff = diff; 
+                            mejorAltura = hit.point.y; 
+                        }
                     }
-                    if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 1.2) {
+                    if (mejorAltura !== null) {
                         GAME_STATE.cachedAlturaSuelo = mejorAltura;
                     }
                 }
 
-                let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
+                // Fijar la altura firmemente sobre la calle
+                let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
+                // HUD RADAR
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
