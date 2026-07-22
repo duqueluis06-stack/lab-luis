@@ -95,7 +95,7 @@
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
 
-        /* 📡 HUD ESTILO RADAR NEÓN REUBICADO SUPERIOR */
+        /* HUD RADAR NEÓN */
         #telemetry-hud {
             position: fixed; 
             top: 75px; 
@@ -156,7 +156,6 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- Panel Asimut/Radar (Ahora arriba del entorno del avatar, libre de estorbos) -->
     <div id="telemetry-hud">SYS.RADAR // ONLINE</div>
 
     <a-scene id="escena-principal" 
@@ -234,8 +233,35 @@
             rayOrigin: new THREE.Vector3(),
             rayDir: new THREE.Vector3(0, -1, 0)
         };
+
+        // RAYCASTERS
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
+        const RAYCASTER_PARED = new THREE.Raycaster();
+        const V_DIR_PARED = new THREE.Vector3();
+        const V_ORIGEN_PARED = new THREE.Vector3();
+
         let sueloMeshCache = []; 
+
+        // DETECTOR DE PAREDES HORIZONTAL
+        function puedeMoverse(posActual, dirX, dirZ, paso) {
+            if (!sueloMeshCache || sueloMeshCache.length === 0 || (dirX === 0 && dirZ === 0)) return true;
+
+            V_DIR_PARED.set(dirX, 0, dirZ).normalize();
+            V_ORIGEN_PARED.set(posActual.x, posActual.y + 0.8, posActual.z); // Evalúa a la altura del pecho
+
+            RAYCASTER_PARED.set(V_ORIGEN_PARED, V_DIR_PARED);
+            RAYCASTER_PARED.far = paso + 0.45; // Radio físico del avatar
+
+            const impactos = RAYCASTER_PARED.intersectObjects(sueloMeshCache, false);
+
+            for (let i = 0; i < impactos.length; i++) {
+                // Si la superficie es un muro (normal vertical menor a 0.5)
+                if (Math.abs(impactos[i].face.normal.y) < 0.5) {
+                    return false; // Bloquea avance en esa dirección
+                }
+            }
+            return true;
+        }
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -478,7 +504,7 @@
                     new THREE.Vector3(centro.x, 0, centro.z - CONFIG_CASA.radioZ - 3.0)
                 ];
 
-                console.log("🎯 ¡Módulo detectado e inyectado con éxito!", CONFIG_CASA);
+                console.log("🎯 Módulo inyectado con éxito", CONFIG_CASA);
             } else {
                 console.warn("⚠️ No se detectó 'casaluis_model'. Usando parámetros de contingencia.");
             }
@@ -693,9 +719,15 @@
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
+                // MOVIMIENTO CON COLISIÓN Y DESLIZAMIENTO DE MUROS
                 if (GAME_STATE.inputMoviendo) { 
-                    GAME_STATE.pos.x = siguienteX; 
-                    GAME_STATE.pos.z = siguienteZ; 
+                    let distStep = speed * dt;
+                    if (puedeMoverse(GAME_STATE.pos, dx, 0, distStep)) {
+                        GAME_STATE.pos.x = siguienteX; 
+                    }
+                    if (puedeMoverse(GAME_STATE.pos, 0, dz, distStep)) {
+                        GAME_STATE.pos.z = siguienteZ; 
+                    }
                 }
 
                 if (ejecutarRaycast && sueloMeshCache.length > 0) { 
@@ -720,7 +752,6 @@
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                // 📡 HUD RADAR RENOVADO EN LA PARTE SUPERIOR
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
