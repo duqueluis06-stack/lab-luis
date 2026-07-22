@@ -156,7 +156,7 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- Panel Asimut/Radar -->
+    <!-- Panel Asimut/Radar (Ahora arriba del entorno del avatar, libre de estorbos) -->
     <div id="telemetry-hud">SYS.RADAR // ONLINE</div>
 
     <a-scene id="escena-principal" 
@@ -232,15 +232,10 @@
             dirAlBosque: new THREE.Vector3(),
             dirHaciaTi: new THREE.Vector3(),
             rayOrigin: new THREE.Vector3(),
-            rayDir: new THREE.Vector3(0, -1, 0),
-            moveDir: new THREE.Vector3(),
-            rayWallOrigin: new THREE.Vector3()
+            rayDir: new THREE.Vector3(0, -1, 0)
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
-        const RAYCASTER_PAREDES = new THREE.Raycaster();
-
         let sueloMeshCache = []; 
-        let paredesMeshCache = [];
 
         const Pistas = {
             limbo: new Audio("audio/limbo.mp3"),
@@ -429,14 +424,11 @@
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
-            paredesMeshCache = [];
-
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
                     const parentName = (child.parent && child.parent.name || "").toLowerCase();
                     
-                    // Excluir árboles y arbustos
                     if (objName.includes("tree") || objName.includes("arbol") || 
                         objName.includes("leave") || objName.includes("hoja") || 
                         objName.includes("trunk") || objName.includes("branch") || 
@@ -448,15 +440,6 @@
                         parentName.includes("branch")) {
                         return; 
                     }
-
-                    // Casa Luis NO se incluye en paredesMeshCache para que se pueda entrar/atravesar libremente
-                    let esCasaLuis = objName.includes("casaluis") || parentName.includes("casaluis");
-
-                    if (!esCasaLuis) {
-                        paredesMeshCache.push(child);
-                    }
-
-                    // Para el asfalto y elevación de piso agregamos las mallas
                     sueloMeshCache.push(child);
                 }
             });
@@ -680,7 +663,7 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 4 === 0); 
+                const ejecutarRaycast = (GAME_STATE.frameTicks % 6 === 0); 
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -710,61 +693,34 @@
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // 🧱 DETECCIÓN Y COLISIÓN CONTRA PAREDES DEL BARRIO (Excluye Casa Luis)
                 if (GAME_STATE.inputMoviendo) { 
-                    V_POOL.moveDir.set(dx, 0, dz).normalize();
-                    V_POOL.rayWallOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z);
-                    RAYCASTER_PAREDES.set(V_POOL.rayWallOrigin, V_POOL.moveDir);
-                    RAYCASTER_PAREDES.far = 0.55; 
-
-                    let hitsPared = (paredesMeshCache.length > 0) ? RAYCASTER_PAREDES.intersectObjects(paredesMeshCache, false) : [];
-
-                    if (hitsPared.length === 0) {
-                        GAME_STATE.pos.x = siguienteX; 
-                        GAME_STATE.pos.z = siguienteZ; 
-                    } else {
-                        // Probar deslizamiento en eje X solo
-                        V_POOL.moveDir.set(dx > 0 ? 1 : -1, 0, 0);
-                        RAYCASTER_PAREDES.set(V_POOL.rayWallOrigin, V_POOL.moveDir);
-                        if (RAYCASTER_PAREDES.intersectObjects(paredesMeshCache, false).length === 0) {
-                            GAME_STATE.pos.x = siguienteX;
-                        }
-
-                        // Probar deslizamiento en eje Z solo
-                        V_POOL.moveDir.set(0, 0, dz > 0 ? 1 : -1);
-                        RAYCASTER_PAREDES.set(V_POOL.rayWallOrigin, V_POOL.moveDir);
-                        if (RAYCASTER_PAREDES.intersectObjects(paredesMeshCache, false).length === 0) {
-                            GAME_STATE.pos.z = siguienteZ;
-                        }
-                    }
+                    GAME_STATE.pos.x = siguienteX; 
+                    GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // 🛣️ RAYCASTING CORREGIDO PARA ASFALTO (No más hundimiento)
                 if (ejecutarRaycast && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 4.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 3.5;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; let minDiff = Infinity;
                     
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (!hit.face || hit.face.normal.y < 0.25) continue; 
+                        if (!hit.face || hit.face.normal.y < 0.35) continue; 
                         let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
                         if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
                     }
-                    if (mejorAltura !== null) {
-                        // +0.02 de margen para asegurar la suela del zapato justo sobre el asfalto
-                        GAME_STATE.cachedAlturaSuelo = mejorAltura + 0.02;
+                    if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 1.2) {
+                        GAME_STATE.cachedAlturaSuelo = mejorAltura;
                     }
                 }
 
-                let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.45;
+                let factorSuavizado = GAME_STATE.esInterior ? 0.25 : 0.4;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                // 📡 HUD RADAR RENOVADO
+                // 📡 HUD RADAR RENOVADO EN LA PARTE SUPERIOR
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
