@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v15.4 (Radar HUD & Stair Fix)</title>
+    <title>ARK - Werewolf Nightmare v15.4 (Radar HUD & Fixed Collisions)</title>
     
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
@@ -95,7 +95,6 @@
         #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
         #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
 
-        /* 📡 HUD ESTILO RADAR NEÓN REUBICADO SUPERIOR */
         #telemetry-hud {
             position: fixed; 
             top: 75px; 
@@ -156,7 +155,6 @@
         <div id="joystick-container"><div id="joystick-knob"></div></div>
     </div>
 
-    <!-- Panel Asimut/Radar (Ahora arriba del entorno del avatar, libre de estorbos) -->
     <div id="telemetry-hud">SYS.RADAR // ONLINE</div>
 
     <a-scene id="escena-principal" 
@@ -187,6 +185,7 @@
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
+        <!-- ENTORNO PRINCIPAL -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0"></a-entity>
         
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
@@ -226,6 +225,13 @@
             radioX: 4.5,     
             radioZ: 4.5      
         };
+
+        // 🧱 CONFIGURACIÓN DE COLISIONES MANUALES PARA CASAS/BARRIO (Opcional, por si quieres afinar coordenadas)
+        const CONFIG_COLISIONES_MANUALES = [
+            // Ejemplos de uso si deseas definir manualmente un bloque: { x: 12, z: -8, anchoX: 6, largoZ: 6 }
+        ];
+
+        let CAJAS_COLISION_CASAS = [];
 
         const V_POOL = {
             dirALugar: new THREE.Vector3(),
@@ -421,28 +427,79 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        function extraerMallasSuelo(objetoRaiz) {
+        // 🛣️ EXTRAE Y DETECTA TANTO EL SUELO/ASFALTO COMO LAS CASAS/EDIFICIOS
+        function extraerMallasYObstaculos(objetoRaiz) {
             if (!objetoRaiz) return;
-            sueloMeshCache = [];
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
                     const parentName = (child.parent && child.parent.name || "").toLowerCase();
                     
-                    if (objName.includes("tree") || objName.includes("arbol") || 
-                        objName.includes("leave") || objName.includes("hoja") || 
-                        objName.includes("trunk") || objName.includes("branch") || 
-                        objName.includes("foliage") || objName.includes("rama") ||
-                        objName.includes("wood") || objName.includes("log") ||
-                        objName.includes("bush") || objName.includes("arbusto") ||
-                        parentName.includes("tree") || parentName.includes("arbol") ||
-                        parentName.includes("foliage") || parentName.includes("trunk") ||
-                        parentName.includes("branch")) {
-                        return; 
+                    const esVegetacion = objName.includes("tree") || objName.includes("arbol") || 
+                                         objName.includes("leave") || objName.includes("hoja") || 
+                                         objName.includes("trunk") || objName.includes("branch") || 
+                                         objName.includes("foliage") || objName.includes("rama") ||
+                                         objName.includes("wood") || objName.includes("log") ||
+                                         objName.includes("bush") || objName.includes("arbusto") ||
+                                         parentName.includes("tree") || parentName.includes("arbol") ||
+                                         parentName.includes("foliage") || parentName.includes("trunk") ||
+                                         parentName.includes("branch");
+
+                    if (!esVegetacion) {
+                        sueloMeshCache.push(child);
                     }
-                    sueloMeshCache.push(child);
+
+                    // Detector de paredes / casas para bloquear paso fantasma
+                    const esCasaOEdificio = objName.includes("casa") || objName.includes("house") || 
+                                            objName.includes("building") || objName.includes("edificio") || 
+                                            objName.includes("barrio") || objName.includes("muro") || objName.includes("wall") ||
+                                            parentName.includes("casa") || parentName.includes("building");
+
+                    const esSueloPuro = objName.includes("suelo") || objName.includes("asfalto") || 
+                                        objName.includes("calle") || objName.includes("road") || objName.includes("ground");
+
+                    if (esCasaOEdificio && !esSueloPuro) {
+                        child.geometry.computeBoundingBox();
+                        let box = new THREE.Box3().setFromObject(child);
+                        let size = new THREE.Vector3();
+                        box.getSize(size);
+                        // Evita tomar recuadros gigantescos de todo el mundo entero
+                        if (size.x < 35 && size.z < 35) {
+                            CAJAS_COLISION_CASAS.push(box);
+                        }
+                    }
                 }
             });
+        }
+
+        // 🚫 DETECTOR DE COLISIÓN PARA QUE EL AVATAR NO ATRAVIESE CASAS NI EL BARRIO
+        function hayColisionConCasas(posX, posZ) {
+            let radioJugador = 0.38; // Tamaño físico del avatar
+            
+            // 1. Revisa cajas detectadas automáticamente en el modelo 3D
+            for (let i = 0; i < CAJAS_COLISION_CASAS.length; i++) {
+                let box = CAJAS_COLISION_CASAS[i];
+                if (posX + radioJugador > box.min.x && posX - radioJugador < box.max.x &&
+                    posZ + radioJugador > box.min.z && posZ - radioJugador < box.max.z) {
+                    return true;
+                }
+            }
+
+            // 2. Revisa cajas configuradas manualmente
+            for (let i = 0; i < CONFIG_COLISIONES_MANUALES.length; i++) {
+                let c = CONFIG_COLISIONES_MANUALES[i];
+                let minX = c.x - (c.anchoX / 2);
+                let maxX = c.x + (c.anchoX / 2);
+                let minZ = c.z - (c.largoZ / 2);
+                let maxZ = c.z + (c.largoZ / 2);
+                
+                if (posX + radioJugador > minX && posX - radioJugador < maxX &&
+                    posZ + radioJugador > minZ && posZ - radioJugador < maxZ) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function escanearCasaAutomatica(rootNode) {
@@ -514,7 +571,7 @@
                 ENT.entorno.addEventListener('model-loaded', () => {
                     let mesh = ENT.entorno.getObject3D('mesh');
                     if (mesh) {
-                        extraerMallasSuelo(mesh);
+                        extraerMallasYObstaculos(mesh);
                         escanearCasaAutomatica(mesh);
                     }
                 });
@@ -529,7 +586,7 @@
                 
                 let mesh = ENT.entorno ? ENT.entorno.getObject3D('mesh') : null;
                 if(mesh) {
-                    extraerMallasSuelo(mesh);
+                    extraerMallasYObstaculos(mesh);
                     escanearCasaAutomatica(mesh);
                 }
                 
@@ -663,7 +720,7 @@
 
             try {
                 GAME_STATE.frameTicks++;
-                const ejecutarRaycast = (GAME_STATE.frameTicks % 6 === 0); 
+                const ejecutarRaycast = (GAME_STATE.frameTicks % 4 === 0); 
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
                     AudioController.dispararAullidoMinuto();
@@ -693,26 +750,38 @@
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
+                // 🚶 MOVIMIENTO DESLIZANTE CON COLISIÓN SÓLIDA DE EDIFICIOS
                 if (GAME_STATE.inputMoviendo) { 
-                    GAME_STATE.pos.x = siguienteX; 
-                    GAME_STATE.pos.z = siguienteZ; 
+                    if (!hayColisionConCasas(siguienteX, GAME_STATE.pos.z)) {
+                        GAME_STATE.pos.x = siguienteX; 
+                    }
+                    if (!hayColisionConCasas(GAME_STATE.pos.x, siguienteZ)) {
+                        GAME_STATE.pos.z = siguienteZ; 
+                    }
                 }
 
+                // 👟 DETECCIÓN DE SUELO / ASFALTO PARA NO HUNDIR ZAPATOS
                 if (ejecutarRaycast && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 4.5, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 3.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                    let mejorAltura = null; let minDiff = Infinity;
+                    let mejorAlturaPiso = -Infinity;
                     
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (!hit.face || hit.face.normal.y < 0.35) continue; 
-                        let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
-                        if (diff < minDiff) { minDiff = diff; mejorAltura = hit.point.y; }
+                        if (!hit.face || hit.face.normal.y < 0.25) continue; 
+                        
+                        // Selecciona la capa MÁS ALTA debajo del avatar (asfalto sobre terreno)
+                        if (hit.point.y <= (GAME_STATE.pos.y + 1.8)) {
+                            if (hit.point.y > mejorAlturaPiso) {
+                                mejorAlturaPiso = hit.point.y;
+                            }
+                        }
                     }
-                    if (mejorAltura !== null && (mejorAltura - GAME_STATE.pos.y) < 1.2) {
-                        GAME_STATE.cachedAlturaSuelo = mejorAltura;
+
+                    if (mejorAlturaPiso !== -Infinity) {
+                        GAME_STATE.cachedAlturaSuelo = mejorAlturaPiso;
                     }
                 }
 
@@ -720,7 +789,6 @@
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                // 📡 HUD RADAR RENOVADO EN LA PARTE SUPERIOR
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
