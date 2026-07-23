@@ -69,6 +69,31 @@
       outline: none;
     }
 
+    #btn-reset {
+      position: absolute;
+      bottom: 16px;
+      right: 110px;
+      z-index: 100;
+      padding: 10px 16px;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      background: rgba(9, 13, 22, 0.7);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+      font-weight: bold;
+      color: #00f0ff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+    }
+
+    #btn-reset:hover {
+      background: rgba(0, 240, 255, 0.2);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+    }
+
     #volver {
       position: absolute;
       bottom: 16px;
@@ -244,6 +269,8 @@
       .track-pill { font-size: 8px; padding: 4px 2px; }
       .dj-btn { padding: 4px 8px; font-size: 9px; }
       #creditos-link { bottom: 8px; font-size: 9px; }
+      #btn-reset { right: 90px; padding: 8px 12px; font-size: 10px; }
+      #volver { padding: 8px 12px; font-size: 10px; }
     }
 
     /* JOYSTICK TÁCTIL REFORZADO */
@@ -292,6 +319,7 @@
   <button id="btn-entrar" style="padding: 14px 28px; background: rgba(0, 240, 255, 0.1); border: 2px solid #00f0ff; color: #00f0ff; font-family: monospace; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s;" onmouseover="this.style.background='rgba(0,240,255,0.25)'; this.style.boxShadow='0 0 25px #00f0ff'" onmouseout="this.style.background='rgba(0,240,255,0.1)'; this.style.boxShadow='0 0 15px rgba(0, 240, 255, 0.3)'">ENTRAR Y ACTIVAR AUDIO 🎵</button>
 </div>
 
+<button id="btn-reset">↺ Inicio</button>
 <button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
@@ -565,9 +593,18 @@ dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/dr
 loader.setDRACOLoader(dracoLoader);
 // --------------------------------------------
 
-let avatar = null;
+// CONTENEDOR CONTROLADOR DE LUIS Y ESTADOS DE ANIMACIÓN
+const avatarContainer = new THREE.Group();
+avatarContainer.position.set(0, 0, 0);
+scene.add(avatarContainer);
+
+let modelAcostado = null;
+let modelCamina = null;
+let mixerAcostado = null;
+let mixerCamina = null;
+let avatarState = 'acostado'; // 'acostado' | 'camina'
+
 let michigris = null;
-let mixer = null;       
 let islandMixer = null; 
 let laraMixer = null; 
 let michigrisMixer = null;
@@ -581,19 +618,54 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// AVATAR GLB DE LUIS (La cámara lo seguirá en todo momento)
+// 1. CARGA DE LUIS ACOSTADO
 loader.load("luis-acostado.glb", (gltf) => {
-  avatar = gltf.scene;
-  avatar.position.set(0, 0, 0); 
-  avatar.rotation.y = Math.PI; 
-  scene.add(avatar);
-  controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1, 0));
+  modelAcostado = gltf.scene;
+  modelAcostado.rotation.y = Math.PI; 
+  avatarContainer.add(modelAcostado);
 
   if (gltf.animations && gltf.animations.length > 0) {
-    mixer = new THREE.AnimationMixer(avatar);
-    mixer.clipAction(gltf.animations[0]).play();
+    mixerAcostado = new THREE.AnimationMixer(modelAcostado);
+    mixerAcostado.clipAction(gltf.animations[0]).play();
   }
 });
+
+// 2. CARGA DE LUIS CAMINA (Oculto inicialmente)
+loader.load("luis-camina.glb", (gltf) => {
+  modelCamina = gltf.scene;
+  modelCamina.rotation.y = Math.PI; 
+  modelCamina.visible = false; // Se mantiene oculto hasta tocar el joystick
+  avatarContainer.add(modelCamina);
+
+  if (gltf.animations && gltf.animations.length > 0) {
+    mixerCamina = new THREE.AnimationMixer(modelCamina);
+    mixerCamina.clipAction(gltf.animations[0]).play();
+  }
+});
+
+// LÓGICA DEL BOTÓN REINICIAR AL INICIO
+function resetAvatarPosition() {
+  avatarContainer.position.set(0, 0, 0);
+  avatarContainer.rotation.y = 0;
+
+  if (modelAcostado) {
+    modelAcostado.rotation.y = Math.PI;
+    modelAcostado.visible = true;
+  }
+  if (modelCamina) {
+    modelCamina.rotation.y = Math.PI;
+    modelCamina.visible = false;
+  }
+
+  avatarState = 'acostado';
+  controls.target.set(0, 1, 0);
+}
+
+document.getElementById('btn-reset').addEventListener('click', (e) => {
+  e.stopPropagation();
+  resetAvatarPosition();
+});
+
 
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
@@ -696,7 +768,7 @@ function crearBandada() {
 crearBandada();
 
 
-// --- MANADA DE DELFINES PROCEDIMENTALES (DISTANCIA Y TAMAÑO CORREGIDOS) ---
+// --- MANADA DE DELFINES PROCEDIMENTALES ---
 const delfines = [];
 const numDelfines = 3;
 
@@ -707,7 +779,6 @@ function crearManadaDelfines() {
   for (let i = 0; i < numDelfines; i++) {
     const grupoDelfin = new THREE.Group();
 
-    // Cuerpo base estilizado
     const cuerpoGeo = new THREE.SphereGeometry(0.35, 16, 12);
     const cuerpo = new THREE.Mesh(cuerpoGeo, matDelfin);
     cuerpo.scale.set(0.6, 0.45, 3.5); 
@@ -750,16 +821,15 @@ function crearManadaDelfines() {
     aletaCola.position.set(0, 0, -1.6);
     grupoDelfin.add(aletaCola);
 
-    // ESCALA INTERMEDIA PERFECTA: No son globos masivos ni moscas invisibles
     grupoDelfin.scale.set(0.65, 0.65, 0.65);
 
     const datosDelfin = {
       malla: grupoDelfin,
-      radio: 42 + (i * 6),                      // Ubicación en rango intermedio prudente lejos de la costa (42, 48, 54)
+      radio: 42 + (i * 6),
       velocidad: 0.38 + (i * 0.05),             
       angulo: (Math.PI / 4) + (i * 1.5),         
       alturaBase: -0.25,                        
-      maxAlturaSalto: 1.8 + (i * 0.3),          // Parámetro de salto adaptado proporcionalmente a su nueva escala
+      maxAlturaSalto: 1.8 + (i * 0.3),
       frecuenciaSalto: 1.4 - (i * 0.1),        
       desfaseTiempo: i * 3.1                    
     };
@@ -822,7 +892,9 @@ function animate() {
   const delta = clock.getDelta();
   const tiempoTotal = clock.getElapsedTime();
 
-  if (mixer) mixer.update(delta);
+  if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
+  if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
+
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta); 
   if (michigrisMixer) michigrisMixer.update(delta);
@@ -861,32 +933,38 @@ function animate() {
     }
   });
 
-  // SEGUIMIENTO DE LA CÁMARA AL AVATAR GLB DE LUIS
-  if (avatar) {
-    const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
-    if (isMoving) {
-      const camDir = new THREE.Vector3();
-      camera.getWorldDirection(camDir);
-      camDir.y = 0;
-      camDir.normalize();
+  // LÓGICA DE MOVIMIENTO Y CAMBIO DE MODELO DE LUIS
+  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-      const camRight = new THREE.Vector3();
-      camRight.crossVectors(camDir, camera.up).normalize();
-
-      const moveDirection = new THREE.Vector3();
-      moveDirection.addScaledVector(camRight, moveInput.x);
-      moveDirection.addScaledVector(camDir, moveInput.y);
-      moveDirection.normalize();
-
-      const speed = 2.2; 
-      avatar.position.addScaledVector(moveDirection, speed * delta);
-
-      const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
-      avatar.rotation.y = targetAngle;
-
-      // Anclaje dinámico de la cámara al centro del GLB en movimiento
-      controls.target.copy(avatar.position).add(new THREE.Vector3(0, 1, 0));
+  if (isMoving) {
+    // Transición Mágica: Acostado -> Camina al tocar el Joystick
+    if (avatarState === 'acostado') {
+      avatarState = 'camina';
+      if (modelAcostado) modelAcostado.visible = false;
+      if (modelCamina) modelCamina.visible = true;
     }
+
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+
+    const camRight = new THREE.Vector3();
+    camRight.crossVectors(camDir, camera.up).normalize();
+
+    const moveDirection = new THREE.Vector3();
+    moveDirection.addScaledVector(camRight, moveInput.x);
+    moveDirection.addScaledVector(camDir, moveInput.y);
+    moveDirection.normalize();
+
+    const speed = 2.2; 
+    avatarContainer.position.addScaledVector(moveDirection, speed * delta);
+
+    const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+    avatarContainer.rotation.y = targetAngle;
+
+    // Anclaje dinámico de la cámara al centro del contenedor
+    controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
   }
 
   controls.update();
