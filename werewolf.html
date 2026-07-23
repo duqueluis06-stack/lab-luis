@@ -3,8 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ARK - Werewolf Nightmare v15.5 (Fix Entrada Casa Luis)</title>
     
+    <!-- SEO Normal & Meta Etiquetas -->
+    <title>ARK - Werewolf Nightmare v15.5 (Fix Entrada Casa Luis)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.5. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="ARK Studio">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.5">
+    <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
+    <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.5">
+    <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
+    <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
+
+    <!-- Google Analytics (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
+    
+    <!-- Librerías A-Frame -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
@@ -422,9 +451,6 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        /* ==========================================================
-           1. CLASIFICACIÓN Y CACHEADO DE MALLAS CON FILTRADO DE CASA
-           ========================================================== */
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -434,7 +460,6 @@
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
                     
-                    // Verificación profunda en la jerarquía de nodos para detectar casa_luis
                     let esCasa = false;
                     let p = child;
                     while (p) {
@@ -446,12 +471,10 @@
                         p = p.parent;
                     }
 
-                    // Las mallas de la casa quedan LIBRES del raycaster horizontal para dejar pasar al avatar
                     if (!esCasa) {
                         colisionBarrioCache.push(child);
                     }
 
-                    // Mallas para pisar sin hundirse
                     if (!objName.includes("tree") && !objName.includes("arbol") && 
                         !objName.includes("leave") && !objName.includes("hoja") && 
                         !objName.includes("trunk") && !objName.includes("branch") && 
@@ -665,9 +688,6 @@
             }, 1500);
         }
 
-        /* ==========================================================
-           2. BUCLE PRINCIPAL DEL MOTOR (ENGINE LOOP)
-           ========================================================== */
         function engineLoop(time) {
             requestAnimationFrame(engineLoop);
             
@@ -702,13 +722,11 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                // COMPROBACIÓN DE PROXIMIDAD A LA CASA
                 let cercaDeCasa = (
                     Math.abs(siguienteX - CONFIG_CASA.centroX) < (CONFIG_CASA.radioX + 1.2) &&
                     Math.abs(siguienteZ - CONFIG_CASA.centroZ) < (CONFIG_CASA.radioZ + 1.2)
                 );
 
-                // 🛑 A) RAYCAST HORIZONTAL: SOLAMENTE SE ACTIVA SI NO ESTÁS ENTRANDO/DENTRO DE LA CASA
                 let pasoPermitido = true;
                 if (GAME_STATE.inputMoviendo && colisionBarrioCache.length > 0 && !cercaDeCasa) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
@@ -723,20 +741,17 @@
                     }
                 }
 
-                // Detección precisa de refugio interior
                 let deVerdadEstaDentro = (
                     Math.abs(siguienteX - CONFIG_CASA.centroX) < CONFIG_CASA.radioX &&
                     Math.abs(siguienteZ - CONFIG_CASA.centroZ) < CONFIG_CASA.radioZ
                 );
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // Desplazar avatar si no hay choques en el barrio o si está entrando a la casa
                 if (GAME_STATE.inputMoviendo && pasoPermitido) { 
                     GAME_STATE.pos.x = siguienteX; 
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // 👟 B) RAYCAST VERTICAL: DETECCIÓN DE PISO
                 if (sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
@@ -764,7 +779,6 @@
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                // HUD RADAR
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
