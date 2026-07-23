@@ -406,7 +406,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON LIMPIEZA AL SALIR ---
+// --- ENGINE DE AUDIO DJ ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -620,14 +620,14 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA DE ARCHIVOS 3D (GLB) NATIVOS ---
+// --- CARGA DE ARCHIVOS 3D (GLB) ---
 const loader = new GLTFLoader();
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
 loader.setDRACOLoader(dracoLoader);
 
-// RAYCASTER PARA ADAPTACIÓN DE ALTURA SOBRE LA ISLA
+// RAYCASTER PARA ADAPTACIÓN INTELIGENTE DE ALTURA SOBRE LA ISLA
 const raycaster = new THREE.Raycaster();
 const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
@@ -672,7 +672,7 @@ loader.load("isla.glb", (gltf) => {
   }
 });
 
-// 1. CARGA DE LUIS ACOSTADO
+// 1. LUIS ACOSTADO
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -685,7 +685,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// 2. CARGA DE LUIS CAMINA
+// 2. LUIS CAMINA
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
   modelCamina.rotation.y = 0; 
@@ -698,7 +698,7 @@ loader.load("luis-camina.glb", (gltf) => {
   }
 });
 
-// 3. CARGA DE LUIS HORA (IDLE / DE PIE REPOSO)
+// 3. LUIS HORA (IDLE / REPOSO DE PIE)
 loader.load("luis-hora.glb", (gltf) => {
   modelHora = gltf.scene;
   modelHora.rotation.y = 0;
@@ -711,7 +711,7 @@ loader.load("luis-hora.glb", (gltf) => {
   }
 });
 
-// LÓGICA DE REINICIO AL INICIO
+// LÓGICA DE REINICIO
 let isResetting = false;
 
 function resetAvatarPosition() {
@@ -753,16 +753,14 @@ loader.load("michigris.glb", (gltf) => {
   michigris.rotation.y = Math.PI; 
   
   michigris.traverse((child) => {
-    if (child.isMesh) {
-      if (child.material) {
-        if (child.material.map) {
-          child.material.map.colorSpace = THREE.SRGBColorSpace;
-          child.material.map.needsUpdate = true;
-        }
-        if (child.material.metalness > 0.4) {
-          child.material.metalness = 0.1; 
-          child.material.roughness = 0.7; 
-        }
+    if (child.isMesh && child.material) {
+      if (child.material.map) {
+        child.material.map.colorSpace = THREE.SRGBColorSpace;
+        child.material.map.needsUpdate = true;
+      }
+      if (child.material.metalness > 0.4) {
+        child.material.metalness = 0.1; 
+        child.material.roughness = 0.7; 
       }
     }
   });
@@ -972,7 +970,7 @@ function animate() {
   const delta = clock.getDelta();
   const tiempoTotal = clock.getElapsedTime();
 
-  // Actualización de los mixers de animación activos
+  // Update de animaciones
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
@@ -1015,29 +1013,43 @@ function animate() {
     }
   });
 
-  // ADAPTACIÓN DE ALTURA CON RAYCASTER SOBRE LA ISLA
+  // SISTEMA INTELIGENTE DE TERRENO (CORRIGE ESCALADO DE PALMERAS Y REINICIOS FALSOS)
   if (islaScene && !isResetting) {
     const origin = avatarContainer.position.clone();
-    origin.y += 10; // Lanza el rayo desde arriba del avatar
+    origin.y += 4.0; // Proyecta el rayo desde 4m por encima del avatar
     raycaster.set(origin, downVector);
 
     const intersects = raycaster.intersectObject(islaScene, true);
-    if (intersects.length > 0) {
-      const groundY = intersects[0].point.y;
-      if (groundY < -0.2) {
-        // Cayó al agua
+    let validGroundY = null;
+
+    // Filtra las colisiones para ignorar la copa de los árboles y hojas altas
+    for (let i = 0; i < intersects.length; i++) {
+      const hit = intersects[i];
+      // Solo acepta superficies que estén como máximo 0.7m por encima del nivel actual del avatar
+      if (hit.point.y <= avatarContainer.position.y + 0.7) {
+        validGroundY = hit.point.y;
+        break;
+      }
+    }
+
+    if (validGroundY !== null) {
+      if (validGroundY < -0.35) {
+        // Cayeó efectivamente al mar
         triggerWaterReset();
       } else {
-        // Ajusta suavemente la altura del avatar a la superficie del terreno
-        avatarContainer.position.y = groundY;
+        // Asignación de altura con interpolación suave (Lerp)
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validGroundY, 0.3);
       }
     } else {
-      // Fuera del área de la isla (caída al mar)
-      triggerWaterReset();
+      // Si no detecta superficie, evalúa si Luis realmente salió de la isla (Radio > 22 metros)
+      const distCentro = Math.hypot(avatarContainer.position.x, avatarContainer.position.z);
+      if (distCentro > 22) {
+        triggerWaterReset();
+      }
     }
   }
 
-  // LÓGICA DE MOVIMIENTO Y ESTADOS (acostado -> camina -> hora)
+  // LÓGICA DE MOVIMIENTO Y TRANSICIÓN DE ESTADOS (acostado -> camina -> hora)
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving && !isResetting) {
@@ -1064,7 +1076,7 @@ function animate() {
 
     controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
   } else {
-    // Si no se mueve y estaba caminando o parado, pasa al estado idle 'hora'
+    // Cuando el avatar se detiene, pasa al estado parado/animado 'luis-hora.glb'
     if (avatarState === 'camina') {
       setAvatarState('hora');
     }
