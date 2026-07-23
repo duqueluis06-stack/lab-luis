@@ -320,7 +320,7 @@
 </div>
 
 <button id="btn-reset">↺ Inicio</button>
-<button id="volver" onclick="window.location.href='index.html'">⬅ Salir</button>
+<button id="volver" onclick="salirDeEscena()">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
 <!-- CONSOLA DJ CON SUS BOTONES TÁLTILES NATIVOS -->
@@ -388,7 +388,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON LOGICA RESILIENTE ---
+// --- ENGINE DE AUDIO DJ CON LOGICA RESILIENTE Y LIMPIEZA AL SALIR ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -496,6 +496,25 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
+// CORRECCIÓN 1: DETENER AUDIO COMPLETAMENTE AL NAVEGAR O SALIR
+function detenerTodoElAudio() {
+  if (soundSource && soundSource.isPlaying) {
+    soundSource.stop();
+  }
+  const ctx = THREE.AudioContext.getContext();
+  if (ctx && ctx.state !== 'closed') {
+    ctx.suspend();
+  }
+}
+
+window.salirDeEscena = function() {
+  detenerTodoElAudio();
+  window.location.href = 'index.html';
+};
+
+window.addEventListener('beforeunload', detenerTodoElAudio);
+window.addEventListener('pagehide', detenerTodoElAudio);
+
 loadTrack(0, false);
 
 document.getElementById('btn-entrar').addEventListener('click', (e) => {
@@ -587,11 +606,9 @@ function drawVuMeter() {
 // --- CARGA DE ARCHIVOS 3D (GLB) NATIVOS ---
 const loader = new GLTFLoader();
 
-// --- CONFIGURACIÓN DEL DECODIFICADOR DRACO ---
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
 loader.setDRACOLoader(dracoLoader);
-// --------------------------------------------
 
 // CONTENEDOR CONTROLADOR DE LUIS Y ESTADOS DE ANIMACIÓN
 const avatarContainer = new THREE.Group();
@@ -630,16 +647,18 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// 2. CARGA DE LUIS CAMINA (Oculto inicialmente)
+// 2. CARGA DE LUIS CAMINA (CORREGIDO: Orientación frontal = 0)
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
-  modelCamina.rotation.y = Math.PI; 
-  modelCamina.visible = false; // Se mantiene oculto hasta tocar el joystick
+  // CORRECCIÓN 2: Se coloca en 0 para que camine hacia adelante y no de espaldas
+  modelCamina.rotation.y = 0; 
+  modelCamina.visible = false; 
   avatarContainer.add(modelCamina);
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
-    mixerCamina.clipAction(gltf.animations[0]).play();
+    const action = mixerCamina.clipAction(gltf.animations[0]);
+    action.play();
   }
 });
 
@@ -653,9 +672,11 @@ function resetAvatarPosition() {
     modelAcostado.visible = true;
   }
   if (modelCamina) {
-    modelCamina.rotation.y = Math.PI;
+    modelCamina.rotation.y = 0;
     modelCamina.visible = false;
   }
+
+  if (mixerCamina) mixerCamina.timeScale = 1;
 
   avatarState = 'acostado';
   controls.target.set(0, 1, 0);
@@ -933,16 +954,19 @@ function animate() {
     }
   });
 
-  // LÓGICA DE MOVIMIENTO Y CAMBIO DE MODELO DE LUIS
+  // LÓGICA DE MOVIMIENTO Y CONTROL DE ANIMACIÓN DE LUIS
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
-    // Transición Mágica: Acostado -> Camina al tocar el Joystick
+    // Transición: Acostado -> Camina
     if (avatarState === 'acostado') {
       avatarState = 'camina';
       if (modelAcostado) modelAcostado.visible = false;
       if (modelCamina) modelCamina.visible = true;
     }
+
+    // CORRECCIÓN 3: Reanuda la animación de caminata solo si hay movimiento activo
+    if (mixerCamina) mixerCamina.timeScale = 1;
 
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
@@ -963,8 +987,12 @@ function animate() {
     const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
 
-    // Anclaje dinámico de la cámara al centro del contenedor
     controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
+  } else {
+    // CORRECCIÓN 3 (Continuación): Pausa la caminata al soltar los controles
+    if (avatarState === 'camina' && mixerCamina) {
+      mixerCamina.timeScale = 0; 
+    }
   }
 
   controls.update();
