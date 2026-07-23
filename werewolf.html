@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.5 (Fix Entrada Casa Luis)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.5. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.6 (Fix Colisión Bestia)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.6. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <meta name="robots" content="noindex, follow">
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.5">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.6">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.5">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.6">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -519,6 +519,37 @@
             }
         }
 
+        // --- SISTEMA DE MOVIMIENTO CON COLISIÓN PARA EL HOMBRE LOBO ---
+        function moverLoboConColision(loboPos, dirVector, velocidad, dt) {
+            if (!dirVector || (dirVector.x === 0 && dirVector.z === 0)) return;
+
+            let dx = dirVector.x;
+            let dz = dirVector.z;
+
+            let pasoLoboPermitido = true;
+            if (colisionBarrioCache.length > 0) {
+                V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
+                V_POOL.dirAvance.set(dx, 0, dz).normalize();
+
+                RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+                RAYCASTER_REUTILIZABLE.far = 1.2; 
+
+                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
+                if (choquesLobo.length > 0) {
+                    pasoLoboPermitido = false;
+                }
+            }
+
+            if (pasoLoboPermitido) {
+                loboPos.x += dx * velocidad * dt;
+                loboPos.z += dz * velocidad * dt;
+            } else {
+                // Deslizamiento lateral si choca contra pared o barrera
+                loboPos.x += dz * (velocidad * 0.5) * dt;
+                loboPos.z -= dx * (velocidad * 0.5) * dt;
+            }
+        }
+
         function initLoader() {
             const assets = document.querySelectorAll('a-asset-item');
             GAME_STATE.totalAssets = assets.length;
@@ -827,8 +858,7 @@
                         let distAlPunto = V_POOL.dirALugar.length();
                         if (distAlPunto > 0.5) {
                             V_POOL.dirALugar.normalize();
-                            loboPos.x += V_POOL.dirALugar.x * CONFIG.wwVelAcecho * dt;
-                            loboPos.z += V_POOL.dirALugar.z * CONFIG.wwVelAcecho * dt;
+                            moverLoboConColision(loboPos, V_POOL.dirALugar, CONFIG.wwVelAcecho, dt);
                             ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirALugar.x, V_POOL.dirALugar.z);
                         } else {
                             if (GAME_STATE.frameTicks % 200 === 0) GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
@@ -842,8 +872,7 @@
                         V_POOL.dirAlBosque.subVectors(GAME_STATE.aiPuntoObjetivo, loboPos); V_POOL.dirAlBosque.y = 0;
                         if (V_POOL.dirAlBosque.length() > 1.0) {
                             V_POOL.dirAlBosque.normalize();
-                            loboPos.x += V_POOL.dirAlBosque.x * CONFIG.wwVelAcecho * dt;
-                            loboPos.z += V_POOL.dirAlBosque.z * CONFIG.wwVelAcecho * dt;
+                            moverLoboConColision(loboPos, V_POOL.dirAlBosque, CONFIG.wwVelAcecho, dt);
                             ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirAlBosque.x, V_POOL.dirAlBosque.z);
                         } else { GAME_STATE.loboEstado = 'BOSQUE'; GAME_STATE.aiTimer = 0; }
                     }
@@ -852,15 +881,14 @@
                     if (distJugadorLobo >= CONFIG.distDeteccionLobo) {
                         GAME_STATE.loboEstado = 'BOSQUE';
                         V_POOL.dirHaciaTi.subVectors(GAME_STATE.pos, loboPos); V_POOL.dirHaciaTi.y = 0; V_POOL.dirHaciaTi.normalize();
-                        loboPos.x += V_POOL.dirHaciaTi.x * CONFIG.wwVelAcecho * dt;
-                        loboPos.z += V_POOL.dirHaciaTi.z * CONFIG.wwVelAcecho * dt;
+                        moverLoboConColision(loboPos, V_POOL.dirHaciaTi, CONFIG.wwVelAcecho, dt);
                         ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirHaciaTi.x, V_POOL.dirHaciaTi.z);
                         UI.alert.textContent = "🔊 Gruñidos profundos resuenan en la niebla...";
                     } else {
                         V_POOL.dirHaciaTi.subVectors(GAME_STATE.pos, loboPos); V_POOL.dirHaciaTi.y = 0; V_POOL.dirHaciaTi.normalize();
                         let velocidadLobo = (distJugadorLobo < CONFIG.distAtaqueLobo) ? CONFIG.wwVelAtaque : CONFIG.wwVelAcecho;
-                        loboPos.x += V_POOL.dirHaciaTi.x * velocidadLobo * dt;
-                        loboPos.z += V_POOL.dirHaciaTi.z * velocidadLobo * dt;
+                        
+                        moverLoboConColision(loboPos, V_POOL.dirHaciaTi, velocidadLobo, dt);
                         ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirHaciaTi.x, V_POOL.dirHaciaTi.z);
 
                         if (distJugadorLobo < 1.6) {
