@@ -43,11 +43,11 @@
   <style>
     /* BLOQUEO DE SELECCIÓN Y MENÚS EMERGENTES TÁLTILES */
     * {
-      -webkit-user-select: none;   /* Safari / iOS Chrome */
-      -moz-user-select: none;      /* Firefox */
-      -ms-user-select: none;       /* IE / Edge */
-      user-select: none;           /* Estándar */
-      -webkit-touch-callout: none; /* Bloquea menú contextual de guardar imagen/enlace en iOS */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
 
     html, body {
@@ -63,10 +63,25 @@
       display: block;
     }
 
-    /* Evita destellos azules al pulsar botones en móviles */
     canvas, button, .track-pill, .dj-btn, #joystick-container, #joystick-knob {
       -webkit-tap-highlight-color: transparent;
       outline: none;
+    }
+
+    /* EFECTO FLASH AZUL DE CAÍDA AL AGUA */
+    #water-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 180, 255, 0.75);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 1500;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
     }
 
     #btn-reset {
@@ -273,7 +288,7 @@
       #volver { padding: 8px 12px; font-size: 10px; }
     }
 
-    /* JOYSTICK TÁCTIL REFORZADO */
+    /* JOYSTICK TÁCTIL */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -312,7 +327,10 @@
 
 <body>
 
-<!-- OVERLAY DE INICIO PARA EVITAR BLOQUEOS DE AUDIO -->
+<!-- DIV PARA EL EFECTO AZUL DE CAÍDA AL AGUA -->
+<div id="water-flash"></div>
+
+<!-- OVERLAY DE INICIO -->
 <div id="overlay-inicio" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: white; transition: opacity 0.5s ease;">
   <h1 style="color: #00f0ff; font-family: monospace; text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff007f; margin: 0; text-align: center; font-size: 26px; letter-spacing: 2px;">LA ISLA DE LA NOSTALGIA</h1>
   <p style="font-family: monospace; font-size: 11px; color: #94a3b8; margin: 0; text-align: center; letter-spacing: 1px; max-width: 80%;">ENTORNO 3D INTERACTIVO & METAVERSO DE LUIS</p>
@@ -323,7 +341,7 @@
 <button id="volver" onclick="salirDeEscena()">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
-<!-- CONSOLA DJ CON SUS BOTONES TÁLTILES NATIVOS -->
+<!-- CONSOLA DJ -->
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
@@ -388,7 +406,7 @@ dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
 
 
-// --- ENGINE DE AUDIO DJ CON LOGICA RESILIENTE Y LIMPIEZA AL SALIR ---
+// --- ENGINE DE AUDIO DJ CON LIMPIEZA AL SALIR ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -496,7 +514,6 @@ function nextTrack() {
   loadTrack(nextIndex, true);
 }
 
-// CORRECCIÓN 1: DETENER AUDIO COMPLETAMENTE AL NAVEGAR O SALIR
 function detenerTodoElAudio() {
   if (soundSource && soundSource.isPlaying) {
     soundSource.stop();
@@ -528,7 +545,7 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
 });
 
 
-// --- HANDLERS TÁCTILES CONSOLE ---
+// --- HANDLERS TÁCTILES CONSOLA ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
@@ -610,16 +627,34 @@ const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
 loader.setDRACOLoader(dracoLoader);
 
-// CONTENEDOR CONTROLADOR DE LUIS Y ESTADOS DE ANIMACIÓN
+// RAYCASTER PARA ADAPTACIÓN DE ALTURA SOBRE LA ISLA
+const raycaster = new THREE.Raycaster();
+const downVector = new THREE.Vector3(0, -1, 0);
+let islaScene = null;
+
+// CONTENEDOR CONTROLADOR DE LUIS Y SUS 3 ESTADOS
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(0, 0, 0);
 scene.add(avatarContainer);
 
 let modelAcostado = null;
 let modelCamina = null;
+let modelHora = null;
+
 let mixerAcostado = null;
 let mixerCamina = null;
-let avatarState = 'acostado'; // 'acostado' | 'camina'
+let mixerHora = null;
+
+let avatarState = 'acostado'; // 'acostado' | 'camina' | 'hora'
+
+function setAvatarState(newState) {
+  if (avatarState === newState) return;
+  avatarState = newState;
+
+  if (modelAcostado) modelAcostado.visible = (newState === 'acostado');
+  if (modelCamina) modelCamina.visible = (newState === 'camina');
+  if (modelHora) modelHora.visible = (newState === 'hora');
+}
 
 let michigris = null;
 let islandMixer = null; 
@@ -627,8 +662,10 @@ let laraMixer = null;
 let michigrisMixer = null;
 window.laraAction = null; 
 
+// CARGA DE LA ISLA
 loader.load("isla.glb", (gltf) => {
-  scene.add(gltf.scene);
+  islaScene = gltf.scene;
+  scene.add(islaScene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => islandMixer.clipAction(clip).play());
@@ -639,6 +676,7 @@ loader.load("isla.glb", (gltf) => {
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
+  modelAcostado.visible = true;
   avatarContainer.add(modelAcostado);
 
   if (gltf.animations && gltf.animations.length > 0) {
@@ -647,39 +685,60 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// 2. CARGA DE LUIS CAMINA (CORREGIDO: Orientación frontal = 0)
+// 2. CARGA DE LUIS CAMINA
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
-  // CORRECCIÓN 2: Se coloca en 0 para que camine hacia adelante y no de espaldas
   modelCamina.rotation.y = 0; 
   modelCamina.visible = false; 
   avatarContainer.add(modelCamina);
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
-    const action = mixerCamina.clipAction(gltf.animations[0]);
-    action.play();
+    mixerCamina.clipAction(gltf.animations[0]).play();
   }
 });
 
-// LÓGICA DEL BOTÓN REINICIAR AL INICIO
+// 3. CARGA DE LUIS HORA (IDLE / DE PIE REPOSO)
+loader.load("luis-hora.glb", (gltf) => {
+  modelHora = gltf.scene;
+  modelHora.rotation.y = 0;
+  modelHora.visible = false;
+  avatarContainer.add(modelHora);
+
+  if (gltf.animations && gltf.animations.length > 0) {
+    mixerHora = new THREE.AnimationMixer(modelHora);
+    mixerHora.clipAction(gltf.animations[0]).play();
+  }
+});
+
+// LÓGICA DE REINICIO AL INICIO
+let isResetting = false;
+
 function resetAvatarPosition() {
   avatarContainer.position.set(0, 0, 0);
   avatarContainer.rotation.y = 0;
 
-  if (modelAcostado) {
-    modelAcostado.rotation.y = Math.PI;
-    modelAcostado.visible = true;
-  }
-  if (modelCamina) {
-    modelCamina.rotation.y = 0;
-    modelCamina.visible = false;
-  }
+  if (modelAcostado) modelAcostado.rotation.y = Math.PI;
+  if (modelCamina) modelCamina.rotation.y = 0;
+  if (modelHora) modelHora.rotation.y = 0;
 
-  if (mixerCamina) mixerCamina.timeScale = 1;
-
-  avatarState = 'acostado';
+  setAvatarState('acostado');
   controls.target.set(0, 1, 0);
+}
+
+// LÓGICA Y EFECTO AZUL DE CAÍDA AL AGUA
+function triggerWaterReset() {
+  if (isResetting) return;
+  isResetting = true;
+
+  const flash = document.getElementById('water-flash');
+  flash.style.opacity = '1';
+
+  setTimeout(() => {
+    resetAvatarPosition();
+    flash.style.opacity = '0';
+    setTimeout(() => { isResetting = false; }, 350);
+  }, 350);
 }
 
 document.getElementById('btn-reset').addEventListener('click', (e) => {
@@ -913,8 +972,10 @@ function animate() {
   const delta = clock.getDelta();
   const tiempoTotal = clock.getElapsedTime();
 
+  // Actualización de los mixers de animación activos
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
+  if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta); 
@@ -935,7 +996,7 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // Movimiento Parabólico de Delfines Intermedios
+  // Movimiento de Delfines
   delfines.forEach((d) => {
     d.angulo += d.velocidad * delta;
     d.malla.position.x = Math.cos(d.angulo) * d.radio;
@@ -954,19 +1015,33 @@ function animate() {
     }
   });
 
-  // LÓGICA DE MOVIMIENTO Y CONTROL DE ANIMACIÓN DE LUIS
+  // ADAPTACIÓN DE ALTURA CON RAYCASTER SOBRE LA ISLA
+  if (islaScene && !isResetting) {
+    const origin = avatarContainer.position.clone();
+    origin.y += 10; // Lanza el rayo desde arriba del avatar
+    raycaster.set(origin, downVector);
+
+    const intersects = raycaster.intersectObject(islaScene, true);
+    if (intersects.length > 0) {
+      const groundY = intersects[0].point.y;
+      if (groundY < -0.2) {
+        // Cayó al agua
+        triggerWaterReset();
+      } else {
+        // Ajusta suavemente la altura del avatar a la superficie del terreno
+        avatarContainer.position.y = groundY;
+      }
+    } else {
+      // Fuera del área de la isla (caída al mar)
+      triggerWaterReset();
+    }
+  }
+
+  // LÓGICA DE MOVIMIENTO Y ESTADOS (acostado -> camina -> hora)
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  if (isMoving) {
-    // Transición: Acostado -> Camina
-    if (avatarState === 'acostado') {
-      avatarState = 'camina';
-      if (modelAcostado) modelAcostado.visible = false;
-      if (modelCamina) modelCamina.visible = true;
-    }
-
-    // CORRECCIÓN 3: Reanuda la animación de caminata solo si hay movimiento activo
-    if (mixerCamina) mixerCamina.timeScale = 1;
+  if (isMoving && !isResetting) {
+    setAvatarState('camina');
 
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
@@ -989,9 +1064,9 @@ function animate() {
 
     controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
   } else {
-    // CORRECCIÓN 3 (Continuación): Pausa la caminata al soltar los controles
-    if (avatarState === 'camina' && mixerCamina) {
-      mixerCamina.timeScale = 0; 
+    // Si no se mueve y estaba caminando o parado, pasa al estado idle 'hora'
+    if (avatarState === 'camina') {
+      setAvatarState('hora');
     }
   }
 
