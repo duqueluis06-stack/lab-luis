@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.6 (Fix Colisión Bestia)</title>
+    <title>ARK - Werewolf Nightmare v15.6 (Fix Animaciones)</title>
     <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.6. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <meta name="robots" content="noindex, follow">
@@ -37,6 +37,37 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
+    <script>
+        // COMPONENTE PARA FORZAR LA LECTURA DE ANIMACIONES TRAS LA CARGA DEL GLB
+        AFRAME.registerComponent('fix-animacion', {
+            schema: {
+                clip: { type: 'string', default: '*' },
+                loop: { type: 'string', default: 'repeat' },
+                timeScale: { type: 'number', default: 1 }
+            },
+            init: function () {
+                const el = this.el;
+                const data = this.data;
+
+                const activarMixer = () => {
+                    // Forzar el componente animation-mixer solo cuando la malla esté en memoria
+                    el.setAttribute('animation-mixer', {
+                        clip: data.clip,
+                        loop: data.loop,
+                        timeScale: data.timeScale,
+                        crossFadeDuration: 0.2
+                    });
+                };
+
+                if (el.getObject3D('mesh')) {
+                    activarMixer();
+                } else {
+                    el.addEventListener('model-loaded', activarMixer);
+                }
+            }
+        });
+    </script>
+
     <style>
         :root {
             --ui-red: #ff2a2a;
@@ -221,9 +252,9 @@
         <!-- RIG JUGADOR -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
-                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" animation-mixer="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.38 0.38 0.38" animation-mixer="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.38 0.38 0.38" fix-animacion="clip: *; loop: repeat;"></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw" rotation="0 0 0">
@@ -235,9 +266,9 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO -->
+        <!-- ENEMIGO (Elevar ligeramente el mesh interno si el origen del rig esta bajo tierra) -->
         <a-entity id="werewolf-rig" position="60 0 -60">
-            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" scale="0.8 0.8 0.8" visible="true" animation-mixer="clip: *; loop: repeat;"></a-entity>
+            <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" position="0 0 0" scale="0.8 0.8 0.8" visible="true" fix-animacion="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
         </a-entity>
 
@@ -519,7 +550,6 @@
             }
         }
 
-        // --- SISTEMA DE MOVIMIENTO CON COLISIÓN PARA EL HOMBRE LOBO ---
         function moverLoboConColision(loboPos, dirVector, velocidad, dt) {
             if (!dirVector || (dirVector.x === 0 && dirVector.z === 0)) return;
 
@@ -544,7 +574,6 @@
                 loboPos.x += dx * velocidad * dt;
                 loboPos.z += dz * velocidad * dt;
             } else {
-                // Deslizamiento lateral si choca contra pared o barrera
                 loboPos.x += dz * (velocidad * 0.5) * dt;
                 loboPos.z -= dx * (velocidad * 0.5) * dt;
             }
