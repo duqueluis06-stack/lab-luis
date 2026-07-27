@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.6 (Fix Casa77 & Cámara)</title>
+    <title>ARK - Werewolf Nightmare v15.6 (Optimizado)</title>
     <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.6. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     
@@ -429,6 +429,16 @@
             }
         };
 
+        // 🔓 DESBLOQUEO UNIVERSAL DE AUDIOCONTEXT EN MÓVILES (iOS/Android)
+        const unlockAudioContext = () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        };
+        window.addEventListener('pointerdown', unlockAudioContext);
+        window.addEventListener('touchstart', unlockAudioContext);
+        window.addEventListener('keydown', unlockAudioContext);
+
         const CONFIG = {
             velCaminar: 2.1,           
             velCorrer: 4.5,            
@@ -481,11 +491,13 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        // 🛠️ FILTRADO DE SUELOS Y EXCLUSIÓN DE CASAS (INCLUIDA CASA77)
+        // 🛠️ FILTRADO DE SUELOS Y PRECÁLCULO ESPACIAL DE COLISIONES
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
             colisionBarrioCache = [];
+
+            objetoRaiz.updateMatrixWorld(true);
 
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
@@ -504,9 +516,14 @@
 
                     if (!esCasa) {
                         colisionBarrioCache.push(child);
+                        if (child.geometry) {
+                            child.geometry.computeBoundingSphere();
+                            child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
+                            child.userData.worldRadius = child.geometry.boundingSphere.radius;
+                        }
                     }
 
-                    // Filtramos obstáculos, paredes y techos para evitar subir al techo de casa77
+                    // Filtramos obstáculos, paredes y techos
                     const esObstaculoOTecho = 
                         objName.includes("tree") || objName.includes("arbol") || 
                         objName.includes("leave") || objName.includes("hoja") || 
@@ -521,6 +538,23 @@
                     }
                 }
             });
+        }
+
+        // 🚀 OPTIMIZACIÓN DE COLISIONES: FILTRADO ESPACIAL PROXIMAL
+        function obtenerColisionesCercanas(pos, maxDist = 10) {
+            let cercanas = [];
+            for (let i = 0; i < colisionBarrioCache.length; i++) {
+                let mesh = colisionBarrioCache[i];
+                if (mesh.userData && mesh.userData.worldSphereCenter) {
+                    let d = pos.distanceTo(mesh.userData.worldSphereCenter);
+                    if (d < maxDist + mesh.userData.worldRadius) {
+                        cercanas.push(mesh);
+                    }
+                } else {
+                    cercanas.push(mesh);
+                }
+            }
+            return cercanas;
         }
 
         // 🛠️ DETECCIÓN FLEXIBLE: AHORA RECONOCE CASA77 O CUALQUIER CASA
@@ -566,14 +600,16 @@
             let dz = dirVector.z;
 
             let pasoLoboPermitido = true;
-            if (colisionBarrioCache.length > 0) {
+            let colisionesCercanas = obtenerColisionesCercanas(loboPos, 8);
+            
+            if (colisionesCercanas.length > 0) {
                 V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
                 V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                 RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
                 RAYCASTER_REUTILIZABLE.far = 1.2; 
 
-                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
+                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
                 if (choquesLobo.length > 0) {
                     pasoLoboPermitido = false;
                 }
@@ -799,14 +835,16 @@
                 );
 
                 let pasoPermitido = true;
-                if (GAME_STATE.inputMoviendo && colisionBarrioCache.length > 0 && !cercaDeCasa) {
+                let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
+
+                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !cercaDeCasa) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
                     RAYCASTER_REUTILIZABLE.far = 0.55; 
 
-                    const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
+                    const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanasPlayer, false);
                     if (choques.length > 0) {
                         pasoPermitido = false; 
                     }
@@ -851,8 +889,15 @@
                     }
                 }
 
-                let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
-                GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
+                // 🚀 GROUND SNAPPING MEJORADO: Ajuste directo si hay un desnivel pronunciado
+                let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
+                if (Math.abs(deltaY) > 0.4) {
+                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                } else {
+                    let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
+                    GAME_STATE.pos.y += deltaY * factorSuavizado;
+                }
+
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
