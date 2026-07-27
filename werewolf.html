@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.6 (Optimizado)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.6. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.7 (Thermal & Camera Fix)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.7. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     
     <meta name="robots" content="index, follow">
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.6">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.7">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.6">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.7">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -239,7 +239,8 @@
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
         </a-entity>
         
-        <a-entity particle-system="preset: rain; color: #333; particleCount: 500; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
+        <!-- 📱 OPTIMIZACIÓN TÉRMICA: Lluvia reducida a 100 partículas -->
+        <a-entity particle-system="preset: rain; color: #333; particleCount: 100; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
@@ -277,12 +278,14 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        let CONFIG_CASA = {
-            centroX: 0.0,    
-            centroZ: 0.0,   
-            radioX: 4.5,     
-            radioZ: 4.5      
-        };
+        // 🏠 COLECCIÓN MULTI-REFUGIO (Detecta dinámicamente casaluis, casa77, etc.)
+        let ZONAS_REFUGIO = [];
+        let PUNTOS_MERODEO_CASA = [
+            new THREE.Vector3(0, 0, 6.0),    
+            new THREE.Vector3(-8.0, 0, -2),  
+            new THREE.Vector3(8.0, 0, -2),   
+            new THREE.Vector3(0, 0, -9.5)    
+        ];
 
         const V_POOL = {
             dirALugar: new THREE.Vector3(),
@@ -429,7 +432,7 @@
             }
         };
 
-        // 🔓 DESBLOQUEO UNIVERSAL DE AUDIOCONTEXT EN MÓVILES (iOS/Android)
+        // 🔓 DESBLOQUEO UNIVERSAL DE AUDIOCONTEXT EN MÓVILES
         const unlockAudioContext = () => {
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -463,13 +466,6 @@
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
-
-        let PUNTOS_MERODEO_CASA = [
-            new THREE.Vector3(0, 0, 6.0),    
-            new THREE.Vector3(-8.0, 0, -2),  
-            new THREE.Vector3(8.0, 0, -2),   
-            new THREE.Vector3(0, 0, -9.5)    
-        ];
 
         const UI = {
             loader: document.getElementById('custom-loader'), bar: document.getElementById('progress-bar'),
@@ -507,7 +503,7 @@
                     let p = child;
                     while (p) {
                         let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model")) {
+                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio")) {
                             esCasa = true;
                             break;
                         }
@@ -523,7 +519,6 @@
                         }
                     }
 
-                    // Filtramos obstáculos, paredes y techos
                     const esObstaculoOTecho = 
                         objName.includes("tree") || objName.includes("arbol") || 
                         objName.includes("leave") || objName.includes("hoja") || 
@@ -557,39 +552,30 @@
             return cercanas;
         }
 
-        // 🛠️ DETECCIÓN FLEXIBLE: AHORA RECONOCE CASA77 O CUALQUIER CASA
-        function escanearCasaAutomatica(rootNode) {
+        // 🏠 DETECCIÓN MULTI-CASA AUTOMÁTICA (Soporta casaluis, casa77, etc.)
+        function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
+            ZONAS_REFUGIO = [];
             
-            let casaMesh = null;
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
-                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('casa') || n.includes('luis_model')) {
-                    casaMesh = child;
+                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
+                    let caja = new THREE.Box3().setFromObject(child);
+                    // Ampliamos el rango Y para garantizar detección de altura al entrar
+                    caja.min.y -= 1.0;
+                    caja.max.y += 3.5;
+                    ZONAS_REFUGIO.push(caja);
+                    console.log(`🎯 Refugio registrado: [${child.name}]`, caja);
                 }
             });
 
-            if (casaMesh) {
-                let cajaVirtual = new THREE.Box3().setFromObject(casaMesh);
-                let centro = new THREE.Vector3();
-                let tamano = new THREE.Vector3();
-                
-                cajaVirtual.getCenter(centro);
-                cajaVirtual.getSize(tamano);
-
-                CONFIG_CASA.centroX = centro.x;
-                CONFIG_CASA.centroZ = centro.z;
-                CONFIG_CASA.radioX = (tamano.x / 2) + 0.5; 
-                CONFIG_CASA.radioZ = (tamano.z / 2) + 0.5;
-
-                PUNTOS_MERODEO_CASA = [
-                    new THREE.Vector3(centro.x, 0, centro.z + CONFIG_CASA.radioZ + 3.0),
-                    new THREE.Vector3(centro.x - CONFIG_CASA.radioX - 3.0, 0, centro.z),
-                    new THREE.Vector3(centro.x + CONFIG_CASA.radioX + 3.0, 0, centro.z),
-                    new THREE.Vector3(centro.x, 0, centro.z - CONFIG_CASA.radioZ - 3.0)
-                ];
-
-                console.log("🎯 Zona refugio detectada:", CONFIG_CASA);
+            // Si por alguna razón la malla no tiene nombre específico, genera un refugio por defecto en el origen
+            if (ZONAS_REFUGIO.length === 0) {
+                let defaultBox = new THREE.Box3(
+                    new THREE.Vector3(-4.5, -2.0, -4.5),
+                    new THREE.Vector3(4.5, 4.0, 4.5)
+                );
+                ZONAS_REFUGIO.push(defaultBox);
             }
         }
 
@@ -655,7 +641,7 @@
                     let mesh = ENT.entorno.getObject3D('mesh');
                     if (mesh) {
                         extraerMallasSuelo(mesh);
-                        escanearCasaAutomatica(mesh);
+                        escanearCasasAutomaticas(mesh);
                     }
                 });
             }
@@ -667,10 +653,15 @@
                 AudioController.reproducirMusicaFondo();
                 initControls();
                 
+                // 📱 OPTIMIZACIÓN TÉRMICA MÓVIL: Capar la densidad de píxeles
+                if (ENT.scene && ENT.scene.renderer) {
+                    ENT.scene.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+                }
+
                 let mesh = ENT.entorno ? ENT.entorno.getObject3D('mesh') : null;
                 if(mesh) {
                     extraerMallasSuelo(mesh);
-                    escanearCasaAutomatica(mesh);
+                    escanearCasasAutomaticas(mesh);
                 }
                 
                 GAME_STATE.introCompletada = false; 
@@ -753,18 +744,19 @@
             }
         }
 
-        // 🛠️ CÁMARA AJUSTADA EN 1ª PERSONA PARA INTERIORES
+        // 🎥 CÁMARA PRIMERA PERSONA EN INTERIORES (Casaluis / Casa77)
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 1.35, 0.0); // Ojos a altura humana centrada
+                    camara.object3D.position.set(0, 1.35, 0.0); // Ojos a altura centrada sin solapar paredes
                     camara.setAttribute('camera', 'fov', 65);
-                    camara.setAttribute('camera', 'near', 0.05); // Evita atravesar paredes/techos
+                    camara.setAttribute('camera', 'near', 0.05); // Evita cortes en techos o paredes cercanas
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
+                // Ocultar modelo del avatar para vista limpia en 1ª persona
                 for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
             } else {
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
@@ -829,15 +821,20 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                let cercaDeCasa = (
-                    Math.abs(siguienteX - CONFIG_CASA.centroX) < (CONFIG_CASA.radioX + 1.2) &&
-                    Math.abs(siguienteZ - CONFIG_CASA.centroZ) < (CONFIG_CASA.radioZ + 1.2)
-                );
+                // COMPROBACIÓN DENTRO DE CUALQUIER ZONA DE REFUGIO REGISTRADA
+                let deVerdadEstaDentro = false;
+                for (let i = 0; i < ZONAS_REFUGIO.length; i++) {
+                    if (ZONAS_REFUGIO[i].containsPoint(GAME_STATE.pos)) {
+                        deVerdadEstaDentro = true;
+                        break;
+                    }
+                }
+                GAME_STATE.esInterior = deVerdadEstaDentro;
 
                 let pasoPermitido = true;
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !cercaDeCasa) {
+                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !GAME_STATE.esInterior) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
@@ -850,19 +847,13 @@
                     }
                 }
 
-                let deVerdadEstaDentro = (
-                    Math.abs(siguienteX - CONFIG_CASA.centroX) < CONFIG_CASA.radioX &&
-                    Math.abs(siguienteZ - CONFIG_CASA.centroZ) < CONFIG_CASA.radioZ
-                );
-                GAME_STATE.esInterior = deVerdadEstaDentro;
-
                 if (GAME_STATE.inputMoviendo && pasoPermitido) { 
                     GAME_STATE.pos.x = siguienteX; 
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // DETECCIÓN DE ALTURA DE SUELO
-                if (sueloMeshCache.length > 0) { 
+                // 📱 OPTIMIZACIÓN TÉRMICA: DETECCIÓN DE SUELO CADA 2 FRAMES (THROTTLE 50% CPU)
+                if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
                     RAYCASTER_REUTILIZABLE.far = 2.0;
@@ -889,7 +880,7 @@
                     }
                 }
 
-                // 🚀 GROUND SNAPPING MEJORADO: Ajuste directo si hay un desnivel pronunciado
+                // GROUND SNAPPING
                 let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
                 if (Math.abs(deltaY) > 0.4) {
                     GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
