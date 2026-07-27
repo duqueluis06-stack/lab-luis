@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.6 (Fix Animaciones)</title>
+    <title>ARK - Werewolf Nightmare v15.6 (Fix Casa77 & Cámara)</title>
     <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.6. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     
@@ -259,7 +259,7 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.1; far: 300;" position="0 1.5 2.2">
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.5 2.2">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -481,7 +481,7 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        // 🛠️ FUNCIÓN MEJORADA: FILTRADO DE SUELOS Y EXCLUSIÓN DE TEJADOS/PAREDES
+        // 🛠️ FILTRADO DE SUELOS Y EXCLUSIÓN DE CASAS (INCLUIDA CASA77)
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -495,7 +495,7 @@
                     let p = child;
                     while (p) {
                         let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casaluis") || pName.includes("casa_luis") || pName.includes("luis_model")) {
+                        if (pName.includes("casa") || pName.includes("luis_model")) {
                             esCasa = true;
                             break;
                         }
@@ -506,7 +506,7 @@
                         colisionBarrioCache.push(child);
                     }
 
-                    // Filtramos árboles, matorrales Y ADEMÁS TEJADOS/PAREDES para no subir al techo
+                    // Filtramos obstáculos, paredes y techos para evitar subir al techo de casa77
                     const esObstaculoOTecho = 
                         objName.includes("tree") || objName.includes("arbol") || 
                         objName.includes("leave") || objName.includes("hoja") || 
@@ -523,13 +523,14 @@
             });
         }
 
+        // 🛠️ DETECCIÓN FLEXIBLE: AHORA RECONOCE CASA77 O CUALQUIER CASA
         function escanearCasaAutomatica(rootNode) {
             if (!rootNode) return;
             
             let casaMesh = null;
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
-                if (n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
+                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('casa') || n.includes('luis_model')) {
                     casaMesh = child;
                 }
             });
@@ -716,14 +717,16 @@
             }
         }
 
+        // 🛠️ CÁMARA AJUSTADA EN 1ª PERSONA PARA INTERIORES
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 0.9, -0.3); 
-                    camara.setAttribute('camera', 'fov', 55);
+                    camara.object3D.position.set(0, 1.35, 0.0); // Ojos a altura humana centrada
+                    camara.setAttribute('camera', 'fov', 65);
+                    camara.setAttribute('camera', 'near', 0.05); // Evita atravesar paredes/techos
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
                 for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
@@ -731,6 +734,7 @@
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
                     camara.object3D.position.set(0, 1.5, 2.2); 
                     camara.setAttribute('camera', 'fov', 70);
+                    camara.setAttribute('camera', 'near', 0.1);
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
                 let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
@@ -819,7 +823,7 @@
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // 🛠️ DETECCIÓN DE ALTURA ROBUSTA: DESDE LA CINTURA (+0.5M) CON RESPALDO DE SUELO
+                // DETECCIÓN DE ALTURA DE SUELO
                 if (sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
@@ -834,8 +838,6 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        
-                        // Solo aceptamos colisiones que estén estrictamente debajo de la cintura
                         if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
@@ -845,7 +847,6 @@
                     if (mejorAltura !== null) {
                         GAME_STATE.cachedAlturaSuelo = mejorAltura + OFFSET_PIES;
                     } else {
-                        // Respaldo fuera de las mallas del asfalto o en interiores neutros
                         GAME_STATE.cachedAlturaSuelo = ALTURA_BASE_MAPA;
                     }
                 }
