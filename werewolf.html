@@ -815,28 +815,39 @@
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                if (sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 6.0;
-                    
-                    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                    let mejorAltura = null; 
-                    let minDiff = Infinity;
-                    
-                    for (let i = 0; i < colisiones.length; i++) {
-                        const hit = colisiones[i];
-                        if (!hit.face || hit.face.normal.y < 0.25) continue; 
-                        let diff = Math.abs(hit.point.y - GAME_STATE.pos.y);
-                        if (diff < minDiff) { 
-                            minDiff = diff; 
-                            mejorAltura = hit.point.y; 
-                        }
-                    }
-                    if (mejorAltura !== null) {
-                        GAME_STATE.cachedAlturaSuelo = mejorAltura;
-                    }
-                }
+                // ✅ LÓGICA CON RESPALDO FUERA DEL ASFALTO
+if (sueloMeshCache.length > 0) { 
+    // Lanzamos el rayo desde 2.5 unidades por encima de los pies
+    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
+    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+    RAYCASTER_REUTILIZABLE.far = 6.0;
+    
+    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+    let mejorAltura = null; 
+    let maxPuntoY = -Infinity;
+
+    const OFFSET_PIES = 0.08;        // Elevación extra sobre la malla del asfalto
+    const ALTURA_BASE_MAPA = 0.0;     // Nivel de suelo base al salir del barrio
+
+    for (let i = 0; i < colisiones.length; i++) {
+        const hit = colisiones[i];
+        
+        // Filtramos solo superficies debajo de las caderas/cabeza del avatar
+        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.5)) { 
+            maxPuntoY = hit.point.y; 
+            mejorAltura = hit.point.y; 
+        }
+    }
+    
+    if (mejorAltura !== null) {
+        // DENTRO DEL BARRIO: Ajusta la altura a la superficie del asfalto
+        GAME_STATE.cachedAlturaSuelo = mejorAltura + OFFSET_PIES;
+    } else {
+        // FUERA DEL BARRIO: Vuelve al nivel base del terreno global
+        GAME_STATE.cachedAlturaSuelo = ALTURA_BASE_MAPA;
+    }
+}
+
 
                 let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
