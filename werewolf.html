@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.7 (Thermal & Camera Fix)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.7. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.8 (Custom Camera & Thermal Fix)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.8. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     
     <meta name="robots" content="index, follow">
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.7">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.8">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.7">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.8">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -278,7 +278,7 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        // 🏠 COLECCIÓN MULTI-REFUGIO (Detecta dinámicamente casaluis, casa77, etc.)
+        // 🏠 COLECCIÓN MULTI-REFUGIO CON IDENTIFICACIÓN
         let ZONAS_REFUGIO = [];
         let PUNTOS_MERODEO_CASA = [
             new THREE.Vector3(0, 0, 6.0),    
@@ -462,7 +462,7 @@
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
-            esInterior: false, camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
+            esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
@@ -552,7 +552,7 @@
             return cercanas;
         }
 
-        // 🏠 DETECCIÓN MULTI-CASA AUTOMÁTICA (Soporta casaluis, casa77, etc.)
+        // 🏠 ESCANEO AUTOMÁTICO CON ETIQUETADO DE CASAS
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
             ZONAS_REFUGIO = [];
@@ -561,21 +561,23 @@
                 let n = (child.name || "").toLowerCase();
                 if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
                     let caja = new THREE.Box3().setFromObject(child);
-                    // Ampliamos el rango Y para garantizar detección de altura al entrar
                     caja.min.y -= 1.0;
                     caja.max.y += 3.5;
-                    ZONAS_REFUGIO.push(caja);
+                    
+                    ZONAS_REFUGIO.push({
+                        nombre: n,
+                        box: caja
+                    });
                     console.log(`🎯 Refugio registrado: [${child.name}]`, caja);
                 }
             });
 
-            // Si por alguna razón la malla no tiene nombre específico, genera un refugio por defecto en el origen
             if (ZONAS_REFUGIO.length === 0) {
                 let defaultBox = new THREE.Box3(
                     new THREE.Vector3(-4.5, -2.0, -4.5),
                     new THREE.Vector3(4.5, 4.0, 4.5)
                 );
-                ZONAS_REFUGIO.push(defaultBox);
+                ZONAS_REFUGIO.push({ nombre: 'default', box: defaultBox });
             }
         }
 
@@ -687,7 +689,7 @@
                 if(['w','arrowup'].includes(k)) INPUT.keys.w = true;
                 if(['s','arrowdown'].includes(k)) INPUT.keys.s = true;
                 if(['a','arrowleft'].includes(k)) INPUT.keys.a = true;
-                if(['d','arrowright'].includes(k)) INPUT.keys.d = true;
+                if(['d','arrowright'].includes(k)) INPUT.keys.d = false;
                 if(e.key === ' ' || e.key === 'Shift') { e.preventDefault(); toggleSprint(true); }
             });
             window.addEventListener('keyup', e => {
@@ -744,19 +746,26 @@
             }
         }
 
-        // 🎥 CÁMARA PRIMERA PERSONA EN INTERIORES (Casaluis / Casa77)
+        // 🎥 CÁMARA PRIMERA PERSONA CON ALTURA DEDICADA PARA CASALUIS
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 1.35, 0.0); // Ojos a altura centrada sin solapar paredes
+                // Evaluamos si el refugio donde estamos es casaluis
+                const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
+                                   GAME_STATE.refugioActualNombre.includes('casa_luis') || 
+                                   GAME_STATE.refugioActualNombre.includes('luis_model');
+
+                // 0.95m para casaluis, 1.35m para casa77 y otras
+                const alturaCamara = esCasaLuis ? 0.95 : 1.35;
+
+                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
+                    camara.object3D.position.set(0, alturaCamara, 0.0);
                     camara.setAttribute('camera', 'fov', 65);
-                    camara.setAttribute('camera', 'near', 0.05); // Evita cortes en techos o paredes cercanas
+                    camara.setAttribute('camera', 'near', 0.05);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
-                // Ocultar modelo del avatar para vista limpia en 1ª persona
                 for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
             } else {
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
@@ -821,11 +830,14 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                // COMPROBACIÓN DENTRO DE CUALQUIER ZONA DE REFUGIO REGISTRADA
+                // COMPROBACIÓN DENTRO DE ZONA DE REFUGIO CON NOMBRE
                 let deVerdadEstaDentro = false;
+                GAME_STATE.refugioActualNombre = '';
+
                 for (let i = 0; i < ZONAS_REFUGIO.length; i++) {
-                    if (ZONAS_REFUGIO[i].containsPoint(GAME_STATE.pos)) {
+                    if (ZONAS_REFUGIO[i].box.containsPoint(GAME_STATE.pos)) {
                         deVerdadEstaDentro = true;
+                        GAME_STATE.refugioActualNombre = ZONAS_REFUGIO[i].nombre;
                         break;
                     }
                 }
@@ -891,7 +903,7 @@
 
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
 
-                UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? 'ACTIVE' : 'NONE'}`;
+                UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? GAME_STATE.refugioActualNombre.toUpperCase() : 'NONE'}`;
 
                 if (GAME_STATE.inputMoviendo) {
                     let targetAngle = Math.atan2(dx, dz);
@@ -1017,6 +1029,7 @@
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
             GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
+            GAME_STATE.refugioActualNombre = '';
             
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(60, 0, -60);
