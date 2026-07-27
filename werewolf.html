@@ -10,7 +10,6 @@
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     
     <meta name="robots" content="index, follow">
-
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph / Facebook -->
@@ -52,7 +51,6 @@
                 const data = this.data;
 
                 const activarMixer = () => {
-                    // Forzar el componente animation-mixer solo cuando la malla esté en memoria
                     el.setAttribute('animation-mixer', {
                         clip: data.clip,
                         loop: data.loop,
@@ -246,10 +244,8 @@
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
-        <!-- CÓDIGO CORREGIDO -->
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
 
-        
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
 
@@ -270,7 +266,7 @@
             </a-entity>
         </a-entity>
 
-        <!-- ENEMIGO (Elevar ligeramente el mesh interno si el origen del rig esta bajo tierra) -->
+        <!-- ENEMIGO -->
         <a-entity id="werewolf-rig" position="60 0 -60">
             <a-entity id="ww-mesh-beast" gltf-model="#ww-beast-src" position="0 0 0" scale="0.8 0.8 0.8" visible="true" fix-animacion="clip: *; loop: repeat;"></a-entity>
             <a-entity light="type: point; intensity: 1.2; distance: 3; color: #ff0000;" position="0 1.8 0.4"></a-entity>
@@ -485,6 +481,7 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
+        // 🛠️ FUNCIÓN MEJORADA: FILTRADO DE SUELOS Y EXCLUSIÓN DE TEJADOS/PAREDES
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -509,10 +506,17 @@
                         colisionBarrioCache.push(child);
                     }
 
-                    if (!objName.includes("tree") && !objName.includes("arbol") && 
-                        !objName.includes("leave") && !objName.includes("hoja") && 
-                        !objName.includes("trunk") && !objName.includes("branch") && 
-                        !objName.includes("bush") && !objName.includes("reja")) {
+                    // Filtramos árboles, matorrales Y ADEMÁS TEJADOS/PAREDES para no subir al techo
+                    const esObstaculoOTecho = 
+                        objName.includes("tree") || objName.includes("arbol") || 
+                        objName.includes("leave") || objName.includes("hoja") || 
+                        objName.includes("trunk") || objName.includes("branch") || 
+                        objName.includes("bush") || objName.includes("reja") ||
+                        objName.includes("techo") || objName.includes("roof") || 
+                        objName.includes("ceiling") || objName.includes("pared") || 
+                        objName.includes("wall") || objName.includes("cubierta");
+
+                    if (!esObstaculoOTecho) {
                         sueloMeshCache.push(child);
                     }
                 }
@@ -815,39 +819,36 @@
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // ✅ LÓGICA CON RESPALDO FUERA DEL ASFALTO
-if (sueloMeshCache.length > 0) { 
-    // Lanzamos el rayo desde 2.5 unidades por encima de los pies
-    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.5, GAME_STATE.pos.z); 
-    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-    RAYCASTER_REUTILIZABLE.far = 6.0;
-    
-    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-    let mejorAltura = null; 
-    let maxPuntoY = -Infinity;
+                // 🛠️ DETECCIÓN DE ALTURA ROBUSTA: DESDE LA CINTURA (+0.5M) CON RESPALDO DE SUELO
+                if (sueloMeshCache.length > 0) { 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+                    RAYCASTER_REUTILIZABLE.far = 2.0;
+                    
+                    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+                    let mejorAltura = null; 
+                    let maxPuntoY = -Infinity;
 
-    const OFFSET_PIES = 0.08;        // Elevación extra sobre la malla del asfalto
-    const ALTURA_BASE_MAPA = 0.0;     // Nivel de suelo base al salir del barrio
+                    const OFFSET_PIES = 0.08; 
+                    const ALTURA_BASE_MAPA = 0.0;
 
-    for (let i = 0; i < colisiones.length; i++) {
-        const hit = colisiones[i];
-        
-        // Filtramos solo superficies debajo de las caderas/cabeza del avatar
-        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.5)) { 
-            maxPuntoY = hit.point.y; 
-            mejorAltura = hit.point.y; 
-        }
-    }
-    
-    if (mejorAltura !== null) {
-        // DENTRO DEL BARRIO: Ajusta la altura a la superficie del asfalto
-        GAME_STATE.cachedAlturaSuelo = mejorAltura + OFFSET_PIES;
-    } else {
-        // FUERA DEL BARRIO: Vuelve al nivel base del terreno global
-        GAME_STATE.cachedAlturaSuelo = ALTURA_BASE_MAPA;
-    }
-}
-
+                    for (let i = 0; i < colisiones.length; i++) {
+                        const hit = colisiones[i];
+                        
+                        // Solo aceptamos colisiones que estén estrictamente debajo de la cintura
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
+                            maxPuntoY = hit.point.y; 
+                            mejorAltura = hit.point.y; 
+                        }
+                    }
+                    
+                    if (mejorAltura !== null) {
+                        GAME_STATE.cachedAlturaSuelo = mejorAltura + OFFSET_PIES;
+                    } else {
+                        // Respaldo fuera de las mallas del asfalto o en interiores neutros
+                        GAME_STATE.cachedAlturaSuelo = ALTURA_BASE_MAPA;
+                    }
+                }
 
                 let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
                 GAME_STATE.pos.y += (GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y) * factorSuavizado;
