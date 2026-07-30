@@ -408,7 +408,7 @@
 
         entornoEntity.addEventListener('model-loaded', () => {
             entornoCargado = true;
-            // SEGURO DE CARGA: Si tras 2.5s de cargar el GLB no se ha ocultado el loader, forzar entrada
+            // Seguro secundario: fuerza ocultación si el raycast inicial tarda en enganchar
             setTimeout(() => {
                 if (!inicializado) {
                     const pos = rig.getAttribute('position');
@@ -417,7 +417,7 @@
                     inicializado = true;
                     ocultarLoader();
                 }
-            }, 2500);
+            }, 3000);
         });
 
         // --- SISTEMA MULTIMEDIA INTEGRADO ---
@@ -629,25 +629,23 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // EXCLUSIÓN SEGURA: Solo filtra copas de árboles, hojas y ramas flotantes
         const PALABRAS_VEGETACION = [
             'tree', 'arbol', 'leaf', 'hoja', 'branch', 'rama', 
             'bark', 'trunk', 'tronco', 'shrub', 'crown', 'canopy'
         ];
 
-        function filtrarInterseccionSuelo(intersects, playerY) {
+        // Obtiene la PRIMERA superficie válida viniendo desde arriba
+        function filtrarInterseccionSuelo(intersects) {
             if (!intersects || intersects.length === 0) return null;
 
             for (let i = 0; i < intersects.length; i++) {
                 const hit = intersects[i];
                 const nombreObj = hit.object.name.toLowerCase();
                 
-                const esArbolOAlto = PALABRAS_VEGETACION.some(kw => nombreObj.includes(kw));
-                if (esArbolOAlto) continue;
+                const esVegetacionAlta = PALABRAS_VEGETACION.some(kw => nombreObj.includes(kw));
+                if (esVegetacionAlta) continue;
 
-                if (hit.point.y > playerY + 1.2) continue;
-
-                return hit;
+                return hit; // Devuelve la primera superficie (la más alta)
             }
             return null;
         }
@@ -671,29 +669,23 @@
 
             const pos = rig.getAttribute('position');
 
-            // INICIALIZACIÓN ROBUSTA CON FALLBACK
-            if (!inicializado) {
-                const raycaster = new THREE.Raycaster();
-                raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
-                
-                const intersects = raycaster.intersectObject(mesh, true);
-                let hitValido = filtrarInterseccionSuelo(intersects, 2000);
-                
-                // Si la prueba estricta no halla suelo, usa el punto más bajo detectado o 0
-                if (!hitValido && intersects && intersects.length > 0) {
-                    hitValido = intersects[intersects.length - 1];
-                }
+            // RAYCASTING SIEMPRE DESDE ARRIBA DEL AVATAR (pos.y + 50)
+            const raycaster = new THREE.Raycaster();
+            const rayOrigin = new THREE.Vector3(pos.x, pos.y + 50, pos.z);
+            raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
 
+            const intersects = raycaster.intersectObject(mesh, true);
+            const hitValido = filtrarInterseccionSuelo(intersects);
+
+            if (!inicializado) {
                 if (hitValido) {
                     pos.y = hitValido.point.y;
                 } else {
                     pos.y = 0;
                 }
-
                 rig.setAttribute('position', pos);
                 inicializado = true; 
                 ocultarLoader();
-
                 requestAnimationFrame(engineLoop);
                 return;
             }
@@ -740,22 +732,17 @@
                 avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // RAYCASTING DESDE LA CABEZA DEL AVATAR
-            const rayOriginY = pos.y + 2.5;
-            const raycaster = new THREE.Raycaster();
-            raycaster.set(new THREE.Vector3(pos.x, rayOriginY, pos.z), new THREE.Vector3(0, -1, 0));
-            
-            const intersects = raycaster.intersectObject(mesh, true);
-            const hitValido = filtrarInterseccionSuelo(intersects, pos.y);
-            
+            // AJUSTE CONTINUO DE ALTURA Y COLISIÓN DE PENDIENTE
             if (hitValido) {
                 let groundY = hitValido.point.y;
                 let diffY = groundY - oldY;
 
-                if (diffY > 0.6) {
+                if (diffY > 1.2) {
+                    // Muro o pendiente vertical muy pronunciada: bloquea el paso
                     pos.x = oldX;
                     pos.z = oldZ;
                 } else {
+                    // Ajuste suave hacia la altura real del piso
                     pos.y += (groundY - pos.y) * 0.4;
                 }
             } else {
