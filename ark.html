@@ -531,8 +531,10 @@
             rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
             camYaw = 0;
             camPitch = -0.18;
+            cameraOrbit.object3D.rotation.order = 'YXZ';
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
+            cameraOrbit.object3D.rotation.z = 0;
             meshIdle.setAttribute('visible', 'true');
             meshWalk.setAttribute('visible', 'false');
             wasMoving = false;
@@ -620,26 +622,25 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // --- FILTRO MEJORADO DE SUELO Y VEGETACIÓN ---
+        // --- FILTRO MEJORADO CON PALABRAS CLAVE AMPLIADAS PARA PEQUEÑO CÉSPED ---
         function filtrarInterseccionSuelo(intersects, currentY = null) {
             if (!intersects || intersects.length === 0) return null;
 
             const palabrasIgnorar = [
-                'grass', 'hierba', 'pasto', 'weed', 'foliage', 'bush', 'matorral', 
-                'plant', 'flor', 'flower', 'tree', 'arbol', 'árbol', 'leaf', 'leaves', 
-                'hoja', 'hojas', 'trunk', 'tronco', 'branch', 'rama', 'bark', 'canopy', 
-                'copa', 'wood', 'madera'
+                'grass', 'hierba', 'pasto', 'cesped', 'césped', 'lawn', 'tuft', 'blade',
+                'weed', 'foliage', 'bush', 'matorral', 'plant', 'flor', 'flower', 
+                'tree', 'arbol', 'árbol', 'leaf', 'leaves', 'hoja', 'hojas', 
+                'trunk', 'tronco', 'branch', 'rama', 'bark', 'canopy', 'copa', 
+                'wood', 'madera', 'detail', 'clump', 'groundcover'
             ];
 
             for (let i = 0; i < intersects.length; i++) {
                 const hit = intersects[i];
                 const nombreObj = hit.object.name.toLowerCase();
 
-                // 1. Ignorar objetos nombrados como vegetación o partes de árboles
                 const esVegetacion = palabrasIgnorar.some(p => nombreObj.includes(p));
                 if (esVegetacion) continue;
 
-                // 2. Ignorar impactos que estén muy por encima de la altura actual del avatar (copas/ramas)
                 if (currentY !== null && (hit.point.y - currentY) > 1.2) {
                     continue;
                 }
@@ -647,7 +648,6 @@
                 return hit;
             }
 
-            // Si no hay suelo libre de filtros, buscar la intersección más cercana al avatar
             if (currentY !== null) {
                 for (let i = 0; i < intersects.length; i++) {
                     if ((intersects[i].point.y - currentY) <= 1.2) {
@@ -667,8 +667,12 @@
             if (arrowCam.down) camPitch += 0.015;  
 
             camPitch = Math.max(-0.55, Math.min(0.12, camPitch)); 
+            
+            // CÁMARA DERECHA Y SIN INCLINACIÓN LATERAL (ORDEN DE ROTACIÓN FIX)
+            cameraOrbit.object3D.rotation.order = 'YXZ';
             cameraOrbit.object3D.rotation.y = camYaw;
             cameraOrbit.object3D.rotation.x = camPitch;
+            cameraOrbit.object3D.rotation.z = 0;
 
             const mesh = entornoEntity.object3D;
 
@@ -679,7 +683,6 @@
 
             const pos = rig.getAttribute('position');
 
-            // --- INICIALIZACIÓN DE SPANW (Raycast global desde arriba) ---
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
@@ -739,9 +742,9 @@
                 avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // --- DETECCIÓN DE SUELO LOCAL (Raycast desde la altura relativa del avatar) ---
+            // DETECCIÓN DE SUELO LOCAL CON RAYCAST
             const raycaster = new THREE.Raycaster();
-            raycaster.set(new THREE.Vector3(pos.x, pos.y + 2.5, pos.z), new THREE.Vector3(0, -1, 0));
+            raycaster.set(new THREE.Vector3(pos.x, pos.y + 1.8, pos.z), new THREE.Vector3(0, -1, 0));
             
             const intersects = raycaster.intersectObject(mesh, true);
             const hitValido = filtrarInterseccionSuelo(intersects, oldY);
@@ -749,17 +752,21 @@
             if (hitValido) {
                 let groundY = hitValido.point.y;
 
-                // Si el desnivel supera 1.0 metro de golpe, se considera pared/bloqueo
                 if ((groundY - oldY) > 1.0) {
                     pos.x = oldX;
                     pos.z = oldZ;
                     pos.y = oldY;
                 } else {
-                    // Transición suave de pendiente / desnivel
-                    pos.y += (groundY - pos.y) * 0.25;
+                    let diffY = groundY - pos.y;
+                    
+                    // AMORTIGUADOR ANTI-VIBRACIÓN PARA CÉSPED O MICRO-ELEVACIONALES
+                    if (Math.abs(diffY) < 0.15) {
+                        pos.y += diffY * 0.08; 
+                    } else {
+                        pos.y += diffY * 0.22;
+                    }
                 }
             } else {
-                // Si cae en un hueco sin suelo o choque inválido, revertir posición
                 pos.x = oldX;
                 pos.z = oldZ;
                 pos.y = oldY;
