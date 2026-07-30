@@ -395,7 +395,6 @@
         let arrowCam = { up: false, down: false, left: false, right: false };
         let wasMoving = false;
         
-        // CONTROL DE INICIALIZACIÓN LIMPIO Y DIRECTO
         let inicializado = false;
         let entornoCargado = false;
 
@@ -622,19 +621,30 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        function filtrarInterseccionSuelo(intersects) {
+        // --- FILTRADO DE COLISIONES OPTIMIZADO PARA VEGETACIÓN Y DESNIVELES ---
+        const PALABRAS_VEGETACION = [
+            'grass', 'hierba', 'pasto', 'weed', 'foliage', 'bush', 'matorral', 
+            'plant', 'flor', 'flower', 'tree', 'arbol', 'leaf', 'hoja', 'branch', 
+            'rama', 'bark', 'trunk', 'tronco', 'shrub', 'crown', 'canopy', 'prop'
+        ];
+
+        function filtrarInterseccionSuelo(intersects, playerY) {
+            if (!intersects || intersects.length === 0) return null;
+
             for (let i = 0; i < intersects.length; i++) {
-                const nombreObj = intersects[i].object.name.toLowerCase();
-                if (nombreObj.includes('grass') || nombreObj.includes('hierba') || 
-                    nombreObj.includes('pasto') || nombreObj.includes('weed') || 
-                    nombreObj.includes('foliage') || nombreObj.includes('bush') || 
-                    nombreObj.includes('matorral') || nombreObj.includes('plant') ||
-                    nombreObj.includes('flor') || nombreObj.includes('flower')) {
-                    continue; 
-                }
-                return intersects[i];
+                const hit = intersects[i];
+                const nombreObj = hit.object.name.toLowerCase();
+                
+                // Descartar hojas, ramas, árboles o elementos ornamentales
+                const esVegetacion = PALABRAS_VEGETACION.some(kw => nombreObj.includes(kw));
+                if (esVegetacion) continue;
+
+                // Descartar impactos por encima de la altura del personaje
+                if (hit.point.y > playerY + 1.2) continue;
+
+                return hit;
             }
-            return intersects[0];
+            return null;
         }
 
         function engineLoop() {
@@ -649,7 +659,6 @@
 
             const mesh = entornoEntity.object3D;
 
-            // ESPERA PURA: Si el mesh no está listo en la escena 3D o el evento 'model-loaded' no ha saltado, congelamos el loop.
             if (!mesh || !entornoCargado || !mesh.children || mesh.children.length === 0) {
                 requestAnimationFrame(engineLoop);
                 return;
@@ -657,13 +666,13 @@
 
             const pos = rig.getAttribute('position');
 
-            // CALCULO EXCLUSIVO DE ALTURA DESDE LOS 500 ORIGINALES
+            // INICIALIZACIÓN (Primer spawn desde la altura 500)
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 
                 const intersects = raycaster.intersectObject(mesh, true);
-                const hitValido = filtrarInterseccionSuelo(intersects);
+                const hitValido = filtrarInterseccionSuelo(intersects, 2000);
                 
                 if (hitValido) {
                     pos.y = hitValido.point.y;
@@ -717,25 +726,30 @@
                 avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
+            // RAYCASTING DE SUELO AJUSTADO A LA CABEZA DEL AVATAR (pos.y + 2.5)
+            const rayOriginY = pos.y + 2.5;
             const raycaster = new THREE.Raycaster();
-            raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
+            raycaster.set(new THREE.Vector3(pos.x, rayOriginY, pos.z), new THREE.Vector3(0, -1, 0));
             
             const intersects = raycaster.intersectObject(mesh, true);
-            const hitValido = filtrarInterseccionSuelo(intersects);
+            const hitValido = filtrarInterseccionSuelo(intersects, pos.y);
             
             if (hitValido) {
                 let groundY = hitValido.point.y;
-                if ((groundY - oldY) > 0.8) {
+                let diffY = groundY - oldY;
+
+                // Si hay un obstáculo alto/muro (>0.6m), bloquea avance horizontal pero no congela el avatar
+                if (diffY > 0.6) {
                     pos.x = oldX;
                     pos.z = oldZ;
-                    pos.y = oldY;
                 } else {
-                    pos.y += (groundY - pos.y) * 0.2;
+                    // Adaptación fluida a pendientes y desniveles
+                    pos.y += (groundY - pos.y) * 0.4;
                 }
             } else {
+                // Si no hay suelo directo debajo, revierte la posición horizontal
                 pos.x = oldX;
                 pos.z = oldZ;
-                pos.y = oldY;
             }
 
             rig.setAttribute('position', pos);
