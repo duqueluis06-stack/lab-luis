@@ -341,7 +341,6 @@
 
         <a-entity id="entorno" gltf-model="#forest-model" position="0 0 0" rotation="0 0 0"></a-entity>
 
-        <!-- MANTENEMOS TUS COORDENADAS ORIGINALES PERFECTAS -->
         <a-entity id="player-rig" position="12 500 -15">
             
             <a-entity id="avatar-container" position="0 0.02 0" rotation="0 0 0">
@@ -398,10 +397,6 @@
         let inicializado = false;
         let entornoCargado = false;
 
-        entornoEntity.addEventListener('model-loaded', () => {
-            entornoCargado = true;
-        });
-
         function ocultarLoader() {
             const loader = document.getElementById('custom-loader');
             if (loader) {
@@ -410,6 +405,20 @@
                 setTimeout(() => loader.remove(), 600);
             }
         }
+
+        entornoEntity.addEventListener('model-loaded', () => {
+            entornoCargado = true;
+            // SEGURO DE CARGA: Si tras 2.5s de cargar el GLB no se ha ocultado el loader, forzar entrada
+            setTimeout(() => {
+                if (!inicializado) {
+                    const pos = rig.getAttribute('position');
+                    if (pos.y > 400) pos.y = 0;
+                    rig.setAttribute('position', pos);
+                    inicializado = true;
+                    ocultarLoader();
+                }
+            }, 2500);
+        });
 
         // --- SISTEMA MULTIMEDIA INTEGRADO ---
         const playlist = ['audio/Camino-Nocturno.mp3', 'audio/Sin-Mirar.mp3'];
@@ -504,7 +513,6 @@
             }
         }
 
-        // ASIGNACIÓN DE COORDENADAS INICIALES EN EL RIG
         rig.setAttribute('position', `${SPAWN_X} 500 ${SPAWN_Z}`);
 
         sceneEl.addEventListener('loaded', () => {
@@ -621,11 +629,10 @@
         setupArrowCamera('btn-up', 'up'); setupArrowCamera('btn-down', 'down');
         setupArrowCamera('btn-left', 'left'); setupArrowCamera('btn-right', 'right');
 
-        // --- FILTRADO DE COLISIONES OPTIMIZADO PARA VEGETACIÓN Y DESNIVELES ---
+        // EXCLUSIÓN SEGURA: Solo filtra copas de árboles, hojas y ramas flotantes
         const PALABRAS_VEGETACION = [
-            'grass', 'hierba', 'pasto', 'weed', 'foliage', 'bush', 'matorral', 
-            'plant', 'flor', 'flower', 'tree', 'arbol', 'leaf', 'hoja', 'branch', 
-            'rama', 'bark', 'trunk', 'tronco', 'shrub', 'crown', 'canopy', 'prop'
+            'tree', 'arbol', 'leaf', 'hoja', 'branch', 'rama', 
+            'bark', 'trunk', 'tronco', 'shrub', 'crown', 'canopy'
         ];
 
         function filtrarInterseccionSuelo(intersects, playerY) {
@@ -635,11 +642,9 @@
                 const hit = intersects[i];
                 const nombreObj = hit.object.name.toLowerCase();
                 
-                // Descartar hojas, ramas, árboles o elementos ornamentales
-                const esVegetacion = PALABRAS_VEGETACION.some(kw => nombreObj.includes(kw));
-                if (esVegetacion) continue;
+                const esArbolOAlto = PALABRAS_VEGETACION.some(kw => nombreObj.includes(kw));
+                if (esArbolOAlto) continue;
 
-                // Descartar impactos por encima de la altura del personaje
                 if (hit.point.y > playerY + 1.2) continue;
 
                 return hit;
@@ -666,20 +671,29 @@
 
             const pos = rig.getAttribute('position');
 
-            // INICIALIZACIÓN (Primer spawn desde la altura 500)
+            // INICIALIZACIÓN ROBUSTA CON FALLBACK
             if (!inicializado) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.set(new THREE.Vector3(pos.x, 2000, pos.z), new THREE.Vector3(0, -1, 0));
                 
                 const intersects = raycaster.intersectObject(mesh, true);
-                const hitValido = filtrarInterseccionSuelo(intersects, 2000);
+                let hitValido = filtrarInterseccionSuelo(intersects, 2000);
                 
+                // Si la prueba estricta no halla suelo, usa el punto más bajo detectado o 0
+                if (!hitValido && intersects && intersects.length > 0) {
+                    hitValido = intersects[intersects.length - 1];
+                }
+
                 if (hitValido) {
                     pos.y = hitValido.point.y;
-                    rig.setAttribute('position', pos);
-                    inicializado = true; 
-                    ocultarLoader();
+                } else {
+                    pos.y = 0;
                 }
+
+                rig.setAttribute('position', pos);
+                inicializado = true; 
+                ocultarLoader();
+
                 requestAnimationFrame(engineLoop);
                 return;
             }
@@ -726,7 +740,7 @@
                 avatarContainer.object3D.rotation.y += deltaAngle * 0.25;
             }
 
-            // RAYCASTING DE SUELO AJUSTADO A LA CABEZA DEL AVATAR (pos.y + 2.5)
+            // RAYCASTING DESDE LA CABEZA DEL AVATAR
             const rayOriginY = pos.y + 2.5;
             const raycaster = new THREE.Raycaster();
             raycaster.set(new THREE.Vector3(pos.x, rayOriginY, pos.z), new THREE.Vector3(0, -1, 0));
@@ -738,16 +752,13 @@
                 let groundY = hitValido.point.y;
                 let diffY = groundY - oldY;
 
-                // Si hay un obstáculo alto/muro (>0.6m), bloquea avance horizontal pero no congela el avatar
                 if (diffY > 0.6) {
                     pos.x = oldX;
                     pos.z = oldZ;
                 } else {
-                    // Adaptación fluida a pendientes y desniveles
                     pos.y += (groundY - pos.y) * 0.4;
                 }
             } else {
-                // Si no hay suelo directo debajo, revierte la posición horizontal
                 pos.x = oldX;
                 pos.z = oldZ;
             }
