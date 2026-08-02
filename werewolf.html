@@ -460,6 +460,7 @@
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             introCompletada: false,
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
+            velY: 0, enElSuelo: true, // 🦘 FISICA Y ESTADO DE SALTO
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
             esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
@@ -689,16 +690,34 @@
                 if(['w','arrowup'].includes(k)) INPUT.keys.w = true;
                 if(['s','arrowdown'].includes(k)) INPUT.keys.s = true;
                 if(['a','arrowleft'].includes(k)) INPUT.keys.a = true;
-                if(['d','arrowright'].includes(k)) INPUT.keys.d = false;
-                if(e.key === ' ' || e.key === 'Shift') { e.preventDefault(); toggleSprint(true); }
+                if(['d','arrowright'].includes(k)) INPUT.keys.d = true; // CORREGIDO AQUÍ (Antes decía false)
+                
+                // TECLA SPRINT (SHIFT)
+                if(e.key === 'Shift') { 
+                    e.preventDefault(); 
+                    toggleSprint(true); 
+                }
+                
+                // TECLA SALTO (ESPACIO)
+                if(e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    if (GAME_STATE.enElSuelo && !GAME_STATE.esInterior) {
+                        GAME_STATE.velY = 5.2; // Fuerza de salto
+                        GAME_STATE.enElSuelo = false;
+                    }
+                }
             });
+
             window.addEventListener('keyup', e => {
                 const k = e.key.toLowerCase();
                 if(['w','arrowup'].includes(k)) INPUT.keys.w = false;
                 if(['s','arrowdown'].includes(k)) INPUT.keys.s = false;
                 if(['a','arrowleft'].includes(k)) INPUT.keys.a = false;
                 if(['d','arrowright'].includes(k)) INPUT.keys.d = false;
-                if(e.key === ' ' || e.key === 'Shift') { toggleSprint(false); }
+                
+                if(e.key === 'Shift') { 
+                    toggleSprint(false); 
+                }
             });
 
             window.addEventListener('pointerdown', e => {
@@ -892,13 +911,24 @@
                     }
                 }
 
-                // GROUND SNAPPING
-                let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                if (Math.abs(deltaY) > 0.4) {
-                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                // 🦘 GRAVEDAD Y SALTO / GROUND SNAPPING
+                if (!GAME_STATE.enElSuelo) {
+                    GAME_STATE.velY -= 15.0 * dt; // Gravedad
+                    GAME_STATE.pos.y += GAME_STATE.velY * dt;
+
+                    if (GAME_STATE.pos.y <= GAME_STATE.cachedAlturaSuelo) {
+                        GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                        GAME_STATE.velY = 0;
+                        GAME_STATE.enElSuelo = true;
+                    }
                 } else {
-                    let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
-                    GAME_STATE.pos.y += deltaY * factorSuavizado;
+                    let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
+                    if (Math.abs(deltaY) > 0.4) {
+                        GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                    } else {
+                        let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
+                        GAME_STATE.pos.y += deltaY * factorSuavizado;
+                    }
                 }
 
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
@@ -1030,6 +1060,7 @@
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
             GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
             GAME_STATE.refugioActualNombre = '';
+            GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
             
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(60, 0, -60);
