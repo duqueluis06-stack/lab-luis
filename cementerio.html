@@ -73,8 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS GENERALES
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 2.2; // Tamaño del avatar ajustado a 2.2
-const OFFSET_PIES = 0.08;   // Ajuste para evitar hundimiento en calzado
+const ESCALA_AVATAR = 2.2;
+const OFFSET_PIES = 0.08;
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -162,7 +162,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables para optimización de memoria
+// Vectores reutilizables para optimización
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -207,7 +207,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO DE OBJETOS DE LA ESCENA (JERARQUÍA Y ROLES)
+// FILTRADO DE OBJETOS DE LA ESCENA
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -247,7 +247,6 @@ function clasificarObjeto(obj) {
     return;
   }
 
-  // Activar renderizado de doble cara para evitar traspasos en paredes finas
   if (obj.material) {
     if (Array.isArray(obj.material)) {
       obj.material.forEach(m => { m.side = THREE.DoubleSide; });
@@ -256,7 +255,7 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Asignar a listas de colisión correspondientes
+  // Estructuras sólidas que bloquean el paso (se excluyen árboles para evitar congelamiento de CPU)
   if (
     jerarquia.includes("backrooms") ||
     jerarquia.includes("cerca") ||
@@ -266,9 +265,6 @@ function clasificarObjeto(obj) {
     jerarquia.includes("estatua") ||
     jerarquia.includes("pared") ||
     jerarquia.includes("wall") ||
-    jerarquia.includes("arbol") ||
-    jerarquia.includes("lapacho") ||
-    jerarquia.includes("palmerilla") ||
     jerarquia.includes("muro")
   ) {
     paredColisionables.push(obj);
@@ -278,7 +274,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// CARGAR ESCENARIO Y ANIMACIONES DE OBJETOS
+// CARGAR ESCENARIO Y ANIMACIONES
 // --------------------------------------------------
 
 loader.load(
@@ -296,7 +292,6 @@ loader.load(
       clasificarObjeto(child);
     });
 
-    // Reproducción automática de animaciones del escenario (fantasmas, mujeres, esferas, etc.)
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = new THREE.AnimationMixer(cementerio);
       gltf.animations.forEach((clip) => {
@@ -381,7 +376,7 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// DETECCIÓN DE SUELO Y ESCALERAS DESCENDENTES
+// DETECCIÓN DE SUELO Y ESCALERAS
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -416,18 +411,18 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN DE PAREDES Y LABERINTO (BACKROOMS)
+// DETECCIÓN DE PAREDES OPTIMIZADA
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  const radioCuerpo = 0.3 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
+  const radioCuerpo = 0.28 * ESCALA_AVATAR; 
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.1;
 
-  // 8 Direcciones radiales de comprobación física
-  const angulos = [0, 0.785, 1.57, 2.356, 3.1415, -2.356, -1.57, -0.785];
-  const alturas = [0.25 * ESCALA_AVATAR, 0.75 * ESCALA_AVATAR, 1.25 * ESCALA_AVATAR];
+  // Reducido a 4 direcciones principales para máxima velocidad de procesamiento
+  const angulos = [0, 1.57, 3.1415, -1.57];
+  const alturas = [0.4 * ESCALA_AVATAR, 1.0 * ESCALA_AVATAR];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -551,7 +546,7 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.033); // Control de paso para evitar saltos o congelamientos
+  const delta = Math.min(clock.getDelta(), 0.033);
 
   if (cementerioMixer) cementerioMixer.update(delta);
   if (estaCaminando && mixerCamina) mixerCamina.update(delta);
