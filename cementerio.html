@@ -73,8 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 3.5; // Tamaño ajustado a 3.5
-const OFFSET_PIES = 0.14;   // Elevación sobre veredas y adoquines
+const ESCALA_AVATAR = 3.5; 
+const OFFSET_PIES = 0.14;   
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -160,7 +160,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores de uso frecuente
+// Vectores reutilizables
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -176,13 +176,12 @@ let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
 // --------------------------------------------------
-// GESTIÓN ROBUSTA DE MEZCLADORES Y ANIMACIONES
+// GESTIÓN DE ANIMACIONES
 // --------------------------------------------------
 
 function crearMixer(objeto) {
   const mixer = new THREE.AnimationMixer(objeto);
 
-  // Evento de seguridad: si Three.js finaliza el clip a los 1150 frames, se reinicia inmediatamente
   mixer.addEventListener('finished', (e) => {
     if (e.action) {
       e.action.reset().play();
@@ -195,7 +194,6 @@ function crearMixer(objeto) {
 function prepararAnimacionInfinita(mixer, clip) {
   if (!clip) return null;
 
-  // Recalcular la duración máxima real de las pistas para evitar cortes prematuros
   let maxTime = 0;
   if (clip.tracks && clip.tracks.length > 0) {
     clip.tracks.forEach(track => {
@@ -251,7 +249,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRO DE COLISIONES
+// FILTRO DE OBJETOS SÓLIDOS (MUROS, LABERINTO, PASILLO)
 // --------------------------------------------------
 
 function esObjetoSolido(obj) {
@@ -259,6 +257,7 @@ function esObjetoSolido(obj) {
 
   const nombre = (obj.name || "").toLowerCase();
 
+  // Excluir elementos volátiles intangibles
   if (
     nombre.includes("neblina") ||
     nombre.includes("fog") ||
@@ -267,12 +266,23 @@ function esObjetoSolido(obj) {
     nombre.includes("cloud") ||
     nombre.includes("humo") ||
     nombre.includes("smoke") ||
-    nombre.includes("particle")
+    nombre.includes("particle") ||
+    nombre.includes("light") ||
+    nombre.includes("trigger")
   ) {
     return false;
   }
 
+  // Aceptar mallas de escenarios, laberinto, pasillo gótico, paredes y pisos
   if (
+    nombre.includes("laberinto") ||
+    nombre.includes("pasillo") ||
+    nombre.includes("gotico") ||
+    nombre.includes("pared") ||
+    nombre.includes("wall") ||
+    nombre.includes("muro") ||
+    nombre.includes("colision") ||
+    nombre.includes("building") ||
     nombre.includes("piso") ||
     nombre.includes("suelo") ||
     nombre.includes("vereda") ||
@@ -285,14 +295,7 @@ function esObjetoSolido(obj) {
     return true;
   }
 
-  if (obj.material) {
-    const materiales = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const mat of materiales) {
-      if (mat.depthWrite === false) return false;
-      if (mat.transparent && mat.opacity < 0.5) return false;
-    }
-  }
-
+  // Por defecto, cualquier malla geométrica visible es colisionable
   return true;
 }
 
@@ -448,14 +451,20 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// COLISIONES LATERALES Y FRONTALES
+// DETECCIÓN REFORZADA DE COLISIONES FRONTALES Y LATERALES
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (colisionablesCache.length === 0 || !avatarGroup) return false;
 
-  const angulos = [-0.4, 0, 0.4];
-  const alturas = [0.4 * ESCALA_AVATAR, 1.2 * ESCALA_AVATAR];
+  // Radio de volumen según la escala del avatar
+  const radioCuerpo = 0.32 * ESCALA_AVATAR; 
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.2;
+
+  // Abanico horizontal de 7 ángulos para no dejar puntos ciegos entre muros
+  const angulos = [-0.85, -0.5, -0.25, 0, 0.25, 0.5, 0.85];
+  // Detección a 3 niveles de altura (tobillos, cintura y pecho)
+  const alturas = [0.25 * ESCALA_AVATAR, 0.65 * ESCALA_AVATAR, 1.1 * ESCALA_AVATAR];
 
   for (const alt of alturas) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -465,15 +474,17 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
       
       raycasterPared.set(vecOrigenPared, vecDirPared);
-      raycasterPared.far = pasoDistancia + 0.6;
+      raycasterPared.far = distanciaLimite;
 
       const impactos = raycasterPared.intersectObjects(colisionablesCache, false);
 
       for (let i = 0; i < impactos.length; i++) {
         const impacto = impactos[i];
-        if (impacto.face && Math.abs(impacto.face.normal.y) > 0.7) continue;
+        
+        // Ignorar superficies horizontales (piso/techo)
+        if (impacto.face && Math.abs(impacto.face.normal.y) > 0.65) continue;
 
-        if (impacto.distance < pasoDistancia + 0.5) {
+        if (impacto.distance < distanciaLimite) {
           return true;
         }
       }
@@ -492,7 +503,6 @@ function moverAvatar(delta) {
 
   const radCamY = THREE.MathUtils.degToRad(anguloCamaraY);
 
-  // Vector de orientación según la visión de la cámara
   vecForward.set(-Math.sin(radCamY), 0, -Math.cos(radCamY));
   vecRight.set(Math.cos(radCamY), 0, -Math.sin(radCamY));
 
@@ -509,7 +519,6 @@ function moverAvatar(delta) {
     vecMovimiento.normalize();
     const velocidadMov = 5.2;
 
-    // Ajuste de giro suave hacia el frente de marcha
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -588,7 +597,6 @@ function animate() {
 
   const delta = Math.min(clock.getDelta(), 0.1);
 
-  // Actualización ininterrumpida de todos los mezcladores de animación
   if (cementerioMixer) cementerioMixer.update(delta);
   if (mixerHora) mixerHora.update(delta);
   if (mixerCamina) mixerCamina.update(delta);
