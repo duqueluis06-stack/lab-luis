@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cementerio - Nivel 1</title>
+  <title>Juego 3D</title>
 
   <style>
     html, body {
@@ -51,7 +51,7 @@
 
 <body>
 
-<div id="loading">Cargando cementerio...</div>
+<div id="loading">Cargando...</div>
 <div id="error"></div>
 
 <script type="importmap">
@@ -73,8 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 3.5; // Avatar más grande
-const OFFSET_PIES = 0.15;   // Elevación sobre veredas y adoquines
+const ESCALA_AVATAR = 3.5; // Tamaño ajustado a 3.5
+const OFFSET_PIES = 0.14;   // Elevación sobre veredas y adoquines
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -176,6 +176,52 @@ let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
 // --------------------------------------------------
+// GESTIÓN ROBUSTA DE MEZCLADORES Y ANIMACIONES
+// --------------------------------------------------
+
+function crearMixer(objeto) {
+  const mixer = new THREE.AnimationMixer(objeto);
+
+  // Evento de seguridad: si Three.js finaliza el clip a los 1150 frames, se reinicia inmediatamente
+  mixer.addEventListener('finished', (e) => {
+    if (e.action) {
+      e.action.reset().play();
+    }
+  });
+
+  return mixer;
+}
+
+function prepararAnimacionInfinita(mixer, clip) {
+  if (!clip) return null;
+
+  // Recalcular la duración máxima real de las pistas para evitar cortes prematuros
+  let maxTime = 0;
+  if (clip.tracks && clip.tracks.length > 0) {
+    clip.tracks.forEach(track => {
+      if (track.times && track.times.length > 0) {
+        const ultimoTiempo = track.times[track.times.length - 1];
+        if (ultimoTiempo > maxTime) maxTime = ultimoTiempo;
+      }
+    });
+  }
+
+  if (maxTime > 0) {
+    clip.duration = maxTime;
+  }
+
+  const action = mixer.clipAction(clip);
+  action.stop();
+  action.reset();
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.clampWhenFinished = false;
+  action.enabled = true;
+  action.play();
+
+  return action;
+}
+
+// --------------------------------------------------
 // EVENTOS DE MOUSE PARA CÁMARA
 // --------------------------------------------------
 
@@ -251,7 +297,7 @@ function esObjetoSolido(obj) {
 }
 
 // --------------------------------------------------
-// CARGAR CEMENTERIO
+// CARGAR ESCENARIO
 // --------------------------------------------------
 
 loader.load(
@@ -270,25 +316,19 @@ loader.load(
     });
 
     if (gltf.animations && gltf.animations.length > 0) {
-      cementerioMixer = new THREE.AnimationMixer(cementerio);
-
+      cementerioMixer = crearMixer(cementerio);
       gltf.animations.forEach((clip) => {
-        const action = cementerioMixer.clipAction(clip);
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.play();
+        prepararAnimacionInfinita(cementerioMixer, clip);
       });
     }
 
     cargarAvatares();
   },
-  function(xhr) {
-    if (xhr.total) {
-      const porcentaje = (xhr.loaded / xhr.total * 100).toFixed(0);
-      document.getElementById("loading").textContent = "Cargando cementerio... " + porcentaje + "%";
-    }
+  function() {
+    document.getElementById("loading").textContent = "Cargando...";
   },
   function(error) {
-    mostrarError("Error cargando cementerio: " + error);
+    mostrarError("Error cargando el escenario: " + error);
   }
 );
 
@@ -301,13 +341,11 @@ function cargarAvatares() {
     LUIS_HORA_URL,
     function(gltfHora) {
       avatarHora = gltfHora.scene;
-      avatarHora.rotation.y = 0; // Sin inversión de orientación manual
+      avatarHora.rotation.y = 0;
       
       if (gltfHora.animations.length > 0) {
-        mixerHora = new THREE.AnimationMixer(avatarHora);
-        accionHora = mixerHora.clipAction(gltfHora.animations[0]);
-        accionHora.setLoop(THREE.LoopRepeat, Infinity);
-        accionHora.play();
+        mixerHora = crearMixer(avatarHora);
+        accionHora = prepararAnimacionInfinita(mixerHora, gltfHora.animations[0]);
       }
 
       avatarGroup.add(avatarHora);
@@ -316,13 +354,11 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          avatarCamina.rotation.y = 0; // Sin inversión de orientación manual
+          avatarCamina.rotation.y = 0;
 
           if (gltfCamina.animations.length > 0) {
-            mixerCamina = new THREE.AnimationMixer(avatarCamina);
-            accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
-            accionCamina.setLoop(THREE.LoopRepeat, Infinity);
-            accionCamina.play();
+            mixerCamina = crearMixer(avatarCamina);
+            accionCamina = prepararAnimacionInfinita(mixerCamina, gltfCamina.animations[0]);
           }
 
           avatarCamina.visible = false;
@@ -338,13 +374,13 @@ function cargarAvatares() {
         },
         undefined,
         function(error) {
-          mostrarError("Error cargando luis-camina.glb: " + error);
+          mostrarError("Error cargando avatar de movimiento: " + error);
         }
       );
     },
     undefined,
     function(error) {
-      mostrarError("Error cargando luis-hora.glb: " + error);
+      mostrarError("Error cargando avatar estático: " + error);
     }
   );
 }
@@ -456,7 +492,7 @@ function moverAvatar(delta) {
 
   const radCamY = THREE.MathUtils.degToRad(anguloCamaraY);
 
-  // Vector de orientación según la cámara
+  // Vector de orientación según la visión de la cámara
   vecForward.set(-Math.sin(radCamY), 0, -Math.cos(radCamY));
   vecRight.set(Math.cos(radCamY), 0, -Math.sin(radCamY));
 
@@ -473,7 +509,7 @@ function moverAvatar(delta) {
     vecMovimiento.normalize();
     const velocidadMov = 5.2;
 
-    // Cálculo del ángulo hacia el frente de marcha
+    // Ajuste de giro suave hacia el frente de marcha
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -488,19 +524,17 @@ function moverAvatar(delta) {
     if (!estaCaminando) {
       if (avatarHora) avatarHora.visible = false;
       if (avatarCamina) avatarCamina.visible = true;
-      if (accionCamina) accionCamina.play();
+      if (accionCamina) accionCamina.reset().play();
       estaCaminando = true;
     }
-    if (mixerCamina) mixerCamina.update(delta);
 
   } else {
     if (estaCaminando) {
       if (avatarHora) avatarHora.visible = true;
       if (avatarCamina) avatarCamina.visible = false;
-      if (accionHora) accionHora.play();
+      if (accionHora) accionHora.reset().play();
       estaCaminando = false;
     }
-    if (mixerHora) mixerHora.update(delta);
   }
 
   ajustarAlturaSuelo();
@@ -554,7 +588,10 @@ function animate() {
 
   const delta = Math.min(clock.getDelta(), 0.1);
 
+  // Actualización ininterrumpida de todos los mezcladores de animación
   if (cementerioMixer) cementerioMixer.update(delta);
+  if (mixerHora) mixerHora.update(delta);
+  if (mixerCamina) mixerCamina.update(delta);
 
   moverAvatar(delta);
   seguirAvatar();
