@@ -133,7 +133,7 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES GLOBALES Y FISICAS
+// VARIABLES GLOBALES Y FÍSICAS
 // --------------------------------------------------
 
 let cementerio = null;
@@ -150,8 +150,6 @@ let avatarCamina = null;
 
 let mixerHora = null;
 let mixerCamina = null;
-let accionHora = null;
-let accionCamina = null;
 
 let estaCaminando = false;
 
@@ -162,7 +160,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables para optimización
+// Vectores reutilizables
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -207,7 +205,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO DE OBJETOS DE LA ESCENA
+// FILTRADO Y CLASIFICACIÓN DE OBJETOS DE LA ESCENA
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -225,7 +223,6 @@ function clasificarObjeto(obj) {
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
-  // Exclusiones absolutas: elementos etéreos o invisibles
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -255,9 +252,10 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Estructuras sólidas que bloquean el paso (se excluyen árboles para evitar congelamiento de CPU)
-  if (
-    jerarquia.includes("backrooms") ||
+  const esEstructuraPared = (
+    jerarquia.includes("backroom") ||
+    jerarquia.includes("pasillo") ||
+    jerarquia.includes("gotico") ||
     jerarquia.includes("cerca") ||
     jerarquia.includes("rejas") ||
     jerarquia.includes("mausoleo") ||
@@ -266,11 +264,31 @@ function clasificarObjeto(obj) {
     jerarquia.includes("pared") ||
     jerarquia.includes("wall") ||
     jerarquia.includes("muro")
-  ) {
+  );
+
+  if (esEstructuraPared) {
     paredColisionables.push(obj);
-  } else {
-    pisoColisionables.push(obj);
   }
+
+  pisoColisionables.push(obj);
+}
+
+// --------------------------------------------------
+// HELPER PARA INICIALIZAR ANIMACIONES
+// --------------------------------------------------
+
+function crearYEjecutarMixer(gltf, rootObject) {
+  if (!gltf.animations || gltf.animations.length === 0) return null;
+
+  const mixer = new THREE.AnimationMixer(rootObject);
+  gltf.animations.forEach((clip) => {
+    const action = mixer.clipAction(clip);
+    action.enabled = true;
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
+  });
+
+  return mixer;
 }
 
 // --------------------------------------------------
@@ -293,12 +311,7 @@ loader.load(
     });
 
     if (gltf.animations && gltf.animations.length > 0) {
-      cementerioMixer = new THREE.AnimationMixer(cementerio);
-      gltf.animations.forEach((clip) => {
-        const action = cementerioMixer.clipAction(clip);
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.play();
-      });
+      cementerioMixer = crearYEjecutarMixer(gltf, cementerio);
     }
 
     cargarAvatares();
@@ -320,13 +333,7 @@ function cargarAvatares() {
     LUIS_HORA_URL,
     function(gltfHora) {
       avatarHora = gltfHora.scene;
-      
-      if (gltfHora.animations.length > 0) {
-        mixerHora = new THREE.AnimationMixer(avatarHora);
-        accionHora = mixerHora.clipAction(gltfHora.animations[0]);
-        accionHora.setLoop(THREE.LoopRepeat, Infinity);
-        accionHora.play();
-      }
+      mixerHora = crearYEjecutarMixer(gltfHora, avatarHora);
 
       avatarGroup.add(avatarHora);
 
@@ -334,13 +341,7 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-
-          if (gltfCamina.animations.length > 0) {
-            mixerCamina = new THREE.AnimationMixer(avatarCamina);
-            accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
-            accionCamina.setLoop(THREE.LoopRepeat, Infinity);
-            accionCamina.play();
-          }
+          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina);
 
           avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
@@ -376,7 +377,7 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// DETECCIÓN DE SUELO Y ESCALERAS
+// DETECCIÓN DE SUELO Y ESCALERAS DESCENDENTES
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -411,18 +412,17 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN DE PAREDES OPTIMIZADA
+// DETECCIÓN PRECISA DE COLISIÓN DE PAREDES
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  const radioCuerpo = 0.28 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.1;
+  const radioCuerpo = 0.35 * ESCALA_AVATAR; 
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
 
-  // Reducido a 4 direcciones principales para máxima velocidad de procesamiento
-  const angulos = [0, 1.57, 3.1415, -1.57];
-  const alturas = [0.4 * ESCALA_AVATAR, 1.0 * ESCALA_AVATAR];
+  const angulos = [-1.0, -0.5, 0, 0.5, 1.0];
+  const alturas = [0.3 * ESCALA_AVATAR, 0.8 * ESCALA_AVATAR, 1.3 * ESCALA_AVATAR];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -448,7 +448,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 }
 
 // --------------------------------------------------
-// DESPLAZAMIENTO Y CAMBIO DE ESTADO
+// DESPLAZAMIENTO Y MOVIMIENTO
 // --------------------------------------------------
 
 function moverAvatar(delta) {
@@ -549,8 +549,8 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.033);
 
   if (cementerioMixer) cementerioMixer.update(delta);
-  if (estaCaminando && mixerCamina) mixerCamina.update(delta);
-  if (!estaCaminando && mixerHora) mixerHora.update(delta);
+  if (mixerCamina) mixerCamina.update(delta);
+  if (mixerHora) mixerHora.update(delta);
 
   moverAvatar(delta);
   seguirAvatar();
