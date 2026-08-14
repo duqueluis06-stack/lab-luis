@@ -131,7 +131,6 @@ loader.setDRACOLoader(dracoLoader);
 let cementerio = null;
 let cementerioMixer = null;
 
-// Grupo contenedor principal del avatar (mantiene posición y rotación compartida)
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
 
@@ -143,6 +142,7 @@ let mixerCamina = null;
 
 const clock = new THREE.Clock();
 const raycasterColision = new THREE.Raycaster();
+const cameraTarget = new THREE.Vector3();
 
 // --------------------------------------------------
 // CARGAR CEMENTERIO
@@ -154,11 +154,14 @@ loader.load(
     cementerio = gltf.scene;
     scene.add(cementerio);
 
-    // Activar animaciones del entorno/escenario si existen
+    // Animaciones en bucle para los elementos del escenario
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = new THREE.AnimationMixer(cementerio);
       gltf.animations.forEach((clip) => {
-        cementerioMixer.clipAction(clip).play();
+        const action = cementerioMixer.clipAction(clip);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
+        action.play();
       });
     }
 
@@ -176,11 +179,10 @@ loader.load(
 );
 
 // --------------------------------------------------
-// CARGAR AVATARES (ESTÁTICO Y CAMINANDO)
+// CARGAR AVATARES
 // --------------------------------------------------
 
 function cargarAvatares() {
-  // 1. Cargar avatar reposo (luis-hora.glb)
   loader.load(
     LUIS_HORA_URL,
     function(gltfHora) {
@@ -189,12 +191,12 @@ function cargarAvatares() {
       if (gltfHora.animations.length > 0) {
         mixerHora = new THREE.AnimationMixer(avatarHora);
         const accionHora = mixerHora.clipAction(gltfHora.animations[0]);
+        accionHora.setLoop(THREE.LoopRepeat, Infinity);
         accionHora.play();
       }
 
       avatarGroup.add(avatarHora);
 
-      // 2. Cargar avatar caminata (luis-camina.glb)
       loader.load(
         LUIS_CAMINA_URL,
         function(gltfCamina) {
@@ -203,17 +205,19 @@ function cargarAvatares() {
           if (gltfCamina.animations.length > 0) {
             mixerCamina = new THREE.AnimationMixer(avatarCamina);
             const accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
+            accionCamina.setLoop(THREE.LoopRepeat, Infinity);
             accionCamina.play();
           }
 
-          avatarCamina.visible = false; // Oculto al inicio
+          avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
 
-          // Configuración de escala y altura en el grupo principal
           avatarGroup.scale.setScalar(2.2);
           avatarGroup.position.set(0, 0.15, 0);
 
+          cameraTarget.copy(avatarGroup.position);
           camera.position.set(0, 3, 7);
+
           document.getElementById("loading").style.display = "none";
         },
         undefined,
@@ -247,42 +251,53 @@ function hayColision(paso) {
 
   const dir = new THREE.Vector3();
   avatarGroup.getWorldDirection(dir);
-  
-  if (paso < 0) dir.negate(); // Invertir si va hacia adelante (translateZ negativo)
+  dir.negate(); // Invertir hacia el frente del movimiento (-Z)
+
+  if (paso > 0) dir.negate(); // Revertir si va hacia atrás
 
   const origen = avatarGroup.position.clone();
-  origen.y += 0.8; 
+  origen.y += 1.0; // Proyectar rayo a la altura del pecho
 
   raycasterColision.set(origen, dir);
   const impactos = raycasterColision.intersectObjects(cementerio.children, true);
 
-  if (impactos.length > 0 && impactos[0].distance < Math.abs(paso) + 0.6) {
-    return true;
+  for (let i = 0; i < impactos.length; i++) {
+    const impacto = impactos[i];
+
+    // Descartar impactos con suelos y techos (planos horizontales)
+    if (impacto.face && Math.abs(impacto.face.normal.y) > 0.6) {
+      continue;
+    }
+
+    if (impacto.distance < 0.8) {
+      return true;
+    }
   }
 
   return false;
 }
 
 // --------------------------------------------------
-// MOVIMIENTO Y CONMUTACIÓN DE ANIMACIÓN
+// MOVIMIENTO Y CONTROL DE AVATAR
 // --------------------------------------------------
 
 function moverAvatar(delta) {
   if (!avatarGroup || (!avatarHora && !avatarCamina)) return;
 
-  const velocidad = 3.5;
+  const velocidadMov = 3.5;
+  const velocidadRot = 2.5;
   let moviendo = false;
 
   if (teclas["KeyA"] || teclas["ArrowLeft"]) {
-    avatarGroup.rotation.y += velocidad * delta;
+    avatarGroup.rotation.y += velocidadRot * delta;
   }
 
   if (teclas["KeyD"] || teclas["ArrowRight"]) {
-    avatarGroup.rotation.y -= velocidad * delta;
+    avatarGroup.rotation.y -= velocidadRot * delta;
   }
 
   if (teclas["KeyW"] || teclas["ArrowUp"]) {
-    const paso = -velocidad * delta;
+    const paso = -velocidadMov * delta;
     if (!hayColision(paso)) {
       avatarGroup.translateZ(paso);
     }
@@ -290,14 +305,14 @@ function moverAvatar(delta) {
   }
 
   if (teclas["KeyS"] || teclas["ArrowDown"]) {
-    const paso = velocidad * delta;
+    const paso = velocidadMov * delta;
     if (!hayColision(paso)) {
       avatarGroup.translateZ(paso);
     }
     moviendo = true;
   }
 
-  // Alternar visibilidad y actualización de mixers según el estado
+  // Alternar modelos y actualizar animaciones activas
   if (moviendo) {
     if (avatarHora) avatarHora.visible = false;
     if (avatarCamina) avatarCamina.visible = true;
@@ -310,26 +325,24 @@ function moverAvatar(delta) {
 }
 
 // --------------------------------------------------
-// CÁMARA SIGUE AL AVATAR
+// CÁMARA ESTABILIZADA
 // --------------------------------------------------
 
 function seguirAvatar() {
   if (!avatarGroup) return;
 
-  const objetivo = new THREE.Vector3();
-  avatarGroup.getWorldPosition(objetivo);
-  objetivo.y += 2.0;
+  const objetivoPunto = avatarGroup.position.clone();
+  objetivoPunto.y += 1.8;
 
-  const posicionCamara = new THREE.Vector3();
-  posicionCamara.copy(objetivo);
-  
-  const offset = new THREE.Vector3(0, 1.5, 6);
+  const offset = new THREE.Vector3(0, 2.0, 6.0);
   offset.applyQuaternion(avatarGroup.quaternion);
   
-  posicionCamara.add(offset);
+  const posicionDeseada = avatarGroup.position.clone().add(offset);
 
-  camera.position.lerp(posicionCamara, 0.1);
-  camera.lookAt(objetivo);
+  // Interpolación suave para posición y rotación de cámara
+  camera.position.lerp(posicionDeseada, 0.08);
+  cameraTarget.lerp(objetivoPunto, 0.1);
+  camera.lookAt(cameraTarget);
 }
 
 // --------------------------------------------------
