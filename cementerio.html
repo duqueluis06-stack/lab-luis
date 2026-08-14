@@ -167,6 +167,7 @@ const vecDirPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
+const posTmp = new THREE.Vector3();
 
 // Control de cámara
 let arrastrandoMouse = false;
@@ -205,7 +206,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO Y CLASIFICACIÓN DE OBJETOS DE LA ESCENA
+// FILTRADO Y CLASIFICACIÓN DE OBJETOS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -223,6 +224,7 @@ function clasificarObjeto(obj) {
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
+  // Exclusiones absolutas: efectos, luces y objetos no sólidos
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -252,21 +254,23 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esEstructuraPared = (
-    jerarquia.includes("backroom") ||
-    jerarquia.includes("pasillo") ||
-    jerarquia.includes("gotico") ||
-    jerarquia.includes("cerca") ||
-    jerarquia.includes("rejas") ||
-    jerarquia.includes("mausoleo") ||
-    jerarquia.includes("tumba") ||
-    jerarquia.includes("estatua") ||
-    jerarquia.includes("pared") ||
-    jerarquia.includes("wall") ||
-    jerarquia.includes("muro")
+  const esVegetacion = (
+    jerarquia.includes("arbol") ||
+    jerarquia.includes("tree") ||
+    jerarquia.includes("hoja") ||
+    jerarquia.includes("leaf") ||
+    jerarquia.includes("lapacho") ||
+    jerarquia.includes("palmerilla") ||
+    jerarquia.includes("pino") ||
+    jerarquia.includes("rama") ||
+    jerarquia.includes("planta") ||
+    jerarquia.includes("grass") ||
+    jerarquia.includes("hierba") ||
+    jerarquia.includes("bush")
   );
 
-  if (esEstructuraPared) {
+  // Todo objeto sólido (no vegetación) actúa como pared colisionable
+  if (!esVegetacion) {
     paredColisionables.push(obj);
   }
 
@@ -274,7 +278,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// HELPER PARA INICIALIZAR ANIMACIONES
+// INICIALIZACIÓN DE ANIMACIONES Y BUCLE INFINITO
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject) {
@@ -283,8 +287,10 @@ function crearYEjecutarMixer(gltf, rootObject) {
   const mixer = new THREE.AnimationMixer(rootObject);
   gltf.animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
+    action.loop = THREE.LoopRepeat;
+    action.repetitions = Infinity;
+    action.clampWhenFinished = false;
     action.enabled = true;
-    action.setLoop(THREE.LoopRepeat, Infinity);
     action.play();
   });
 
@@ -377,14 +383,14 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// DETECCIÓN DE SUELO Y ESCALERAS DESCENDENTES
+// DETECCIÓN DE SUELO Y ESCALERAS
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 1.2 * ESCALA_AVATAR;
+  vecOrigenPiso.y += 1.5 * ESCALA_AVATAR;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
   raycasterPiso.far = 15.0 * ESCALA_AVATAR;
@@ -392,19 +398,14 @@ function ajustarAlturaSuelo() {
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
   if (impactos.length > 0) {
-    const limiteSuperiorHip = avatarGroup.position.y + 0.8 * ESCALA_AVATAR;
+    const limiteSuperiorHip = avatarGroup.position.y + 0.9 * ESCALA_AVATAR;
 
     for (let i = 0; i < impactos.length; i++) {
       const impacto = impactos[i];
 
       if (impacto.point.y <= limiteSuperiorHip) {
         const alturaObjetivo = impacto.point.y + OFFSET_PIES;
-        
-        if (Math.abs(avatarGroup.position.y - alturaObjetivo) < 3.0) {
-          avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
-        } else {
-          avatarGroup.position.y = alturaObjetivo;
-        }
+        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
         break;
       }
     }
@@ -412,7 +413,7 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN PRECISA DE COLISIÓN DE PAREDES
+// DETECCIÓN DE COLISIÓN DE PAREDES OPTIMIZADA
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
@@ -421,8 +422,23 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
   const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
 
-  const angulos = [-1.0, -0.5, 0, 0.5, 1.0];
-  const alturas = [0.3 * ESCALA_AVATAR, 0.8 * ESCALA_AVATAR, 1.3 * ESCALA_AVATAR];
+  // Pre-filtrado espacial: seleccionar únicamente objetos a menos de 15m del avatar
+  const paredesCercanas = [];
+  const posAvatar = avatarGroup.position;
+
+  for (let i = 0; i < paredColisionables.length; i++) {
+    const mesh = paredColisionables[i];
+    mesh.getWorldPosition(posTmp);
+    if (posTmp.distanceToSquared(posAvatar) < 225) { // 15 metros al cuadrado
+      paredesCercanas.push(mesh);
+    }
+  }
+
+  if (paredesCercanas.length === 0) return false;
+
+  // Alturas elevadas (0.65m y 1.2m) para ignorar escalones y subir peldaños
+  const alturas = [0.65 * ESCALA_AVATAR, 1.2 * ESCALA_AVATAR];
+  const angulos = [-0.5, 0, 0.5];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -434,12 +450,10 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       raycasterPared.set(vecOrigenPared, vecDirPared);
       raycasterPared.far = distanciaLimite;
 
-      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+      const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
 
-      if (impactos.length > 0) {
-        if (impactos[0].distance < distanciaLimite) {
-          return true;
-        }
+      if (impactos.length > 0 && impactos[0].distance < distanciaLimite) {
+        return true;
       }
     }
   }
