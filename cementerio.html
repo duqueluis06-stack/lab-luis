@@ -1,1 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cementerio - Nivel 1</title>
 
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: white;
+      font-family: Arial, sans-serif;
+      z-index: 10;
+    }
+
+    #error {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      padding: 10px;
+      background: rgba(120, 0, 0, 0.9);
+      color: white;
+      font-family: monospace;
+      z-index: 20;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="loading">Cargando cementerio...</div>
+<div id="error"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+
+import * as THREE from 'three';
+
+import { GLTFLoader } from
+  'three/addons/loaders/GLTFLoader.js';
+
+import { DRACOLoader } from
+  'three/addons/loaders/DRACOLoader.js';
+
+
+// --------------------------------------------------
+// URLs
+// --------------------------------------------------
+
+const CEMENTERIO_URL =
+  "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
+
+const LUIS_CAMINA_URL =
+  "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-camina.glb";
+
+const LUIS_HORA_URL =
+  "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-hora.glb";
+
+
+// --------------------------------------------------
+// ESCENA
+// --------------------------------------------------
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x050509);
+
+
+// --------------------------------------------------
+// CÁMARA
+// --------------------------------------------------
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  2000
+);
+
+
+// --------------------------------------------------
+// RENDERER
+// --------------------------------------------------
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  powerPreference: "high-performance"
+});
+
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, 1.5)
+);
+
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+document.body.appendChild(renderer.domElement);
+
+
+// --------------------------------------------------
+// LUCES
+// --------------------------------------------------
+
+const ambientLight = new THREE.HemisphereLight(
+  0x8899aa,
+  0x111111,
+  1.2
+);
+
+scene.add(ambientLight);
+
+const moonLight = new THREE.DirectionalLight(
+  0xffffff,
+  1.0
+);
+
+moonLight.position.set(50, 100, 50);
+
+scene.add(moonLight);
+
+
+// --------------------------------------------------
+// DRACO
+// --------------------------------------------------
+
+const dracoLoader = new DRACOLoader();
+
+dracoLoader.setDecoderPath(
+  "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/"
+);
+
+
+// --------------------------------------------------
+// GLTF LOADER
+// --------------------------------------------------
+
+const loader = new GLTFLoader();
+
+loader.setDRACOLoader(dracoLoader);
+
+
+// --------------------------------------------------
+// VARIABLES
+// --------------------------------------------------
+
+let cementerio = null;
+let avatar = null;
+
+let mixer = null;
+let clock = new THREE.Clock();
+
+
+// --------------------------------------------------
+// CARGAR CEMENTERIO
+// --------------------------------------------------
+
+loader.load(
+
+  CEMENTERIO_URL,
+
+  function(gltf) {
+
+    cementerio = gltf.scene;
+
+    scene.add(cementerio);
+
+    console.log("Cementerio cargado:", cementerio);
+
+    cargarAvatar();
+
+  },
+
+  function(xhr) {
+
+    if (xhr.total) {
+
+      const porcentaje =
+        (xhr.loaded / xhr.total * 100).toFixed(0);
+
+      document.getElementById("loading").textContent =
+        "Cargando cementerio... " + porcentaje + "%";
+    }
+
+  },
+
+  function(error) {
+
+    mostrarError(
+      "Error cargando cementerio: " + error
+    );
+
+  }
+
+);
+
+
+// --------------------------------------------------
+// CARGAR AVATAR
+// --------------------------------------------------
+
+function cargarAvatar() {
+
+  loader.load(
+
+    LUIS_CAMINA_URL,
+
+    function(gltf) {
+
+      avatar = gltf.scene;
+
+      scene.add(avatar);
+
+      console.log("Avatar cargado:", avatar);
+
+      console.log(
+        "Animaciones:",
+        gltf.animations
+      );
+
+      // Posición inicial
+      avatar.position.set(0, 0, 0);
+
+      // Escala inicial
+      avatar.scale.setScalar(1);
+
+      // Animación
+      if (gltf.animations.length > 0) {
+
+        mixer = new THREE.AnimationMixer(avatar);
+
+        const accion =
+          mixer.clipAction(gltf.animations[0]);
+
+        accion.play();
+      }
+
+      camera.position.set(
+        0,
+        3,
+        7
+      );
+
+      document.getElementById("loading").style.display =
+        "none";
+
+    },
+
+    undefined,
+
+    function(error) {
+
+      mostrarError(
+        "Error cargando Luis-camina.glb: " + error
+      );
+
+    }
+
+  );
+
+}
+
+
+// --------------------------------------------------
+// TECLADO
+// --------------------------------------------------
+
+const teclas = {};
+
+window.addEventListener(
+  "keydown",
+  function(event) {
+
+    teclas[event.code] = true;
+
+  }
+);
+
+window.addEventListener(
+  "keyup",
+  function(event) {
+
+    teclas[event.code] = false;
+
+  }
+);
+
+
+// --------------------------------------------------
+// MOVIMIENTO
+// --------------------------------------------------
+
+function moverAvatar(delta) {
+
+  if (!avatar) return;
+
+  const velocidad = 3.0;
+
+  let moviendo = false;
+
+  if (teclas["KeyW"] || teclas["ArrowUp"]) {
+
+    avatar.translateZ(
+      -velocidad * delta
+    );
+
+    moviendo = true;
+  }
+
+  if (teclas["KeyS"] || teclas["ArrowDown"]) {
+
+    avatar.translateZ(
+      velocidad * delta
+    );
+
+    moviendo = true;
+  }
+
+  if (teclas["KeyA"] || teclas["ArrowLeft"]) {
+
+    avatar.rotation.y +=
+      velocidad * delta;
+
+    moviendo = true;
+  }
+
+  if (teclas["KeyD"] || teclas["ArrowRight"]) {
+
+    avatar.rotation.y -=
+      velocidad * delta;
+
+    moviendo = true;
+  }
+
+}
+
+
+// --------------------------------------------------
+// CÁMARA SIGUE AL AVATAR
+// --------------------------------------------------
+
+function seguirAvatar() {
+
+  if (!avatar) return;
+
+  const objetivo = new THREE.Vector3();
+
+  avatar.getWorldPosition(objetivo);
+
+  objetivo.y += 2.5;
+
+  const posicionCamara =
+    new THREE.Vector3();
+
+  posicionCamara.copy(
+    objetivo
+  );
+
+  posicionCamara.z += 7;
+
+  camera.position.lerp(
+    posicionCamara,
+    0.08
+  );
+
+  camera.lookAt(objetivo);
+
+}
+
+
+// --------------------------------------------------
+// ERROR
+// --------------------------------------------------
+
+function mostrarError(mensaje) {
+
+  console.error(mensaje);
+
+  const elemento =
+    document.getElementById("error");
+
+  elemento.textContent = mensaje;
+
+  elemento.style.display = "block";
+
+  document.getElementById("loading").style.display =
+    "none";
+}
+
+
+// --------------------------------------------------
+// ANIMACIÓN
+// --------------------------------------------------
+
+function animate() {
+
+  requestAnimationFrame(animate);
+
+  const delta =
+    clock.getDelta();
+
+  if (mixer) {
+
+    mixer.update(delta);
+
+  }
+
+  moverAvatar(delta);
+
+  seguirAvatar();
+
+  renderer.render(
+    scene,
+    camera
+  );
+
+}
+
+animate();
+
+
+// --------------------------------------------------
+// RESIZE
+// --------------------------------------------------
+
+window.addEventListener(
+  "resize",
+  function() {
+
+    camera.aspect =
+      window.innerWidth /
+      window.innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+  }
+);
+
+</script>
+
+</body>
+</html>
