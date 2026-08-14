@@ -73,7 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 2.2;
+const ESCALA_AVATAR = 2.6; // Avatar más grande
+const OFFSET_PIES = 0.08;   // Altura extra sobre adoquines/piedritas
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -95,14 +96,14 @@ const camera = new THREE.PerspectiveCamera(
   60,
   window.innerWidth / window.innerHeight,
   0.1,
-  2000
+  1500
 );
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: "high-performance"
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2)); // Optimizado para rendimiento
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
@@ -132,11 +133,12 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES GLOBALES
+// VARIABLES GLOBALES Y CACHÉ DE RENDIMIENTO
 // --------------------------------------------------
 
 let cementerio = null;
 let cementerioMixer = null;
+const colisionablesCache = []; // Caché para evitar iteraciones pesadas
 
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
@@ -146,6 +148,10 @@ let avatarCamina = null;
 
 let mixerHora = null;
 let mixerCamina = null;
+let accionHora = null;
+let accionCamina = null;
+
+let estaCaminando = false;
 
 const clock = new THREE.Clock();
 const raycasterPiso = new THREE.Raycaster();
@@ -153,6 +159,12 @@ const raycasterPared = new THREE.Raycaster();
 const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
+
+// Vectores reutilizables para optimización de memoria
+const vecOrigenPiso = new THREE.Vector3();
+const vecOrigenPared = new THREE.Vector3();
+const vecDirPared = new THREE.Vector3();
+const vecMovimiento = new THREE.Vector3();
 
 // Control de cámara intuitivo
 let arrastrandoMouse = false;
@@ -181,10 +193,9 @@ window.addEventListener('mousemove', (e) => {
   const deltaX = e.clientX - anteriorMouseX;
   const deltaY = e.clientY - anteriorMouseY;
 
-  anguloCamaraY -= deltaX * 0.2;
-  anguloCamaraX += deltaY * 0.15;
+  anguloCamaraY -= deltaX * 0.25;
+  anguloCamaraX += deltaY * 0.18;
 
-  // Limitar inclinación vertical para evitar que la cámara penetre el suelo o se invierta
   anguloCamaraX = Math.max(5, Math.min(70, anguloCamaraX));
 
   anteriorMouseX = e.clientX;
@@ -192,7 +203,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRO DE OBJETOS SÓLIDOS (NEBLINA, CIELO Y TRANSPARENCIAS)
+// FILTRO DE OBJETOS SÓLIDOS
 // --------------------------------------------------
 
 function esObjetoSolido(obj) {
@@ -219,7 +230,7 @@ function esObjetoSolido(obj) {
     const materiales = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of materiales) {
       if (mat.depthWrite === false) return false;
-      if (mat.transparent && mat.opacity < 0.8) return false;
+      if (mat.transparent && mat.opacity < 0.7) return false;
     }
   }
 
@@ -227,7 +238,7 @@ function esObjetoSolido(obj) {
 }
 
 // --------------------------------------------------
-// CARGAR CEMENTERIO Y CONFIGURAR ANIMACIONES BFORARTISTS
+// CARGAR CEMENTERIO
 // --------------------------------------------------
 
 loader.load(
@@ -238,23 +249,23 @@ loader.load(
 
     cementerio.updateMatrixWorld(true);
 
+    // Crear caché de mallas sólidas para optimización extrema de colisiones
+    colisionablesCache.length = 0;
+    cementerio.traverse((child) => {
+      if (child.isMesh && esObjetoSolido(child)) {
+        colisionablesCache.push(child);
+      }
+    });
+
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = new THREE.AnimationMixer(cementerio);
 
-      // Reiniciar automáticamente cualquier animación al llegar a su frame final
-      cementerioMixer.addEventListener('finished', (e) => {
-        e.action.reset();
-        e.action.play();
-      });
-
       gltf.animations.forEach((clip) => {
         const action = cementerioMixer.clipAction(clip);
-        action.stop();
         action.reset();
         action.setLoop(THREE.LoopRepeat, Infinity);
         action.clampWhenFinished = false;
         action.enabled = true;
-        action.weight = 1.0;
         action.play();
       });
     }
@@ -273,7 +284,7 @@ loader.load(
 );
 
 // --------------------------------------------------
-// CARGAR AVATARES
+// CARGAR AVATARES Y ANIMACIONES CONTINUAS
 // --------------------------------------------------
 
 function cargarAvatares() {
@@ -285,8 +296,9 @@ function cargarAvatares() {
       
       if (gltfHora.animations.length > 0) {
         mixerHora = new THREE.AnimationMixer(avatarHora);
-        const accionHora = mixerHora.clipAction(gltfHora.animations[0]);
+        accionHora = mixerHora.clipAction(gltfHora.animations[0]);
         accionHora.setLoop(THREE.LoopRepeat, Infinity);
+        accionHora.clampWhenFinished = false;
         accionHora.play();
       }
 
@@ -300,8 +312,9 @@ function cargarAvatares() {
 
           if (gltfCamina.animations.length > 0) {
             mixerCamina = new THREE.AnimationMixer(avatarCamina);
-            const accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
+            accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
             accionCamina.setLoop(THREE.LoopRepeat, Infinity);
+            accionCamina.clampWhenFinished = false;
             accionCamina.play();
           }
 
@@ -339,77 +352,79 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// ADAPTACIÓN DE ALTURA A PISOS, ESCALERAS Y DESNIVELES
+// ADAPTACIÓN DE ALTURA A PISOS Y PIEDRITAS (MULTI-RAYO)
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
-  if (!cementerio || !avatarGroup) return;
+  if (colisionablesCache.length === 0 || !avatarGroup) return;
 
-  // Proyectar desde el torso del personaje hacia abajo
-  const origen = avatarGroup.position.clone();
-  origen.y += 1.2 * ESCALA_AVATAR; 
+  // Proyectar 3 rayos verticales desde el torso para detectar piedras elevadas/peldaños
+  const offsets = [
+    { x: 0, z: 0 },
+    { x: 0.15, z: 0.15 },
+    { x: -0.15, z: -0.15 }
+  ];
 
-  raycasterPiso.set(origen, dirAbajo);
-  raycasterPiso.far = 10.0 * ESCALA_AVATAR;
+  let alturaMaximaEncontrada = -Infinity;
 
-  const impactos = raycasterPiso.intersectObjects(cementerio.children, true);
+  for (let i = 0; i < offsets.length; i++) {
+    vecOrigenPiso.copy(avatarGroup.position);
+    vecOrigenPiso.x += offsets[i].x;
+    vecOrigenPiso.z += offsets[i].z;
+    vecOrigenPiso.y += 1.2 * ESCALA_AVATAR;
 
-  for (let i = 0; i < impactos.length; i++) {
-    const impacto = impactos[i];
-    
-    if (!esObjetoSolido(impacto.object)) continue;
+    raycasterPiso.set(vecOrigenPiso, dirAbajo);
+    raycasterPiso.far = 10.0 * ESCALA_AVATAR;
 
-    // Ignorar techos por encima del nivel del personaje
-    if (impacto.point.y > avatarGroup.position.y + 1.0 * ESCALA_AVATAR) continue;
+    const impactos = raycasterPiso.intersectObjects(colisionablesCache, false);
 
-    if (impacto.face && impacto.face.normal.y > 0.15) {
-      const alturaObjetivo = impacto.point.y;
-      
-      // Ajuste directo e interpolado para subir y bajar peldaños
-      avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.45);
-      return;
+    for (let j = 0; j < impactos.length; j++) {
+      const impacto = impactos[j];
+
+      if (impacto.point.y > avatarGroup.position.y + 1.1 * ESCALA_AVATAR) continue;
+
+      if (impacto.face && impacto.face.normal.y > 0.1) {
+        if (impacto.point.y > alturaMaximaEncontrada) {
+          alturaMaximaEncontrada = impacto.point.y;
+        }
+        break;
+      }
     }
+  }
+
+  if (alturaMaximaEncontrada !== -Infinity) {
+    const alturaObjetivo = alturaMaximaEncontrada + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
   }
 }
 
 // --------------------------------------------------
-// DETECCIÓN MULTI-RAYO DE PAREDES, TUMBAS Y REJAS
+// DETECCIÓN DE PAREDES, TUMBAS Y REJAS
 // --------------------------------------------------
 
-function hayColisionPared(paso) {
-  if (!cementerio || !avatarGroup) return false;
+function hayColisionPared(dirMovimiento, pasoDistancia) {
+  if (colisionablesCache.length === 0 || !avatarGroup) return false;
 
-  const dirBase = new THREE.Vector3();
-  avatarGroup.getWorldDirection(dirBase);
-  dirBase.negate(); 
-
-  if (paso > 0) dirBase.negate(); 
-
-  // Evaluar abanico de ángulos (frente, izquierda y derecha)
-  const angulos = [-0.6, -0.3, 0, 0.3, 0.6];
-  // Evaluar alturas (rodilla y pecho)
+  const angulos = [-0.4, 0, 0.4];
   const alturas = [0.4 * ESCALA_AVATAR, 1.2 * ESCALA_AVATAR];
 
   for (const alt of alturas) {
-    const origen = avatarGroup.position.clone();
-    origen.y += alt;
+    vecOrigenPared.copy(avatarGroup.position);
+    vecOrigenPared.y += alt;
 
     for (const ang of angulos) {
-      const dirRayo = dirBase.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
+      vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
       
-      raycasterPared.set(origen, dirRayo);
-      raycasterPared.far = 0.7 * ESCALA_AVATAR;
+      raycasterPared.set(vecOrigenPared, vecDirPared);
+      raycasterPared.far = pasoDistancia + 0.5;
 
-      const impactos = raycasterPared.intersectObjects(cementerio.children, true);
+      const impactos = raycasterPared.intersectObjects(colisionablesCache, false);
 
       for (let i = 0; i < impactos.length; i++) {
         const impacto = impactos[i];
-
-        if (!esObjetoSolido(impacto.object)) continue;
-        // Filtrar pisos/escalones
         if (impacto.face && Math.abs(impacto.face.normal.y) > 0.7) continue;
 
-        if (impacto.distance < 0.6 * ESCALA_AVATAR) {
+        if (impacto.distance < pasoDistancia + 0.4) {
           return true;
         }
       }
@@ -420,64 +435,82 @@ function hayColisionPared(paso) {
 }
 
 // --------------------------------------------------
-// MOVIMIENTO
+// MOVIMIENTO FLUIDO SINCRONIZADO CON LA CÁMARA
 // --------------------------------------------------
 
 function moverAvatar(delta) {
   if (!avatarGroup || (!avatarHora && !avatarCamina)) return;
 
-  const velocidadMov = 3.8;
-  const velocidadRot = 2.2;
-  let moviendo = false;
+  let moveX = 0;
+  let moveZ = 0;
 
-  if (teclas["KeyA"] || teclas["ArrowLeft"]) {
-    avatarGroup.rotation.y += velocidadRot * delta;
-  }
+  if (teclas["KeyW"] || teclas["ArrowUp"]) moveZ -= 1;
+  if (teclas["KeyS"] || teclas["ArrowDown"]) moveZ += 1;
+  if (teclas["KeyA"] || teclas["ArrowLeft"]) moveX -= 1;
+  if (teclas["KeyD"] || teclas["ArrowRight"]) moveX += 1;
 
-  if (teclas["KeyD"] || teclas["ArrowRight"]) {
-    avatarGroup.rotation.y -= velocidadRot * delta;
-  }
+  const moviendo = (moveX !== 0 || moveZ !== 0);
 
-  if (teclas["KeyW"] || teclas["ArrowUp"]) {
-    const paso = -velocidadMov * delta;
-    if (!hayColisionPared(paso)) {
-      avatarGroup.translateZ(paso);
-    }
-    moviendo = true;
-  }
+  if (moviendo) {
+    const velocidadMov = 4.2;
 
-  if (teclas["KeyS"] || teclas["ArrowDown"]) {
+    // Dirección del ángulo de la cámara
+    const radCamY = THREE.MathUtils.degToRad(anguloCamaraY);
+    const anguloEntrada = Math.atan2(moveX, -moveZ);
+    const anguloObjetivo = radCamY + anguloEntrada;
+
+    // Rotación suave del personaje hacia la dirección de avance
+    let diff = anguloObjetivo - avatarGroup.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    avatarGroup.rotation.y += diff * 0.2;
+
+    // Avance relativo
+    vecMovimiento.set(
+      Math.sin(anguloObjetivo),
+      0,
+      Math.cos(anguloObjetivo)
+    ).normalize();
+
     const paso = velocidadMov * delta;
-    if (!hayColisionPared(paso)) {
-      avatarGroup.translateZ(paso);
+
+    if (!hayColisionPared(vecMovimiento, paso)) {
+      avatarGroup.position.addScaledVector(vecMovimiento, paso);
     }
-    moviendo = true;
+
+    // Gestión limpia de animaciones en movimiento
+    if (!estaCaminando) {
+      if (avatarHora) avatarHora.visible = false;
+      if (avatarCamina) avatarCamina.visible = true;
+      if (accionCamina) accionCamina.reset().play();
+      estaCaminando = true;
+    }
+    if (mixerCamina) mixerCamina.update(delta);
+
+  } else {
+    // Gestión limpia de animaciones en reposo
+    if (estaCaminando) {
+      if (avatarHora) avatarHora.visible = true;
+      if (avatarCamina) avatarCamina.visible = false;
+      if (accionHora) accionHora.reset().play();
+      estaCaminando = false;
+    }
+    if (mixerHora) mixerHora.update(delta);
   }
 
   ajustarAlturaSuelo();
-
-  if (moviendo) {
-    if (avatarHora) avatarHora.visible = false;
-    if (avatarCamina) avatarCamina.visible = true;
-    if (mixerCamina) mixerCamina.update(delta);
-  } else {
-    if (avatarHora) avatarHora.visible = true;
-    if (avatarCamina) avatarCamina.visible = false;
-    if (mixerHora) mixerHora.update(delta);
-  }
 }
 
 // --------------------------------------------------
-// CÁMARA TERCERA PERSONA ESTABLE
+// CÁMARA TERCERA PERSONA FLUIDA
 // --------------------------------------------------
 
 function seguirAvatar() {
   if (!avatarGroup) return;
 
   const objetivoPunto = avatarGroup.position.clone();
-  objetivoPunto.y += 1.4 * ESCALA_AVATAR;
+  objetivoPunto.y += 1.3 * ESCALA_AVATAR;
 
-  const distancia = 3.8 * ESCALA_AVATAR;
+  const distancia = 3.6 * ESCALA_AVATAR;
   const radY = THREE.MathUtils.degToRad(anguloCamaraY);
   const radX = THREE.MathUtils.degToRad(anguloCamaraX);
 
@@ -487,12 +520,10 @@ function seguirAvatar() {
     distancia * Math.cos(radY) * Math.cos(radX)
   );
 
-  offset.applyQuaternion(avatarGroup.quaternion);
-
   const posicionDeseada = avatarGroup.position.clone().add(offset);
 
-  camera.position.lerp(posicionDeseada, 0.12);
-  cameraTarget.lerp(objetivoPunto, 0.18);
+  camera.position.lerp(posicionDeseada, 0.15);
+  cameraTarget.lerp(objetivoPunto, 0.2);
   camera.lookAt(cameraTarget);
 }
 
