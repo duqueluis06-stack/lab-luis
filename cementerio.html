@@ -73,8 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 3.0; // Tamaño ajustado a 3.0
-const OFFSET_PIES = 0.12;   // Elevación sobre el piso
+const ESCALA_AVATAR = 2.5; // Ajustado a 2.5
+const OFFSET_PIES = 0.18;   // Elevación para evitar hundimiento en pasto
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -176,7 +176,7 @@ let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
 // --------------------------------------------------
-// GESTIÓN DE ANIMACIONES
+// GESTIÓN ROBUSTA DE ANIMACIONES
 // --------------------------------------------------
 
 function crearMixer(objeto) {
@@ -249,34 +249,53 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRO DE OBJETOS SÓLIDOS Y DE EXCLUSIÓN
+// FILTRADO JERÁRQUICO DE OBJETOS SÓLIDOS Y EXCLUSIÓN DE NIEBLA
 // --------------------------------------------------
+
+function obtenerNombreJerarquia(obj) {
+  let cadenaNombres = "";
+  let actual = obj;
+  while (actual) {
+    if (actual.name) cadenaNombres += " " + actual.name;
+    actual = actual.parent;
+  }
+  return cadenaNombres.toLowerCase();
+}
 
 function esObjetoSolido(obj) {
   if (!obj || !obj.isMesh) return false;
 
-  const nombre = (obj.name || "").toLowerCase();
+  const jerarquia = obtenerNombreJerarquia(obj);
 
-  // EXCLUSIÓN ABSOLUTA: Elementos intangibles del árbol de Bforartists
+  // Exclusión estricta de elementos intangibles (niebla_model, esferas, decorados sin colisión)
   if (
-    nombre.includes("niebla") ||    // Descubierto en captura: niebla_model
-    nombre.includes("neblina") ||
-    nombre.includes("fog") ||
-    nombre.includes("cielo") ||
-    nombre.includes("sky") ||
-    nombre.includes("cloud") ||
-    nombre.includes("humo") ||
-    nombre.includes("smoke") ||
-    nombre.includes("particle") ||
-    nombre.includes("light") ||
-    nombre.includes("trigger") ||
-    nombre.includes("esfera") ||
-    nombre.includes("grid") ||
-    nombre.includes("vacío") ||
-    nombre.includes("vacio") ||
-    nombre.includes("imagen")
+    jerarquia.includes("niebla") ||
+    jerarquia.includes("neblina") ||
+    jerarquia.includes("fog") ||
+    jerarquia.includes("cielo") ||
+    jerarquia.includes("sky") ||
+    jerarquia.includes("cloud") ||
+    jerarquia.includes("humo") ||
+    jerarquia.includes("smoke") ||
+    jerarquia.includes("particle") ||
+    jerarquia.includes("light") ||
+    jerarquia.includes("trigger") ||
+    jerarquia.includes("esfera") ||
+    jerarquia.includes("grid") ||
+    jerarquia.includes("vacío") ||
+    jerarquia.includes("vacio") ||
+    jerarquia.includes("imagen")
   ) {
     return false;
+  }
+
+  // Activar doble cara en paredes (evita atravesar geometrías finas de backrooms_model)
+  if (obj.material) {
+    if (Array.isArray(obj.material)) {
+      obj.material.forEach(m => { m.side = THREE.DoubleSide; });
+    } else {
+      obj.material.side = THREE.DoubleSide;
+    }
   }
 
   return true;
@@ -381,13 +400,13 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// AJUSTE DE ALTURA EN PISO Y VEREDAS
+// AJUSTE DE ALTURA EN PISO Y CÉSPED
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
   if (colisionablesCache.length === 0 || !avatarGroup) return;
 
-  const radioPie = 0.22 * ESCALA_AVATAR;
+  const radioPie = 0.20 * ESCALA_AVATAR;
   const offsets = [
     { x: 0, z: 0 },
     { x: radioPie, z: 0 },
@@ -405,14 +424,13 @@ function ajustarAlturaSuelo() {
     vecOrigenPiso.y += 2.0 * ESCALA_AVATAR;
 
     raycasterPiso.set(vecOrigenPiso, dirAbajo);
-    raycasterPiso.far = 15.0 * ESCALA_AVATAR;
+    raycasterPiso.far = 10.0 * ESCALA_AVATAR;
 
     const impactos = raycasterPiso.intersectObjects(colisionablesCache, false);
 
     for (let j = 0; j < impactos.length; j++) {
       const impacto = impactos[j];
 
-      // Ignora planos que estén demasiado por encima de la cadera
       if (impacto.point.y > avatarGroup.position.y + 1.0 * ESCALA_AVATAR) continue;
 
       if (impacto.face && impacto.face.normal.y > 0.05) {
@@ -426,8 +444,8 @@ function ajustarAlturaSuelo() {
 
   if (alturaMaximaEncontrada !== -Infinity) {
     const alturaObjetivo = alturaMaximaEncontrada + OFFSET_PIES;
-    if (Math.abs(avatarGroup.position.y - alturaObjetivo) < 3.0) {
-      avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
+    if (Math.abs(avatarGroup.position.y - alturaObjetivo) < 2.5) {
+      avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
     } else {
       avatarGroup.position.y = alturaObjetivo;
     }
@@ -435,24 +453,24 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN DE COLISIONES FRONTALES Y LATERALES
+// DETECCIÓN OPTIMIZADA DE PAREDES Y LABERINTO (BACKROOMS)
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (colisionablesCache.length === 0 || !avatarGroup) return false;
 
-  const radioCuerpo = 0.30 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.2;
+  const radioCuerpo = 0.35 * ESCALA_AVATAR; 
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.25;
 
-  const angulos = [-0.85, -0.5, -0.25, 0, 0.25, 0.5, 0.85];
-  const alturas = [0.25 * ESCALA_AVATAR, 0.65 * ESCALA_AVATAR, 1.1 * ESCALA_AVATAR];
+  const angulos = [-0.7, -0.35, 0, 0.35, 0.7];
+  const alturas = [0.3 * ESCALA_AVATAR, 0.8 * ESCALA_AVATAR, 1.3 * ESCALA_AVATAR];
 
-  for (const alt of alturas) {
+  for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
-    vecOrigenPared.y += alt;
+    vecOrigenPared.y += alturas[h];
 
-    for (const ang of angulos) {
-      vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
+    for (let a = 0; a < angulos.length; a++) {
+      vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulos[a]);
       
       raycasterPared.set(vecOrigenPared, vecDirPared);
       raycasterPared.far = distanciaLimite;
@@ -462,11 +480,11 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       for (let i = 0; i < impactos.length; i++) {
         const impacto = impactos[i];
         
-        // Ignora planos horizontales (pisos o techos)
-        if (impacto.face && Math.abs(impacto.face.normal.y) > 0.65) continue;
+        // Descartar planos horizontales (suelos)
+        if (impacto.face && Math.abs(impacto.face.normal.y) > 0.6) continue;
 
         if (impacto.distance < distanciaLimite) {
-          return true;
+          return true; // Retorna de inmediato para evitar retardos de rendimiento
         }
       }
     }
@@ -576,11 +594,18 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.1);
+  const delta = Math.min(clock.getDelta(), 0.05);
 
   if (cementerioMixer) cementerioMixer.update(delta);
   if (mixerHora) mixerHora.update(delta);
   if (mixerCamina) mixerCamina.update(delta);
+
+  // Garantía de reproducción ininterrumpida de animaciones
+  if (estaCaminando && accionCamina && !accionCamina.isRunning()) {
+    accionCamina.reset().play();
+  } else if (!estaCaminando && accionHora && !accionHora.isRunning()) {
+    accionHora.reset().play();
+  }
 
   moverAvatar(delta);
   seguirAvatar();
