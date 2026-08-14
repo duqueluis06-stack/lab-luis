@@ -12,12 +12,14 @@
       height: 100%;
       overflow: hidden;
       background: #000;
+      user-select: none;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
 
     #loading {
@@ -68,8 +70,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// URLs
+// CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
+
+const ESCALA_AVATAR = 5.0; // Cambiar si se requiere ajustar el tamaño de Luis
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -102,6 +106,10 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
+
+// Bloquear interacciones accidentales fuera del canvas
+renderer.domElement.addEventListener('click', (e) => e.preventDefault());
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // --------------------------------------------------
 // LUCES
@@ -144,6 +152,45 @@ const clock = new THREE.Clock();
 const raycasterColision = new THREE.Raycaster();
 const cameraTarget = new THREE.Vector3();
 
+// Control de cámara con mouse
+let arrastrandoMouse = false;
+let anteriorMouseX = 0;
+let anteriorMouseY = 0;
+let anguloCamaraY = 0;
+let anguloCamaraX = 15; // Elevación inicial en grados
+
+// --------------------------------------------------
+// EVENTOS DE MOUSE PARA CÁMARA
+// --------------------------------------------------
+
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 0) { // Clic izquierdo
+    arrastrandoMouse = true;
+    anteriorMouseX = e.clientX;
+    anteriorMouseY = e.clientY;
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  arrastrandoMouse = false;
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!arrastrandoMouse) return;
+
+  const deltaX = e.clientX - anteriorMouseX;
+  const deltaY = e.clientY - anteriorMouseY;
+
+  anguloCamaraY -= deltaX * 0.4;
+  anguloCamaraX += deltaY * 0.3;
+
+  // Limitar inclinación vertical
+  anguloCamaraX = Math.max(-10, Math.min(75, anguloCamaraX));
+
+  anteriorMouseX = e.clientX;
+  anteriorMouseY = e.clientY;
+});
+
 // --------------------------------------------------
 // CARGAR CEMENTERIO
 // --------------------------------------------------
@@ -154,13 +201,16 @@ loader.load(
     cementerio = gltf.scene;
     scene.add(cementerio);
 
-    // Animaciones en bucle para los elementos del escenario
+    // Cargar y reproducir en bucle continuo TODAS las animaciones presentes
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = new THREE.AnimationMixer(cementerio);
       gltf.animations.forEach((clip) => {
         const action = cementerioMixer.clipAction(clip);
+        action.reset();
         action.setLoop(THREE.LoopRepeat, Infinity);
+        action.repetitions = Infinity;
         action.clampWhenFinished = false;
+        action.enabled = true;
         action.play();
       });
     }
@@ -187,6 +237,7 @@ function cargarAvatares() {
     LUIS_HORA_URL,
     function(gltfHora) {
       avatarHora = gltfHora.scene;
+      avatarHora.rotation.y = Math.PI; // Corregir dirección frontal
       
       if (gltfHora.animations.length > 0) {
         mixerHora = new THREE.AnimationMixer(avatarHora);
@@ -201,6 +252,7 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
+          avatarCamina.rotation.y = Math.PI; // Corregir dirección frontal
 
           if (gltfCamina.animations.length > 0) {
             mixerCamina = new THREE.AnimationMixer(avatarCamina);
@@ -212,7 +264,7 @@ function cargarAvatares() {
           avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
 
-          avatarGroup.scale.setScalar(2.2);
+          avatarGroup.scale.setScalar(ESCALA_AVATAR);
           avatarGroup.position.set(0, 0.15, 0);
 
           cameraTarget.copy(avatarGroup.position);
@@ -251,12 +303,12 @@ function hayColision(paso) {
 
   const dir = new THREE.Vector3();
   avatarGroup.getWorldDirection(dir);
-  dir.negate(); // Invertir hacia el frente del movimiento (-Z)
+  dir.negate(); 
 
-  if (paso > 0) dir.negate(); // Revertir si va hacia atrás
+  if (paso > 0) dir.negate(); 
 
   const origen = avatarGroup.position.clone();
-  origen.y += 1.0; // Proyectar rayo a la altura del pecho
+  origen.y += 1.2; 
 
   raycasterColision.set(origen, dir);
   const impactos = raycasterColision.intersectObjects(cementerio.children, true);
@@ -264,12 +316,12 @@ function hayColision(paso) {
   for (let i = 0; i < impactos.length; i++) {
     const impacto = impactos[i];
 
-    // Descartar impactos con suelos y techos (planos horizontales)
+    // Ignorar suelos/techos
     if (impacto.face && Math.abs(impacto.face.normal.y) > 0.6) {
       continue;
     }
 
-    if (impacto.distance < 0.8) {
+    if (impacto.distance < 1.0) {
       return true;
     }
   }
@@ -278,13 +330,13 @@ function hayColision(paso) {
 }
 
 // --------------------------------------------------
-// MOVIMIENTO Y CONTROL DE AVATAR
+// MOVIMIENTO
 // --------------------------------------------------
 
 function moverAvatar(delta) {
   if (!avatarGroup || (!avatarHora && !avatarCamina)) return;
 
-  const velocidadMov = 3.5;
+  const velocidadMov = 4.5;
   const velocidadRot = 2.5;
   let moviendo = false;
 
@@ -312,7 +364,6 @@ function moverAvatar(delta) {
     moviendo = true;
   }
 
-  // Alternar modelos y actualizar animaciones activas
   if (moviendo) {
     if (avatarHora) avatarHora.visible = false;
     if (avatarCamina) avatarCamina.visible = true;
@@ -325,28 +376,38 @@ function moverAvatar(delta) {
 }
 
 // --------------------------------------------------
-// CÁMARA ESTABILIZADA
+// CÁMARA CON ORBITADO POR MOUSE
 // --------------------------------------------------
 
 function seguirAvatar() {
   if (!avatarGroup) return;
 
   const objetivoPunto = avatarGroup.position.clone();
-  objetivoPunto.y += 1.8;
+  objetivoPunto.y += 2.0;
 
-  const offset = new THREE.Vector3(0, 2.0, 6.0);
+  const distancia = 8.0;
+  const radY = THREE.MathUtils.degToRad(anguloCamaraY);
+  const radX = THREE.MathUtils.degToRad(anguloCamaraX);
+
+  // Calcular la posición orbital alrededor del avatar
+  const offset = new THREE.Vector3(
+    distancia * Math.sin(radY) * Math.cos(radX),
+    distancia * Math.sin(radX),
+    distancia * Math.cos(radY) * Math.cos(radX)
+  );
+
+  // Orientar offset relativo a la rotación del avatar
   offset.applyQuaternion(avatarGroup.quaternion);
-  
+
   const posicionDeseada = avatarGroup.position.clone().add(offset);
 
-  // Interpolación suave para posición y rotación de cámara
-  camera.position.lerp(posicionDeseada, 0.08);
+  camera.position.lerp(posicionDeseada, 0.1);
   cameraTarget.lerp(objetivoPunto, 0.1);
   camera.lookAt(cameraTarget);
 }
 
 // --------------------------------------------------
-// ERROR
+// MOSTRAR ERROR
 // --------------------------------------------------
 
 function mostrarError(mensaje) {
@@ -377,7 +438,7 @@ function animate() {
 animate();
 
 // --------------------------------------------------
-// RESIZE
+// REDIMENSIONADO DE VENTANA
 // --------------------------------------------------
 
 window.addEventListener("resize", function() {
