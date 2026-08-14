@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Juego 3D</title>
+  <title>Juego 3D - Bforartists / Three.js</title>
 
   <style>
     html, body {
@@ -51,7 +51,7 @@
 
 <body>
 
-<div id="loading">Cargando...</div>
+<div id="loading">Cargando escenario y personajes...</div>
 <div id="error"></div>
 
 <script type="importmap">
@@ -70,11 +70,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN Y PARÁMETROS
+// CONFIGURACIÓN Y PARÁMETROS GENERALES
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 2.5; // Ajustado a 2.5
-const OFFSET_PIES = 0.18;   // Elevación para evitar hundimiento en pasto
+const ESCALA_AVATAR = 2.2; // Tamaño del avatar ajustado a 2.2
+const OFFSET_PIES = 0.08;   // Ajuste para evitar hundimiento en calzado
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -112,7 +112,7 @@ renderer.domElement.addEventListener('click', (e) => e.preventDefault());
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // --------------------------------------------------
-// LUCES
+// LUCES DE LA ESCENA
 // --------------------------------------------------
 
 const ambientLight = new THREE.HemisphereLight(0x8899aa, 0x111111, 1.2);
@@ -123,7 +123,7 @@ moonLight.position.set(50, 100, 50);
 scene.add(moonLight);
 
 // --------------------------------------------------
-// LOADERS
+// CARGADORES GLTF / DRACO
 // --------------------------------------------------
 
 const dracoLoader = new DRACOLoader();
@@ -133,12 +133,14 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES GLOBALES
+// VARIABLES GLOBALES Y FISICAS
 // --------------------------------------------------
 
 let cementerio = null;
 let cementerioMixer = null;
-const colisionablesCache = [];
+
+const pisoColisionables = [];
+const paredColisionables = [];
 
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
@@ -160,7 +162,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables
+// Vectores reutilizables para optimización de memoria
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -176,51 +178,7 @@ let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
 // --------------------------------------------------
-// GESTIÓN ROBUSTA DE ANIMACIONES
-// --------------------------------------------------
-
-function crearMixer(objeto) {
-  const mixer = new THREE.AnimationMixer(objeto);
-
-  mixer.addEventListener('finished', (e) => {
-    if (e.action) {
-      e.action.reset().play();
-    }
-  });
-
-  return mixer;
-}
-
-function prepararAnimacionInfinita(mixer, clip) {
-  if (!clip) return null;
-
-  let maxTime = 0;
-  if (clip.tracks && clip.tracks.length > 0) {
-    clip.tracks.forEach(track => {
-      if (track.times && track.times.length > 0) {
-        const ultimoTiempo = track.times[track.times.length - 1];
-        if (ultimoTiempo > maxTime) maxTime = ultimoTiempo;
-      }
-    });
-  }
-
-  if (maxTime > 0) {
-    clip.duration = maxTime;
-  }
-
-  const action = mixer.clipAction(clip);
-  action.stop();
-  action.reset();
-  action.setLoop(THREE.LoopRepeat, Infinity);
-  action.clampWhenFinished = false;
-  action.enabled = true;
-  action.play();
-
-  return action;
-}
-
-// --------------------------------------------------
-// EVENTOS DE MOUSE PARA CÁMARA
+// EVENTOS DE MOUSE PARA CONTROL DE CÁMARA
 // --------------------------------------------------
 
 window.addEventListener('mousedown', (e) => {
@@ -249,7 +207,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO JERÁRQUICO DE OBJETOS SÓLIDOS Y EXCLUSIÓN DE NIEBLA
+// FILTRADO DE OBJETOS DE LA ESCENA (JERARQUÍA Y ROLES)
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -262,12 +220,12 @@ function obtenerNombreJerarquia(obj) {
   return cadenaNombres.toLowerCase();
 }
 
-function esObjetoSolido(obj) {
-  if (!obj || !obj.isMesh) return false;
+function clasificarObjeto(obj) {
+  if (!obj || !obj.isMesh) return;
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
-  // Exclusión estricta de elementos intangibles (niebla_model, esferas, decorados sin colisión)
+  // Exclusiones absolutas: elementos etéreos o invisibles
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -286,10 +244,10 @@ function esObjetoSolido(obj) {
     jerarquia.includes("vacio") ||
     jerarquia.includes("imagen")
   ) {
-    return false;
+    return;
   }
 
-  // Activar doble cara en paredes (evita atravesar geometrías finas de backrooms_model)
+  // Activar renderizado de doble cara para evitar traspasos en paredes finas
   if (obj.material) {
     if (Array.isArray(obj.material)) {
       obj.material.forEach(m => { m.side = THREE.DoubleSide; });
@@ -298,11 +256,29 @@ function esObjetoSolido(obj) {
     }
   }
 
-  return true;
+  // Asignar a listas de colisión correspondientes
+  if (
+    jerarquia.includes("backrooms") ||
+    jerarquia.includes("cerca") ||
+    jerarquia.includes("rejas") ||
+    jerarquia.includes("mausoleo") ||
+    jerarquia.includes("tumba") ||
+    jerarquia.includes("estatua") ||
+    jerarquia.includes("pared") ||
+    jerarquia.includes("wall") ||
+    jerarquia.includes("arbol") ||
+    jerarquia.includes("lapacho") ||
+    jerarquia.includes("palmerilla") ||
+    jerarquia.includes("muro")
+  ) {
+    paredColisionables.push(obj);
+  } else {
+    pisoColisionables.push(obj);
+  }
 }
 
 // --------------------------------------------------
-// CARGAR ESCENARIO
+// CARGAR ESCENARIO Y ANIMACIONES DE OBJETOS
 // --------------------------------------------------
 
 loader.load(
@@ -313,24 +289,27 @@ loader.load(
 
     cementerio.updateMatrixWorld(true);
 
-    colisionablesCache.length = 0;
+    pisoColisionables.length = 0;
+    paredColisionables.length = 0;
+
     cementerio.traverse((child) => {
-      if (child.isMesh && esObjetoSolido(child)) {
-        colisionablesCache.push(child);
-      }
+      clasificarObjeto(child);
     });
 
+    // Reproducción automática de animaciones del escenario (fantasmas, mujeres, esferas, etc.)
     if (gltf.animations && gltf.animations.length > 0) {
-      cementerioMixer = crearMixer(cementerio);
+      cementerioMixer = new THREE.AnimationMixer(cementerio);
       gltf.animations.forEach((clip) => {
-        prepararAnimacionInfinita(cementerioMixer, clip);
+        const action = cementerioMixer.clipAction(clip);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.play();
       });
     }
 
     cargarAvatares();
   },
   function() {
-    document.getElementById("loading").textContent = "Cargando...";
+    document.getElementById("loading").textContent = "Cargando escenario...";
   },
   function(error) {
     mostrarError("Error cargando el escenario: " + error);
@@ -338,7 +317,7 @@ loader.load(
 );
 
 // --------------------------------------------------
-// CARGAR AVATARES
+// CARGAR Y CONFIGURAR AVATARES
 // --------------------------------------------------
 
 function cargarAvatares() {
@@ -346,11 +325,12 @@ function cargarAvatares() {
     LUIS_HORA_URL,
     function(gltfHora) {
       avatarHora = gltfHora.scene;
-      avatarHora.rotation.y = 0;
       
       if (gltfHora.animations.length > 0) {
-        mixerHora = crearMixer(avatarHora);
-        accionHora = prepararAnimacionInfinita(mixerHora, gltfHora.animations[0]);
+        mixerHora = new THREE.AnimationMixer(avatarHora);
+        accionHora = mixerHora.clipAction(gltfHora.animations[0]);
+        accionHora.setLoop(THREE.LoopRepeat, Infinity);
+        accionHora.play();
       }
 
       avatarGroup.add(avatarHora);
@@ -359,11 +339,12 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          avatarCamina.rotation.y = 0;
 
           if (gltfCamina.animations.length > 0) {
-            mixerCamina = crearMixer(avatarCamina);
-            accionCamina = prepararAnimacionInfinita(mixerCamina, gltfCamina.animations[0]);
+            mixerCamina = new THREE.AnimationMixer(avatarCamina);
+            accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
+            accionCamina.setLoop(THREE.LoopRepeat, Infinity);
+            accionCamina.play();
           }
 
           avatarCamina.visible = false;
@@ -391,7 +372,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// TECLADO
+// CONTROL DE TECLADO
 // --------------------------------------------------
 
 const teclas = {};
@@ -400,70 +381,53 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// AJUSTE DE ALTURA EN PISO Y CÉSPED
+// DETECCIÓN DE SUELO Y ESCALERAS DESCENDENTES
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
-  if (colisionablesCache.length === 0 || !avatarGroup) return;
+  if (pisoColisionables.length === 0 || !avatarGroup) return;
 
-  const radioPie = 0.20 * ESCALA_AVATAR;
-  const offsets = [
-    { x: 0, z: 0 },
-    { x: radioPie, z: 0 },
-    { x: -radioPie, z: 0 },
-    { x: 0, z: radioPie },
-    { x: 0, z: -radioPie }
-  ];
+  vecOrigenPiso.copy(avatarGroup.position);
+  vecOrigenPiso.y += 1.2 * ESCALA_AVATAR;
 
-  let alturaMaximaEncontrada = -Infinity;
+  raycasterPiso.set(vecOrigenPiso, dirAbajo);
+  raycasterPiso.far = 15.0 * ESCALA_AVATAR;
 
-  for (let i = 0; i < offsets.length; i++) {
-    vecOrigenPiso.copy(avatarGroup.position);
-    vecOrigenPiso.x += offsets[i].x;
-    vecOrigenPiso.z += offsets[i].z;
-    vecOrigenPiso.y += 2.0 * ESCALA_AVATAR;
+  const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
-    raycasterPiso.set(vecOrigenPiso, dirAbajo);
-    raycasterPiso.far = 10.0 * ESCALA_AVATAR;
+  if (impactos.length > 0) {
+    const limiteSuperiorHip = avatarGroup.position.y + 0.8 * ESCALA_AVATAR;
 
-    const impactos = raycasterPiso.intersectObjects(colisionablesCache, false);
+    for (let i = 0; i < impactos.length; i++) {
+      const impacto = impactos[i];
 
-    for (let j = 0; j < impactos.length; j++) {
-      const impacto = impactos[j];
-
-      if (impacto.point.y > avatarGroup.position.y + 1.0 * ESCALA_AVATAR) continue;
-
-      if (impacto.face && impacto.face.normal.y > 0.05) {
-        if (impacto.point.y > alturaMaximaEncontrada) {
-          alturaMaximaEncontrada = impacto.point.y;
+      if (impacto.point.y <= limiteSuperiorHip) {
+        const alturaObjetivo = impacto.point.y + OFFSET_PIES;
+        
+        if (Math.abs(avatarGroup.position.y - alturaObjetivo) < 3.0) {
+          avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+        } else {
+          avatarGroup.position.y = alturaObjetivo;
         }
         break;
       }
     }
   }
-
-  if (alturaMaximaEncontrada !== -Infinity) {
-    const alturaObjetivo = alturaMaximaEncontrada + OFFSET_PIES;
-    if (Math.abs(avatarGroup.position.y - alturaObjetivo) < 2.5) {
-      avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
-    } else {
-      avatarGroup.position.y = alturaObjetivo;
-    }
-  }
 }
 
 // --------------------------------------------------
-// DETECCIÓN OPTIMIZADA DE PAREDES Y LABERINTO (BACKROOMS)
+// DETECCIÓN DE PAREDES Y LABERINTO (BACKROOMS)
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
-  if (colisionablesCache.length === 0 || !avatarGroup) return false;
+  if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  const radioCuerpo = 0.35 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.25;
+  const radioCuerpo = 0.3 * ESCALA_AVATAR; 
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
 
-  const angulos = [-0.7, -0.35, 0, 0.35, 0.7];
-  const alturas = [0.3 * ESCALA_AVATAR, 0.8 * ESCALA_AVATAR, 1.3 * ESCALA_AVATAR];
+  // 8 Direcciones radiales de comprobación física
+  const angulos = [0, 0.785, 1.57, 2.356, 3.1415, -2.356, -1.57, -0.785];
+  const alturas = [0.25 * ESCALA_AVATAR, 0.75 * ESCALA_AVATAR, 1.25 * ESCALA_AVATAR];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -475,16 +439,11 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       raycasterPared.set(vecOrigenPared, vecDirPared);
       raycasterPared.far = distanciaLimite;
 
-      const impactos = raycasterPared.intersectObjects(colisionablesCache, false);
+      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
 
-      for (let i = 0; i < impactos.length; i++) {
-        const impacto = impactos[i];
-        
-        // Descartar planos horizontales (suelos)
-        if (impacto.face && Math.abs(impacto.face.normal.y) > 0.6) continue;
-
-        if (impacto.distance < distanciaLimite) {
-          return true; // Retorna de inmediato para evitar retardos de rendimiento
+      if (impactos.length > 0) {
+        if (impactos[0].distance < distanciaLimite) {
+          return true;
         }
       }
     }
@@ -494,7 +453,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 }
 
 // --------------------------------------------------
-// DESPLAZAMIENTO Y DIRECCIÓN
+// DESPLAZAMIENTO Y CAMBIO DE ESTADO
 // --------------------------------------------------
 
 function moverAvatar(delta) {
@@ -516,7 +475,7 @@ function moverAvatar(delta) {
 
   if (moviendo) {
     vecMovimiento.normalize();
-    const velocidadMov = 5.0;
+    const velocidadMov = 4.8;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
@@ -532,7 +491,6 @@ function moverAvatar(delta) {
     if (!estaCaminando) {
       if (avatarHora) avatarHora.visible = false;
       if (avatarCamina) avatarCamina.visible = true;
-      if (accionCamina) accionCamina.reset().play();
       estaCaminando = true;
     }
 
@@ -540,7 +498,6 @@ function moverAvatar(delta) {
     if (estaCaminando) {
       if (avatarHora) avatarHora.visible = true;
       if (avatarCamina) avatarCamina.visible = false;
-      if (accionHora) accionHora.reset().play();
       estaCaminando = false;
     }
   }
@@ -556,9 +513,9 @@ function seguirAvatar() {
   if (!avatarGroup) return;
 
   const objetivoPunto = avatarGroup.position.clone();
-  objetivoPunto.y += 1.3 * ESCALA_AVATAR;
+  objetivoPunto.y += 1.2 * ESCALA_AVATAR;
 
-  const distancia = 3.6 * ESCALA_AVATAR;
+  const distancia = 3.4 * ESCALA_AVATAR;
   const radY = THREE.MathUtils.degToRad(anguloCamaraY);
   const radX = THREE.MathUtils.degToRad(anguloCamaraX);
 
@@ -594,18 +551,11 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const delta = Math.min(clock.getDelta(), 0.033); // Control de paso para evitar saltos o congelamientos
 
   if (cementerioMixer) cementerioMixer.update(delta);
-  if (mixerHora) mixerHora.update(delta);
-  if (mixerCamina) mixerCamina.update(delta);
-
-  // Garantía de reproducción ininterrumpida de animaciones
-  if (estaCaminando && accionCamina && !accionCamina.isRunning()) {
-    accionCamina.reset().play();
-  } else if (!estaCaminando && accionHora && !accionHora.isRunning()) {
-    accionHora.reset().play();
-  }
+  if (estaCaminando && mixerCamina) mixerCamina.update(delta);
+  if (!estaCaminando && mixerHora) mixerHora.update(delta);
 
   moverAvatar(delta);
   seguirAvatar();
@@ -616,7 +566,7 @@ function animate() {
 animate();
 
 // --------------------------------------------------
-// EVENTO RESIZE
+// REAJUSTE DE VENTANA
 // --------------------------------------------------
 
 window.addEventListener("resize", function() {
