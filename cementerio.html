@@ -73,8 +73,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // CONFIGURACIÓN Y PARÁMETROS
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 3.5; 
-const OFFSET_PIES = 0.14;   
+const ESCALA_AVATAR = 3.0; // Tamaño ajustado a 3.0
+const OFFSET_PIES = 0.12;   // Elevación sobre el piso
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -249,7 +249,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRO DE OBJETOS SÓLIDOS (MUROS, LABERINTO, PASILLO)
+// FILTRO DE OBJETOS SÓLIDOS Y DE EXCLUSIÓN
 // --------------------------------------------------
 
 function esObjetoSolido(obj) {
@@ -257,8 +257,9 @@ function esObjetoSolido(obj) {
 
   const nombre = (obj.name || "").toLowerCase();
 
-  // Excluir elementos volátiles intangibles
+  // EXCLUSIÓN ABSOLUTA: Elementos intangibles del árbol de Bforartists
   if (
+    nombre.includes("niebla") ||    // Descubierto en captura: niebla_model
     nombre.includes("neblina") ||
     nombre.includes("fog") ||
     nombre.includes("cielo") ||
@@ -268,34 +269,16 @@ function esObjetoSolido(obj) {
     nombre.includes("smoke") ||
     nombre.includes("particle") ||
     nombre.includes("light") ||
-    nombre.includes("trigger")
+    nombre.includes("trigger") ||
+    nombre.includes("esfera") ||
+    nombre.includes("grid") ||
+    nombre.includes("vacío") ||
+    nombre.includes("vacio") ||
+    nombre.includes("imagen")
   ) {
     return false;
   }
 
-  // Aceptar mallas de escenarios, laberinto, pasillo gótico, paredes y pisos
-  if (
-    nombre.includes("laberinto") ||
-    nombre.includes("pasillo") ||
-    nombre.includes("gotico") ||
-    nombre.includes("pared") ||
-    nombre.includes("wall") ||
-    nombre.includes("muro") ||
-    nombre.includes("colision") ||
-    nombre.includes("building") ||
-    nombre.includes("piso") ||
-    nombre.includes("suelo") ||
-    nombre.includes("vereda") ||
-    nombre.includes("camino") ||
-    nombre.includes("ground") ||
-    nombre.includes("road") ||
-    nombre.includes("stone") ||
-    nombre.includes("adoquin")
-  ) {
-    return true;
-  }
-
-  // Por defecto, cualquier malla geométrica visible es colisionable
   return true;
 }
 
@@ -404,7 +387,7 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (colisionablesCache.length === 0 || !avatarGroup) return;
 
-  const radioPie = 0.25 * ESCALA_AVATAR;
+  const radioPie = 0.22 * ESCALA_AVATAR;
   const offsets = [
     { x: 0, z: 0 },
     { x: radioPie, z: 0 },
@@ -429,7 +412,8 @@ function ajustarAlturaSuelo() {
     for (let j = 0; j < impactos.length; j++) {
       const impacto = impactos[j];
 
-      if (impacto.point.y > avatarGroup.position.y + 1.2 * ESCALA_AVATAR) continue;
+      // Ignora planos que estén demasiado por encima de la cadera
+      if (impacto.point.y > avatarGroup.position.y + 1.0 * ESCALA_AVATAR) continue;
 
       if (impacto.face && impacto.face.normal.y > 0.05) {
         if (impacto.point.y > alturaMaximaEncontrada) {
@@ -451,19 +435,16 @@ function ajustarAlturaSuelo() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN REFORZADA DE COLISIONES FRONTALES Y LATERALES
+// DETECCIÓN DE COLISIONES FRONTALES Y LATERALES
 // --------------------------------------------------
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (colisionablesCache.length === 0 || !avatarGroup) return false;
 
-  // Radio de volumen según la escala del avatar
-  const radioCuerpo = 0.32 * ESCALA_AVATAR; 
+  const radioCuerpo = 0.30 * ESCALA_AVATAR; 
   const distanciaLimite = radioCuerpo + pasoDistancia + 0.2;
 
-  // Abanico horizontal de 7 ángulos para no dejar puntos ciegos entre muros
   const angulos = [-0.85, -0.5, -0.25, 0, 0.25, 0.5, 0.85];
-  // Detección a 3 niveles de altura (tobillos, cintura y pecho)
   const alturas = [0.25 * ESCALA_AVATAR, 0.65 * ESCALA_AVATAR, 1.1 * ESCALA_AVATAR];
 
   for (const alt of alturas) {
@@ -481,7 +462,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       for (let i = 0; i < impactos.length; i++) {
         const impacto = impactos[i];
         
-        // Ignorar superficies horizontales (piso/techo)
+        // Ignora planos horizontales (pisos o techos)
         if (impacto.face && Math.abs(impacto.face.normal.y) > 0.65) continue;
 
         if (impacto.distance < distanciaLimite) {
@@ -517,7 +498,7 @@ function moverAvatar(delta) {
 
   if (moviendo) {
     vecMovimiento.normalize();
-    const velocidadMov = 5.2;
+    const velocidadMov = 5.0;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
