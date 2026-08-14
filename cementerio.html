@@ -77,6 +77,9 @@ const CEMENTERIO_URL =
 const LUIS_CAMINA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-camina.glb";
 
+const LUIS_HORA_URL =
+  "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-hora.glb";
+
 // --------------------------------------------------
 // ESCENA, CÁMARA Y RENDERER
 // --------------------------------------------------
@@ -126,12 +129,17 @@ loader.setDRACOLoader(dracoLoader);
 // --------------------------------------------------
 
 let cementerio = null;
-let avatar = null;
-
-let avatarMixer = null;
-let avatarAccion = null;
-
 let cementerioMixer = null;
+
+// Grupo contenedor principal del avatar (mantiene posición y rotación compartida)
+const avatarGroup = new THREE.Group();
+scene.add(avatarGroup);
+
+let avatarHora = null;
+let avatarCamina = null;
+
+let mixerHora = null;
+let mixerCamina = null;
 
 const clock = new THREE.Clock();
 const raycasterColision = new THREE.Raycaster();
@@ -146,7 +154,7 @@ loader.load(
     cementerio = gltf.scene;
     scene.add(cementerio);
 
-    // Reproducir animaciones propias del archivo cementerio.glb
+    // Activar animaciones del entorno/escenario si existen
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = new THREE.AnimationMixer(cementerio);
       gltf.animations.forEach((clip) => {
@@ -154,7 +162,7 @@ loader.load(
       });
     }
 
-    cargarAvatar();
+    cargarAvatares();
   },
   function(xhr) {
     if (xhr.total) {
@@ -168,34 +176,55 @@ loader.load(
 );
 
 // --------------------------------------------------
-// CARGAR AVATAR
+// CARGAR AVATARES (ESTÁTICO Y CAMINANDO)
 // --------------------------------------------------
 
-function cargarAvatar() {
+function cargarAvatares() {
+  // 1. Cargar avatar reposo (luis-hora.glb)
   loader.load(
-    LUIS_CAMINA_URL,
-    function(gltf) {
-      avatar = gltf.scene;
-      scene.add(avatar);
-
-      // Ajustes de escala y posición vertical (evita hundimiento)
-      avatar.scale.setScalar(2.2); 
-      avatar.position.set(0, 0.15, 0); 
-
-      // Configuración de la animación del avatar
-      if (gltf.animations.length > 0) {
-        avatarMixer = new THREE.AnimationMixer(avatar);
-        avatarAccion = avatarMixer.clipAction(gltf.animations[0]);
-        avatarAccion.play();
-        avatarAccion.paused = true; // Inicia pausado hasta que se mueva
+    LUIS_HORA_URL,
+    function(gltfHora) {
+      avatarHora = gltfHora.scene;
+      
+      if (gltfHora.animations.length > 0) {
+        mixerHora = new THREE.AnimationMixer(avatarHora);
+        const accionHora = mixerHora.clipAction(gltfHora.animations[0]);
+        accionHora.play();
       }
 
-      camera.position.set(0, 3, 7);
-      document.getElementById("loading").style.display = "none";
+      avatarGroup.add(avatarHora);
+
+      // 2. Cargar avatar caminata (luis-camina.glb)
+      loader.load(
+        LUIS_CAMINA_URL,
+        function(gltfCamina) {
+          avatarCamina = gltfCamina.scene;
+
+          if (gltfCamina.animations.length > 0) {
+            mixerCamina = new THREE.AnimationMixer(avatarCamina);
+            const accionCamina = mixerCamina.clipAction(gltfCamina.animations[0]);
+            accionCamina.play();
+          }
+
+          avatarCamina.visible = false; // Oculto al inicio
+          avatarGroup.add(avatarCamina);
+
+          // Configuración de escala y altura en el grupo principal
+          avatarGroup.scale.setScalar(2.2);
+          avatarGroup.position.set(0, 0.15, 0);
+
+          camera.position.set(0, 3, 7);
+          document.getElementById("loading").style.display = "none";
+        },
+        undefined,
+        function(error) {
+          mostrarError("Error cargando luis-camina.glb: " + error);
+        }
+      );
     },
     undefined,
     function(error) {
-      mostrarError("Error cargando Luis-camina.glb: " + error);
+      mostrarError("Error cargando luis-hora.glb: " + error);
     }
   );
 }
@@ -214,21 +243,19 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 // --------------------------------------------------
 
 function hayColision(paso) {
-  if (!cementerio || !avatar) return false;
+  if (!cementerio || !avatarGroup) return false;
 
   const dir = new THREE.Vector3();
-  avatar.getWorldDirection(dir);
+  avatarGroup.getWorldDirection(dir);
   
-  if (paso < 0) dir.negate(); // Si va marcha atrás
+  if (paso < 0) dir.negate(); // Invertir si va hacia adelante (translateZ negativo)
 
-  // Rayo a la altura de la cintura del avatar
-  const origen = avatar.position.clone();
+  const origen = avatarGroup.position.clone();
   origen.y += 0.8; 
 
   raycasterColision.set(origen, dir);
   const impactos = raycasterColision.intersectObjects(cementerio.children, true);
 
-  // Si hay un impacto más cercano que la distancia del paso + margen de seguridad
   if (impactos.length > 0 && impactos[0].distance < Math.abs(paso) + 0.6) {
     return true;
   }
@@ -237,27 +264,27 @@ function hayColision(paso) {
 }
 
 // --------------------------------------------------
-// MOVIMIENTO
+// MOVIMIENTO Y CONMUTACIÓN DE ANIMACIÓN
 // --------------------------------------------------
 
 function moverAvatar(delta) {
-  if (!avatar) return;
+  if (!avatarGroup || (!avatarHora && !avatarCamina)) return;
 
   const velocidad = 3.5;
   let moviendo = false;
 
   if (teclas["KeyA"] || teclas["ArrowLeft"]) {
-    avatar.rotation.y += velocidad * delta;
+    avatarGroup.rotation.y += velocidad * delta;
   }
 
   if (teclas["KeyD"] || teclas["ArrowRight"]) {
-    avatar.rotation.y -= velocidad * delta;
+    avatarGroup.rotation.y -= velocidad * delta;
   }
 
   if (teclas["KeyW"] || teclas["ArrowUp"]) {
     const paso = -velocidad * delta;
     if (!hayColision(paso)) {
-      avatar.translateZ(paso);
+      avatarGroup.translateZ(paso);
     }
     moviendo = true;
   }
@@ -265,14 +292,20 @@ function moverAvatar(delta) {
   if (teclas["KeyS"] || teclas["ArrowDown"]) {
     const paso = velocidad * delta;
     if (!hayColision(paso)) {
-      avatar.translateZ(paso);
+      avatarGroup.translateZ(paso);
     }
     moviendo = true;
   }
 
-  // Controlar la reproducción de la animación de caminata
-  if (avatarAccion) {
-    avatarAccion.paused = !moviendo;
+  // Alternar visibilidad y actualización de mixers según el estado
+  if (moviendo) {
+    if (avatarHora) avatarHora.visible = false;
+    if (avatarCamina) avatarCamina.visible = true;
+    if (mixerCamina) mixerCamina.update(delta);
+  } else {
+    if (avatarHora) avatarHora.visible = true;
+    if (avatarCamina) avatarCamina.visible = false;
+    if (mixerHora) mixerHora.update(delta);
   }
 }
 
@@ -281,18 +314,17 @@ function moverAvatar(delta) {
 // --------------------------------------------------
 
 function seguirAvatar() {
-  if (!avatar) return;
+  if (!avatarGroup) return;
 
   const objetivo = new THREE.Vector3();
-  avatar.getWorldPosition(objetivo);
+  avatarGroup.getWorldPosition(objetivo);
   objetivo.y += 2.0;
 
   const posicionCamara = new THREE.Vector3();
   posicionCamara.copy(objetivo);
   
-  // Posicionar cámara detrás del avatar según su rotación
   const offset = new THREE.Vector3(0, 1.5, 6);
-  offset.applyQuaternion(avatar.quaternion);
+  offset.applyQuaternion(avatarGroup.quaternion);
   
   posicionCamara.add(offset);
 
@@ -321,7 +353,6 @@ function animate() {
 
   const delta = clock.getDelta();
 
-  if (avatarMixer) avatarMixer.update(delta);
   if (cementerioMixer) cementerioMixer.update(delta);
 
   moverAvatar(delta);
