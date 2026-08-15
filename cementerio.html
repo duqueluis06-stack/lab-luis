@@ -419,13 +419,8 @@ function clasificarObjeto(obj) {
   const esParedEstructura = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
 
   if (esParedEstructura) {
-    if (obj.geometry) {
-      if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
-      const centerLocal = new THREE.Vector3();
-      obj.geometry.boundingBox.getCenter(centerLocal);
-      obj.updateMatrixWorld(true);
-      obj.userData.centerWorld = centerLocal.applyMatrix4(obj.matrixWorld);
-    }
+    obj.updateMatrixWorld(true);
+    obj.userData.boxWorld = new THREE.Box3().setFromObject(obj);
     paredColisionables.push(obj);
   }
 }
@@ -447,9 +442,9 @@ function posicionarEnPasilloGotico() {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Posiciona al avatar al fondo del pasillo (abajo del todo de las escaleras)
-    avatarGroup.position.set(center.x, box.min.y + 0.1, box.max.z - 4.0);
-    avatarGroup.rotation.y = 0; // Mirando hacia la salida/escaleras
+    // Posicionamiento en el fondo inferior de las escaleras (extremo Z min)
+    avatarGroup.position.set(center.x, box.min.y + 0.1, box.min.z + 4.0);
+    avatarGroup.rotation.y = Math.PI; // Mirando hacia la subida de las escaleras
 
     ajustarAlturaSuelo();
   }
@@ -523,7 +518,6 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        // Giro de 180 grados para orientar la cara/ojo hacia el jugador
         querubinMesh.rotation.set(0, -Math.PI / 2, 0);
 
         querubinMesh.traverse((child) => {
@@ -615,7 +609,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y COLISIONES OPTIMIZADAS
+// FÍSICAS Y COLISIONES DE PARED
 // --------------------------------------------------
 
 const teclas = {};
@@ -655,18 +649,18 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   const posAv = avatarGroup.position;
   const paredesCercanas = [];
 
-  // Filtrado ultra-rápido usando el centro global de cada sub-malla
+  // Detección por proximidad exacta de la caja de colisión del muro
   for (let i = 0; i < paredColisionables.length; i++) {
     const p = paredColisionables[i];
-    if (p.userData.centerWorld && p.userData.centerWorld.distanceToSquared(posAv) < 225) {
+    if (p.userData.boxWorld && p.userData.boxWorld.distanceToPoint(posAv) < 2.5) {
       paredesCercanas.push(p);
     }
   }
 
   if (paredesCercanas.length === 0) return false;
 
-  const alturas = [0.6, 1.4];
-  const angulosRayos = [0, -0.45, 0.45];
+  const alturas = [0.5, 1.2];
+  const angulosRayos = [0, -0.5, 0.5, -1.0, 1.0];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(posAv);
@@ -675,7 +669,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     for (let i = 0; i < angulosRayos.length; i++) {
       vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
-      raycasterPared.far = 0.9 + pasoDistancia;
+      raycasterPared.far = 0.85 + pasoDistancia;
 
       const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
       if (impactos.length > 0) return true;
