@@ -388,9 +388,9 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esTechoOArco = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling") || jerarquia.includes("viga");
+  const esTecho = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling");
 
-  const esSueloPuro = !esTechoOArco && (
+  const esSueloPuro = !esTecho && (
     jerarquia.includes("base-cesped") ||
     jerarquia.includes("cesped") ||
     jerarquia.includes("grid") ||
@@ -416,9 +416,9 @@ function clasificarObjeto(obj) {
     pisoColisionables.push(obj);
   }
 
-  const esEstructuraWall = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto") && (jerarquia.includes("muro") || jerarquia.includes("wall") || jerarquia.includes("pared") || jerarquia.includes("columna") || jerarquia.includes("arco"));
+  const esParedEstructura = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
 
-  if (esEstructuraWall) {
+  if (esParedEstructura) {
     paredColisionables.push(obj);
   }
 }
@@ -440,7 +440,7 @@ function posicionarEnPasilloGotico() {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    avatarGroup.position.set(center.x, box.min.y, center.z);
+    avatarGroup.position.set(center.x, box.min.y + 0.5, center.z);
     ajustarAlturaSuelo();
   }
 }
@@ -513,7 +513,6 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        // Alineación del modelo sin offsets que desvíen la mirada vertical
         querubinMesh.rotation.set(0, Math.PI / 2, 0);
 
         querubinMesh.traverse((child) => {
@@ -605,7 +604,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y MOVIMIENTO OPTIMIZADOS
+// FÍSICAS Y COLISIONES CORREGIDAS
 // --------------------------------------------------
 
 const teclas = {};
@@ -616,41 +615,47 @@ function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 1.0; 
+  vecOrigenPiso.y += 1.8; 
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 4.0;
+  raycasterPiso.far = 6.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
-  if (impactos.length > 0) {
-    const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
+  let mejorImpacto = null;
+  for (let i = 0; i < impactos.length; i++) {
+    const hitY = impactos[i].point.y;
+    if (hitY <= avatarGroup.position.y + 1.2) {
+      if (!mejorImpacto || hitY > mejorImpacto.point.y) {
+        mejorImpacto = impactos[i];
+      }
+    }
+  }
+
+  if (mejorImpacto) {
+    const alturaObjetivo = mejorImpacto.point.y + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
   }
 }
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  // Filtrar espacialmente paredes en un radio cercano (15m) para evitar lag
-  const paredesCercanas = paredColisionables.filter(
-    obj => obj.position.distanceToSquared(avatarGroup.position) < 225
-  );
+  const alturas = [0.6, 1.4];
+  const angulosRayos = [0, -0.45, 0.45];
 
-  if (paredesCercanas.length === 0) return false;
+  for (let h = 0; h < alturas.length; h++) {
+    vecOrigenPared.copy(avatarGroup.position);
+    vecOrigenPared.y += alturas[h];
 
-  vecOrigenPared.copy(avatarGroup.position);
-  vecOrigenPared.y += 1.0; // Evaluación única a la altura de la cintura
+    for (let i = 0; i < angulosRayos.length; i++) {
+      vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
+      raycasterPared.set(vecOrigenPared, vecRayDir);
+      raycasterPared.far = 0.9 + pasoDistancia;
 
-  const angulosRayos = [0, -0.4, 0.4];
-
-  for (let i = 0; i < angulosRayos.length; i++) {
-    vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
-    raycasterPared.set(vecOrigenPared, vecRayDir);
-    raycasterPared.far = 0.85 + pasoDistancia;
-
-    const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
-    if (impactos.length > 0) return true;
+      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+      if (impactos.length > 0) return true;
+    }
   }
 
   return false;
