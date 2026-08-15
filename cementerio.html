@@ -27,13 +27,29 @@
       position: fixed;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       background: #000;
       color: white;
       font-family: Arial, sans-serif;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       z-index: 30;
+      cursor: pointer;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #start-btn {
+      margin-top: 15px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      background: #334455;
+      color: #fff;
+      border: 1px solid #667788;
+      border-radius: 6px;
+      display: none;
+      cursor: pointer;
     }
 
     #error {
@@ -81,7 +97,11 @@
 
 <body>
 
-<div id="loading">Cargando escenario, querubín y animaciones...</div>
+<div id="loading">
+  <div id="loading-text">Cargando escenario, querubín y animaciones...</div>
+  <button id="start-btn">▶ HACER CLIC PARA ENTRAR AL JUEGO</button>
+</div>
+
 <div id="error"></div>
 
 <div id="joystick-zone">
@@ -126,23 +146,19 @@ const MUSICA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/audio/music-cementerio.mp3";
 
 // --------------------------------------------------
-// AUDIO
+// AUDIO CON SOPORTE PARA PC
 // --------------------------------------------------
 
 const bgMusic = new Audio(MUSICA_URL);
 bgMusic.loop = true;
 bgMusic.volume = 0.45;
 
-function activarAudio() {
+function iniciarJuego() {
   bgMusic.play().catch(() => {});
-  window.removeEventListener('click', activarAudio);
-  window.removeEventListener('touchstart', activarAudio);
-  window.removeEventListener('keydown', activarAudio);
+  document.getElementById("loading").style.display = "none";
 }
 
-window.addEventListener('click', activarAudio);
-window.addEventListener('touchstart', activarAudio);
-window.addEventListener('keydown', activarAudio);
+document.getElementById("loading").addEventListener("click", iniciarJuego);
 
 // --------------------------------------------------
 // ESCENA
@@ -185,14 +201,20 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// CONTROL DE OBJETOS Y COLISIONES
+// CONTROL DE OBJETOS
 // --------------------------------------------------
 
 let cementerio = null;
 let cementerioMixer = null;
 
-let querubin = null;
+const querubinGroup = new THREE.Group();
+scene.add(querubinGroup);
+querubinGroup.position.set(-32, 18, -10); // Ubicación en lateral del mapa
+
+let querubinMesh = null;
 let mixerQuerubin = null;
+let luzOjoInterna = null;
+let focoOjoProyectado = null;
 
 const pisoColisionables = [];
 const paredColisionables = [];
@@ -232,7 +254,7 @@ let anguloCamaraX = 20;
 const joystickInput = { x: 0, y: 0 };
 
 // --------------------------------------------------
-// CONTROLES Y TOUCH
+// CONTROLES TECLADO Y TOUCH
 // --------------------------------------------------
 
 const joystickZone = document.getElementById('joystick-zone');
@@ -341,7 +363,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO RIGUROSO DE OBJETOS Y PAREDES
+// CLASIFICACIÓN DE OBJETOS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -365,10 +387,7 @@ function clasificarObjeto(obj) {
     jerarquia.includes("cielo") ||
     jerarquia.includes("sky") ||
     jerarquia.includes("humo") ||
-    jerarquia.includes("particle") ||
-    jerarquia.includes("vacio") ||
-    jerarquia.includes("vacío") ||
-    jerarquia.includes("grid")
+    jerarquia.includes("particle")
   );
 
   if (esIgnorable) return;
@@ -396,20 +415,13 @@ function clasificarObjeto(obj) {
     jerarquia.includes("ground") ||
     jerarquia.includes("terrain") ||
     jerarquia.includes("terreno") ||
-    jerarquia.includes("camino") ||
-    jerarquia.includes("road") ||
-    jerarquia.includes("calle") ||
-    jerarquia.includes("vereda") ||
-    jerarquia.includes("escalera") ||
-    jerarquia.includes("stair") ||
-    jerarquia.includes("escalon") ||
-    jerarquia.includes("step")
+    jerarquia.includes("camino")
   );
 
   if (esSueloPuro && !esParedEspecial) {
     pisoColisionables.push(obj);
   } else {
-    const esVegetacion = jerarquia.includes("arbol") || jerarquia.includes("tree") || jerarquia.includes("hoja") || jerarquia.includes("lapacho");
+    const esVegetacion = jerarquia.includes("arbol") || jerarquia.includes("tree") || jerarquia.includes("hoja");
     if (!esVegetacion) {
       paredColisionables.push(obj);
     }
@@ -417,7 +429,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// SISTEMA DE ANIMACIÓN ROBUSTO CON BUCLE MATEMÁTICO
+// SISTEMA DE ANIMACIÓN
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -459,7 +471,7 @@ function actualizarMixerForzado(mixer, delta) {
 }
 
 // --------------------------------------------------
-// FILTRO DE PROXIMIDAD ROBUSTO
+// FILTRO DE PROXIMIDAD
 // --------------------------------------------------
 
 function obtenerCercanos(origen, destino, radioMaximo) {
@@ -470,7 +482,7 @@ function obtenerCercanos(origen, destino, radioMaximo) {
   for (let i = 0; i < origen.length; i++) {
     const obj = origen[i];
     obj.getWorldPosition(vecPosObj);
-    if (vecPosObj.distanceToSquared(posAvatar) < radioSq || (obj.name && (obj.name.toLowerCase().includes("base") || obj.name.toLowerCase().includes("suelo")))) {
+    if (vecPosObj.distanceToSquared(posAvatar) < radioSq) {
       destino.push(obj);
     }
   }
@@ -483,10 +495,9 @@ function obtenerCercanos(origen, destino, radioMaximo) {
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS CON PROTECCIÓN TRY-CATCH
+// CARGA DE MODELOS CON LUCES Y ORIENTACIÓN
 // --------------------------------------------------
 
-// 1. Escenario Cementerio
 loader.load(
   CEMENTERIO_URL,
   function(gltf) {
@@ -504,7 +515,7 @@ loader.load(
         cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
       }
     } catch (e) {
-      console.warn("Aviso en procesamiento de cementerio:", e);
+      console.warn("Aviso en cementerio:", e);
     }
 
     cargarQuerubin();
@@ -513,41 +524,55 @@ loader.load(
   function(error) { mostrarError("Error cargando escenario principal: " + error); }
 );
 
-// 2. Querubín Observador
 function cargarQuerubin() {
   loader.load(
     QUERUBIN_URL,
     function(gltfQuerubin) {
       try {
-        querubin = gltfQuerubin.scene;
+        querubinMesh = gltfQuerubin.scene;
         
-        querubin.position.set(0, 22, 15);
-        querubin.lookAt(0, 0, 0);
+        // Inclinación interna para alinear la cara/ojo frontalmente
+        querubinMesh.rotation.x = Math.PI / 2;
 
-        querubin.traverse((child) => {
-          if (child.isMesh) child.frustumCulled = false;
+        querubinMesh.traverse((child) => {
+          if (child.isMesh) {
+            child.frustumCulled = false;
+            if (child.material) {
+              child.material.emissive = new THREE.Color(0x331100);
+            }
+          }
         });
 
-        scene.add(querubin);
+        querubinGroup.add(querubinMesh);
+
+        // 💡 Luz Interna en el Ojo (Brillo Dorado)
+        luzOjoInterna = new THREE.PointLight(0xffaa22, 12, 30);
+        luzOjoInterna.position.set(0, 0, 0);
+        querubinGroup.add(luzOjoInterna);
+
+        // 🔦 Foco de Luz Proyectado hacia el jugador
+        focoOjoProyectado = new THREE.SpotLight(0xffdd88, 20, 70, Math.PI / 5, 0.4);
+        focoOjoProyectado.position.set(0, 0, 0);
+        focoOjoProyectado.target = avatarGroup;
+        querubinGroup.add(focoOjoProyectado);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
-          mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubin, 1.0);
+          mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
         }
       } catch (e) {
-        console.warn("Aviso procesando querubín:", e);
+        console.warn("Aviso cargando querubín:", e);
       }
 
       cargarAvatares();
     },
     undefined,
     function(error) {
-      console.warn("No se pudo descargar el querubín, continuando con el avatar:", error);
+      console.warn("No se pudo cargar querubín, continuando:", error);
       cargarAvatares();
     }
   );
 }
 
-// 3. Avatares del jugador
 function cargarAvatares() {
   loader.load(
     LUIS_HORA_URL,
@@ -557,7 +582,7 @@ function cargarAvatares() {
         mixerHora = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
         avatarGroup.add(avatarHora);
       } catch (e) {
-        console.warn("Aviso en avatar hora:", e);
+        console.warn("Aviso en avatar reposo:", e);
       }
 
       loader.load(
@@ -576,13 +601,14 @@ function cargarAvatares() {
             cameraTarget.copy(avatarGroup.position);
             camera.position.set(0, 2, 5);
           } catch (e) {
-            console.warn("Aviso en avatar camina:", e);
+            console.warn("Aviso en avatar marcha:", e);
           }
 
-          document.getElementById("loading").style.display = "none";
+          document.getElementById("loading-text").textContent = "¡Carga Completa!";
+          document.getElementById("start-btn").style.display = "inline-block";
         },
         undefined,
-        function(error) { mostrarError("Error en avatar de marcha: " + error); }
+        function(error) { mostrarError("Error en avatar marcha: " + error); }
       );
     },
     undefined,
@@ -591,7 +617,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// MOVIMIENTO Y FÍSICAS
+// FÍSICAS Y SEGUIMIENTO DEL QUERUBÍN
 // --------------------------------------------------
 
 const teclas = {};
@@ -712,6 +738,15 @@ function moverAvatar(delta) {
   ajustarAlturaSuelo();
 }
 
+function actualizarQuerubin() {
+  if (!querubinGroup || !avatarGroup) return;
+
+  // Seguimiento dinámico: El ojo del Querubín mira directamente al personaje
+  const posMirada = avatarGroup.position.clone();
+  posMirada.y += 1.5;
+  querubinGroup.lookAt(posMirada);
+}
+
 function seguirAvatar() {
   if (!avatarGroup) return;
 
@@ -744,7 +779,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// RENDER LOOP
+// LOOP DE RENDERIZADO
 // --------------------------------------------------
 
 function animate() {
@@ -758,6 +793,7 @@ function animate() {
   actualizarMixerForzado(mixerHora, delta);
 
   moverAvatar(delta);
+  actualizarQuerubin();
   seguirAvatar();
 
   renderer.render(scene, camera);
