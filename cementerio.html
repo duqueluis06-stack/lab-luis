@@ -104,8 +104,8 @@
 <body>
 
 <div id="loading">
-  <div id="loading-text">Cargando escenario y personajes...</div>
-  <button id="start-btn">▶ ENTRAR AL ESCENARIO</button>
+  <div id="loading-text">Viajando al Inframundo...</div>
+  <button id="start-btn">▶ ENTRAR AL INFRAMUNDO</button>
 </div>
 
 <div id="error"></div>
@@ -207,7 +207,6 @@ let cementerioMixer = null;
 
 const querubinGroup = new THREE.Group();
 scene.add(querubinGroup);
-// Posicionamiento más elevado para forzar la mirada en picado
 querubinGroup.position.set(-170, 140, -170);
 
 let querubinMesh = null;
@@ -358,7 +357,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// SISTEMA DE COLISIONES Y NAVEGACIÓN EN ESCALERAS
+// CLASIFICACIÓN DE OBJETOS Y RIGIDEZ DE PAREDES
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -388,12 +387,7 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Se añaden peldaños y tramos de pasillo al rastreador de piso
-  const esSueloOEscalera = (
-    jerarquia.includes("escalera") ||
-    jerarquia.includes("escalon") ||
-    jerarquia.includes("stair") ||
-    jerarquia.includes("step") ||
+  const esSueloPuro = (
     jerarquia.includes("base-cesped") ||
     jerarquia.includes("cesped") ||
     jerarquia.includes("grid") ||
@@ -403,34 +397,41 @@ function clasificarObjeto(obj) {
     jerarquia.includes("terreno") ||
     jerarquia.includes("suelo") ||
     jerarquia.includes("piso") ||
-    jerarquia.includes("pasillo") ||
-    jerarquia.includes("gotico")
+    jerarquia.includes("escalera") ||
+    jerarquia.includes("escalon") ||
+    jerarquia.includes("stair") ||
+    jerarquia.includes("step")
   );
 
-  const esEstructuraWall = (
-    jerarquia.includes("backroom") ||
-    jerarquia.includes("mural") ||
-    jerarquia.includes("cerca") ||
-    jerarquia.includes("reja") ||
-    jerarquia.includes("muro") ||
-    jerarquia.includes("wall") ||
-    jerarquia.includes("pared") ||
-    jerarquia.includes("mausoleo") ||
-    jerarquia.includes("tumba") ||
-    jerarquia.includes("lapida") ||
-    jerarquia.includes("columna") ||
-    jerarquia.includes("casa") ||
-    jerarquia.includes("edificio") ||
-    jerarquia.includes("pasillo") ||
-    jerarquia.includes("gotico")
-  );
-
-  if (esSueloOEscalera) {
+  if (esSueloPuro) {
     pisoColisionables.push(obj);
   }
 
+  // Todo objeto que no sea piso puro o que pertenezca al backroom/pasillo/muros actua como barrera sólida
+  const esEstructuraWall = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
+
   if (esEstructuraWall) {
     paredColisionables.push(obj);
+  }
+}
+
+function posicionarEnPasilloGotico() {
+  if (!cementerio) return;
+
+  let pasilloObj = null;
+  cementerio.traverse((child) => {
+    const jer = obtenerNombreJerarquia(child);
+    if ((jer.includes("gotico") || jer.includes("pasillo")) && child.isMesh) {
+      pasilloObj = child;
+    }
+  });
+
+  if (pasilloObj) {
+    const box = new THREE.Box3().setFromObject(pasilloObj);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    // Aparición estratégica en la entrada del pasillo gótico
+    avatarGroup.position.set(center.x, box.min.y + OFFSET_PIES, box.max.z - 2.0);
   }
 }
 
@@ -491,7 +492,7 @@ loader.load(
     cargarQuerubin();
   },
   undefined,
-  function(error) { mostrarError("Error en cementerio: " + error); }
+  function(error) { mostrarError("Error en inframundo: " + error); }
 );
 
 function cargarQuerubin() {
@@ -501,6 +502,10 @@ function cargarQuerubin() {
       try {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
+
+        // Ajuste de frontalidad y pitch fijo de ~26 grados hacia abajo
+        querubinMesh.rotation.y = Math.PI / 2;
+        querubinMesh.rotation.x = THREE.MathUtils.degToRad(26);
 
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
@@ -514,11 +519,11 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // OJO CÍCLOPE Y POINTLIGHT DE ENFOQUE
+        // OJO Y LUZ DEL QUERUBÍN
         const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
         const ojoGeometria = new THREE.SphereGeometry(0.5, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
-        ojoUnico.position.set(0, 0, -1.2); 
+        ojoUnico.position.set(0, -0.2, -1.2); 
         querubinGroup.add(ojoUnico);
 
         const luzIrisUnica = new THREE.PointLight(0x00ffff, 12, 30);
@@ -570,7 +575,9 @@ function cargarAvatares() {
             avatarGroup.add(avatarCamina);
 
             avatarGroup.scale.setScalar(ESCALA_AVATAR);
-            avatarGroup.position.set(0, 0, 0);
+            
+            // Ubicación en pasillo gótico al cargar
+            posicionarEnPasilloGotico();
 
             cameraTarget.copy(avatarGroup.position);
             camera.position.set(0, 2, 5);
@@ -578,7 +585,7 @@ function cargarAvatares() {
             console.warn("Aviso avatar camina:", e);
           }
 
-          document.getElementById("loading-text").textContent = "¡Carga Completa!";
+          document.getElementById("loading-text").textContent = "Viaje al Inframundo Listo";
           document.getElementById("start-btn").style.display = "inline-block";
         },
         undefined,
@@ -591,7 +598,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// DETECCIÓN DE PASO Y FÍSICAS DE PAREDES
+// FÍSICAS MULTI-ALTURA PARA EVITAR ATRAVESAR PAREDES
 // --------------------------------------------------
 
 const teclas = {};
@@ -618,18 +625,22 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  vecOrigenPared.copy(avatarGroup.position);
-  vecOrigenPared.y += 1.0; 
+  // Ráfaga de rayos a doble altura (torso y cabeza) en 5 ángulos para sellar pasillos y backrooms
+  const alturas = [0.6, 1.6];
+  const angulosRayos = [0, -0.4, 0.4, -0.8, 0.8];
 
-  const angulosRayos = [0, -0.35, 0.35];
+  for (let h = 0; h < alturas.length; h++) {
+    vecOrigenPared.copy(avatarGroup.position);
+    vecOrigenPared.y += alturas[h];
 
-  for (let i = 0; i < angulosRayos.length; i++) {
-    const dirRay = dirMovimiento.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
-    raycasterPared.set(vecOrigenPared, dirRay);
-    raycasterPared.far = 0.9 + pasoDistancia;
+    for (let i = 0; i < angulosRayos.length; i++) {
+      const dirRay = dirMovimiento.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
+      raycasterPared.set(vecOrigenPared, dirRay);
+      raycasterPared.far = 0.85 + pasoDistancia;
 
-    const impactos = raycasterPared.intersectObjects(paredColisionables, false);
-    if (impactos.length > 0) return true;
+      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+      if (impactos.length > 0) return true;
+    }
   }
 
   return false;
@@ -695,7 +706,7 @@ function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
   avatarGroup.getWorldPosition(targetQuerubin);
-  targetQuerubin.y += 1.8; // Apuntar directo a la cabeza del avatar desde arriba
+  targetQuerubin.y += 0.5; // Enfoque directo hacia la parte inferior/cuerpo del avatar
 
   querubinGroup.lookAt(targetQuerubin);
 }
@@ -732,7 +743,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// BUCLE DE RENDER Y MANTENIMIENTO DE ANIMACIONES
+// BUCLE DE RENDER Y CICLO DE ANIMACIONES
 // --------------------------------------------------
 
 function animate() {
