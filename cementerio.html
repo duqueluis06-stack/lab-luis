@@ -387,7 +387,6 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Filtrar techos, arcos y vigas para que no interfieran con la altura del piso
   const esTechoOArco = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling") || jerarquia.includes("arco") || jerarquia.includes("viga") || jerarquia.includes("marco");
 
   const esSueloPuro = !esTechoOArco && (
@@ -434,7 +433,33 @@ function posicionarEnPasilloGotico() {
     const box = new THREE.Box3().setFromObject(pasilloObj);
     const center = new THREE.Vector3();
     box.getCenter(center);
-    avatarGroup.position.set(center.x, box.min.y + OFFSET_PIES, box.max.z - 2.0);
+
+    // Posición centrada en la nave despejada del pasillo
+    avatarGroup.position.set(center.x, box.min.y, center.z);
+
+    // Ajuste inmediato de suelo
+    ajustarAlturaSuelo();
+
+    // Verificación y auto-despeje si aparece solapado con algún arco/muro
+    const direccionesPrueba = [
+      new THREE.Vector3(0, 0, -1),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(1, 0, 0)
+    ];
+
+    for (let intento = 0; intento < 10; intento++) {
+      let colisionando = false;
+      for (const dir of direccionesPrueba) {
+        if (hayColisionPared(dir, 0.2)) {
+          colisionando = true;
+          // Desplazar en dirección opuesta a la pared
+          avatarGroup.position.addScaledVector(dir, -0.4);
+          break;
+        }
+      }
+      if (!colisionando) break;
+    }
   }
 }
 
@@ -598,7 +623,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS CORREGIDAS PARA PISO
+// FÍSICAS Y DETECCIÓN
 // --------------------------------------------------
 
 const teclas = {};
@@ -608,7 +633,6 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
-  // Se lanza el rayo desde la altura de la cintura del personaje (y + 1.2)
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 1.2; 
 
@@ -616,8 +640,6 @@ function ajustarAlturaSuelo() {
   raycasterPiso.far = 10.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
-
-  // Seleccionar la superficie más cercana por debajo del personaje
   const impactoValido = impactos.find(imp => imp.point.y <= avatarGroup.position.y + 1.0);
 
   if (impactoValido) {
