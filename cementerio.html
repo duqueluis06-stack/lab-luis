@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Cementerio con Escaleras y Querubín</title>
+  <title>Juego 3D - Cementerio, Pasillo Gótico y Querubín Cíclope</title>
 
   <style>
     html, body {
@@ -30,7 +30,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #000;
+      background: #050508;
       color: white;
       font-family: Arial, sans-serif;
       font-size: 1.2rem;
@@ -44,9 +44,9 @@
       margin-top: 15px;
       padding: 12px 24px;
       font-size: 1rem;
-      background: #334455;
+      background: #2a3d52;
       color: #fff;
-      border: 1px solid #667788;
+      border: 1px solid #4a6585;
       border-radius: 6px;
       display: none;
       cursor: pointer;
@@ -104,7 +104,7 @@
 <body>
 
 <div id="loading">
-  <div id="loading-text">Cargando escenario y físicas de terreno...</div>
+  <div id="loading-text">Cargando escenario y personajes...</div>
   <button id="start-btn">▶ ENTRAR AL ESCENARIO</button>
 </div>
 
@@ -130,11 +130,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN DE PARÁMETROS
+// AJUSTES
 // --------------------------------------------------
 
-const ESCALA_AVATAR = 2.0;
-const OFFSET_PIES = 0.58; // Eleva el calzado sobre las veredas y pisos
+const ESCALA_AVATAR = 2.0;       // Escala ajustada a 2.0
+const OFFSET_PIES = 0.75;         // Corrección de altura para zapatillas
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -167,7 +167,7 @@ function iniciarJuego() {
 document.getElementById("loading").addEventListener("click", iniciarJuego);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050509);
+scene.background = new THREE.Color(0x040408);
 
 const camera = new THREE.PerspectiveCamera(
   60,
@@ -185,10 +185,10 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.HemisphereLight(0xaaaaee, 0x222233, 1.5);
+const ambientLight = new THREE.HemisphereLight(0x8899bb, 0x222233, 1.6);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight(0xffffff, 1.3);
+const moonLight = new THREE.DirectionalLight(0xddeeff, 1.4);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
@@ -230,6 +230,8 @@ let avatarCamina = null;
 
 let mixerHora = null;
 let mixerCamina = null;
+let actionHora = null;
+let actionCamina = null;
 
 let estaCaminando = false;
 
@@ -246,7 +248,6 @@ const vecDirPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
-const vecNormalMundo = new THREE.Vector3();
 const vecPosObj = new THREE.Vector3();
 
 let anguloCamaraY = 0;
@@ -364,7 +365,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN DE OBJETOS DE ESCENA
+// CLASIFICACIÓN DE MALLAS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -400,7 +401,6 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Se añaden escaleras y pasillo gótico a las mallas transitables de suelo
   const esSueloPuro = (
     jerarquia.includes("suelo") ||
     jerarquia.includes("piso") ||
@@ -412,6 +412,7 @@ function clasificarObjeto(obj) {
     jerarquia.includes("vereda") ||
     jerarquia.includes("pasillo") ||
     jerarquia.includes("gotico") ||
+    jerarquia.includes("goth") ||
     jerarquia.includes("escalera") ||
     jerarquia.includes("escalon") ||
     jerarquia.includes("stair") ||
@@ -424,6 +425,7 @@ function clasificarObjeto(obj) {
     jerarquia.includes("cerca") ||
     jerarquia.includes("reja") ||
     jerarquia.includes("muro") ||
+    jerarquia.includes("columna") ||
     jerarquia.includes("mausoleo") ||
     jerarquia.includes("tumba") ||
     jerarquia.includes("tomb") ||
@@ -436,7 +438,7 @@ function clasificarObjeto(obj) {
   if (esSueloPuro && !esObstaculoPared) {
     pisoColisionables.push(obj);
   } else {
-    const esVegetacion = jerarquia.includes("hoja") || jerarquia.includes("pasto");
+    const esVegetacion = jerarquia.includes("hoja");
     if (!esVegetacion) {
       paredColisionables.push(obj);
     }
@@ -444,7 +446,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// GESTIÓN DE ANIMACIONES SIN CONGELAMIENTO
+// BUCLE CONTINUO DE ANIMACIONES
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -452,19 +454,19 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
     if (child.isMesh) child.frustumCulled = false;
   });
 
-  if (!gltf.animations || gltf.animations.length === 0) return null;
+  if (!gltf.animations || gltf.animations.length === 0) return { mixer: null, action: null };
 
   const mixer = new THREE.AnimationMixer(rootObject);
+  const action = mixer.clipAction(gltf.animations[0]);
 
-  gltf.animations.forEach((clip) => {
-    const action = mixer.clipAction(clip);
-    action.reset();
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.timeScale = velocidadAnimacion;
-    action.play();
-  });
+  action.reset();
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.clampWhenFinished = false;
+  action.enabled = true;
+  action.timeScale = velocidadAnimacion;
+  action.play();
 
-  return mixer;
+  return { mixer, action };
 }
 
 function obtenerCercanos(origen, destino, radioMaximo) {
@@ -488,7 +490,7 @@ function obtenerCercanos(origen, destino, radioMaximo) {
 }
 
 // --------------------------------------------------
-// CARGA DE ESCENA Y MODELOS
+// CARGA DE MODELOS
 // --------------------------------------------------
 
 loader.load(
@@ -505,7 +507,8 @@ loader.load(
       cementerio.traverse((child) => { clasificarObjeto(child); });
 
       if (gltf.animations && gltf.animations.length > 0) {
-        cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
+        const res = crearYEjecutarMixer(gltf, cementerio, 1.0);
+        cementerioMixer = res.mixer;
       }
     } catch (e) {
       console.warn("Aviso en cementerio:", e);
@@ -524,11 +527,14 @@ function cargarQuerubin() {
       try {
         querubinMesh = gltfQuerubin.scene;
 
+        // Orientación frontal corregida
+        querubinMesh.rotation.y = Math.PI; 
+
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
             if (child.material) {
-              child.material.roughness = 0.2;
+              child.material.roughness = 0.3;
               child.material.metalness = 0.1;
             }
           }
@@ -536,8 +542,21 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
+        // OJO ÚNICO CENTRAL - TIPO CÍCLOPE / ORÁCULO
+        const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const ojoGeometria = new THREE.SphereGeometry(0.18, 16, 16);
+
+        const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
+        ojoUnico.position.set(0, 1.65, 0.45); // Centrado en el rostro
+        querubinGroup.add(ojoUnico);
+
+        const luzIrisUnica = new THREE.PointLight(0x00ffff, 15, 40);
+        luzIrisUnica.position.copy(ojoUnico.position);
+        querubinGroup.add(luzIrisUnica);
+
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
-          mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
+          const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
+          mixerQuerubin = res.mixer;
         }
       } catch (e) {
         console.warn("Aviso cargando querubín:", e);
@@ -547,7 +566,7 @@ function cargarQuerubin() {
     },
     undefined,
     function(error) {
-      console.warn("Error cargando querubín, continuando:", error);
+      console.warn("Error cargando querubín:", error);
       cargarAvatares();
     }
   );
@@ -559,7 +578,9 @@ function cargarAvatares() {
     function(gltfHora) {
       try {
         avatarHora = gltfHora.scene;
-        mixerHora = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
+        const resH = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
+        mixerHora = resH.mixer;
+        actionHora = resH.action;
         avatarGroup.add(avatarHora);
       } catch (e) {
         console.warn("Aviso en avatar reposo:", e);
@@ -570,7 +591,9 @@ function cargarAvatares() {
         function(gltfCamina) {
           try {
             avatarCamina = gltfCamina.scene;
-            mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.05);
+            const resC = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.1);
+            mixerCamina = resC.mixer;
+            actionCamina = resC.action;
 
             avatarCamina.visible = false;
             avatarGroup.add(avatarCamina);
@@ -597,7 +620,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS DE NIVELACION Y ESCALERAS
+// DETECCIÓN DE SUELO Y PAREDES
 // --------------------------------------------------
 
 const teclas = {};
@@ -607,54 +630,60 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
-  obtenerCercanos(pisoColisionables, cercaPiso, 35.0);
+  obtenerCercanos(pisoColisionables, cercaPiso, 45.0);
 
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 3.0; // Inicia el rayo por encima para detectar escalones negativos
+  vecOrigenPiso.y += 4.0; 
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 40.0;
+  raycasterPiso.far = 50.0;
 
   const impactos = raycasterPiso.intersectObjects(cercaPiso, false);
 
   if (impactos.length > 0) {
-    let impactoValido = null;
+    let impactoElegido = null;
 
-    // Busca la superficie más cercana por debajo del torso del avatar
     for (let i = 0; i < impactos.length; i++) {
       const imp = impactos[i];
       const jerarquia = obtenerNombreJerarquia(imp.object);
 
-      // Si hay escaleras o pasillo gótico, se prioriza sobre el Grid plano
-      if (jerarquia.includes("gotico") || jerarquia.includes("escalera") || jerarquia.includes("pasillo")) {
-        impactovalido = imp;
+      const esEscaleraOGotico = (
+        jerarquia.includes("gotico") ||
+        jerarquia.includes("escalera") ||
+        jerarquia.includes("escalon") ||
+        jerarquia.includes("stair") ||
+        jerarquia.includes("pasillo")
+      );
+
+      if (esEscaleraOGotico && imp.point.y <= avatarGroup.position.y + 1.2) {
+        impactoElegido = imp;
         break;
       }
 
-      if (!impactoValido && imp.point.y <= avatarGroup.position.y + 1.8) {
-        impactoValido = imp;
+      if (!impactoElegido && imp.point.y <= avatarGroup.position.y + 1.2) {
+        impactoElegido = imp;
       }
     }
 
-    if (!impactoValido) impactoValido = impactos[0];
+    if (!impactoElegido) impactoElegido = impactos[0];
 
-    const alturaObjetivo = impactoValido.point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+    const alturaObjetivo = impactoElegido.point.y + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
   }
 }
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  obtenerCercanos(paredColisionables, cercaPared, 12.0);
+  obtenerCercanos(paredColisionables, cercaPared, 15.0);
 
-  const radioCuerpo = 0.45 * ESCALA_AVATAR; 
+  const radioCuerpo = 0.5 * ESCALA_AVATAR; 
   const distanciaLimite = radioCuerpo + pasoDistancia;
 
   vecOrigenPared.copy(avatarGroup.position);
   vecOrigenPared.y += 0.8 * ESCALA_AVATAR;
 
-  const angulos = [-0.4, 0, 0.4];
+  const angulos = [0, 0.5, -0.5, 1.0, -1.0, 1.57, -1.57, 3.14];
 
   for (let a = 0; a < angulos.length; a++) {
     vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulos[a]);
@@ -712,6 +741,7 @@ function moverAvatar(delta) {
     if (!estaCaminando) {
       if (avatarHora) avatarHora.visible = false;
       if (avatarCamina) avatarCamina.visible = true;
+      if (actionCamina) { actionCamina.reset(); actionCamina.play(); }
       estaCaminando = true;
     }
 
@@ -719,6 +749,7 @@ function moverAvatar(delta) {
     if (estaCaminando) {
       if (avatarHora) avatarHora.visible = true;
       if (avatarCamina) avatarCamina.visible = false;
+      if (actionHora) { actionHora.reset(); actionHora.play(); }
       estaCaminando = false;
     }
   }
@@ -729,9 +760,8 @@ function moverAvatar(delta) {
 function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
-  // Apunta de forma directa hacia la parte superior del avatar
   const posTarget = avatarGroup.position.clone();
-  posTarget.y += 1.8;
+  posTarget.y += 1.2;
   querubinGroup.lookAt(posTarget);
 }
 
@@ -741,7 +771,7 @@ function seguirAvatar() {
   const objetivoPunto = avatarGroup.position.clone();
   objetivoPunto.y += 1.2 * ESCALA_AVATAR;
 
-  const distancia = 3.4 * ESCALA_AVATAR;
+  const distancia = 3.5 * ESCALA_AVATAR;
   const radY = THREE.MathUtils.degToRad(anguloCamaraY);
   const radX = THREE.MathUtils.degToRad(anguloCamaraX);
 
@@ -777,8 +807,8 @@ function animate() {
 
   if (cementerioMixer) cementerioMixer.update(delta);
   if (mixerQuerubin) mixerQuerubin.update(delta);
-  if (mixerCamina) mixerCamina.update(delta);
-  if (mixerHora) mixerHora.update(delta);
+  if (mixerCamina && estaCaminando) mixerCamina.update(delta);
+  if (mixerHora && !estaCaminando) mixerHora.update(delta);
 
   moverAvatar(delta);
   actualizarQuerubin();
