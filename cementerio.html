@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Bforartists / Three.js Fixed</title>
+  <title>Juego 3D - Cementerio Fix</title>
 
   <style>
     html, body {
@@ -49,7 +49,6 @@
       display: none;
     }
 
-    /* CONTROLES TÁCTILES - JOYSTICK */
     #joystick-zone {
       position: absolute;
       bottom: 30px;
@@ -85,7 +84,6 @@
 <div id="loading">Cargando escenario y personajes...</div>
 <div id="error"></div>
 
-<!-- Joystick Táctil para Teléfonos -->
 <div id="joystick-zone">
   <div id="joystick-knob"></div>
 </div>
@@ -166,7 +164,7 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES DE JUEGO Y FÍSICAS
+// VARIABLES Y LISTAS DE CONTROL
 // --------------------------------------------------
 
 let cementerio = null;
@@ -193,7 +191,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables
+// Vectores reutilizables para optimizar memoria (evita relentización)
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -201,15 +199,13 @@ const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
 
-// Control de Cámara
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
-// Vector de Entrada del Joystick (-1 a 1)
 const joystickInput = { x: 0, y: 0 };
 
 // --------------------------------------------------
-// SISTEMA DE JOYSTICK Y CONTROLES TÁCTILES
+// SISTEMA DE JOYSTICK Y CONTROLES TÁCTILES / MOUSE
 // --------------------------------------------------
 
 const joystickZone = document.getElementById('joystick-zone');
@@ -292,12 +288,10 @@ function actualizarJoystick(touch) {
   }
 
   joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-
   joystickInput.x = dx / maxRadio;
   joystickInput.y = dy / maxRadio;
 }
 
-// Control por Mouse (PC)
 let arrastrandoMouse = false;
 let anteriorMouseX = 0;
 let anteriorMouseY = 0;
@@ -320,17 +314,17 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN RIGUROSA DE OBJETOS
+// FILTRADO DE OBJETOS DEL ESCENARIO
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
-  let cadenaNombres = "";
+  let cadena = "";
   let actual = obj;
   while (actual) {
-    if (actual.name) cadenaNombres += " " + actual.name;
+    if (actual.name) cadena += " " + actual.name;
     actual = actual.parent;
   }
-  return cadenaNombres.toLowerCase();
+  return cadena.toLowerCase();
 }
 
 function clasificarObjeto(obj) {
@@ -338,37 +332,19 @@ function clasificarObjeto(obj) {
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
-  // Verificación de transparencia de material (Niebla y Efectos Alfa)
-  let esTransparente = false;
-  if (obj.material) {
-    if (Array.isArray(obj.material)) {
-      esTransparente = obj.material.some(m => m.transparent || m.opacity < 0.85);
-    } else {
-      esTransparente = obj.material.transparent || obj.material.opacity < 0.85;
-    }
-  }
-
-  if (
+  const esIgnorable = (
     jerarquia.includes("niebla") ||
-    jerarquia.includes("neblina") ||
     jerarquia.includes("fog") ||
     jerarquia.includes("cielo") ||
     jerarquia.includes("sky") ||
-    jerarquia.includes("cloud") ||
     jerarquia.includes("humo") ||
-    jerarquia.includes("smoke") ||
     jerarquia.includes("particle") ||
-    jerarquia.includes("light") ||
-    jerarquia.includes("trigger") ||
-    jerarquia.includes("esfera") ||
-    jerarquia.includes("grid") ||
-    jerarquia.includes("vacío") ||
     jerarquia.includes("vacio") ||
-    jerarquia.includes("imagen") ||
-    esTransparente
-  ) {
-    return;
-  }
+    jerarquia.includes("vacío") ||
+    jerarquia.includes("grid")
+  );
+
+  if (esIgnorable) return;
 
   if (obj.material) {
     if (Array.isArray(obj.material)) {
@@ -385,52 +361,40 @@ function clasificarObjeto(obj) {
     jerarquia.includes("terrain") ||
     jerarquia.includes("terreno") ||
     jerarquia.includes("camino") ||
-    jerarquia.includes("path") ||
     jerarquia.includes("road") ||
-    jerarquia.includes("calle")
+    jerarquia.includes("calle") ||
+    jerarquia.includes("vereda")
   );
 
-  const esVegetacion = (
-    jerarquia.includes("arbol") ||
-    jerarquia.includes("tree") ||
-    jerarquia.includes("hoja") ||
-    jerarquia.includes("leaf") ||
-    jerarquia.includes("lapacho") ||
-    jerarquia.includes("palmerilla") ||
-    jerarquia.includes("pino") ||
-    jerarquia.includes("rama") ||
-    jerarquia.includes("planta") ||
-    jerarquia.includes("grass") ||
-    jerarquia.includes("hierba") ||
-    jerarquia.includes("bush")
-  );
-
-  // Solamente los objetos sólidos que NO son vegetación Y NO son piso actúan como pared
-  if (!esVegetacion && !esSuelo) {
-    paredColisionables.push(obj);
+  if (esSuelo) {
+    pisoColisionables.push(obj);
+  } else {
+    // Solamente se agregan elementos sólidos a paredes
+    const esVegetacion = jerarquia.includes("arbol") || jerarquia.includes("tree") || jerarquia.includes("hoja") || jerarquia.includes("lapacho");
+    if (!esVegetacion) {
+      paredColisionables.push(obj);
+    }
   }
-
-  pisoColisionables.push(obj);
 }
 
 // --------------------------------------------------
-// REPRODUCTOR Y BUCLE DE ANIMACIONES EN BUCLE
+// SOLUCIÓN A ANIMACIONES: BUCLE CONTINUO Y FLUIDO
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
   rootObject.traverse((child) => {
-    if (child.isMesh) {
-      child.frustumCulled = false;
-    }
+    if (child.isMesh) child.frustumCulled = false;
   });
 
   if (!gltf.animations || gltf.animations.length === 0) return null;
 
   const mixer = new THREE.AnimationMixer(rootObject);
+
   gltf.animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
-    action.loop = THREE.LoopRepeat;
-    action.repetitions = Infinity;
+    
+    // Forzar bucle repetitivo e infinito sin frenos
+    action.setLoop(THREE.LoopRepeat, Infinity);
     action.clampWhenFinished = false;
     action.enabled = true;
     action.timeScale = velocidadAnimacion;
@@ -441,7 +405,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 }
 
 // --------------------------------------------------
-// CARGA DE ESCENARIO Y AVATARES
+// CARGA DE MODELOS
 // --------------------------------------------------
 
 loader.load(
@@ -463,7 +427,7 @@ loader.load(
     cargarAvatares();
   },
   undefined,
-  function(error) { mostrarError("Error cargando escenario: " + error); }
+  function(error) { mostrarError("Error en escenario: " + error); }
 );
 
 function cargarAvatares() {
@@ -478,8 +442,7 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          // Se ajusta la cadencia a 1.3 para sincronizar con la marcha
-          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.30);
+          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.25);
 
           avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
@@ -510,7 +473,7 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// FÍSICAS DE SUELO Y PAREDES
+// FÍSICAS DE ALTURA Y COLISIONES OPTIMIZADAS
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -525,43 +488,33 @@ function ajustarAlturaSuelo() {
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
   if (impactos.length > 0) {
-    const limiteSuperiorHip = avatarGroup.position.y + 0.9 * ESCALA_AVATAR;
-
-    for (let i = 0; i < impactos.length; i++) {
-      const impacto = impactos[i];
-      if (impacto.point.y <= limiteSuperiorHip) {
-        const alturaObjetivo = impacto.point.y + OFFSET_PIES;
-        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
-        break;
-      }
-    }
+    const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.3);
   }
 }
 
+// OPTIMIZACIÓN DE RENDIMIENTO: Solamente 3 rayos frontales
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
+  const distanciaLimite = radioCuerpo + pasoDistancia;
 
-  const alturas = [0.35 * ESCALA_AVATAR, 0.85 * ESCALA_AVATAR, 1.35 * ESCALA_AVATAR];
-  const angulos = [-0.6, -0.3, 0, 0.3, 0.6];
+  vecOrigenPared.copy(avatarGroup.position);
+  vecOrigenPared.y += 0.8 * ESCALA_AVATAR; // Altura a la cintura
 
-  for (let h = 0; h < alturas.length; h++) {
-    vecOrigenPared.copy(avatarGroup.position);
-    vecOrigenPared.y += alturas[h];
+  const angulosOptimizado = [-0.3, 0, 0.3]; // Solo 3 ángulos frontales
 
-    for (let a = 0; a < angulos.length; a++) {
-      vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulos[a]);
-      
-      raycasterPared.set(vecOrigenPared, vecDirPared);
-      raycasterPared.far = distanciaLimite;
+  for (let a = 0; a < angulosOptimizado.length; a++) {
+    vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosOptimizado[a]);
+    
+    raycasterPared.set(vecOrigenPared, vecDirPared);
+    raycasterPared.far = distanciaLimite;
 
-      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+    const impactos = raycasterPared.intersectObjects(paredColisionables, false);
 
-      if (impactos.length > 0 && impactos[0].distance < distanciaLimite) {
-        return true;
-      }
+    if (impactos.length > 0 && impactos[0].distance < distanciaLimite) {
+      return true;
     }
   }
 
@@ -569,7 +522,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 }
 
 // --------------------------------------------------
-// BUCLE DE MOVIMIENTO Y CONTROL UNIFICADO
+// MOVIMIENTO Y CONTROL
 // --------------------------------------------------
 
 function moverAvatar(delta) {
@@ -582,13 +535,11 @@ function moverAvatar(delta) {
 
   vecMovimiento.set(0, 0, 0);
 
-  // Entrada por Joystick Táctil
   if (Math.abs(joystickInput.x) > 0.05 || Math.abs(joystickInput.y) > 0.05) {
     vecMovimiento.addScaledVector(vecRight, joystickInput.x);
     vecMovimiento.addScaledVector(vecForward, -joystickInput.y);
   }
 
-  // Entrada por Teclado
   if (teclas["KeyW"] || teclas["ArrowUp"]) vecMovimiento.add(vecForward);
   if (teclas["KeyS"] || teclas["ArrowDown"]) vecMovimiento.addScaledVector(vecForward, -1);
   if (teclas["KeyD"] || teclas["ArrowRight"]) vecMovimiento.addScaledVector(vecRight, 1);
@@ -598,7 +549,6 @@ function moverAvatar(delta) {
 
   if (moviendo) {
     vecMovimiento.normalize();
-    // Velocidad fluida para escala 2.2
     const velocidadMov = 8.5;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
@@ -671,8 +621,10 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
+  // Limitar el delta máximo para evitar saltos bruscos
   const delta = Math.min(clock.getDelta(), 0.033);
 
+  // Actualizar los mixers en cada frame
   if (cementerioMixer) cementerioMixer.update(delta);
   if (mixerCamina) mixerCamina.update(delta);
   if (mixerHora) mixerHora.update(delta);
