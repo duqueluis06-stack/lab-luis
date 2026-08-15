@@ -134,7 +134,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.0;
-const OFFSET_PIES = 0.05;
+const OFFSET_PIES = 0.0; 
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -357,7 +357,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN DE OBJETOS Y RIGIDEZ DE PAREDES
+// CLASIFICACIÓN DE OBJETOS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -387,7 +387,10 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esSueloPuro = (
+  // Filtrar techos, arcos y vigas para que no interfieran con la altura del piso
+  const esTechoOArco = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling") || jerarquia.includes("arco") || jerarquia.includes("viga") || jerarquia.includes("marco");
+
+  const esSueloPuro = !esTechoOArco && (
     jerarquia.includes("base-cesped") ||
     jerarquia.includes("cesped") ||
     jerarquia.includes("grid") ||
@@ -400,14 +403,15 @@ function clasificarObjeto(obj) {
     jerarquia.includes("escalera") ||
     jerarquia.includes("escalon") ||
     jerarquia.includes("stair") ||
-    jerarquia.includes("step")
+    jerarquia.includes("step") ||
+    jerarquia.includes("floor") ||
+    jerarquia.includes("ground")
   );
 
   if (esSueloPuro) {
     pisoColisionables.push(obj);
   }
 
-  // Todo objeto que no sea piso puro o que pertenezca al backroom/pasillo/muros actua como barrera sólida
   const esEstructuraWall = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
 
   if (esEstructuraWall) {
@@ -430,7 +434,6 @@ function posicionarEnPasilloGotico() {
     const box = new THREE.Box3().setFromObject(pasilloObj);
     const center = new THREE.Vector3();
     box.getCenter(center);
-    // Aparición estratégica en la entrada del pasillo gótico
     avatarGroup.position.set(center.x, box.min.y + OFFSET_PIES, box.max.z - 2.0);
   }
 }
@@ -503,7 +506,6 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        // Ajuste de frontalidad y pitch fijo de ~26 grados hacia abajo
         querubinMesh.rotation.y = Math.PI / 2;
         querubinMesh.rotation.x = THREE.MathUtils.degToRad(26);
 
@@ -519,7 +521,6 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // OJO Y LUZ DEL QUERUBÍN
         const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
         const ojoGeometria = new THREE.SphereGeometry(0.5, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
@@ -576,7 +577,6 @@ function cargarAvatares() {
 
             avatarGroup.scale.setScalar(ESCALA_AVATAR);
             
-            // Ubicación en pasillo gótico al cargar
             posicionarEnPasilloGotico();
 
             cameraTarget.copy(avatarGroup.position);
@@ -598,7 +598,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS MULTI-ALTURA PARA EVITAR ATRAVESAR PAREDES
+// FÍSICAS CORREGIDAS PARA PISO
 // --------------------------------------------------
 
 const teclas = {};
@@ -608,25 +608,28 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
+  // Se lanza el rayo desde la altura de la cintura del personaje (y + 1.2)
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 5.0; 
+  vecOrigenPiso.y += 1.2; 
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 100.0;
+  raycasterPiso.far = 10.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
-  if (impactos.length > 0) {
-    const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
+  // Seleccionar la superficie más cercana por debajo del personaje
+  const impactoValido = impactos.find(imp => imp.point.y <= avatarGroup.position.y + 1.0);
+
+  if (impactoValido) {
+    const alturaObjetivo = impactoValido.point.y + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
   }
 }
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  // Ráfaga de rayos a doble altura (torso y cabeza) en 5 ángulos para sellar pasillos y backrooms
-  const alturas = [0.6, 1.6];
+  const alturas = [0.5, 1.5];
   const angulosRayos = [0, -0.4, 0.4, -0.8, 0.8];
 
   for (let h = 0; h < alturas.length; h++) {
@@ -706,7 +709,7 @@ function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
   avatarGroup.getWorldPosition(targetQuerubin);
-  targetQuerubin.y += 0.5; // Enfoque directo hacia la parte inferior/cuerpo del avatar
+  targetQuerubin.y += 0.5;
 
   querubinGroup.lookAt(targetQuerubin);
 }
@@ -743,7 +746,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// BUCLE DE RENDER Y CICLO DE ANIMACIONES
+// BUCLE DE RENDER
 // --------------------------------------------------
 
 function animate() {
