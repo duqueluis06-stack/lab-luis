@@ -417,7 +417,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// SISTEMA DE ANIMACIÓN CON BUCLE MATEMÁTICO
+// SISTEMA DE ANIMACIÓN ROBUSTO CON BUCLE MATEMÁTICO
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -428,6 +428,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
   if (!gltf.animations || gltf.animations.length === 0) return null;
 
   const mixer = new THREE.AnimationMixer(rootObject);
+  mixer.actionsList = [];
 
   gltf.animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
@@ -436,6 +437,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
     action.clampWhenFinished = false;
     action.timeScale = velocidadAnimacion;
     action.play();
+    mixer.actionsList.push(action);
   });
 
   return mixer;
@@ -445,18 +447,19 @@ function actualizarMixerForzado(mixer, delta) {
   if (!mixer) return;
   mixer.update(delta);
 
-  if (mixer._actions) {
-    mixer._actions.forEach((action) => {
+  if (mixer.actionsList) {
+    for (let i = 0; i < mixer.actionsList.length; i++) {
+      const action = mixer.actionsList[i];
       const duration = action.getClip().duration;
       if (duration > 0 && action.time >= duration) {
         action.time = action.time % duration;
       }
-    });
+    }
   }
 }
 
 // --------------------------------------------------
-// FILTRO DE PROXIMIDAD
+// FILTRO DE PROXIMIDAD ROBUSTO
 // --------------------------------------------------
 
 function obtenerCercanos(origen, destino, radioMaximo) {
@@ -467,65 +470,78 @@ function obtenerCercanos(origen, destino, radioMaximo) {
   for (let i = 0; i < origen.length; i++) {
     const obj = origen[i];
     obj.getWorldPosition(vecPosObj);
-    if (vecPosObj.distanceToSquared(posAvatar) < radioSq || obj.name.includes("base") || obj.name.includes("suelo")) {
+    if (vecPosObj.distanceToSquared(posAvatar) < radioSq || (obj.name && (obj.name.toLowerCase().includes("base") || obj.name.toLowerCase().includes("suelo")))) {
       destino.push(obj);
+    }
+  }
+
+  if (destino.length === 0) {
+    for (let i = 0; i < origen.length; i++) {
+      destino.push(origen[i]);
     }
   }
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS
+// CARGA DE MODELOS CON PROTECCIÓN TRY-CATCH
 // --------------------------------------------------
 
 // 1. Escenario Cementerio
 loader.load(
   CEMENTERIO_URL,
   function(gltf) {
-    cementerio = gltf.scene;
-    scene.add(cementerio);
-    cementerio.updateMatrixWorld(true);
+    try {
+      cementerio = gltf.scene;
+      scene.add(cementerio);
+      cementerio.updateMatrixWorld(true);
 
-    pisoColisionables.length = 0;
-    paredColisionables.length = 0;
+      pisoColisionables.length = 0;
+      paredColisionables.length = 0;
 
-    cementerio.traverse((child) => { clasificarObjeto(child); });
+      cementerio.traverse((child) => { clasificarObjeto(child); });
 
-    if (gltf.animations && gltf.animations.length > 0) {
-      cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
+      if (gltf.animations && gltf.animations.length > 0) {
+        cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
+      }
+    } catch (e) {
+      console.warn("Aviso en procesamiento de cementerio:", e);
     }
 
     cargarQuerubin();
   },
   undefined,
-  function(error) { mostrarError("Error en escenario: " + error); }
+  function(error) { mostrarError("Error cargando escenario principal: " + error); }
 );
 
-// 2. Querubín Observador en el Cielo
+// 2. Querubín Observador
 function cargarQuerubin() {
   loader.load(
     QUERUBIN_URL,
     function(gltfQuerubin) {
-      querubin = gltfQuerubin.scene;
-      
-      // Elevado en el cielo y mirando hacia el centro del cementerio
-      querubin.position.set(0, 22, 15);
-      querubin.lookAt(0, 0, 0);
+      try {
+        querubin = gltfQuerubin.scene;
+        
+        querubin.position.set(0, 22, 15);
+        querubin.lookAt(0, 0, 0);
 
-      querubin.traverse((child) => {
-        if (child.isMesh) child.frustumCulled = false;
-      });
+        querubin.traverse((child) => {
+          if (child.isMesh) child.frustumCulled = false;
+        });
 
-      scene.add(querubin);
+        scene.add(querubin);
 
-      if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
-        mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubin, 1.0);
+        if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
+          mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubin, 1.0);
+        }
+      } catch (e) {
+        console.warn("Aviso procesando querubín:", e);
       }
 
       cargarAvatares();
     },
     undefined,
     function(error) {
-      console.warn("No se pudo cargar el querubín, continuando con avatares:", error);
+      console.warn("No se pudo descargar el querubín, continuando con el avatar:", error);
       cargarAvatares();
     }
   );
@@ -536,24 +552,32 @@ function cargarAvatares() {
   loader.load(
     LUIS_HORA_URL,
     function(gltfHora) {
-      avatarHora = gltfHora.scene;
-      mixerHora = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
-      avatarGroup.add(avatarHora);
+      try {
+        avatarHora = gltfHora.scene;
+        mixerHora = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
+        avatarGroup.add(avatarHora);
+      } catch (e) {
+        console.warn("Aviso en avatar hora:", e);
+      }
 
       loader.load(
         LUIS_CAMINA_URL,
         function(gltfCamina) {
-          avatarCamina = gltfCamina.scene;
-          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.05);
+          try {
+            avatarCamina = gltfCamina.scene;
+            mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.05);
 
-          avatarCamina.visible = false;
-          avatarGroup.add(avatarCamina);
+            avatarCamina.visible = false;
+            avatarGroup.add(avatarCamina);
 
-          avatarGroup.scale.setScalar(ESCALA_AVATAR);
-          avatarGroup.position.set(0, 0, 0);
+            avatarGroup.scale.setScalar(ESCALA_AVATAR);
+            avatarGroup.position.set(0, 0, 0);
 
-          cameraTarget.copy(avatarGroup.position);
-          camera.position.set(0, 2, 5);
+            cameraTarget.copy(avatarGroup.position);
+            camera.position.set(0, 2, 5);
+          } catch (e) {
+            console.warn("Aviso en avatar camina:", e);
+          }
 
           document.getElementById("loading").style.display = "none";
         },
