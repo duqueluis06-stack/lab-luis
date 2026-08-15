@@ -65,6 +65,7 @@
       display: none;
     }
 
+    /* Joystick táctil para teléfonos */
     #joystick-zone {
       position: absolute;
       bottom: 30px;
@@ -91,6 +92,13 @@
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       transition: transform 0.05s linear;
       pointer-events: none;
+    }
+
+    /* Ocultar joystick en computadoras con mouse */
+    @media (pointer: fine) {
+      #joystick-zone {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -128,7 +136,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.2;
-const OFFSET_PIES = 0.22; // Elevación para evitar zapatillas en el pasto
+const OFFSET_PIES = 0.42; // Eleva el calzado sobre la vereda y el césped
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -171,7 +179,7 @@ const camera = new THREE.PerspectiveCamera(
   60,
   window.innerWidth / window.innerHeight,
   0.1,
-  2000
+  2500
 );
 
 const renderer = new THREE.WebGLRenderer({
@@ -183,11 +191,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.HemisphereLight(0xaaaaee, 0x222233, 1.4);
+const ambientLight = new THREE.HemisphereLight(0xaaaaee, 0x222233, 1.5);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight(0xffffff, 1.2);
-moonLight.position.set(50, 100, 50);
+const moonLight = new THREE.DirectionalLight(0xffffff, 1.3);
+moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
 // --------------------------------------------------
@@ -209,14 +217,15 @@ let cementerioMixer = null;
 
 const querubinGroup = new THREE.Group();
 scene.add(querubinGroup);
-// Posicionamiento exterior en el límite superior cerca del cielo
-querubinGroup.position.set(-110, 65, -110);
-querubinGroup.scale.setScalar(2.2);
+
+// Posicionado en el límite exterior cerca de la cúpula del cielo
+querubinGroup.position.set(-170, 110, -170);
+querubinGroup.scale.setScalar(3.5);
 
 let querubinMesh = null;
 let mixerQuerubin = null;
 
-const luzOjoFrontal = new THREE.DirectionalLight(0xfff5dd, 2.5);
+const luzOjoFrontal = new THREE.DirectionalLight(0xfff0dd, 3.0);
 scene.add(luzOjoFrontal);
 
 const pisoColisionables = [];
@@ -403,7 +412,6 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Se incluyen tumbas, lápidas y cruces para evitar que el avatar las atraviese
   const esObstaculoPared = (
     jerarquia.includes("pared") ||
     jerarquia.includes("wall") ||
@@ -504,7 +512,7 @@ function obtenerCercanos(origen, destino, radioMaximo) {
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS Y MATERIALES
+// CARGA DE MODELOS
 // --------------------------------------------------
 
 loader.load(
@@ -540,11 +548,14 @@ function cargarQuerubin() {
       try {
         querubinMesh = gltfQuerubin.scene;
 
+        // Inversión de orientacion para que la cara e iris miren hacia el frente
+        querubinMesh.rotation.y = Math.PI;
+
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
             if (child.material) {
-              child.material.roughness = 0.3;
+              child.material.roughness = 0.2;
               child.material.metalness = 0.1;
             }
           }
@@ -626,16 +637,16 @@ function ajustarAlturaSuelo() {
   obtenerCercanos(pisoColisionables, cercaPiso, 35.0);
 
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 1.5;
+  vecOrigenPiso.y += 2.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 25.0;
+  raycasterPiso.far = 30.0;
 
   const impactos = raycasterPiso.intersectObjects(cercaPiso, false);
 
   for (let i = 0; i < impactos.length; i++) {
     const imp = impactos[i];
-    if (imp.point.y <= avatarGroup.position.y + 1.0) {
+    if (imp.point.y <= avatarGroup.position.y + 1.2) {
       if (imp.face) {
         vecNormalMundo.copy(imp.face.normal).transformDirection(imp.object.matrixWorld);
       } else {
@@ -644,7 +655,7 @@ function ajustarAlturaSuelo() {
 
       if (vecNormalMundo.y > 0.2) {
         const alturaObjetivo = imp.point.y + OFFSET_PIES;
-        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
         break;
       }
     }
@@ -737,12 +748,12 @@ function moverAvatar(delta) {
 function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
-  // Seguimiento directo del iris hacia la cabeza del avatar
+  // El contenedor rota apuntando hacia el avatar
   const posTarget = avatarGroup.position.clone();
   posTarget.y += 1.8;
   querubinGroup.lookAt(posTarget);
 
-  // Mantiene la luz del cielo iluminando el frontal del querubín
+  // La luz del ojo acompaña la cámara para mantener visibilidad del iris
   luzOjoFrontal.position.copy(camera.position);
 }
 
