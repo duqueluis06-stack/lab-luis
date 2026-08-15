@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Cementerio Corrección Definitiva</title>
+  <title>Juego 3D - Cementerio Ajuste Escaleras y Querubín</title>
 
   <style>
     html, body {
@@ -206,10 +206,9 @@ let cementerio = null;
 let cementerioMixer = null;
 
 const querubinGroup = new THREE.Group();
-const querubinPivot = new THREE.Group(); // Contenedor para corregir la rotación frontal
-querubinGroup.add(querubinPivot);
 scene.add(querubinGroup);
-querubinGroup.position.set(-170, 110, -170);
+// Posicionamiento más elevado para forzar la mirada en picado
+querubinGroup.position.set(-170, 140, -170);
 
 let querubinMesh = null;
 let mixerQuerubin = null;
@@ -242,6 +241,7 @@ const vecOrigenPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
+const targetQuerubin = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -358,7 +358,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// SISTEMA DE COLISIONES DE PAREDES Y ESTRUCTURAS
+// SISTEMA DE COLISIONES Y NAVEGACIÓN EN ESCALERAS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -388,22 +388,27 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esSueloExclusivo = (
+  // Se añaden peldaños y tramos de pasillo al rastreador de piso
+  const esSueloOEscalera = (
+    jerarquia.includes("escalera") ||
+    jerarquia.includes("escalon") ||
+    jerarquia.includes("stair") ||
+    jerarquia.includes("step") ||
     jerarquia.includes("base-cesped") ||
+    jerarquia.includes("cesped") ||
     jerarquia.includes("grid") ||
     jerarquia.includes("vereda") ||
     jerarquia.includes("camino") ||
     jerarquia.includes("pasto") ||
     jerarquia.includes("terreno") ||
-    jerarquia.includes("escalera") ||
-    jerarquia.includes("escalon")
+    jerarquia.includes("suelo") ||
+    jerarquia.includes("piso") ||
+    jerarquia.includes("pasillo") ||
+    jerarquia.includes("gotico")
   );
 
-  // Todo lo que sea Backroom, Muros, Pasillo Gótico, Mausoleo, Cerca o Rejas se fuerza a colisión sólida de pared
   const esEstructuraWall = (
     jerarquia.includes("backroom") ||
-    jerarquia.includes("pasillo") ||
-    jerarquia.includes("gotico") ||
     jerarquia.includes("mural") ||
     jerarquia.includes("cerca") ||
     jerarquia.includes("reja") ||
@@ -415,18 +420,22 @@ function clasificarObjeto(obj) {
     jerarquia.includes("lapida") ||
     jerarquia.includes("columna") ||
     jerarquia.includes("casa") ||
-    jerarquia.includes("edificio")
+    jerarquia.includes("edificio") ||
+    jerarquia.includes("pasillo") ||
+    jerarquia.includes("gotico")
   );
 
-  if (esSueloExclusivo && !esEstructuraWall) {
+  if (esSueloOEscalera) {
     pisoColisionables.push(obj);
-  } else {
+  }
+
+  if (esEstructuraWall) {
     paredColisionables.push(obj);
   }
 }
 
 // --------------------------------------------------
-// BUCLE CONTINUO DE ANIMACIONES (SIN LÍMITE DE FRAME)
+// BUCLE CONTINUO DE ANIMACIONES
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -493,9 +502,6 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        // Ajuste de rotación local de 90 grados para alinear la cara frontal hacia la cámara/avatar
-        querubinMesh.rotation.y = Math.PI / 2;
-
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
@@ -506,18 +512,18 @@ function cargarQuerubin() {
           }
         });
 
-        querubinPivot.add(querubinMesh);
+        querubinGroup.add(querubinMesh);
 
-        // OJO CÍCLOPE
+        // OJO CÍCLOPE Y POINTLIGHT DE ENFOQUE
         const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
         const ojoGeometria = new THREE.SphereGeometry(0.5, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
-        ojoUnico.position.set(0, 0, 0); 
-        querubinPivot.add(ojoUnico);
+        ojoUnico.position.set(0, 0, -1.2); 
+        querubinGroup.add(ojoUnico);
 
         const luzIrisUnica = new THREE.PointLight(0x00ffff, 12, 30);
         luzIrisUnica.position.copy(ojoUnico.position);
-        querubinPivot.add(luzIrisUnica);
+        querubinGroup.add(luzIrisUnica);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
           const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
@@ -599,13 +605,13 @@ function ajustarAlturaSuelo() {
   vecOrigenPiso.y += 5.0; 
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 60.0;
+  raycasterPiso.far = 100.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
   if (impactos.length > 0) {
     const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
   }
 }
 
@@ -615,7 +621,6 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   vecOrigenPared.copy(avatarGroup.position);
   vecOrigenPared.y += 1.0; 
 
-  // Barrido de 3 rayos para evitar traspasar esquinas en pasillos estrechos y backrooms
   const angulosRayos = [0, -0.35, 0.35];
 
   for (let i = 0; i < angulosRayos.length; i++) {
@@ -689,10 +694,10 @@ function moverAvatar(delta) {
 function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
-  const targetPos = avatarGroup.position.clone();
-  targetPos.y += 1.8;
+  avatarGroup.getWorldPosition(targetQuerubin);
+  targetQuerubin.y += 1.8; // Apuntar directo a la cabeza del avatar desde arriba
 
-  querubinGroup.lookAt(targetPos);
+  querubinGroup.lookAt(targetQuerubin);
 }
 
 function seguirAvatar() {
@@ -727,7 +732,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// BUCLE DE RENDER Y FORZADO DE LOOP EN ANIMACIONES
+// BUCLE DE RENDER Y MANTENIMIENTO DE ANIMACIONES
 // --------------------------------------------------
 
 function animate() {
