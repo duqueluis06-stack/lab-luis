@@ -241,6 +241,7 @@ const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
 const targetQuerubin = new THREE.Vector3();
+const vecRayDir = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -387,7 +388,7 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esTechoOArco = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling") || jerarquia.includes("arco") || jerarquia.includes("viga") || jerarquia.includes("marco");
+  const esTechoOArco = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling") || jerarquia.includes("viga");
 
   const esSueloPuro = !esTechoOArco && (
     jerarquia.includes("base-cesped") ||
@@ -399,19 +400,23 @@ function clasificarObjeto(obj) {
     jerarquia.includes("terreno") ||
     jerarquia.includes("suelo") ||
     jerarquia.includes("piso") ||
+    jerarquia.includes("baldosa") ||
+    jerarquia.includes("tile") ||
     jerarquia.includes("escalera") ||
     jerarquia.includes("escalon") ||
     jerarquia.includes("stair") ||
     jerarquia.includes("step") ||
     jerarquia.includes("floor") ||
-    jerarquia.includes("ground")
+    jerarquia.includes("ground") ||
+    jerarquia.includes("gotico") ||
+    jerarquia.includes("pasillo")
   );
 
   if (esSueloPuro) {
     pisoColisionables.push(obj);
   }
 
-  const esEstructuraWall = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
+  const esEstructuraWall = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto") && (jerarquia.includes("muro") || jerarquia.includes("wall") || jerarquia.includes("pared") || jerarquia.includes("columna") || jerarquia.includes("arco"));
 
   if (esEstructuraWall) {
     paredColisionables.push(obj);
@@ -422,38 +427,21 @@ function posicionarEnPasilloGotico() {
   if (!cementerio) return;
 
   let pasilloObj = null;
-  let pisoInterior = null;
 
   cementerio.traverse((child) => {
     const jer = obtenerNombreJerarquia(child);
     if ((jer.includes("gotico") || jer.includes("pasillo")) && child.isMesh) {
       if (!pasilloObj) pasilloObj = child;
-      if (jer.includes("piso") || jer.includes("suelo") || jer.includes("floor") || jer.includes("vereda") || jer.includes("camino")) {
-        pisoInterior = child;
-      }
     }
   });
 
-  const objetivoMesh = pisoInterior || pasilloObj;
-
-  if (objetivoMesh) {
-    const box = new THREE.Box3().setFromObject(objetivoMesh);
+  if (pasilloObj) {
+    const box = new THREE.Box3().setFromObject(pasilloObj);
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Posicionar X y Z al centro estricto del pasillo
-    avatarGroup.position.set(center.x, box.max.y + 2.0, center.z);
-
-    // Proyectar hacia abajo para aterrizar en el piso central interior
-    raycasterPiso.set(avatarGroup.position, dirAbajo);
-    raycasterPiso.far = 20.0;
-    const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
-
-    if (impactos.length > 0) {
-      avatarGroup.position.y = impactos[0].point.y + OFFSET_PIES;
-    } else {
-      avatarGroup.position.y = box.min.y + OFFSET_PIES;
-    }
+    avatarGroup.position.set(center.x, box.min.y, center.z);
+    ajustarAlturaSuelo();
   }
 }
 
@@ -525,8 +513,8 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        querubinMesh.rotation.y = Math.PI / 2;
-        querubinMesh.rotation.x = THREE.MathUtils.degToRad(26);
+        // Alineación del modelo sin offsets que desvíen la mirada vertical
+        querubinMesh.rotation.set(0, Math.PI / 2, 0);
 
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
@@ -617,7 +605,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y MOVIMIENTO
+// FÍSICAS Y MOVIMIENTO OPTIMIZADOS
 // --------------------------------------------------
 
 const teclas = {};
@@ -628,38 +616,41 @@ function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 1.2; 
+  vecOrigenPiso.y += 1.0; 
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 10.0;
+  raycasterPiso.far = 4.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
-  const impactoValido = impactos.find(imp => imp.point.y <= avatarGroup.position.y + 1.0);
 
-  if (impactoValido) {
-    const alturaObjetivo = impactoValido.point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+  if (impactos.length > 0) {
+    const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
+    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
   }
 }
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
-  const alturas = [0.5, 1.5];
-  const angulosRayos = [0, -0.4, 0.4, -0.8, 0.8];
+  // Filtrar espacialmente paredes en un radio cercano (15m) para evitar lag
+  const paredesCercanas = paredColisionables.filter(
+    obj => obj.position.distanceToSquared(avatarGroup.position) < 225
+  );
 
-  for (let h = 0; h < alturas.length; h++) {
-    vecOrigenPared.copy(avatarGroup.position);
-    vecOrigenPared.y += alturas[h];
+  if (paredesCercanas.length === 0) return false;
 
-    for (let i = 0; i < angulosRayos.length; i++) {
-      const dirRay = dirMovimiento.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
-      raycasterPared.set(vecOrigenPared, dirRay);
-      raycasterPared.far = 0.85 + pasoDistancia;
+  vecOrigenPared.copy(avatarGroup.position);
+  vecOrigenPared.y += 1.0; // Evaluación única a la altura de la cintura
 
-      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
-      if (impactos.length > 0) return true;
-    }
+  const angulosRayos = [0, -0.4, 0.4];
+
+  for (let i = 0; i < angulosRayos.length; i++) {
+    vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
+    raycasterPared.set(vecOrigenPared, vecRayDir);
+    raycasterPared.far = 0.85 + pasoDistancia;
+
+    const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
+    if (impactos.length > 0) return true;
   }
 
   return false;
@@ -725,7 +716,7 @@ function actualizarQuerubin() {
   if (!querubinGroup || !avatarGroup) return;
 
   avatarGroup.getWorldPosition(targetQuerubin);
-  targetQuerubin.y += 0.5;
+  targetQuerubin.y += 1.0; 
 
   querubinGroup.lookAt(targetQuerubin);
 }
