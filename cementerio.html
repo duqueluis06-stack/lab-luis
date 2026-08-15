@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Bforartists / Three.js Mobile</title>
+  <title>Juego 3D - Bforartists / Three.js Fixed</title>
 
   <style>
     html, body {
@@ -106,7 +106,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN GENERAL Y ESCALA
+// CONFIGURACIÓN GENERAL
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.2;
@@ -122,7 +122,7 @@ const LUIS_HORA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-hora.glb";
 
 // --------------------------------------------------
-// ESCENA, CÁMARA Y RENDERER (OPTIMIZADO MÓVIL)
+// ESCENA, CÁMARA Y RENDERER
 // --------------------------------------------------
 
 const scene = new THREE.Scene();
@@ -136,7 +136,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: window.devicePixelRatio < 2,
+  antialias: true,
   powerPreference: "high-performance"
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
@@ -200,7 +200,6 @@ const vecDirPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
-const posTmp = new THREE.Vector3();
 
 // Control de Cámara
 let anguloCamaraY = 0;
@@ -265,7 +264,6 @@ window.addEventListener('touchend', (e) => {
   }
 });
 
-// Arrastre con dedo en la parte derecha de la pantalla para rotar cámara
 window.addEventListener('touchstart', (e) => {
   for (let i = 0; i < e.changedTouches.length; i++) {
     const touch = e.changedTouches[i];
@@ -299,7 +297,7 @@ function actualizarJoystick(touch) {
   joystickInput.y = dy / maxRadio;
 }
 
-// Control por Mouse (Escritorio)
+// Control por Mouse (PC)
 let arrastrandoMouse = false;
 let anteriorMouseX = 0;
 let anteriorMouseY = 0;
@@ -322,7 +320,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO DE ESCENA Y DETECCIÓN DE ESTRUCTURAS
+// CLASIFICACIÓN RIGUROSA DE OBJETOS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -340,6 +338,17 @@ function clasificarObjeto(obj) {
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
+  // Verificación de transparencia de material (Niebla y Efectos Alfa)
+  let esTransparente = false;
+  if (obj.material) {
+    if (Array.isArray(obj.material)) {
+      esTransparente = obj.material.some(m => m.transparent || m.opacity < 0.85);
+    } else {
+      esTransparente = obj.material.transparent || obj.material.opacity < 0.85;
+    }
+  }
+
+  // Descarte absoluto de Nieblas, Luces y Planos Semitransparentes
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -356,9 +365,10 @@ function clasificarObjeto(obj) {
     jerarquia.includes("grid") ||
     jerarquia.includes("vacío") ||
     jerarquia.includes("vacio") ||
-    jerarquia.includes("imagen")
+    jerarquia.includes("imagen") ||
+    esTransparente
   ) {
-    return;
+    return; // No colisiona ni como pared ni como suelo
   }
 
   if (obj.material) {
@@ -384,6 +394,7 @@ function clasificarObjeto(obj) {
     jerarquia.includes("bush")
   );
 
+  // Todo objeto sólido que no sea vegetación es pared colisionable
   if (!esVegetacion) {
     paredColisionables.push(obj);
   }
@@ -392,11 +403,10 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// REPRODUCTOR Y CORRECCIÓN DE ANIMACIONES (FRUSTUM CULLING OFF)
+// REPRODUCTOR Y BUCLE DE ANIMACIONES
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject) {
-  // Solución técnica: Desactivar Frustum Culling para ver siempre la animación
   rootObject.traverse((child) => {
     if (child.isMesh) {
       child.frustumCulled = false;
@@ -487,7 +497,7 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// FISICAS DE SUELO Y PAREDES
+// FÍSICAS DE SUELO Y PAREDES CORREGIDAS
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -519,23 +529,11 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.2;
 
-  const paredesCercanas = [];
-  const posAvatar = avatarGroup.position;
-
-  for (let i = 0; i < paredColisionables.length; i++) {
-    const mesh = paredColisionables[i];
-    mesh.getWorldPosition(posTmp);
-    if (posTmp.distanceToSquared(posAvatar) < 225) {
-      paredesCercanas.push(mesh);
-    }
-  }
-
-  if (paredesCercanas.length === 0) return false;
-
-  const alturas = [0.65 * ESCALA_AVATAR, 1.2 * ESCALA_AVATAR];
-  const angulos = [-0.5, 0, 0.5];
+  // 3 Niveles de altura: detecta tumbas (0.35), paredes (0.85) y estructuras altas (1.35)
+  const alturas = [0.35 * ESCALA_AVATAR, 0.85 * ESCALA_AVATAR, 1.35 * ESCALA_AVATAR];
+  const angulos = [-0.6, -0.3, 0, 0.3, 0.6];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(avatarGroup.position);
@@ -547,7 +545,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       raycasterPared.set(vecOrigenPared, vecDirPared);
       raycasterPared.far = distanciaLimite;
 
-      const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
+      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
 
       if (impactos.length > 0 && impactos[0].distance < distanciaLimite) {
         return true;
@@ -674,7 +672,6 @@ function animate() {
 
 animate();
 
-// Resizing adaptativo
 window.addEventListener("resize", function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
