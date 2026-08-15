@@ -357,7 +357,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN DE OBJETOS
+// CLASIFICACIÓN DE OBJETOS Y POSICIONAMIENTO
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -422,43 +422,37 @@ function posicionarEnPasilloGotico() {
   if (!cementerio) return;
 
   let pasilloObj = null;
+  let pisoInterior = null;
+
   cementerio.traverse((child) => {
     const jer = obtenerNombreJerarquia(child);
     if ((jer.includes("gotico") || jer.includes("pasillo")) && child.isMesh) {
-      pasilloObj = child;
+      if (!pasilloObj) pasilloObj = child;
+      if (jer.includes("piso") || jer.includes("suelo") || jer.includes("floor") || jer.includes("vereda") || jer.includes("camino")) {
+        pisoInterior = child;
+      }
     }
   });
 
-  if (pasilloObj) {
-    const box = new THREE.Box3().setFromObject(pasilloObj);
+  const objetivoMesh = pisoInterior || pasilloObj;
+
+  if (objetivoMesh) {
+    const box = new THREE.Box3().setFromObject(objetivoMesh);
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Posición centrada en la nave despejada del pasillo
-    avatarGroup.position.set(center.x, box.min.y, center.z);
+    // Posicionar X y Z al centro estricto del pasillo
+    avatarGroup.position.set(center.x, box.max.y + 2.0, center.z);
 
-    // Ajuste inmediato de suelo
-    ajustarAlturaSuelo();
+    // Proyectar hacia abajo para aterrizar en el piso central interior
+    raycasterPiso.set(avatarGroup.position, dirAbajo);
+    raycasterPiso.far = 20.0;
+    const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
-    // Verificación y auto-despeje si aparece solapado con algún arco/muro
-    const direccionesPrueba = [
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(0, 0, 1),
-      new THREE.Vector3(-1, 0, 0),
-      new THREE.Vector3(1, 0, 0)
-    ];
-
-    for (let intento = 0; intento < 10; intento++) {
-      let colisionando = false;
-      for (const dir of direccionesPrueba) {
-        if (hayColisionPared(dir, 0.2)) {
-          colisionando = true;
-          // Desplazar en dirección opuesta a la pared
-          avatarGroup.position.addScaledVector(dir, -0.4);
-          break;
-        }
-      }
-      if (!colisionando) break;
+    if (impactos.length > 0) {
+      avatarGroup.position.y = impactos[0].point.y + OFFSET_PIES;
+    } else {
+      avatarGroup.position.y = box.min.y + OFFSET_PIES;
     }
   }
 }
@@ -623,7 +617,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y DETECCIÓN
+// FÍSICAS Y MOVIMIENTO
 // --------------------------------------------------
 
 const teclas = {};
