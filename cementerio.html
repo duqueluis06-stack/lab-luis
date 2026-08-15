@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Cementerio Fix Escaleras y Audio</title>
+  <title>Juego 3D - Cementerio Optimizado</title>
 
   <style>
     html, body {
@@ -81,7 +81,7 @@
 
 <body>
 
-<div id="loading">Cargando escenario, animaciones y audio...</div>
+<div id="loading">Cargando optimizaciones y animaciones...</div>
 <div id="error"></div>
 
 <div id="joystick-zone">
@@ -104,7 +104,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN GENERAL Y RECURSOS
+// CONFIGURACIÓN Y RUTAS
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.2;
@@ -123,7 +123,7 @@ const MUSICA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/audio/music-cementerio.mp3";
 
 // --------------------------------------------------
-// AUDIO DE FONDO EN BUCLE
+// AUDIO
 // --------------------------------------------------
 
 const bgMusic = new Audio(MUSICA_URL);
@@ -142,7 +142,7 @@ window.addEventListener('touchstart', activarAudio);
 window.addEventListener('keydown', activarAudio);
 
 // --------------------------------------------------
-// ESCENA, CÁMARA Y RENDERER
+// ESCENA
 // --------------------------------------------------
 
 const scene = new THREE.Scene();
@@ -164,10 +164,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-// --------------------------------------------------
-// ILUMINACIÓN
-// --------------------------------------------------
-
 const ambientLight = new THREE.HemisphereLight(0x8899aa, 0x111111, 1.2);
 scene.add(ambientLight);
 
@@ -176,7 +172,7 @@ moonLight.position.set(50, 100, 50);
 scene.add(moonLight);
 
 // --------------------------------------------------
-// CARGADORES DE MODELOS GLTF
+// CARGADORES
 // --------------------------------------------------
 
 const dracoLoader = new DRACOLoader();
@@ -186,7 +182,7 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES DE JUEGO Y FÍSICAS
+// CONTROL DE OBJETOS Y COLISIONES
 // --------------------------------------------------
 
 let cementerio = null;
@@ -194,6 +190,8 @@ let cementerioMixer = null;
 
 const pisoColisionables = [];
 const paredColisionables = [];
+const cercaPiso = [];
+const cercaPared = [];
 
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
@@ -213,7 +211,6 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
@@ -221,6 +218,7 @@ const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
 const vecNormalMundo = new THREE.Vector3();
+const vecPosObj = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -228,7 +226,7 @@ let anguloCamaraX = 20;
 const joystickInput = { x: 0, y: 0 };
 
 // --------------------------------------------------
-// JOYSTICK Y CONTROLES
+// CONTROLES Y TOUCH
 // --------------------------------------------------
 
 const joystickZone = document.getElementById('joystick-zone');
@@ -337,7 +335,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN RIGUROSA (ESCALERAS Y MAUSOLEO)
+// FILTRADO RIGUROSO DE OBJETOS Y PAREDES
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -377,8 +375,16 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Se añaden escaleras, pasillos y accesos de mausoleo al grupo de suelo
-  const esSueloOEscalera = (
+  const esParedEspecial = (
+    jerarquia.includes("pared") ||
+    jerarquia.includes("wall") ||
+    jerarquia.includes("cerca") ||
+    jerarquia.includes("reja") ||
+    jerarquia.includes("muro") ||
+    jerarquia.includes("mausoleo")
+  );
+
+  const esSueloPuro = (
     jerarquia.includes("suelo") ||
     jerarquia.includes("piso") ||
     jerarquia.includes("ground") ||
@@ -391,11 +397,10 @@ function clasificarObjeto(obj) {
     jerarquia.includes("escalera") ||
     jerarquia.includes("stair") ||
     jerarquia.includes("escalon") ||
-    jerarquia.includes("step") ||
-    jerarquia.includes("pasillo")
+    jerarquia.includes("step")
   );
 
-  if (esSueloOEscalera) {
+  if (esSueloPuro && !esParedEspecial) {
     pisoColisionables.push(obj);
   } else {
     const esVegetacion = jerarquia.includes("arbol") || jerarquia.includes("tree") || jerarquia.includes("hoja") || jerarquia.includes("lapacho");
@@ -406,7 +411,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// GESTIÓN DE ANIMACIONES CON BUCLE FORZADO
+// SISTEMA DE ANIMACIÓN CON BUCLE MATEMÁTICO
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -418,22 +423,49 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 
   const mixer = new THREE.AnimationMixer(rootObject);
 
-  // Listener para reiniciar cualquier clip que se frene al terminar los 1150 frames
-  mixer.addEventListener('finished', (e) => {
-    e.action.reset().play();
-  });
-
   gltf.animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
     action.reset();
     action.setLoop(THREE.LoopRepeat, Infinity);
     action.clampWhenFinished = false;
-    action.enabled = true;
     action.timeScale = velocidadAnimacion;
     action.play();
   });
 
   return mixer;
+}
+
+function actualizarMixerForzado(mixer, delta) {
+  if (!mixer) return;
+  mixer.update(delta);
+
+  // Garantía absoluta de bucle: reinicia el tiempo al llegar al final
+  if (mixer._actions) {
+    mixer._actions.forEach((action) => {
+      const duration = action.getClip().duration;
+      if (duration > 0 && action.time >= duration) {
+        action.time = action.time % duration;
+      }
+    });
+  }
+}
+
+// --------------------------------------------------
+// FILTRO DE PROXIMIDAD (SOLUCIÓN DE RENDIMIENTO PC)
+// --------------------------------------------------
+
+function obtenerCercanos(origen, destino, radioMaximo) {
+  destino.length = 0;
+  const radioSq = radioMaximo * radioMaximo;
+  const posAvatar = avatarGroup.position;
+
+  for (let i = 0; i < origen.length; i++) {
+    const obj = origen[i];
+    obj.getWorldPosition(vecPosObj);
+    if (vecPosObj.distanceToSquared(posAvatar) < radioSq || obj.name.includes("base") || obj.name.includes("suelo")) {
+      destino.push(obj);
+    }
+  }
 }
 
 // --------------------------------------------------
@@ -474,7 +506,6 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          // Ajuste de velocidad de animación a 1.05
           mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.05);
 
           avatarCamina.visible = false;
@@ -498,33 +529,28 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// CONTROLES DE TECLADO
+// MOVIMIENTO Y FÍSICAS
 // --------------------------------------------------
 
 const teclas = {};
 window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
-// --------------------------------------------------
-// DETECCIÓN DE SUELO PROFUNDO Y ESCALERAS
-// --------------------------------------------------
-
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
-  // Se proyecta el rayo desde la cintura hacia abajo con un rango amplio
+  obtenerCercanos(pisoColisionables, cercaPiso, 35.0);
+
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 1.2;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
   raycasterPiso.far = 25.0;
 
-  const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
+  const impactos = raycasterPiso.intersectObjects(cercaPiso, false);
 
   for (let i = 0; i < impactos.length; i++) {
     const imp = impactos[i];
-
-    // Verificar que el punto esté debajo de la cintura
     if (imp.point.y <= avatarGroup.position.y + 0.8) {
       if (imp.face) {
         vecNormalMundo.copy(imp.face.normal).transformDirection(imp.object.matrixWorld);
@@ -532,7 +558,6 @@ function ajustarAlturaSuelo() {
         vecNormalMundo.set(0, 1, 0);
       }
 
-      // Debe ser una superficie orientada hacia arriba (piso o escalón)
       if (vecNormalMundo.y > 0.2) {
         const alturaObjetivo = imp.point.y + OFFSET_PIES;
         avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
@@ -544,6 +569,8 @@ function ajustarAlturaSuelo() {
 
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
+
+  obtenerCercanos(paredColisionables, cercaPared, 12.0);
 
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
   const distanciaLimite = radioCuerpo + pasoDistancia;
@@ -559,7 +586,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     raycasterPared.set(vecOrigenPared, vecDirPared);
     raycasterPared.far = distanciaLimite;
 
-    const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+    const impactos = raycasterPared.intersectObjects(cercaPared, false);
 
     if (impactos.length > 0 && impactos[0].distance < distanciaLimite) {
       return true;
@@ -568,10 +595,6 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 
   return false;
 }
-
-// --------------------------------------------------
-// BUCLE DE MOVIMIENTO (VELOCIDAD SUAVE = 6.2)
-// --------------------------------------------------
 
 function moverAvatar(delta) {
   if (!avatarGroup || (!avatarHora && !avatarCamina)) return;
@@ -597,7 +620,6 @@ function moverAvatar(delta) {
 
   if (moviendo) {
     vecMovimiento.normalize();
-    // Velocidad moderada y fluida
     const velocidadMov = 6.2;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
@@ -627,10 +649,6 @@ function moverAvatar(delta) {
 
   ajustarAlturaSuelo();
 }
-
-// --------------------------------------------------
-// CÁMARA TERCERA PERSONA
-// --------------------------------------------------
 
 function seguirAvatar() {
   if (!avatarGroup) return;
@@ -664,7 +682,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// BUCLE PRINCIPAL DE RENDER
+// RENDER LOOP
 // --------------------------------------------------
 
 function animate() {
@@ -672,9 +690,9 @@ function animate() {
 
   const delta = Math.min(clock.getDelta(), 0.033);
 
-  if (cementerioMixer) cementerioMixer.update(delta);
-  if (mixerCamina) mixerCamina.update(delta);
-  if (mixerHora) mixerHora.update(delta);
+  actualizarMixerForzado(cementerioMixer, delta);
+  actualizarMixerForzado(mixerCamina, delta);
+  actualizarMixerForzado(mixerHora, delta);
 
   moverAvatar(delta);
   seguirAvatar();
