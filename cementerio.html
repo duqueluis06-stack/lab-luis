@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Juego 3D - Bforartists / Three.js</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Juego 3D - Bforartists / Three.js Mobile</title>
 
   <style>
     html, body {
@@ -13,13 +13,14 @@
       overflow: hidden;
       background: #000;
       user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: 100%;
-      touch-action: none;
     }
 
     #loading {
@@ -31,7 +32,8 @@
       background: #000;
       color: white;
       font-family: Arial, sans-serif;
-      z-index: 10;
+      font-size: 1.1rem;
+      z-index: 30;
     }
 
     #error {
@@ -43,8 +45,37 @@
       background: rgba(120, 0, 0, 0.9);
       color: white;
       font-family: monospace;
-      z-index: 20;
+      z-index: 40;
       display: none;
+    }
+
+    /* CONTROLES TÁCTILES - JOYSTICK */
+    #joystick-zone {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      touch-action: none;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    #joystick-knob {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      position: absolute;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      transition: transform 0.05s linear;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -53,6 +84,11 @@
 
 <div id="loading">Cargando escenario y personajes...</div>
 <div id="error"></div>
+
+<!-- Joystick Táctil para Teléfonos -->
+<div id="joystick-zone">
+  <div id="joystick-knob"></div>
+</div>
 
 <script type="importmap">
 {
@@ -70,7 +106,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN Y PARÁMETROS GENERALES
+// CONFIGURACIÓN GENERAL Y ESCALA
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.2;
@@ -86,7 +122,7 @@ const LUIS_HORA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-hora.glb";
 
 // --------------------------------------------------
-// ESCENA, CÁMARA Y RENDERER
+// ESCENA, CÁMARA Y RENDERER (OPTIMIZADO MÓVIL)
 // --------------------------------------------------
 
 const scene = new THREE.Scene();
@@ -100,19 +136,16 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: true,
+  antialias: window.devicePixelRatio < 2,
   powerPreference: "high-performance"
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-renderer.domElement.addEventListener('click', (e) => e.preventDefault());
-renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-
 // --------------------------------------------------
-// LUCES DE LA ESCENA
+// ILUMINACIÓN
 // --------------------------------------------------
 
 const ambientLight = new THREE.HemisphereLight(0x8899aa, 0x111111, 1.2);
@@ -123,7 +156,7 @@ moonLight.position.set(50, 100, 50);
 scene.add(moonLight);
 
 // --------------------------------------------------
-// CARGADORES GLTF / DRACO
+// CARGADORES DE MODELOS GLTF
 // --------------------------------------------------
 
 const dracoLoader = new DRACOLoader();
@@ -133,7 +166,7 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES GLOBALES Y FÍSICAS
+// VARIABLES DE JUEGO Y FÍSICAS
 // --------------------------------------------------
 
 let cementerio = null;
@@ -169,44 +202,127 @@ const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
 const posTmp = new THREE.Vector3();
 
-// Control de cámara
-let arrastrandoMouse = false;
-let anteriorMouseX = 0;
-let anteriorMouseY = 0;
+// Control de Cámara
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
 
+// Vector de Entrada del Joystick (-1 a 1)
+const joystickInput = { x: 0, y: 0 };
+
 // --------------------------------------------------
-// EVENTOS DE MOUSE PARA CONTROL DE CÁMARA
+// SISTEMA DE JOYSTICK Y CONTROLES TÁCTILES
 // --------------------------------------------------
 
+const joystickZone = document.getElementById('joystick-zone');
+const joystickKnob = document.getElementById('joystick-knob');
+
+let joystickTouchId = null;
+let cameraTouchId = null;
+let touchStartX = 0;
+let touchStartY = 0;
+
+joystickZone.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const touch = e.changedTouches[i];
+    if (joystickTouchId === null) {
+      joystickTouchId = touch.identifier;
+      actualizarJoystick(touch);
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const touch = e.changedTouches[i];
+    if (touch.identifier === joystickTouchId) {
+      actualizarJoystick(touch);
+    } else if (touch.identifier === cameraTouchId) {
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      anguloCamaraY -= deltaX * 0.35;
+      anguloCamaraX += deltaY * 0.25;
+      anguloCamaraX = Math.max(5, Math.min(70, anguloCamaraX));
+
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const touch = e.changedTouches[i];
+    if (touch.identifier === joystickTouchId) {
+      joystickTouchId = null;
+      joystickInput.x = 0;
+      joystickInput.y = 0;
+      joystickKnob.style.transform = `translate(0px, 0px)`;
+    } else if (touch.identifier === cameraTouchId) {
+      cameraTouchId = null;
+    }
+  }
+});
+
+// Arrastre con dedo en la parte derecha de la pantalla para rotar cámara
+window.addEventListener('touchstart', (e) => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const touch = e.changedTouches[i];
+    if (touch.clientX > window.innerWidth / 2 && cameraTouchId === null) {
+      cameraTouchId = touch.identifier;
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }
+  }
+});
+
+function actualizarJoystick(touch) {
+  const rect = joystickZone.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  let dx = touch.clientX - centerX;
+  let dy = touch.clientY - centerY;
+
+  const maxRadio = rect.width / 2;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist > maxRadio) {
+    dx = (dx / dist) * maxRadio;
+    dy = (dy / dist) * maxRadio;
+  }
+
+  joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+  joystickInput.x = dx / maxRadio;
+  joystickInput.y = dy / maxRadio;
+}
+
+// Control por Mouse (Escritorio)
+let arrastrandoMouse = false;
+let anteriorMouseX = 0;
+let anteriorMouseY = 0;
+
 window.addEventListener('mousedown', (e) => {
-  if (e.button === 0) {
+  if (e.clientX > 180 || e.clientY < window.innerHeight - 180) {
     arrastrandoMouse = true;
     anteriorMouseX = e.clientX;
     anteriorMouseY = e.clientY;
   }
 });
-
 window.addEventListener('mouseup', () => { arrastrandoMouse = false; });
-
 window.addEventListener('mousemove', (e) => {
   if (!arrastrandoMouse) return;
-
-  const deltaX = e.clientX - anteriorMouseX;
-  const deltaY = e.clientY - anteriorMouseY;
-
-  anguloCamaraY -= deltaX * 0.25;
-  anguloCamaraX += deltaY * 0.18;
-
+  anguloCamaraY -= (e.clientX - anteriorMouseX) * 0.25;
+  anguloCamaraX += (e.clientY - anteriorMouseY) * 0.18;
   anguloCamaraX = Math.max(5, Math.min(70, anguloCamaraX));
-
   anteriorMouseX = e.clientX;
   anteriorMouseY = e.clientY;
 });
 
 // --------------------------------------------------
-// FILTRADO Y CLASIFICACIÓN DE OBJETOS
+// FILTRADO DE ESCENA Y DETECCIÓN DE ESTRUCTURAS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -224,7 +340,6 @@ function clasificarObjeto(obj) {
 
   const jerarquia = obtenerNombreJerarquia(obj);
 
-  // Exclusiones absolutas: efectos, luces y objetos no sólidos
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -269,7 +384,6 @@ function clasificarObjeto(obj) {
     jerarquia.includes("bush")
   );
 
-  // Todo objeto sólido (no vegetación) actúa como pared colisionable
   if (!esVegetacion) {
     paredColisionables.push(obj);
   }
@@ -278,10 +392,17 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// INICIALIZACIÓN DE ANIMACIONES Y BUCLE INFINITO
+// REPRODUCTOR Y CORRECCIÓN DE ANIMACIONES (FRUSTUM CULLING OFF)
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject) {
+  // Solución técnica: Desactivar Frustum Culling para ver siempre la animación
+  rootObject.traverse((child) => {
+    if (child.isMesh) {
+      child.frustumCulled = false;
+    }
+  });
+
   if (!gltf.animations || gltf.animations.length === 0) return null;
 
   const mixer = new THREE.AnimationMixer(rootObject);
@@ -298,7 +419,7 @@ function crearYEjecutarMixer(gltf, rootObject) {
 }
 
 // --------------------------------------------------
-// CARGAR ESCENARIO Y ANIMACIONES
+// CARGA DE ESCENARIO Y AVATARES
 // --------------------------------------------------
 
 loader.load(
@@ -306,15 +427,12 @@ loader.load(
   function(gltf) {
     cementerio = gltf.scene;
     scene.add(cementerio);
-
     cementerio.updateMatrixWorld(true);
 
     pisoColisionables.length = 0;
     paredColisionables.length = 0;
 
-    cementerio.traverse((child) => {
-      clasificarObjeto(child);
-    });
+    cementerio.traverse((child) => { clasificarObjeto(child); });
 
     if (gltf.animations && gltf.animations.length > 0) {
       cementerioMixer = crearYEjecutarMixer(gltf, cementerio);
@@ -322,17 +440,9 @@ loader.load(
 
     cargarAvatares();
   },
-  function() {
-    document.getElementById("loading").textContent = "Cargando escenario...";
-  },
-  function(error) {
-    mostrarError("Error cargando el escenario: " + error);
-  }
+  undefined,
+  function(error) { mostrarError("Error cargando escenario: " + error); }
 );
-
-// --------------------------------------------------
-// CARGAR Y CONFIGURAR AVATARES
-// --------------------------------------------------
 
 function cargarAvatares() {
   loader.load(
@@ -340,7 +450,6 @@ function cargarAvatares() {
     function(gltfHora) {
       avatarHora = gltfHora.scene;
       mixerHora = crearYEjecutarMixer(gltfHora, avatarHora);
-
       avatarGroup.add(avatarHora);
 
       loader.load(
@@ -361,29 +470,24 @@ function cargarAvatares() {
           document.getElementById("loading").style.display = "none";
         },
         undefined,
-        function(error) {
-          mostrarError("Error cargando avatar de movimiento: " + error);
-        }
+        function(error) { mostrarError("Error en avatar de marcha: " + error); }
       );
     },
     undefined,
-    function(error) {
-      mostrarError("Error cargando avatar estático: " + error);
-    }
+    function(error) { mostrarError("Error en avatar reposo: " + error); }
   );
 }
 
 // --------------------------------------------------
-// CONTROL DE TECLADO
+// TECLADO (PC)
 // --------------------------------------------------
 
 const teclas = {};
-
 window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// DETECCIÓN DE SUELO Y ESCALERAS
+// FISICAS DE SUELO Y PAREDES
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -402,7 +506,6 @@ function ajustarAlturaSuelo() {
 
     for (let i = 0; i < impactos.length; i++) {
       const impacto = impactos[i];
-
       if (impacto.point.y <= limiteSuperiorHip) {
         const alturaObjetivo = impacto.point.y + OFFSET_PIES;
         avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.4);
@@ -412,31 +515,25 @@ function ajustarAlturaSuelo() {
   }
 }
 
-// --------------------------------------------------
-// DETECCIÓN DE COLISIÓN DE PAREDES OPTIMIZADA
-// --------------------------------------------------
-
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
   const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
 
-  // Pre-filtrado espacial: seleccionar únicamente objetos a menos de 15m del avatar
   const paredesCercanas = [];
   const posAvatar = avatarGroup.position;
 
   for (let i = 0; i < paredColisionables.length; i++) {
     const mesh = paredColisionables[i];
     mesh.getWorldPosition(posTmp);
-    if (posTmp.distanceToSquared(posAvatar) < 225) { // 15 metros al cuadrado
+    if (posTmp.distanceToSquared(posAvatar) < 225) {
       paredesCercanas.push(mesh);
     }
   }
 
   if (paredesCercanas.length === 0) return false;
 
-  // Alturas elevadas (0.65m y 1.2m) para ignorar escalones y subir peldaños
   const alturas = [0.65 * ESCALA_AVATAR, 1.2 * ESCALA_AVATAR];
   const angulos = [-0.5, 0, 0.5];
 
@@ -462,7 +559,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 }
 
 // --------------------------------------------------
-// DESPLAZAMIENTO Y MOVIMIENTO
+// BUCLE DE MOVIMIENTO Y CONTROL UNIFICADO
 // --------------------------------------------------
 
 function moverAvatar(delta) {
@@ -475,6 +572,13 @@ function moverAvatar(delta) {
 
   vecMovimiento.set(0, 0, 0);
 
+  // Entrada por Joystick Táctil
+  if (Math.abs(joystickInput.x) > 0.05 || Math.abs(joystickInput.y) > 0.05) {
+    vecMovimiento.addScaledVector(vecRight, joystickInput.x);
+    vecMovimiento.addScaledVector(vecForward, -joystickInput.y);
+  }
+
+  // Entrada por Teclado
   if (teclas["KeyW"] || teclas["ArrowUp"]) vecMovimiento.add(vecForward);
   if (teclas["KeyS"] || teclas["ArrowDown"]) vecMovimiento.addScaledVector(vecForward, -1);
   if (teclas["KeyD"] || teclas["ArrowRight"]) vecMovimiento.add(vecRight);
@@ -536,14 +640,10 @@ function seguirAvatar() {
 
   const posicionDeseada = avatarGroup.position.clone().add(offset);
 
-  camera.position.lerp(posicionDeseada, 0.15);
-  cameraTarget.lerp(objetivoPunto, 0.2);
+  camera.position.lerp(posicionDeseada, 0.2);
+  cameraTarget.lerp(objetivoPunto, 0.25);
   camera.lookAt(cameraTarget);
 }
-
-// --------------------------------------------------
-// CONTROL DE ERRORES
-// --------------------------------------------------
 
 function mostrarError(mensaje) {
   console.error(mensaje);
@@ -554,7 +654,7 @@ function mostrarError(mensaje) {
 }
 
 // --------------------------------------------------
-// BUCLE PRINCIPAL DE RENDERIZADO
+// BUCLE PRINCIPAL DE RENDER
 // --------------------------------------------------
 
 function animate() {
@@ -574,10 +674,7 @@ function animate() {
 
 animate();
 
-// --------------------------------------------------
-// REAJUSTE DE VENTANA
-// --------------------------------------------------
-
+// Resizing adaptativo
 window.addEventListener("resize", function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
