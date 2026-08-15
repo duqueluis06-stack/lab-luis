@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Cementerio Optimizado</title>
+  <title>Juego 3D - Cementerio con Querubín</title>
 
   <style>
     html, body {
@@ -81,7 +81,7 @@
 
 <body>
 
-<div id="loading">Cargando optimizaciones y animaciones...</div>
+<div id="loading">Cargando escenario, querubín y animaciones...</div>
 <div id="error"></div>
 
 <div id="joystick-zone">
@@ -112,6 +112,9 @@ const OFFSET_PIES = 0.08;
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
+
+const QUERUBIN_URL =
+  "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/querubin.glb";
 
 const LUIS_CAMINA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-camina.glb";
@@ -187,6 +190,9 @@ loader.setDRACOLoader(dracoLoader);
 
 let cementerio = null;
 let cementerioMixer = null;
+
+let querubin = null;
+let mixerQuerubin = null;
 
 const pisoColisionables = [];
 const paredColisionables = [];
@@ -439,7 +445,6 @@ function actualizarMixerForzado(mixer, delta) {
   if (!mixer) return;
   mixer.update(delta);
 
-  // Garantía absoluta de bucle: reinicia el tiempo al llegar al final
   if (mixer._actions) {
     mixer._actions.forEach((action) => {
       const duration = action.getClip().duration;
@@ -451,7 +456,7 @@ function actualizarMixerForzado(mixer, delta) {
 }
 
 // --------------------------------------------------
-// FILTRO DE PROXIMIDAD (SOLUCIÓN DE RENDIMIENTO PC)
+// FILTRO DE PROXIMIDAD
 // --------------------------------------------------
 
 function obtenerCercanos(origen, destino, radioMaximo) {
@@ -472,6 +477,7 @@ function obtenerCercanos(origen, destino, radioMaximo) {
 // CARGA DE MODELOS
 // --------------------------------------------------
 
+// 1. Escenario Cementerio
 loader.load(
   CEMENTERIO_URL,
   function(gltf) {
@@ -488,12 +494,44 @@ loader.load(
       cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
     }
 
-    cargarAvatares();
+    cargarQuerubin();
   },
   undefined,
   function(error) { mostrarError("Error en escenario: " + error); }
 );
 
+// 2. Querubín Observador en el Cielo
+function cargarQuerubin() {
+  loader.load(
+    QUERUBIN_URL,
+    function(gltfQuerubin) {
+      querubin = gltfQuerubin.scene;
+      
+      // Elevado en el cielo y mirando hacia el centro del cementerio
+      querubin.position.set(0, 22, 15);
+      querubin.lookAt(0, 0, 0);
+
+      querubin.traverse((child) => {
+        if (child.isMesh) child.frustumCulled = false;
+      });
+
+      scene.add(querubin);
+
+      if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
+        mixerQuerubin = crearYEjecutarMixer(gltfQuerubin, querubin, 1.0);
+      }
+
+      cargarAvatares();
+    },
+    undefined,
+    function(error) {
+      console.warn("No se pudo cargar el querubín, continuando con avatares:", error);
+      cargarAvatares();
+    }
+  );
+}
+
+// 3. Avatares del jugador
 function cargarAvatares() {
   loader.load(
     LUIS_HORA_URL,
@@ -691,6 +729,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.033);
 
   actualizarMixerForzado(cementerioMixer, delta);
+  actualizarMixerForzado(mixerQuerubin, delta);
   actualizarMixerForzado(mixerCamina, delta);
   actualizarMixerForzado(mixerHora, delta);
 
