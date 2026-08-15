@@ -348,7 +348,6 @@ function clasificarObjeto(obj) {
     }
   }
 
-  // Descarte absoluto de Nieblas, Luces y Planos Semitransparentes
   if (
     jerarquia.includes("niebla") ||
     jerarquia.includes("neblina") ||
@@ -368,7 +367,7 @@ function clasificarObjeto(obj) {
     jerarquia.includes("imagen") ||
     esTransparente
   ) {
-    return; // No colisiona ni como pared ni como suelo
+    return;
   }
 
   if (obj.material) {
@@ -378,6 +377,18 @@ function clasificarObjeto(obj) {
       obj.material.side = THREE.DoubleSide;
     }
   }
+
+  const esSuelo = (
+    jerarquia.includes("suelo") ||
+    jerarquia.includes("piso") ||
+    jerarquia.includes("ground") ||
+    jerarquia.includes("terrain") ||
+    jerarquia.includes("terreno") ||
+    jerarquia.includes("camino") ||
+    jerarquia.includes("path") ||
+    jerarquia.includes("road") ||
+    jerarquia.includes("calle")
+  );
 
   const esVegetacion = (
     jerarquia.includes("arbol") ||
@@ -394,8 +405,8 @@ function clasificarObjeto(obj) {
     jerarquia.includes("bush")
   );
 
-  // Todo objeto sólido que no sea vegetación es pared colisionable
-  if (!esVegetacion) {
+  // Solamente los objetos sólidos que NO son vegetación Y NO son piso actúan como pared
+  if (!esVegetacion && !esSuelo) {
     paredColisionables.push(obj);
   }
 
@@ -403,10 +414,10 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// REPRODUCTOR Y BUCLE DE ANIMACIONES
+// REPRODUCTOR Y BUCLE DE ANIMACIONES EN BUCLE
 // --------------------------------------------------
 
-function crearYEjecutarMixer(gltf, rootObject) {
+function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
   rootObject.traverse((child) => {
     if (child.isMesh) {
       child.frustumCulled = false;
@@ -422,6 +433,7 @@ function crearYEjecutarMixer(gltf, rootObject) {
     action.repetitions = Infinity;
     action.clampWhenFinished = false;
     action.enabled = true;
+    action.timeScale = velocidadAnimacion;
     action.play();
   });
 
@@ -445,7 +457,7 @@ loader.load(
     cementerio.traverse((child) => { clasificarObjeto(child); });
 
     if (gltf.animations && gltf.animations.length > 0) {
-      cementerioMixer = crearYEjecutarMixer(gltf, cementerio);
+      cementerioMixer = crearYEjecutarMixer(gltf, cementerio, 1.0);
     }
 
     cargarAvatares();
@@ -459,14 +471,15 @@ function cargarAvatares() {
     LUIS_HORA_URL,
     function(gltfHora) {
       avatarHora = gltfHora.scene;
-      mixerHora = crearYEjecutarMixer(gltfHora, avatarHora);
+      mixerHora = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
       avatarGroup.add(avatarHora);
 
       loader.load(
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina);
+          // Se ajusta la cadencia a 1.3 para sincronizar con la marcha
+          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.30);
 
           avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
@@ -497,7 +510,7 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// FÍSICAS DE SUELO Y PAREDES CORREGIDAS
+// FÍSICAS DE SUELO Y PAREDES
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
@@ -529,9 +542,8 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
   const radioCuerpo = 0.35 * ESCALA_AVATAR; 
-  const distanciaLimite = radioCuerpo + pasoDistancia + 0.2;
+  const distanciaLimite = radioCuerpo + pasoDistancia + 0.15;
 
-  // 3 Niveles de altura: detecta tumbas (0.35), paredes (0.85) y estructuras altas (1.35)
   const alturas = [0.35 * ESCALA_AVATAR, 0.85 * ESCALA_AVATAR, 1.35 * ESCALA_AVATAR];
   const angulos = [-0.6, -0.3, 0, 0.3, 0.6];
 
@@ -579,19 +591,20 @@ function moverAvatar(delta) {
   // Entrada por Teclado
   if (teclas["KeyW"] || teclas["ArrowUp"]) vecMovimiento.add(vecForward);
   if (teclas["KeyS"] || teclas["ArrowDown"]) vecMovimiento.addScaledVector(vecForward, -1);
-  if (teclas["KeyD"] || teclas["ArrowRight"]) vecMovimiento.add(vecRight);
+  if (teclas["KeyD"] || teclas["ArrowRight"]) vecMovimiento.addScaledVector(vecRight, 1);
   if (teclas["KeyA"] || teclas["ArrowLeft"]) vecMovimiento.addScaledVector(vecRight, -1);
 
   const moviendo = vecMovimiento.lengthSq() > 0.001;
 
   if (moviendo) {
     vecMovimiento.normalize();
-    const velocidadMov = 4.8;
+    // Velocidad fluida para escala 2.2
+    const velocidadMov = 8.5;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    avatarGroup.rotation.y += diff * 0.25;
+    avatarGroup.rotation.y += diff * Math.min(1.0, delta * 15.0);
 
     const paso = velocidadMov * delta;
 
