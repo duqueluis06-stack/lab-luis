@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Juego 3D - Cementerio Fix</title>
+  <title>Juego 3D - Cementerio Fix Escaleras y Audio</title>
 
   <style>
     html, body {
@@ -81,7 +81,7 @@
 
 <body>
 
-<div id="loading">Cargando escenario y personajes...</div>
+<div id="loading">Cargando escenario, animaciones y audio...</div>
 <div id="error"></div>
 
 <div id="joystick-zone">
@@ -104,7 +104,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // --------------------------------------------------
-// CONFIGURACIÓN GENERAL
+// CONFIGURACIÓN GENERAL Y RECURSOS
 // --------------------------------------------------
 
 const ESCALA_AVATAR = 2.2;
@@ -118,6 +118,28 @@ const LUIS_CAMINA_URL =
 
 const LUIS_HORA_URL =
   "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/luis-hora.glb";
+
+const MUSICA_URL =
+  "https://raw.githubusercontent.com/duqueluis06-stack/lab-luis/main/audio/music-cementerio.mp3";
+
+// --------------------------------------------------
+// AUDIO DE FONDO EN BUCLE
+// --------------------------------------------------
+
+const bgMusic = new Audio(MUSICA_URL);
+bgMusic.loop = true;
+bgMusic.volume = 0.45;
+
+function activarAudio() {
+  bgMusic.play().catch(() => {});
+  window.removeEventListener('click', activarAudio);
+  window.removeEventListener('touchstart', activarAudio);
+  window.removeEventListener('keydown', activarAudio);
+}
+
+window.addEventListener('click', activarAudio);
+window.addEventListener('touchstart', activarAudio);
+window.addEventListener('keydown', activarAudio);
 
 // --------------------------------------------------
 // ESCENA, CÁMARA Y RENDERER
@@ -164,7 +186,7 @@ const loader = new GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 // --------------------------------------------------
-// VARIABLES Y LISTAS DE CONTROL
+// VARIABLES DE JUEGO Y FÍSICAS
 // --------------------------------------------------
 
 let cementerio = null;
@@ -191,13 +213,14 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
-// Vectores reutilizables para optimizar memoria (evita relentización)
+// Vectores reutilizables
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecDirPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
 const vecForward = new THREE.Vector3();
 const vecRight = new THREE.Vector3();
+const vecNormalMundo = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -205,7 +228,7 @@ let anguloCamaraX = 20;
 const joystickInput = { x: 0, y: 0 };
 
 // --------------------------------------------------
-// SISTEMA DE JOYSTICK Y CONTROLES TÁCTILES / MOUSE
+// JOYSTICK Y CONTROLES
 // --------------------------------------------------
 
 const joystickZone = document.getElementById('joystick-zone');
@@ -314,7 +337,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO DE OBJETOS DEL ESCENARIO
+// CLASIFICACIÓN RIGUROSA (ESCALERAS Y MAUSOLEO)
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -354,7 +377,8 @@ function clasificarObjeto(obj) {
     }
   }
 
-  const esSuelo = (
+  // Se añaden escaleras, pasillos y accesos de mausoleo al grupo de suelo
+  const esSueloOEscalera = (
     jerarquia.includes("suelo") ||
     jerarquia.includes("piso") ||
     jerarquia.includes("ground") ||
@@ -363,13 +387,17 @@ function clasificarObjeto(obj) {
     jerarquia.includes("camino") ||
     jerarquia.includes("road") ||
     jerarquia.includes("calle") ||
-    jerarquia.includes("vereda")
+    jerarquia.includes("vereda") ||
+    jerarquia.includes("escalera") ||
+    jerarquia.includes("stair") ||
+    jerarquia.includes("escalon") ||
+    jerarquia.includes("step") ||
+    jerarquia.includes("pasillo")
   );
 
-  if (esSuelo) {
+  if (esSueloOEscalera) {
     pisoColisionables.push(obj);
   } else {
-    // Solamente se agregan elementos sólidos a paredes
     const esVegetacion = jerarquia.includes("arbol") || jerarquia.includes("tree") || jerarquia.includes("hoja") || jerarquia.includes("lapacho");
     if (!esVegetacion) {
       paredColisionables.push(obj);
@@ -378,7 +406,7 @@ function clasificarObjeto(obj) {
 }
 
 // --------------------------------------------------
-// SOLUCIÓN A ANIMACIONES: BUCLE CONTINUO Y FLUIDO
+// GESTIÓN DE ANIMACIONES CON BUCLE FORZADO
 // --------------------------------------------------
 
 function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
@@ -390,10 +418,14 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 
   const mixer = new THREE.AnimationMixer(rootObject);
 
+  // Listener para reiniciar cualquier clip que se frene al terminar los 1150 frames
+  mixer.addEventListener('finished', (e) => {
+    e.action.reset().play();
+  });
+
   gltf.animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
-    
-    // Forzar bucle repetitivo e infinito sin frenos
+    action.reset();
     action.setLoop(THREE.LoopRepeat, Infinity);
     action.clampWhenFinished = false;
     action.enabled = true;
@@ -442,7 +474,8 @@ function cargarAvatares() {
         LUIS_CAMINA_URL,
         function(gltfCamina) {
           avatarCamina = gltfCamina.scene;
-          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.25);
+          // Ajuste de velocidad de animación a 1.05
+          mixerCamina = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.05);
 
           avatarCamina.visible = false;
           avatarGroup.add(avatarCamina);
@@ -465,7 +498,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// TECLADO (PC)
+// CONTROLES DE TECLADO
 // --------------------------------------------------
 
 const teclas = {};
@@ -473,27 +506,42 @@ window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
 // --------------------------------------------------
-// FÍSICAS DE ALTURA Y COLISIONES OPTIMIZADAS
+// DETECCIÓN DE SUELO PROFUNDO Y ESCALERAS
 // --------------------------------------------------
 
 function ajustarAlturaSuelo() {
   if (pisoColisionables.length === 0 || !avatarGroup) return;
 
+  // Se proyecta el rayo desde la cintura hacia abajo con un rango amplio
   vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 1.5 * ESCALA_AVATAR;
+  vecOrigenPiso.y += 1.2;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 15.0 * ESCALA_AVATAR;
+  raycasterPiso.far = 25.0;
 
   const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
 
-  if (impactos.length > 0) {
-    const alturaObjetivo = impactos[0].point.y + OFFSET_PIES;
-    avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.3);
+  for (let i = 0; i < impactos.length; i++) {
+    const imp = impactos[i];
+
+    // Verificar que el punto esté debajo de la cintura
+    if (imp.point.y <= avatarGroup.position.y + 0.8) {
+      if (imp.face) {
+        vecNormalMundo.copy(imp.face.normal).transformDirection(imp.object.matrixWorld);
+      } else {
+        vecNormalMundo.set(0, 1, 0);
+      }
+
+      // Debe ser una superficie orientada hacia arriba (piso o escalón)
+      if (vecNormalMundo.y > 0.2) {
+        const alturaObjetivo = imp.point.y + OFFSET_PIES;
+        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, alturaObjetivo, 0.35);
+        break;
+      }
+    }
   }
 }
 
-// OPTIMIZACIÓN DE RENDIMIENTO: Solamente 3 rayos frontales
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
@@ -501,12 +549,12 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   const distanciaLimite = radioCuerpo + pasoDistancia;
 
   vecOrigenPared.copy(avatarGroup.position);
-  vecOrigenPared.y += 0.8 * ESCALA_AVATAR; // Altura a la cintura
+  vecOrigenPared.y += 0.8 * ESCALA_AVATAR;
 
-  const angulosOptimizado = [-0.3, 0, 0.3]; // Solo 3 ángulos frontales
+  const angulos = [-0.3, 0, 0.3];
 
-  for (let a = 0; a < angulosOptimizado.length; a++) {
-    vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosOptimizado[a]);
+  for (let a = 0; a < angulos.length; a++) {
+    vecDirPared.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulos[a]);
     
     raycasterPared.set(vecOrigenPared, vecDirPared);
     raycasterPared.far = distanciaLimite;
@@ -522,7 +570,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 }
 
 // --------------------------------------------------
-// MOVIMIENTO Y CONTROL
+// BUCLE DE MOVIMIENTO (VELOCIDAD SUAVE = 6.2)
 // --------------------------------------------------
 
 function moverAvatar(delta) {
@@ -549,7 +597,8 @@ function moverAvatar(delta) {
 
   if (moviendo) {
     vecMovimiento.normalize();
-    const velocidadMov = 8.5;
+    // Velocidad moderada y fluida
+    const velocidadMov = 6.2;
 
     const anguloObjetivo = Math.atan2(vecMovimiento.x, vecMovimiento.z);
     let diff = anguloObjetivo - avatarGroup.rotation.y;
@@ -621,10 +670,8 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Limitar el delta máximo para evitar saltos bruscos
   const delta = Math.min(clock.getDelta(), 0.033);
 
-  // Actualizar los mixers en cada frame
   if (cementerioMixer) cementerioMixer.update(delta);
   if (mixerCamina) mixerCamina.update(delta);
   if (mixerHora) mixerHora.update(delta);
