@@ -419,6 +419,13 @@ function clasificarObjeto(obj) {
   const esParedEstructura = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
 
   if (esParedEstructura) {
+    if (obj.geometry) {
+      if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
+      const centerLocal = new THREE.Vector3();
+      obj.geometry.boundingBox.getCenter(centerLocal);
+      obj.updateMatrixWorld(true);
+      obj.userData.centerWorld = centerLocal.applyMatrix4(obj.matrixWorld);
+    }
     paredColisionables.push(obj);
   }
 }
@@ -440,7 +447,10 @@ function posicionarEnPasilloGotico() {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    avatarGroup.position.set(center.x, box.min.y + 0.5, center.z);
+    // Posiciona al avatar al fondo del pasillo (abajo del todo de las escaleras)
+    avatarGroup.position.set(center.x, box.min.y + 0.1, box.max.z - 4.0);
+    avatarGroup.rotation.y = 0; // Mirando hacia la salida/escaleras
+
     ajustarAlturaSuelo();
   }
 }
@@ -513,7 +523,8 @@ function cargarQuerubin() {
         querubinMesh = gltfQuerubin.scene;
         querubinMesh.scale.setScalar(3.5);
 
-        querubinMesh.rotation.set(0, Math.PI / 2, 0);
+        // Giro de 180 grados para orientar la cara/ojo hacia el jugador
+        querubinMesh.rotation.set(0, -Math.PI / 2, 0);
 
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
@@ -530,7 +541,7 @@ function cargarQuerubin() {
         const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
         const ojoGeometria = new THREE.SphereGeometry(0.5, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
-        ojoUnico.position.set(0, -0.2, -1.2); 
+        ojoUnico.position.set(0, -0.2, 1.2); 
         querubinGroup.add(ojoUnico);
 
         const luzIrisUnica = new THREE.PointLight(0x00ffff, 12, 30);
@@ -604,7 +615,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y COLISIONES CORREGIDAS
+// FÍSICAS Y COLISIONES OPTIMIZADAS
 // --------------------------------------------------
 
 const teclas = {};
@@ -641,11 +652,24 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
+  const posAv = avatarGroup.position;
+  const paredesCercanas = [];
+
+  // Filtrado ultra-rápido usando el centro global de cada sub-malla
+  for (let i = 0; i < paredColisionables.length; i++) {
+    const p = paredColisionables[i];
+    if (p.userData.centerWorld && p.userData.centerWorld.distanceToSquared(posAv) < 225) {
+      paredesCercanas.push(p);
+    }
+  }
+
+  if (paredesCercanas.length === 0) return false;
+
   const alturas = [0.6, 1.4];
   const angulosRayos = [0, -0.45, 0.45];
 
   for (let h = 0; h < alturas.length; h++) {
-    vecOrigenPared.copy(avatarGroup.position);
+    vecOrigenPared.copy(posAv);
     vecOrigenPared.y += alturas[h];
 
     for (let i = 0; i < angulosRayos.length; i++) {
@@ -653,7 +677,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       raycasterPared.set(vecOrigenPared, vecRayDir);
       raycasterPared.far = 0.9 + pasoDistancia;
 
-      const impactos = raycasterPared.intersectObjects(paredColisionables, false);
+      const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
       if (impactos.length > 0) return true;
     }
   }
