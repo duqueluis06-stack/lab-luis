@@ -193,7 +193,7 @@ const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.2);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
-// LUZ CÁLIDA DEDICADA A ILUMINAR EL QUERUBÍN EN EL CIELO
+// LUZ CÁLIDA DEDICADA AL QUERUBÍN
 const querubinIlluminator = new THREE.DirectionalLight(0xfff5ea, 2.2);
 querubinIlluminator.position.set(-150, 160, -150);
 scene.add(querubinIlluminator);
@@ -365,7 +365,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO ESPACIAL (OPTIMIZACIÓN DE RENDIMIENTO)
+// FILTRADO ESPACIAL PRECISO
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -379,6 +379,10 @@ function obtenerNombreJerarquia(obj) {
 }
 
 function registrarMeshesEscenario(root) {
+  root.updateMatrixWorld(true);
+  
+  const worldScale = new THREE.Vector3();
+
   root.traverse((child) => {
     if (child.isMesh) {
       const jer = obtenerNombreJerarquia(child);
@@ -394,10 +398,15 @@ function registrarMeshesEscenario(root) {
         if (!child.geometry.boundingSphere) {
           child.geometry.computeBoundingSphere();
         }
-        child.userData.worldCenter = new THREE.Vector3();
-        child.getWorldPosition(child.userData.worldCenter);
-        child.userData.radius = child.geometry.boundingSphere ? 
-          child.geometry.boundingSphere.radius * Math.max(child.scale.x, child.scale.y, child.scale.z) : 10;
+
+        // Centro real en espacio de mundo de la esfera delimitadora
+        const localCenter = child.geometry.boundingSphere.center.clone();
+        child.userData.worldCenter = localCenter.applyMatrix4(child.matrixWorld);
+
+        // Radio real escalado en el mundo
+        child.getWorldScale(worldScale);
+        const maxScale = Math.max(worldScale.x, worldScale.y, worldScale.z);
+        child.userData.radius = (child.geometry.boundingSphere.radius || 10) * maxScale;
 
         todosLosMeshes.push(child);
       }
@@ -405,12 +414,12 @@ function registrarMeshesEscenario(root) {
   });
 }
 
-function obtenerMeshesCercanos(posicion, radio = 10) {
+function obtenerMeshesCercanos(posicion, radio = 25) {
   candidatosCercanos.length = 0;
   for (let i = 0; i < todosLosMeshes.length; i++) {
     const mesh = todosLosMeshes[i];
     const center = mesh.userData.worldCenter;
-    const r = mesh.userData.radius || 5;
+    const r = mesh.userData.radius || 10;
     const maxDistSq = (radio + r) * (radio + r);
     if (posicion.distanceToSquared(center) <= maxDistSq) {
       candidatosCercanos.push(mesh);
@@ -474,7 +483,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS Y EFECTO LUMÍNICO SUTIL DEL QUERUBÍN
+// CARGA DE MODELOS
 // --------------------------------------------------
 
 loader.load(
@@ -511,7 +520,6 @@ function cargarQuerubin() {
         querubinMesh.scale.setScalar(3.5);
         querubinMesh.rotation.set(0, -Math.PI / 2, 0);
 
-        // AJUSTE MÍSTICO SUTIL DE MATERIALES DEL QUERUBÍN
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
@@ -519,7 +527,6 @@ function cargarQuerubin() {
               child.material.roughness = 0.35;
               child.material.metalness = 0.3;
 
-              // Emisión sutil mística para resaltar los tonos dorados y los ojos rojos
               if (child.material.emissive) {
                 child.material.emissive.setHex(0x3a0d05);
                 child.material.emissiveIntensity = 0.5;
@@ -530,12 +537,10 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // 1. LUZ PUNTUAL ROJO/CARMESÍ EN EL NÚCLEO DEL OJO CENTRAL
         const luzCoreOjo = new THREE.PointLight(0xff3300, 3.5, 20);
         luzCoreOjo.position.set(0, 0, 0);
         querubinGroup.add(luzCoreOjo);
 
-        // 2. HALO/AURA SUTIL DE LUZ DORADA QUE RESALTA LOS ANILLOS CONCÉNTRICOS Y SUS OJOS
         const luzAuraAnillos = new THREE.PointLight(0xff9900, 2.0, 35);
         luzAuraAnillos.position.set(0, 1, 0);
         querubinGroup.add(luzAuraAnillos);
@@ -607,7 +612,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS FLUIDAS OPTIMIZADAS
+// FÍSICAS DE ALTURA Y COLISIÓN DE PAREDES
 // --------------------------------------------------
 
 const teclas = {};
@@ -617,7 +622,7 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 15);
   if (candidatos.length === 0) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
@@ -661,12 +666,13 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (todosLosMeshes.length === 0 || !avatarGroup) return false;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 6);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 25);
   if (candidatos.length === 0) return false;
 
   const posAv = avatarGroup.position;
-  const alturas = [0.8, 1.5];
-  const angulosRayos = [0, -0.4, 0.4];
+  // Escaneo completo a 4 alturas y 7 ángulos de abanico
+  const alturas = [0.6, 1.4, 2.2, 3.0];
+  const angulosRayos = [0, -0.45, 0.45, -0.9, 0.9, -1.35, 1.35];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(posAv);
@@ -675,7 +681,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     for (let i = 0; i < angulosRayos.length; i++) {
       vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
-      raycasterPared.far = 0.55 + pasoDistancia;
+      raycasterPared.far = 0.85 + pasoDistancia;
 
       const impactos = raycasterPared.intersectObjects(candidatos, false);
       for (let j = 0; j < impactos.length; j++) {
@@ -684,7 +690,8 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 
         normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-        if (Math.abs(normalMundo.y) < 0.55) {
+        // Detecta cualquier superficie inclinada/vertical como muro
+        if (Math.abs(normalMundo.y) < 0.70) {
           return true;
         }
       }
@@ -727,8 +734,19 @@ function moverAvatar(delta) {
 
     const paso = velocidadMov * delta;
 
+    // Colisión inteligente con deslizamiento sobre paredes
     if (!hayColisionPared(vecMovimiento, paso)) {
       avatarGroup.position.addScaledVector(vecMovimiento, paso);
+    } else {
+      const vecX = new THREE.Vector3(vecMovimiento.x, 0, 0).normalize();
+      if (Math.abs(vecMovimiento.x) > 0.01 && !hayColisionPared(vecX, paso * Math.abs(vecMovimiento.x))) {
+        avatarGroup.position.addScaledVector(vecX, paso * Math.abs(vecMovimiento.x));
+      } else {
+        const vecZ = new THREE.Vector3(0, 0, vecMovimiento.z).normalize();
+        if (Math.abs(vecMovimiento.z) > 0.01 && !hayColisionPared(vecZ, paso * Math.abs(vecMovimiento.z))) {
+          avatarGroup.position.addScaledVector(vecZ, paso * Math.abs(vecMovimiento.z));
+        }
+      }
     }
 
     if (!estaCaminando) {
