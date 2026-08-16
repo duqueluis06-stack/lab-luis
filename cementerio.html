@@ -185,13 +185,18 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-// ILUMINACIÓN CLARA Y VISIBLE
-const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.85);
+// ILUMINACIÓN GENERAL Y LUNAR
+const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.9);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.1);
+const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.2);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
+
+// ILUMINADOR EXCLUSIVO PARA DESTACAR EL CUERPO DEL QUERUBÍN EN EL CIELO
+const querubinIlluminator = new THREE.DirectionalLight(0xffffff, 2.5);
+querubinIlluminator.position.set(-160, 180, -150);
+scene.add(querubinIlluminator);
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/");
@@ -212,8 +217,10 @@ querubinGroup.position.set(-170, 140, -170);
 
 let querubinMesh = null;
 let mixerQuerubin = null;
+let spotTarget = null;
 
 const todosLosMeshes = [];
+const candidatosCercanos = [];
 
 const avatarGroup = new THREE.Group();
 scene.add(avatarGroup);
@@ -359,7 +366,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// CLASIFICACIÓN Y POSICIONAMIENTO
+// FILTRADO ESPACIAL (OPTIMIZACIÓN DE RENDIMIENTO)
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -384,10 +391,34 @@ function registrarMeshesEscenario(root) {
             child.material.side = THREE.DoubleSide;
           }
         }
+        
+        // Precálculo de centros mundiales para velocidad ultra rápida
+        if (!child.geometry.boundingSphere) {
+          child.geometry.computeBoundingSphere();
+        }
+        child.userData.worldCenter = new THREE.Vector3();
+        child.getWorldPosition(child.userData.worldCenter);
+        child.userData.radius = child.geometry.boundingSphere ? 
+          child.geometry.boundingSphere.radius * Math.max(child.scale.x, child.scale.y, child.scale.z) : 10;
+
         todosLosMeshes.push(child);
       }
     }
   });
+}
+
+function obtenerMeshesCercanos(posicion, radio = 10) {
+  candidatosCercanos.length = 0;
+  for (let i = 0; i < todosLosMeshes.length; i++) {
+    const mesh = todosLosMeshes[i];
+    const center = mesh.userData.worldCenter;
+    const r = mesh.userData.radius || 5;
+    const maxDistSq = (radio + r) * (radio + r);
+    if (posicion.distanceToSquared(center) <= maxDistSq) {
+      candidatosCercanos.push(mesh);
+    }
+  }
+  return candidatosCercanos;
 }
 
 function posicionarEnPasilloGotico() {
@@ -408,7 +439,6 @@ function posicionarEnPasilloGotico() {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Ubicar al avatar en el interior del pasillo en planta baja
     avatarGroup.position.set(center.x, box.min.y + 0.1, center.z);
     avatarGroup.rotation.y = Math.PI; 
 
@@ -446,7 +476,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS
+// CARGA DE MODELOS Y EFECTOS LUMINOSOS
 // --------------------------------------------------
 
 loader.load(
@@ -487,7 +517,7 @@ function cargarQuerubin() {
           if (child.isMesh) {
             child.frustumCulled = false;
             if (child.material) {
-              child.material.roughness = 0.3;
+              child.material.roughness = 0.2;
               child.material.metalness = 0.1;
             }
           }
@@ -495,17 +525,43 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // IRIS EMISOR EN EL OJO
+        // 1. ESFERA Y LUZ INTENSA EN EL OJO
         const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-        const ojoGeometria = new THREE.SphereGeometry(0.4, 16, 16);
+        const ojoGeometria = new THREE.SphereGeometry(1.2, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
         ojoUnico.position.set(0, -0.1, 1.1); 
         querubinGroup.add(ojoUnico);
 
-        // LUZ FOCALIZADA EN LA PUPILA
-        const luzIris = new THREE.PointLight(0x00ffff, 25, 50);
+        const luzIris = new THREE.PointLight(0x00ffff, 50, 120);
         luzIris.position.set(0, -0.1, 1.2);
         querubinGroup.add(luzIris);
+
+        // 2. HAZ DE LUZ VOLUMÉTRICO CELESTIAL (FARO / REFLECTOR DESDE EL CIELO)
+        const hazGeo = new THREE.CylinderGeometry(1.0, 35, 350, 32, 1, true);
+        hazGeo.translate(0, -175, 0);
+        const hazMat = new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.35,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const hazLuz = new THREE.Mesh(hazGeo, hazMat);
+        hazLuz.position.set(0, -0.1, 1.2);
+        querubinGroup.add(hazLuz);
+
+        // 3. REFLECTOR SPOTLIGHT FOCALIZADO HACIA EL SUELO Y AVATAR
+        spotTarget = new THREE.Object3D();
+        scene.add(spotTarget);
+
+        const spotLightQuerubin = new THREE.SpotLight(0x00ffff, 120);
+        spotLightQuerubin.position.set(0, -0.1, 1.2);
+        spotLightQuerubin.angle = Math.PI / 4;
+        spotLightQuerubin.penumbra = 0.4;
+        spotLightQuerubin.distance = 500;
+        spotLightQuerubin.target = spotTarget;
+        querubinGroup.add(spotLightQuerubin);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
           const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
@@ -574,7 +630,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y ESCALONAMIENTO
+// FÍSICAS FLUIDAS OPTIMIZADAS
 // --------------------------------------------------
 
 const teclas = {};
@@ -584,13 +640,16 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
+  if (candidatos.length === 0) return;
+
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 2.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
   raycasterPiso.far = 4.0;
 
-  const impactos = raycasterPiso.intersectObjects(todosLosMeshes, false);
+  const impactos = raycasterPiso.intersectObjects(candidatos, false);
 
   let mejorY = -Infinity;
   let encontrado = false;
@@ -601,7 +660,6 @@ function ajustarAlturaSuelo() {
 
     normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-    // Detectar si la superficie se orienta hacia arriba (piso o huella de peldaño)
     if (normalMundo.y > 0.25) {
       if (hit.point.y <= avatarGroup.position.y + 1.2) {
         if (hit.point.y > mejorY) {
@@ -626,8 +684,11 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (todosLosMeshes.length === 0 || !avatarGroup) return false;
 
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 6);
+  if (candidatos.length === 0) return false;
+
   const posAv = avatarGroup.position;
-  const alturas = [0.8, 1.5]; // Rayos por encima del nivel de escalón
+  const alturas = [0.8, 1.5];
   const angulosRayos = [0, -0.4, 0.4];
 
   for (let h = 0; h < alturas.length; h++) {
@@ -639,14 +700,13 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       raycasterPared.set(vecOrigenPared, vecRayDir);
       raycasterPared.far = 0.55 + pasoDistancia;
 
-      const impactos = raycasterPared.intersectObjects(todosLosMeshes, false);
+      const impactos = raycasterPared.intersectObjects(candidatos, false);
       for (let j = 0; j < impactos.length; j++) {
         const hit = impactos[j];
         if (!hit.face) continue;
 
         normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-        // Bloquear únicamente superficies verticales (paredes y muros)
         if (Math.abs(normalMundo.y) < 0.55) {
           return true;
         }
@@ -720,6 +780,10 @@ function actualizarQuerubin() {
   targetQuerubin.y += 1.0; 
 
   querubinGroup.lookAt(targetQuerubin);
+
+  if (spotTarget) {
+    spotTarget.position.copy(targetQuerubin);
+  }
 }
 
 function seguirAvatar() {
