@@ -365,7 +365,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO ESPACIAL PRECISO
+// FILTRADO ESPACIAL
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -380,7 +380,6 @@ function obtenerNombreJerarquia(obj) {
 
 function registrarMeshesEscenario(root) {
   root.updateMatrixWorld(true);
-  
   const worldScale = new THREE.Vector3();
 
   root.traverse((child) => {
@@ -399,11 +398,9 @@ function registrarMeshesEscenario(root) {
           child.geometry.computeBoundingSphere();
         }
 
-        // Centro real en espacio de mundo de la esfera delimitadora
         const localCenter = child.geometry.boundingSphere.center.clone();
         child.userData.worldCenter = localCenter.applyMatrix4(child.matrixWorld);
 
-        // Radio real escalado en el mundo
         child.getWorldScale(worldScale);
         const maxScale = Math.max(worldScale.x, worldScale.y, worldScale.z);
         child.userData.radius = (child.geometry.boundingSphere.radius || 10) * maxScale;
@@ -414,7 +411,7 @@ function registrarMeshesEscenario(root) {
   });
 }
 
-function obtenerMeshesCercanos(posicion, radio = 25) {
+function obtenerMeshesCercanos(posicion, radio = 20) {
   candidatosCercanos.length = 0;
   for (let i = 0; i < todosLosMeshes.length; i++) {
     const mesh = todosLosMeshes[i];
@@ -612,7 +609,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS DE ALTURA Y COLISIÓN DE PAREDES
+// FÍSICAS Y COLISIONES CORREGIDAS
 // --------------------------------------------------
 
 const teclas = {};
@@ -622,7 +619,7 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 15);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
   if (candidatos.length === 0) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
@@ -666,13 +663,13 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (todosLosMeshes.length === 0 || !avatarGroup) return false;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 25);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 12);
   if (candidatos.length === 0) return false;
 
   const posAv = avatarGroup.position;
-  // Escaneo completo a 4 alturas y 7 ángulos de abanico
-  const alturas = [0.6, 1.4, 2.2, 3.0];
-  const angulosRayos = [0, -0.45, 0.45, -0.9, 0.9, -1.35, 1.35];
+  // Detección frontal optimizada a 2 alturas y 3 ángulos frontales ajustados
+  const alturas = [0.8, 1.6];
+  const angulosRayos = [0, -0.35, 0.35];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(posAv);
@@ -681,7 +678,9 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     for (let i = 0; i < angulosRayos.length; i++) {
       vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
-      raycasterPared.far = 0.85 + pasoDistancia;
+      
+      // Alcance ajustado al radio del avatar para no bloquear marcos de puertas
+      raycasterPared.far = 0.38 + pasoDistancia;
 
       const impactos = raycasterPared.intersectObjects(candidatos, false);
       for (let j = 0; j < impactos.length; j++) {
@@ -690,8 +689,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
 
         normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-        // Detecta cualquier superficie inclinada/vertical como muro
-        if (Math.abs(normalMundo.y) < 0.70) {
+        if (Math.abs(normalMundo.y) < 0.65) {
           return true;
         }
       }
@@ -734,16 +732,16 @@ function moverAvatar(delta) {
 
     const paso = velocidadMov * delta;
 
-    // Colisión inteligente con deslizamiento sobre paredes
     if (!hayColisionPared(vecMovimiento, paso)) {
       avatarGroup.position.addScaledVector(vecMovimiento, paso);
     } else {
+      // Permite deslizarse lateralmente de forma limpia
       const vecX = new THREE.Vector3(vecMovimiento.x, 0, 0).normalize();
-      if (Math.abs(vecMovimiento.x) > 0.01 && !hayColisionPared(vecX, paso * Math.abs(vecMovimiento.x))) {
+      if (Math.abs(vecMovimiento.x) > 0.1 && !hayColisionPared(vecX, paso * Math.abs(vecMovimiento.x))) {
         avatarGroup.position.addScaledVector(vecX, paso * Math.abs(vecMovimiento.x));
       } else {
         const vecZ = new THREE.Vector3(0, 0, vecMovimiento.z).normalize();
-        if (Math.abs(vecMovimiento.z) > 0.01 && !hayColisionPared(vecZ, paso * Math.abs(vecMovimiento.z))) {
+        if (Math.abs(vecMovimiento.z) > 0.1 && !hayColisionPared(vecZ, paso * Math.abs(vecMovimiento.z))) {
           avatarGroup.position.addScaledVector(vecZ, paso * Math.abs(vecMovimiento.z));
         }
       }
