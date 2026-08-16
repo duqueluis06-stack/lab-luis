@@ -167,7 +167,7 @@ function iniciarJuego() {
 document.getElementById("loading").addEventListener("click", iniciarJuego);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x040408);
+scene.background = new THREE.Color(0x020205);
 
 const camera = new THREE.PerspectiveCamera(
   60,
@@ -185,10 +185,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.HemisphereLight(0x8899bb, 0x222233, 1.6);
+// ILUMINACIÓN GLOBAL OSCURA (ATMÓSFERA TÉNEBRE)
+const ambientLight = new THREE.HemisphereLight(0x223344, 0x05050a, 0.35);
 scene.add(ambientLight);
 
-const moonLight = new THREE.DirectionalLight(0xddeeff, 1.4);
+const moonLight = new THREE.DirectionalLight(0x5577aa, 0.4);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
@@ -390,7 +391,7 @@ function clasificarObjeto(obj) {
 
   const esTecho = jerarquia.includes("techo") || jerarquia.includes("roof") || jerarquia.includes("ceiling");
 
-  const esSueloPuro = !esTecho && (
+  const esSuelo = !esTecho && (
     jerarquia.includes("base-cesped") ||
     jerarquia.includes("cesped") ||
     jerarquia.includes("grid") ||
@@ -412,16 +413,19 @@ function clasificarObjeto(obj) {
     jerarquia.includes("pasillo")
   );
 
-  if (esSueloPuro) {
+  if (esSuelo) {
     pisoColisionables.push(obj);
-  } else {
-    // Exclusión de escaleras/pasillos para que no actúen como pared al subir
-    const esParedEstructura = !jerarquia.includes("base-cesped") && !jerarquia.includes("cesped") && !jerarquia.includes("pasto");
-    if (esParedEstructura) {
-      obj.updateMatrixWorld(true);
-      obj.userData.boxWorld = new THREE.Box3().setFromObject(obj);
-      paredColisionables.push(obj);
-    }
+  }
+
+  // Estructuras colisionables para paredes
+  const esPared = !jerarquia.includes("base-cesped") && 
+                  !jerarquia.includes("cesped") && 
+                  !jerarquia.includes("pasto") &&
+                  !jerarquia.includes("piso") &&
+                  !jerarquia.includes("suelo");
+
+  if (esPared) {
+    paredColisionables.push(obj);
   }
 }
 
@@ -442,8 +446,9 @@ function posicionarEnPasilloGotico() {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Posición adentro en el suelo del pasillo
-    avatarGroup.position.set(center.x, box.min.y + 0.15, center.z);
+    // Posición inicial dentro del piso inferior del pasillo
+    const zInterno = box.min.z + (box.max.z - box.min.z) * 0.25;
+    avatarGroup.position.set(center.x, box.min.y + 0.4, zInterno);
     avatarGroup.rotation.y = 0; 
 
     ajustarAlturaSuelo();
@@ -531,14 +536,15 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // Iris con brillo emisor y luz sutil
-        const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-        const ojoGeometria = new THREE.SphereGeometry(0.35, 16, 16);
+        // Geometría del iris
+        const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00e1ff });
+        const ojoGeometria = new THREE.SphereGeometry(0.3, 16, 16);
         const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
         ojoUnico.position.set(0, -0.1, 1.05); 
         querubinGroup.add(ojoUnico);
 
-        const luzIris = new THREE.PointLight(0x00f0ff, 3.5, 12);
+        // LUZ SUTIL RESTRINGIDA EXCLUSIVAMENTE AL INTERIOR DEL IRIS
+        const luzIris = new THREE.PointLight(0x00e1ff, 2.0, 4.0);
         luzIris.position.copy(ojoUnico.position);
         querubinGroup.add(luzIris);
 
@@ -625,7 +631,7 @@ function ajustarAlturaSuelo() {
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
   raycasterPiso.far = 7.0;
 
-  const impactos = raycasterPiso.intersectObjects(pisoColisionables, false);
+  const impactos = raycasterPiso.intersectObjects(pisoColisionables, true);
 
   let mejorImpacto = null;
   for (let i = 0; i < impactos.length; i++) {
@@ -647,19 +653,8 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (paredColisionables.length === 0 || !avatarGroup) return false;
 
   const posAv = avatarGroup.position;
-  const paredesCercanas = [];
-
-  for (let i = 0; i < paredColisionables.length; i++) {
-    const p = paredColisionables[i];
-    if (p.userData.boxWorld && p.userData.boxWorld.distanceToPoint(posAv) < 2.0) {
-      paredesCercanas.push(p);
-    }
-  }
-
-  if (paredesCercanas.length === 0) return false;
-
-  const alturas = [0.6, 1.4];
-  const angulosRayos = [0, -0.4, 0.4];
+  const alturas = [0.5, 1.2];
+  const angulosRayos = [0, -0.4, 0.4, -0.8, 0.8];
 
   for (let h = 0; h < alturas.length; h++) {
     vecOrigenPared.copy(posAv);
@@ -668,9 +663,9 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     for (let i = 0; i < angulosRayos.length; i++) {
       vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
-      raycasterPared.far = 0.75 + pasoDistancia;
+      raycasterPared.far = 0.8 + pasoDistancia;
 
-      const impactos = raycasterPared.intersectObjects(paredesCercanas, false);
+      const impactos = raycasterPared.intersectObjects(paredColisionables, true);
       if (impactos.length > 0) return true;
     }
   }
