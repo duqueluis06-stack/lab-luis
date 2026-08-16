@@ -186,16 +186,16 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 // ILUMINACIÓN GENERAL Y LUNAR
-const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.9);
+const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.95);
 scene.add(ambientLight);
 
 const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.2);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
-// ILUMINADOR EXCLUSIVO PARA DESTACAR EL CUERPO DEL QUERUBÍN EN EL CIELO
-const querubinIlluminator = new THREE.DirectionalLight(0xffffff, 2.5);
-querubinIlluminator.position.set(-160, 180, -150);
+// LUZ CÁLIDA DEDICADA A ILUMINAR EL QUERUBÍN EN EL CIELO
+const querubinIlluminator = new THREE.DirectionalLight(0xfff5ea, 2.2);
+querubinIlluminator.position.set(-150, 160, -150);
 scene.add(querubinIlluminator);
 
 const dracoLoader = new DRACOLoader();
@@ -217,7 +217,6 @@ querubinGroup.position.set(-170, 140, -170);
 
 let querubinMesh = null;
 let mixerQuerubin = null;
-let spotTarget = null;
 
 const todosLosMeshes = [];
 const candidatosCercanos = [];
@@ -392,7 +391,6 @@ function registrarMeshesEscenario(root) {
           }
         }
         
-        // Precálculo de centros mundiales para velocidad ultra rápida
         if (!child.geometry.boundingSphere) {
           child.geometry.computeBoundingSphere();
         }
@@ -476,7 +474,7 @@ function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
 }
 
 // --------------------------------------------------
-// CARGA DE MODELOS Y EFECTOS LUMINOSOS
+// CARGA DE MODELOS Y EFECTO LUMÍNICO SUTIL DEL QUERUBÍN
 // --------------------------------------------------
 
 loader.load(
@@ -513,55 +511,34 @@ function cargarQuerubin() {
         querubinMesh.scale.setScalar(3.5);
         querubinMesh.rotation.set(0, -Math.PI / 2, 0);
 
+        // AJUSTE MÍSTICO SUTIL DE MATERIALES DEL QUERUBÍN
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
             if (child.material) {
-              child.material.roughness = 0.2;
-              child.material.metalness = 0.1;
+              child.material.roughness = 0.35;
+              child.material.metalness = 0.3;
+
+              // Emisión sutil mística para resaltar los tonos dorados y los ojos rojos
+              if (child.material.emissive) {
+                child.material.emissive.setHex(0x3a0d05);
+                child.material.emissiveIntensity = 0.5;
+              }
             }
           }
         });
 
         querubinGroup.add(querubinMesh);
 
-        // 1. ESFERA Y LUZ INTENSA EN EL OJO
-        const ojoMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-        const ojoGeometria = new THREE.SphereGeometry(1.2, 16, 16);
-        const ojoUnico = new THREE.Mesh(ojoGeometria, ojoMaterial);
-        ojoUnico.position.set(0, -0.1, 1.1); 
-        querubinGroup.add(ojoUnico);
+        // 1. LUZ PUNTUAL ROJO/CARMESÍ EN EL NÚCLEO DEL OJO CENTRAL
+        const luzCoreOjo = new THREE.PointLight(0xff3300, 3.5, 20);
+        luzCoreOjo.position.set(0, 0, 0);
+        querubinGroup.add(luzCoreOjo);
 
-        const luzIris = new THREE.PointLight(0x00ffff, 50, 120);
-        luzIris.position.set(0, -0.1, 1.2);
-        querubinGroup.add(luzIris);
-
-        // 2. HAZ DE LUZ VOLUMÉTRICO CELESTIAL (FARO / REFLECTOR DESDE EL CIELO)
-        const hazGeo = new THREE.CylinderGeometry(1.0, 35, 350, 32, 1, true);
-        hazGeo.translate(0, -175, 0);
-        const hazMat = new THREE.MeshBasicMaterial({
-          color: 0x00ffff,
-          transparent: true,
-          opacity: 0.35,
-          side: THREE.DoubleSide,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-        const hazLuz = new THREE.Mesh(hazGeo, hazMat);
-        hazLuz.position.set(0, -0.1, 1.2);
-        querubinGroup.add(hazLuz);
-
-        // 3. REFLECTOR SPOTLIGHT FOCALIZADO HACIA EL SUELO Y AVATAR
-        spotTarget = new THREE.Object3D();
-        scene.add(spotTarget);
-
-        const spotLightQuerubin = new THREE.SpotLight(0x00ffff, 120);
-        spotLightQuerubin.position.set(0, -0.1, 1.2);
-        spotLightQuerubin.angle = Math.PI / 4;
-        spotLightQuerubin.penumbra = 0.4;
-        spotLightQuerubin.distance = 500;
-        spotLightQuerubin.target = spotTarget;
-        querubinGroup.add(spotLightQuerubin);
+        // 2. HALO/AURA SUTIL DE LUZ DORADA QUE RESALTA LOS ANILLOS CONCÉNTRICOS Y SUS OJOS
+        const luzAuraAnillos = new THREE.PointLight(0xff9900, 2.0, 35);
+        luzAuraAnillos.position.set(0, 1, 0);
+        querubinGroup.add(luzAuraAnillos);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
           const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
@@ -780,10 +757,6 @@ function actualizarQuerubin() {
   targetQuerubin.y += 1.0; 
 
   querubinGroup.lookAt(targetQuerubin);
-
-  if (spotTarget) {
-    spotTarget.position.copy(targetQuerubin);
-  }
 }
 
 function seguirAvatar() {
