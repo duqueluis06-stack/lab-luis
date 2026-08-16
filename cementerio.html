@@ -294,6 +294,7 @@ const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
 
+// Vectores reutilizables globales (evitan saturación de memoria Garbage Collection)
 const vecOrigenPiso = new THREE.Vector3();
 const vecOrigenPared = new THREE.Vector3();
 const vecMovimiento = new THREE.Vector3();
@@ -302,6 +303,12 @@ const vecRight = new THREE.Vector3();
 const targetQuerubin = new THREE.Vector3();
 const vecRayDir = new THREE.Vector3();
 const normalMundo = new THREE.Vector3();
+const vecEjeY = new THREE.Vector3(0, 1, 0);
+const vecSlideX = new THREE.Vector3();
+const vecSlideZ = new THREE.Vector3();
+const vecObjetivoPunto = new THREE.Vector3();
+const vecOffsetCam = new THREE.Vector3();
+const vecPosDeseadaCam = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -507,10 +514,12 @@ function posicionarEnPasilloGotico() {
 // BUCLE CONTINUO DE ANIMACIONES
 // --------------------------------------------------
 
-function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0) {
-  rootObject.traverse((child) => {
-    if (child.isMesh) child.frustumCulled = false;
-  });
+function crearYEjecutarMixer(gltf, rootObject, velocidadAnimacion = 1.0, esAvatar = false) {
+  if (esAvatar) {
+    rootObject.traverse((child) => {
+      if (child.isMesh) child.frustumCulled = false;
+    });
+  }
 
   if (!gltf.animations || gltf.animations.length === 0) return { mixer: null, action: null };
 
@@ -548,7 +557,7 @@ loader.load(
       registrarMeshesEscenario(cementerio);
 
       if (gltf.animations && gltf.animations.length > 0) {
-        const res = crearYEjecutarMixer(gltf, cementerio, 1.0);
+        const res = crearYEjecutarMixer(gltf, cementerio, 1.0, false);
         cementerioMixer = res.mixer;
       }
     } catch (e) {
@@ -596,7 +605,7 @@ function cargarQuerubin() {
         querubinGroup.add(luzAuraAnillos);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
-          const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0);
+          const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0, true);
           mixerQuerubin = res.mixer;
         }
       } catch (e) {
@@ -619,7 +628,7 @@ function cargarAvatares() {
     function(gltfHora) {
       try {
         avatarHora = gltfHora.scene;
-        const resH = crearYEjecutarMixer(gltfHora, avatarHora, 1.0);
+        const resH = crearYEjecutarMixer(gltfHora, avatarHora, 1.0, true);
         mixerHora = resH.mixer;
         actionHora = resH.action;
         avatarGroup.add(avatarHora);
@@ -632,7 +641,7 @@ function cargarAvatares() {
         function(gltfCamina) {
           try {
             avatarCamina = gltfCamina.scene;
-            const resC = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.1);
+            const resC = crearYEjecutarMixer(gltfCamina, avatarCamina, 1.1, true);
             mixerCamina = resC.mixer;
             actionCamina = resC.action;
 
@@ -672,7 +681,7 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 6);
   if (candidatos.length === 0) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
@@ -716,7 +725,7 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (todosLosMeshes.length === 0 || !avatarGroup) return false;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 12);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 5);
   if (candidatos.length === 0) return false;
 
   const posAv = avatarGroup.position;
@@ -728,7 +737,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
     vecOrigenPared.y += alturas[h];
 
     for (let i = 0; i < angulosRayos.length; i++) {
-      vecRayDir.copy(dirMovimiento).applyAxisAngle(new THREE.Vector3(0, 1, 0), angulosRayos[i]);
+      vecRayDir.copy(dirMovimiento).applyAxisAngle(vecEjeY, angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
       
       raycasterPared.far = 0.38 + pasoDistancia;
@@ -786,13 +795,13 @@ function moverAvatar(delta) {
     if (!hayColisionPared(vecMovimiento, paso)) {
       avatarGroup.position.addScaledVector(vecMovimiento, paso);
     } else {
-      const vecX = new THREE.Vector3(vecMovimiento.x, 0, 0).normalize();
-      if (Math.abs(vecMovimiento.x) > 0.1 && !hayColisionPared(vecX, paso * Math.abs(vecMovimiento.x))) {
-        avatarGroup.position.addScaledVector(vecX, paso * Math.abs(vecMovimiento.x));
+      vecSlideX.set(vecMovimiento.x, 0, 0).normalize();
+      if (Math.abs(vecMovimiento.x) > 0.1 && !hayColisionPared(vecSlideX, paso * Math.abs(vecMovimiento.x))) {
+        avatarGroup.position.addScaledVector(vecSlideX, paso * Math.abs(vecMovimiento.x));
       } else {
-        const vecZ = new THREE.Vector3(0, 0, vecMovimiento.z).normalize();
-        if (Math.abs(vecMovimiento.z) > 0.1 && !hayColisionPared(vecZ, paso * Math.abs(vecMovimiento.z))) {
-          avatarGroup.position.addScaledVector(vecZ, paso * Math.abs(vecMovimiento.z));
+        vecSlideZ.set(0, 0, vecMovimiento.z).normalize();
+        if (Math.abs(vecMovimiento.z) > 0.1 && !hayColisionPared(vecSlideZ, paso * Math.abs(vecMovimiento.z))) {
+          avatarGroup.position.addScaledVector(vecSlideZ, paso * Math.abs(vecMovimiento.z));
         }
       }
     }
@@ -828,23 +837,23 @@ function actualizarQuerubin() {
 function seguirAvatar() {
   if (!avatarGroup) return;
 
-  const objetivoPunto = avatarGroup.position.clone();
-  objetivoPunto.y += 1.2 * ESCALA_AVATAR;
+  vecObjetivoPunto.copy(avatarGroup.position);
+  vecObjetivoPunto.y += 1.2 * ESCALA_AVATAR;
 
   const distancia = 3.5 * ESCALA_AVATAR;
   const radY = THREE.MathUtils.degToRad(anguloCamaraY);
   const radX = THREE.MathUtils.degToRad(anguloCamaraX);
 
-  const offset = new THREE.Vector3(
+  vecOffsetCam.set(
     distancia * Math.sin(radY) * Math.cos(radX),
     distancia * Math.sin(radX),
     distancia * Math.cos(radY) * Math.cos(radX)
   );
 
-  const posicionDeseada = avatarGroup.position.clone().add(offset);
+  vecPosDeseadaCam.copy(avatarGroup.position).add(vecOffsetCam);
 
-  camera.position.lerp(posicionDeseada, 0.2);
-  cameraTarget.lerp(objetivoPunto, 0.25);
+  camera.position.lerp(vecPosDeseadaCam, 0.2);
+  cameraTarget.lerp(vecObjetivoPunto, 0.25);
   camera.lookAt(cameraTarget);
 }
 
@@ -863,7 +872,7 @@ function mostrarError(mensaje) {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.033);
+  const delta = Math.min(clock.getDelta(), 0.1);
 
   if (cementerioMixer) {
     cementerioMixer.update(delta);
