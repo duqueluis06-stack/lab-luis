@@ -40,7 +40,6 @@
     <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
     <script>
-
         // COMPONENTE PARA FORZAR LA LECTURA DE ANIMACIONES TRAS LA CARGA DEL GLB
         AFRAME.registerComponent('fix-animacion', {
             schema: {
@@ -86,26 +85,54 @@
             -webkit-user-select: none; color: #fff;
         }
 
+        /* PORTADA CON IMAGEN DE FONDO (where.jpg) Y EFECTO NEÓN ROJO */
         #custom-loader { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: var(--bg-dark); z-index: 99999; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: url('where.jpg') no-repeat center center / cover; 
+            z-index: 99999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between; 
+            box-shadow: inset 0 0 120px #ff0000;
+            padding: 40px 20px;
+            box-sizing: border-box;
             transition: opacity 0.8s ease, visibility 0.8s ease; 
         }
         #custom-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
-        .spinner-container { position: relative; width: 80px; height: 80px; margin-bottom: 25px; }
+        .overlay-glow {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255, 0, 0, 0.15) 0%, rgba(4, 4, 10, 0.85) 90%);
+            pointer-events: none; z-index: 1;
+        }
+
+        .loader-top-container { z-index: 2; text-align: center; margin-top: 20px; }
+        .spinner-container { position: relative; width: 70px; height: 70px; margin: 0 auto 15px auto; }
         .spinner { 
-            width: 100%; height: 100%; border: 4px solid rgba(255, 42, 42, 0.1); 
+            width: 100%; height: 100%; border: 4px solid rgba(255, 42, 42, 0.2); 
             border-top-color: var(--ui-red); border-radius: 50%; 
             animation: spin 1s linear infinite; 
         }
-        .spinner-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; color: var(--ui-red); }
+        .spinner-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; color: var(--ui-red); }
 
         .loader-text-group { text-align: center; }
-        .loader-title { color: var(--ui-red); font-size: 18px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
-        .load-progress { width: 200px; height: 3px; background: rgba(255,255,255,0.1); margin: 15px auto; border-radius: 2px; overflow: hidden; }
+        .loader-title { 
+            color: #ffffff; font-size: 28px; font-weight: 900; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 8px; 
+            text-shadow: 0 0 5px #ff0033, 0 0 10px #ff0033, 0 0 20px #ff0000, 0 0 40px #ff0000;
+            animation: neon-pulse 1.5s infinite alternate;
+        }
+        .load-progress { width: 220px; height: 4px; background: rgba(255,255,255,0.15); margin: 15px auto; border-radius: 2px; overflow: hidden; box-shadow: 0 0 8px rgba(255, 0, 0, 0.5); }
         #progress-bar { width: 0%; height: 100%; background: var(--ui-red); transition: width 0.2s ease; }
+
+        /* FIRMA DEL AUTOR CON RESPLANDOR NEÓN */
+        .author-tag {
+            z-index: 2; color: #ffffff; font-family: monospace; font-size: 1.3rem; font-weight: bold;
+            letter-spacing: 2px; text-shadow: 0 0 4px #ff0000, 0 0 12px #ff0000, 0 0 25px #ff0000;
+            margin-bottom: 20px; text-align: center;
+        }
+
+        @keyframes neon-pulse {
+            0% { opacity: 0.9; text-shadow: 0 0 5px #ff0033, 0 0 10px #ff0033, 0 0 20px #ff0000; }
+            100% { opacity: 1; text-shadow: 0 0 8px #ff0033, 0 0 15px #ff0033, 0 0 30px #ff0000, 0 0 60px #ff0000; }
+        }
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -184,14 +211,25 @@
 </head>
 <body>
 
+    <!-- PORTADA Y CARGADOR CON LA IMAGEN where.jpg -->
     <div id="custom-loader">
-        <div class="spinner-container">
-            <div class="spinner"></div>
-            <div class="spinner-icon">🐺</div>
+        <div class="overlay-glow"></div>
+        
+        <div class="loader-top-container">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+                <div class="spinner-icon">🐺</div>
+            </div>
+            <div class="loader-text-group">
+                <div class="loader-title">ARK SIMULATOR</div>
+                <div class="load-progress"><div id="progress-bar"></div></div>
+            </div>
         </div>
-        <div class="loader-text-group">
-            <div class="loader-title">ARK SIMULATOR</div>
-            <div class="load-progress"><div id="progress-bar"></div></div>
+
+        <div id="loader-action-area" style="z-index: 2;"></div>
+
+        <div class="author-tag">
+            <span>LuisF.DuqueMartini</span>
         </div>
     </div>
 
@@ -241,7 +279,7 @@
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
         </a-entity>
         
-        <!-- 📱 OPTIMIZACIÓN TÉRMICA: Lluvia reducida a 100 partículas -->
+        <!-- Lluvia reducida para optimización térmica -->
         <a-entity particle-system="preset: rain; color: #333; particleCount: 100; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
@@ -280,7 +318,6 @@
     <script>
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-        // 🏠 COLECCIÓN MULTI-REFUGIO CON IDENTIFICACIÓN
         let ZONAS_REFUGIO = [];
         let PUNTOS_MERODEO_CASA = [
             new THREE.Vector3(0, 0, 6.0),    
@@ -434,7 +471,6 @@
             }
         };
 
-        // 🔓 DESBLOQUEO UNIVERSAL DE AUDIOCONTEXT EN MÓVILES
         const unlockAudioContext = () => {
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -462,7 +498,7 @@
             assetsCargados: 0, totalAssets: 0, escenaIniciada: false, juegoActivo: false,
             introCompletada: false,
             pos: new THREE.Vector3(0, 0, 25), stamina: 200,
-            velY: 0, enElSuelo: true, // 🦘 FISICA Y ESTADO DE SALTO
+            velY: 0, enElSuelo: true,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
             esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
@@ -472,6 +508,7 @@
 
         const UI = {
             loader: document.getElementById('custom-loader'), bar: document.getElementById('progress-bar'),
+            loaderAction: document.getElementById('loader-action-area'),
             fade: document.getElementById('fade-screen'), alert: document.getElementById('alert-ui'), 
             btnReset: document.getElementById('btn-reset'), btnExit: document.getElementById('btn-exit'),
             btnSprint: document.getElementById('btn-sprint'), staminaBar: document.getElementById('stamina-bar'), 
@@ -490,7 +527,6 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
-        // 🛠️ FILTRADO DE SUELOS Y PRECÁLCULO ESPACIAL DE COLISIONES
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -538,7 +574,6 @@
             });
         }
 
-        // 🚀 OPTIMIZACIÓN DE COLISIONES: FILTRADO ESPACIAL PROXIMAL
         function obtenerColisionesCercanas(pos, maxDist = 10) {
             let cercanas = [];
             for (let i = 0; i < colisionBarrioCache.length; i++) {
@@ -555,7 +590,6 @@
             return cercanas;
         }
 
-        // 🏠 ESCANEO AUTOMÁTICO CON ETIQUETADO DE CASAS
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
             ZONAS_REFUGIO = [];
@@ -571,7 +605,6 @@
                         nombre: n,
                         box: caja
                     });
-                    console.log(`🎯 Refugio registrado: [${child.name}]`, caja);
                 }
             });
 
@@ -651,14 +684,13 @@
                 });
             }
             
-            UI.loader.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 14px 28px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 13px; letter-spacing: 2px; box-shadow: 0 0 20px rgba(239,42,42,0.5); text-transform: uppercase;">¡ENTRAR AL SUEÑO!</button>`;
+            UI.loaderAction.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 16px 32px; font-weight: 900; border-radius: 8px; cursor: pointer; font-size: 14px; letter-spacing: 3px; box-shadow: 0 0 25px rgba(239,42,42,0.8); text-transform: uppercase;">¡ENTRAR AL SUEÑO!</button>`;
             
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
                 AudioController.reproducirMusicaFondo();
                 initControls();
                 
-                // 📱 OPTIMIZACIÓN TÉRMICA MÓVIL: Capar la densidad de píxeles
                 if (ENT.scene && ENT.scene.renderer) {
                     ENT.scene.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
                 }
@@ -692,19 +724,17 @@
                 if(['w','arrowup'].includes(k)) INPUT.keys.w = true;
                 if(['s','arrowdown'].includes(k)) INPUT.keys.s = true;
                 if(['a','arrowleft'].includes(k)) INPUT.keys.a = true;
-                if(['d','arrowright'].includes(k)) INPUT.keys.d = true; // CORREGIDO AQUÍ (Antes decía false)
+                if(['d','arrowright'].includes(k)) INPUT.keys.d = true;
                 
-                // TECLA SPRINT (SHIFT)
                 if(e.key === 'Shift') { 
                     e.preventDefault(); 
                     toggleSprint(true); 
                 }
                 
-                // TECLA SALTO (ESPACIO)
                 if(e.code === 'Space' || e.key === ' ') {
                     e.preventDefault();
                     if (GAME_STATE.enElSuelo && !GAME_STATE.esInterior) {
-                        GAME_STATE.velY = 5.2; // Fuerza de salto
+                        GAME_STATE.velY = 5.2;
                         GAME_STATE.enElSuelo = false;
                     }
                 }
@@ -767,18 +797,15 @@
             }
         }
 
-        // 🎥 CÁMARA PRIMERA PERSONA CON ALTURA DEDICADA PARA CASALUIS
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
-                // Evaluamos si el refugio donde estamos es casaluis
                 const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
                                    GAME_STATE.refugioActualNombre.includes('casa_luis') || 
                                    GAME_STATE.refugioActualNombre.includes('luis_model');
 
-                // 0.95m para casaluis, 1.35m para casa77 y otras
                 const alturaCamara = esCasaLuis ? 0.95 : 1.35;
 
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
@@ -851,7 +878,6 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                // COMPROBACIÓN DENTRO DE ZONA DE REFUGIO CON NOMBRE
                 let deVerdadEstaDentro = false;
                 GAME_STATE.refugioActualNombre = '';
 
@@ -885,7 +911,6 @@
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
-                // 📱 OPTIMIZACIÓN TÉRMICA: DETECCIÓN DE SUELO CADA 2 FRAMES (THROTTLE 50% CPU)
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
@@ -913,9 +938,8 @@
                     }
                 }
 
-                // 🦘 GRAVEDAD Y SALTO / GROUND SNAPPING
                 if (!GAME_STATE.enElSuelo) {
-                    GAME_STATE.velY -= 15.0 * dt; // Gravedad
+                    GAME_STATE.velY -= 15.0 * dt;
                     GAME_STATE.pos.y += GAME_STATE.velY * dt;
 
                     if (GAME_STATE.pos.y <= GAME_STATE.cachedAlturaSuelo) {
