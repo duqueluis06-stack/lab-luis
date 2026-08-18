@@ -614,6 +614,8 @@ let islaScene = null;
 
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(0, 0, 0);
+// Ajuste de escala para reducir a Luis en las 3 poses simultáneamente
+avatarContainer.scale.set(0.65, 0.65, 0.65);
 scene.add(avatarContainer);
 
 let modelAcostado = null;
@@ -637,6 +639,7 @@ function setAvatarState(newState) {
 
 let michigris = null;
 let islandMixer = null; 
+let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 let michigrisMixer = null;
@@ -753,18 +756,22 @@ loader.load("michigris.glb", (gltf) => {
   }
 });
 
-// LARA BAILA (Ajuste a 50 Frames de Bucle y control por Play/Pausa)
+// LARA BAILA (Ajuste de ciclo de 50 Frames y rotación continua en bucle)
 loader.load("lara-baila.glb", (gltf) => {
-  const lara = gltf.scene;
-  lara.scale.set(0.48, 0.48, 0.48); 
-  lara.position.set(1.8, 0, -1); 
-  scene.add(lara);
+  laraMesh = gltf.scene;
+  laraMesh.scale.set(0.48, 0.48, 0.48); 
+  laraMesh.position.set(1.8, 0, -1); 
+  scene.add(laraMesh);
   
   if (gltf.animations && gltf.animations.length > 0) {
-    laraMixer = new THREE.AnimationMixer(lara);
+    laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
     
     laraAction = laraMixer.clipAction(clip);
+    
+    // Ajustar duración para sincronizar exactamente a un ciclo de 50 frames (base 30 fps)
+    const targetDuration = 50 / 30; 
+    laraAction.setDuration(targetDuration);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.play();
     
@@ -892,8 +899,12 @@ function animate() {
   // El mixer de la isla siempre corre (olas en movimiento)
   if (islandMixer) islandMixer.update(delta);
   
-  // Mixer de Lara sujeto al playback de audio
+  // Mixer y giro continuo de Lara sujeto a la reproducción de audio
   if (laraMixer) laraMixer.update(delta);
+  if (laraMesh && laraAction && !laraAction.paused) {
+    // Giro continuo sobre el eje Y coordinado con la animación
+    laraMesh.rotation.y += (Math.PI * 2 / (50 / 30)) * delta;
+  }
 
   if (michigrisMixer) michigrisMixer.update(delta);
 
