@@ -47,6 +47,7 @@
       -ms-user-select: none;
       user-select: none;
       -webkit-touch-callout: none;
+      box-sizing: border-box;
     }
 
     html, body {
@@ -146,7 +147,6 @@
       display: flex;
       flex-direction: column;
       padding: 8px 16px;
-      box-sizing: border-box;
       gap: 6px;
     }
 
@@ -360,7 +360,7 @@ camera.position.set(0, 4, 10);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -393,6 +393,7 @@ let audioAnalyser = null;
 const playlist = ["audio/entre-tes-ombres.mp3", "audio/stade-de-nos-reves.mp3", "audio/cumbia-de-minuit.mp3"];
 let currentTrackIndex = 0;
 let userInteracted = false; 
+let isLoadingAudio = false;
 
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
@@ -432,17 +433,20 @@ function updateConsoleUI(filename, status) {
 function loadTrack(index, startPlaying = false) {
   currentTrackIndex = index;
   const filename = playlist[currentTrackIndex];
+  isLoadingAudio = true;
   updateConsoleUI(filename, 'loading');
 
+  if (soundSource.isPlaying) soundSource.stop();
+
   audioLoader.load(filename, (buffer) => {
+    isLoadingAudio = false;
     if (soundSource.source) soundSource.source.onended = null;
-    if (soundSource.isPlaying) soundSource.stop();
 
     soundSource.setBuffer(buffer);
     soundSource.setLoop(false); 
     soundSource.setVolume(0.5);
     
-    if(!audioAnalyser) {
+    if (!audioAnalyser) {
       audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
@@ -450,6 +454,7 @@ function loadTrack(index, startPlaying = false) {
       executePlay();
     }
   }, undefined, (err) => {
+    isLoadingAudio = false;
     document.getElementById('track-display').innerText = "ERROR 404";
     console.error(err);
   });
@@ -460,7 +465,7 @@ function executePlay() {
   if (audioContext.state === 'suspended') {
     audioContext.resume();
   }
-  if (soundSource.buffer && !soundSource.isPlaying) {
+  if (soundSource.buffer && !soundSource.isPlaying && !isLoadingAudio) {
     try {
       soundSource.play();
       updateConsoleUI(playlist[currentTrackIndex], 'playing');
@@ -590,14 +595,13 @@ function drawVuMeter() {
 const loader = new GLTFLoader();
 
 const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
+dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
 loader.setDRACOLoader(dracoLoader);
 
 const raycaster = new THREE.Raycaster();
 const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 
-// CONTENEDOR CONTROLADOR DE LUIS Y SUS 3 ESTADOS
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(0, 0, 0);
 scene.add(avatarContainer);
@@ -626,7 +630,7 @@ let islandMixer = null;
 let laraMixer = null; 
 let michigrisMixer = null;
 
-// CARGA DE LA ISLA (OLAS Y MESH DE TERRENO EN LOOP CONTINUO)
+// CARGA DE LA ISLA
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -640,7 +644,7 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   }
 });
 
-// 1. LUIS ACOSTADO (GITHUB)
+// 1. LUIS ACOSTADO
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -657,7 +661,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   }
 });
 
-// 2. LUIS CAMINA (GITHUB)
+// 2. LUIS CAMINA
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
   modelCamina.rotation.y = 0; 
@@ -708,7 +712,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// MICHIGRIS / MONITOS (ANIMACIÓN CONTINUA Y SIN PAUSAS)
+// MICHIGRIS (450 FRAMES)
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -733,13 +737,16 @@ loader.load("michigris.glb", (gltf) => {
     michigrisMixer = new THREE.AnimationMixer(michigris);
     gltf.animations.forEach((clip) => {
       const action = michigrisMixer.clipAction(clip);
+      action.reset();
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.enabled = true;
       action.play();
     });
   }
 });
 
-// LARA BAILA (EJECUCIÓN DIRECTA CONTINUA)
+// LARA BAILA (50 FRAMES)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -750,7 +757,10 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(lara);
     gltf.animations.forEach((clip) => {
       const action = laraMixer.clipAction(clip);
+      action.reset();
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.enabled = true;
       action.play();
     });
   }
@@ -936,10 +946,9 @@ function evaluarTeclado() {
 // --- LOOP RENDER PRINCIPAL ---
 function animate() {
   requestAnimationFrame(animate);
-  const delta = clock.getDelta();
+  const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  // Actualización ininterrumpida de todos los mixers de animación
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
@@ -980,19 +989,21 @@ function animate() {
     }
   });
 
-  // CONTROL DEL ALTURA CON SUAVIZADO Y SIN REINICIO AUTOMÁTICO AL ALEJARSE
+  // DETECCIÓN DE ALTURA DEL TERRENO (RAYCASTER)
   if (islaScene) {
     const origin = avatarContainer.position.clone();
-    origin.y += 5.0;
+    origin.y += 3.0;
     raycaster.set(origin, downVector);
+    raycaster.far = 10;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      const hit = intersects[0];
-      const targetY = hit.point.y;
-      // Ajuste progresivo de desnivel para evitar saltos o caídas bruscas
-      if (Math.abs(targetY - avatarContainer.position.y) < 2.5) {
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetY, 0.15);
+      const validHit = intersects.find(hit => hit.distance >= 2.0);
+      if (validHit) {
+        const targetY = validHit.point.y;
+        if (Math.abs(targetY - avatarContainer.position.y) < 2.0) {
+          avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetY, 0.15);
+        }
       }
     }
   }
