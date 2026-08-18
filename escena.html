@@ -351,6 +351,37 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
+// --- FUNCIÓN LIMPIADORA DE TIEMPOS MUERTOS EN CUALQUIER ANIMACIÓN GLB ---
+function recortarAnimacionMuerta(clip, duracionMaximaDeseada = null) {
+  let duracionReal = 0;
+
+  clip.tracks.forEach((track) => {
+    if (track.times.length > 0) {
+      const ultimoFrame = track.times[track.times.length - 1];
+      if (ultimoFrame > duracionReal) duracionReal = ultimoFrame;
+    }
+  });
+
+  const duracionFinal = duracionMaximaDeseada || duracionReal;
+  clip.duration = duracionFinal;
+
+  clip.tracks.forEach((track) => {
+    const indicesValidos = [];
+    for (let i = 0; i < track.times.length; i++) {
+      if (track.times[i] <= duracionFinal) {
+        indicesValidos.push(i);
+      }
+    }
+    const numKeys = indicesValidos.length;
+    const stride = track.getValueSize();
+
+    track.times = track.times.slice(0, numKeys);
+    track.values = track.values.slice(0, numKeys * stride);
+  });
+
+  return clip;
+}
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
@@ -634,16 +665,16 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA (OLAS Y ENTORNO CONTINUO SIN PAUSAS)
+// CARGA DE LA ISLA (OLAS PURGADAS SIN PAUSAS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => {
-      const action = islandMixer.clipAction(clip);
+      const clipLimpio = recortarAnimacionMuerta(clip);
+      const action = islandMixer.clipAction(clipLimpio);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.play();
     });
   }
@@ -718,7 +749,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// LARA BAILA - RECORTADO EXACTO A 55 FRAMES (SUBCLIP)
+// LARA BAILA - PURGA DE TIEMPO MUERTO Y BUCLE CONTINUO
 // ============================================================
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
@@ -729,15 +760,12 @@ loader.load("lara-baila.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
-    const originalClip = gltf.animations[0];
+    
+    // Purgamos los 58s de silencio dejando solo los 2.29s (55 fps) reales del baile
+    const clipPurgado = recortarAnimacionMuerta(gltf.animations[0], 2.2916);
 
-    // Corta físicamente el archivo de 0 a 55 fotogramas a 24 fps
-    const subClip = THREE.AnimationUtils.subclip(originalClip, 'lara_loop', 0, 55, 24);
-
-    laraAction = laraMixer.clipAction(subClip);
+    laraAction = laraMixer.clipAction(clipPurgado);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.clampWhenFinished = false;
-    laraAction.enabled = true;
     laraAction.play();
   }
 });
