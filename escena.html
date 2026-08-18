@@ -629,12 +629,10 @@ function setAvatarState(newState) {
   if (modelHora) modelHora.visible = (newState === 'hora');
 }
 
-let michigris = null;
 let islandMixer = null; 
 let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
-let michigrisMixer = null;
 
 // CARGA DE LA ISLA (OLAS Y ENTORNO CONTINUO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
@@ -643,7 +641,6 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => {
-      // Recorte de frames vacíos al final del clip exportado
       clip.trim();
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
@@ -723,41 +720,9 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// MICHIGRIS
-loader.load("michigris.glb", (gltf) => {
-  michigris = gltf.scene;
-  michigris.position.set(1.0, 0, 0.1); 
-  michigris.rotation.y = Math.PI; 
-  
-  michigris.traverse((child) => {
-    if (child.isMesh && child.material) {
-      if (child.material.map) {
-        child.material.map.colorSpace = THREE.SRGBColorSpace;
-        child.material.map.needsUpdate = true;
-      }
-      if (child.material.metalness > 0.4) {
-        child.material.metalness = 0.1; 
-        child.material.roughness = 0.7; 
-      }
-    }
-  });
-
-  scene.add(michigris);
-
-  if (gltf.animations && gltf.animations.length > 0) {
-    michigrisMixer = new THREE.AnimationMixer(michigris);
-    const clip = gltf.animations[0];
-    clip.trim();
-    const action = michigrisMixer.clipAction(clip);
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.play();
-  }
-});
-
 // ============================================================
-// LARA BAILA - Recorte exacto y bucle independiente
+// LARA BAILA - Bucle independiente continuo a 55 frames
 // ============================================================
-
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -769,8 +734,10 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
 
-    // Se elimina el tramo inactivo o sin keyframes del final del archivo exportado
-    clip.trim();
+    // Ajuste de rango exacto de la animación (0 a 55 frames)
+    if (clip.duration > (55 / 24)) {
+      clip.duration = 55 / 24;
+    }
 
     laraAction = laraMixer.clipAction(clip);
     laraAction.reset();
@@ -908,11 +875,8 @@ function animate() {
   // ISLA - OLAS
   if (islandMixer) islandMixer.update(delta);
 
-  // LARA - ANIMACIÓN CONTINUA
+  // LARA - ANIMACIÓN CONTINUA (BUCLE INDEPENDIENTE)
   if (laraMixer) laraMixer.update(delta);
-
-  // MICHIGRIS
-  if (michigrisMixer) michigrisMixer.update(delta);
 
   drawVuMeter();
 
