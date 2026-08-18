@@ -41,7 +41,6 @@
   </script>
 
   <style>
-    /* BLOQUEO DE SELECCIÓN Y MENÚS EMERGENTES TÁLTILES */
     * {
       -webkit-user-select: none;
       -moz-user-select: none;
@@ -68,7 +67,6 @@
       outline: none;
     }
 
-    /* EFECTO FLASH AZUL DE CAÍDA AL AGUA */
     #water-flash {
       position: absolute;
       top: 0;
@@ -150,7 +148,6 @@
       text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
     }
 
-    /* CONSOLA DJ GLASSMORPHISM */
     #media-console {
       position: absolute;
       top: 0;
@@ -288,7 +285,6 @@
       #volver { padding: 8px 12px; font-size: 10px; }
     }
 
-    /* JOYSTICK TÁCTIL */
     #joystick-container {
       position: absolute;
       bottom: 16px;
@@ -327,10 +323,8 @@
 
 <body>
 
-<!-- DIV PARA EL EFECTO AZUL DE CAÍDA AL AGUA -->
 <div id="water-flash"></div>
 
-<!-- OVERLAY DE INICIO -->
 <div id="overlay-inicio" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: white; transition: opacity 0.5s ease;">
   <h1 style="color: #00f0ff; font-family: monospace; text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff007f; margin: 0; text-align: center; font-size: 26px; letter-spacing: 2px;">LA ISLA DE LA NOSTALGIA</h1>
   <p style="font-family: monospace; font-size: 11px; color: #94a3b8; margin: 0; text-align: center; letter-spacing: 1px; max-width: 80%;">ENTORNO 3D INTERACTIVO & METAVERSO DE LUIS</p>
@@ -341,7 +335,6 @@
 <button id="volver" onclick="salirDeEscena()">⬅ Salir</button>
 <a href="creditos.html" id="creditos-link">CRÉDITOS</a>
 
-<!-- CONSOLA DJ -->
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
@@ -645,7 +638,7 @@ let mixerAcostado = null;
 let mixerCamina = null;
 let mixerHora = null;
 
-let avatarState = 'acostado'; // 'acostado' | 'camina' | 'hora'
+let avatarState = 'acostado';
 
 function setAvatarState(newState) {
   if (avatarState === newState) return;
@@ -662,17 +655,21 @@ let laraMixer = null;
 let michigrisMixer = null;
 window.laraAction = null; 
 
-// CARGA DE LA ISLA
-loader.load("isla.glb", (gltf) => {
+// CARGA DE LA ISLA DESDE HUGGING FACE
+loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach((clip) => islandMixer.clipAction(clip).play());
+    gltf.animations.forEach((clip) => {
+      const action = islandMixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
 
-// 1. LUIS ACOSTADO
+// 1. LUIS ACOSTADO (GITHUB)
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -681,11 +678,13 @@ loader.load("luis-acostado.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerAcostado = new THREE.AnimationMixer(modelAcostado);
-    mixerAcostado.clipAction(gltf.animations[0]).play();
+    const action = mixerAcostado.clipAction(gltf.animations[0]);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
   }
 });
 
-// 2. LUIS CAMINA
+// 2. LUIS CAMINA (GITHUB)
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
   modelCamina.rotation.y = 0; 
@@ -694,7 +693,9 @@ loader.load("luis-camina.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
-    mixerCamina.clipAction(gltf.animations[0]).play();
+    const action = mixerCamina.clipAction(gltf.animations[0]);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
   }
 });
 
@@ -707,11 +708,12 @@ loader.load("luis-hora.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerHora = new THREE.AnimationMixer(modelHora);
-    mixerHora.clipAction(gltf.animations[0]).play();
+    const action = mixerHora.clipAction(gltf.animations[0]);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
   }
 });
 
-// LÓGICA DE REINICIO
 let isResetting = false;
 
 function resetAvatarPosition() {
@@ -726,7 +728,6 @@ function resetAvatarPosition() {
   controls.target.set(0, 1, 0);
 }
 
-// LÓGICA Y EFECTO AZUL DE CAÍDA AL AGUA
 function triggerWaterReset() {
   if (isResetting) return;
   isResetting = true;
@@ -769,10 +770,13 @@ loader.load("michigris.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     michigrisMixer = new THREE.AnimationMixer(michigris);
-    michigrisMixer.clipAction(gltf.animations[0]).play();
+    const action = michigrisMixer.clipAction(gltf.animations[0]);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
   }
 });
 
+// LARA BAILA (Sincronizada con la música, loop continuo de 50 frames)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -782,6 +786,7 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(lara);
     window.laraAction = laraMixer.clipAction(gltf.animations[0]);
+    window.laraAction.setLoop(THREE.LoopRepeat, Infinity);
     window.laraAction.play();
     if (!soundSource.isPlaying) window.laraAction.paused = true;
   }
@@ -846,7 +851,7 @@ function crearBandada() {
 crearBandada();
 
 
-// --- MANADA DE DELFINES PROCEDIMENTALES ---
+// --- DELFINES PROCEDIMENTALES ---
 const delfines = [];
 const numDelfines = 3;
 
@@ -964,13 +969,13 @@ function evaluarTeclado() {
 }
 
 
-// --- LOOP RENDER PRINCIPAL DE ANIMACIÓN ---
+// --- LOOP RENDER PRINCIPAL Y SIMULTANEO DE ANIMACIONES ---
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
   const tiempoTotal = clock.getElapsedTime();
 
-  // Update de animaciones
+  // Actualización de animaciones 3D en simultáneo
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
@@ -981,7 +986,6 @@ function animate() {
 
   drawVuMeter();
 
-  // Movimiento de Gaviotas
   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
@@ -994,7 +998,6 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // Movimiento de Delfines
   delfines.forEach((d) => {
     d.angulo += d.velocidad * delta;
     d.malla.position.x = Math.cos(d.angulo) * d.radio;
@@ -1013,19 +1016,16 @@ function animate() {
     }
   });
 
-  // SISTEMA INTELIGENTE DE TERRENO (CORRIGE ESCALADO DE PALMERAS Y REINICIOS FALSOS)
   if (islaScene && !isResetting) {
     const origin = avatarContainer.position.clone();
-    origin.y += 4.0; // Proyecta el rayo desde 4m por encima del avatar
+    origin.y += 4.0;
     raycaster.set(origin, downVector);
 
     const intersects = raycaster.intersectObject(islaScene, true);
     let validGroundY = null;
 
-    // Filtra las colisiones para ignorar la copa de los árboles y hojas altas
     for (let i = 0; i < intersects.length; i++) {
       const hit = intersects[i];
-      // Solo acepta superficies que estén como máximo 0.7m por encima del nivel actual del avatar
       if (hit.point.y <= avatarContainer.position.y + 0.7) {
         validGroundY = hit.point.y;
         break;
@@ -1034,14 +1034,11 @@ function animate() {
 
     if (validGroundY !== null) {
       if (validGroundY < -0.35) {
-        // Cayeó efectivamente al mar
         triggerWaterReset();
       } else {
-        // Asignación de altura con interpolación suave (Lerp)
         avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validGroundY, 0.3);
       }
     } else {
-      // Si no detecta superficie, evalúa si Luis realmente salió de la isla (Radio > 22 metros)
       const distCentro = Math.hypot(avatarContainer.position.x, avatarContainer.position.z);
       if (distCentro > 22) {
         triggerWaterReset();
@@ -1049,7 +1046,6 @@ function animate() {
     }
   }
 
-  // LÓGICA DE MOVIMIENTO Y TRANSICIÓN DE ESTADOS (acostado -> camina -> hora)
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving && !isResetting) {
@@ -1076,7 +1072,6 @@ function animate() {
 
     controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
   } else {
-    // Cuando el avatar se detiene, pasa al estado parado/animado 'luis-hora.glb'
     if (avatarState === 'camina') {
       setAvatarState('hora');
     }
