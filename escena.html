@@ -635,7 +635,7 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA Y EL MAR (ACTIVANDO TODOS LOS CLIPS)
+// CARGA DE LA ISLA Y EL MAR (SIN RECORTES, CICLO CONTINUO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -643,17 +643,18 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     
-    // Activa de forma infinita cada clip presente en el GLB de la isla
     gltf.animations.forEach((clip) => {
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
+      action.enabled = true;
+      action.timeScale = 1.0;
       action.play();
     });
   }
 });
 
-// 1. LUIS ACOSTADO
+// 1. LUIS ACOSTADO (Sincronizado a ciclo completo)
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -665,6 +666,8 @@ loader.load("luis-acostado.glb", (gltf) => {
     gltf.animations.forEach((clip) => {
       const action = mixerAcostado.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.enabled = true;
       action.play();
     });
   }
@@ -682,6 +685,8 @@ loader.load("luis-camina.glb", (gltf) => {
     gltf.animations.forEach((clip) => {
       const action = mixerCamina.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.enabled = true;
       action.play();
     });
   }
@@ -699,6 +704,8 @@ loader.load("luis-hora.glb", (gltf) => {
     gltf.animations.forEach((clip) => {
       const action = mixerHora.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.enabled = true;
       action.play();
     });
   }
@@ -721,7 +728,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// CARGA DE LARA CON SUBCLIP NATIVO DE THREE.JS
+// CARGA DE LARA: SIN RECORTAR, LEYENDO EL NVT/NLA DIRECTO DE BFORARTISTS (450 FRAMES COMPLETOS)
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -732,12 +739,13 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    // Subclip nativo seguro (clipOriginal, nombre, frameInicio, frameFin, fps)
-    const clipRecortado = THREE.AnimationUtils.subclip(gltf.animations[0], 'LaraLoop', 0, 55, 30);
-
-    laraAction = laraMixer.clipAction(clipRecortado);
+    // Leemos el clip completo exactamente como fue exportado
+    const rawClip = gltf.animations[0];
+    laraAction = laraMixer.clipAction(rawClip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.clampWhenFinished = false;
+    laraAction.enabled = true;
+    laraAction.timeScale = 1.0;
     laraAction.play();
   }
 });
@@ -860,7 +868,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  // ACTUALIZACIÓN DIRECTA DE MIXERS
+  // ACTUALIZACIÓN DIRECTA
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
