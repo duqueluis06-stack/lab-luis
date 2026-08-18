@@ -565,7 +565,7 @@ function drawVuMeter() {
     vuCtx.beginPath(); vuCtx.moveTo(x, 0); vuCtx.lineTo(x, vuCanvas.height); vuCtx.stroke();
   }
   for (let y = 0; y < vuCanvas.height; y += 6) {
-    vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.height, y); vuCtx.stroke();
+    vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.width, y); vuCtx.stroke();
   }
 
   vuCtx.lineWidth = 1.2;
@@ -630,21 +630,27 @@ function setAvatarState(newState) {
 }
 
 let islandMixer = null; 
+let islandAction = null;
+let islandDuration = 0;
+
 let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA Y EL MAR EN BUCLE INFINITO
+// CARGA DE LA ISLA Y EL MAR CON CORTE DE TIEMPO Y BUCLE FORZADO
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach((clip) => {
-      const action = islandMixer.clipAction(clip);
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.play();
-    });
+    const clip = gltf.animations[0];
+    
+    // Capturamos la duración real de la animación del mar (ida y vuelta visual)
+    islandDuration = clip.duration;
+
+    islandAction = islandMixer.clipAction(clip);
+    islandAction.setLoop(THREE.LoopRepeat, Infinity);
+    islandAction.play();
   }
 });
 
@@ -717,9 +723,9 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// CARGA Y CONFIGURACIÓN DE LARA (FORZADO RIGUROSO A FRAME 55)
+// CARGA Y CONFIGURACIÓN DE LARA (FORZADO CONTINUO EXACTO A FRAME 55)
 // ============================================================
-const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos (Frame 55 a 30 FPS)
+const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos exactos (Frame 55 a 30 FPS)
 
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
@@ -732,8 +738,12 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
 
+    // Forzamos la duración interna recortando cualquier cola muerta del exportador
+    clip.duration = LARA_LOOP_TIME;
+
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
+    laraAction.clampWhenFinished = false;
     laraAction.play();
   }
 });
@@ -861,16 +871,19 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  // EL MAR (EJECUCIÓN ININTERRUMPIDA)
-  if (islandMixer) {
+  // CONTROL DE BUCLE DEL MAR (REINICIO AUTOMÁTICO INMEDIATO)
+  if (islandMixer && islandAction) {
     islandMixer.update(delta);
+    if (islandDuration > 0 && islandAction.time >= islandDuration) {
+      islandAction.time = 0;
+    }
   }
 
-  // LARA (BUCLE FORZADO MANUALMENTE AL LLEGAR AL FRAME 55)
+  // CONTROL DE BUCLE DE LARA (REINICIO AUTOMÁTICO AL LLEGAR AL FRAME 55)
   if (laraMixer && laraAction) {
     laraMixer.update(delta);
     if (laraAction.time >= LARA_LOOP_TIME) {
-      laraAction.time = 0; 
+      laraAction.time = 0;
     }
   }
 
