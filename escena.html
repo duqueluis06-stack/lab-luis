@@ -565,7 +565,7 @@ function drawVuMeter() {
     vuCtx.beginPath(); vuCtx.moveTo(x, 0); vuCtx.lineTo(x, vuCanvas.height); vuCtx.stroke();
   }
   for (let y = 0; y < vuCanvas.height; y += 6) {
-    vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.width, y); vuCtx.stroke();
+    vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.height, y); vuCtx.stroke();
   }
 
   vuCtx.lineWidth = 1.2;
@@ -634,7 +634,7 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA (MAR EN BUCLE NATURAL Y FLUIDO)
+// CARGA DE LA ISLA Y EL MAR EN BUCLE INFINITO
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -717,9 +717,9 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// CARGA Y CONFIGURACIÓN DE LARA (FORZADO AL FRAME 55 EXACTO: 1.833s)
+// CARGA Y CONFIGURACIÓN DE LARA (FORZADO RIGUROSO A FRAME 55)
 // ============================================================
-const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos exactos
+const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos (Frame 55 a 30 FPS)
 
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
@@ -732,12 +732,8 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
 
-    // Recortamos la duración interna del clip al fotograma 55
-    clip.duration = LARA_LOOP_TIME;
-
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.clampWhenFinished = false;
     laraAction.play();
   }
 });
@@ -865,16 +861,16 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  // EL MAR (CORRE TOTALMENTE INDEPENDIENTE SIN CORTES)
+  // EL MAR (EJECUCIÓN ININTERRUMPIDA)
   if (islandMixer) {
     islandMixer.update(delta);
   }
 
-  // LARA (CORTE MANUAL FORZADO EN EL FRAME 55 EXACTO)
+  // LARA (BUCLE FORZADO MANUALMENTE AL LLEGAR AL FRAME 55)
   if (laraMixer && laraAction) {
     laraMixer.update(delta);
     if (laraAction.time >= LARA_LOOP_TIME) {
-      laraAction.time = 0;
+      laraAction.time = 0; 
     }
   }
 
