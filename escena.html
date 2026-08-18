@@ -756,7 +756,7 @@ loader.load("michigris.glb", (gltf) => {
   }
 });
 
-// LARA BAILA (Ajuste de ciclo de 50 Frames y rotación continua en bucle)
+// LARA BAILA - Animación en bucle sincronizada con la música
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48); 
@@ -767,13 +767,14 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
     
-    laraAction = laraMixer.clipAction(clip);
-    
-    // Ajustar duración para sincronizar exactamente a un ciclo de 50 frames (base 30 fps)
-    const targetDuration = 50 / 30; 
-    laraAction.setDuration(targetDuration);
-    laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.play();
+  laraAction = laraMixer.clipAction(clip);
+
+// Lara utiliza la duración real de su animación exportada
+laraAction.setLoop(THREE.LoopRepeat, Infinity);
+laraAction.clampWhenFinished = false;
+laraAction.enabled = true;
+laraAction.reset();
+laraAction.play();
     
     // Si la música no ha comenzado, Lara arranca pausada
     if (!soundSource.isPlaying) {
@@ -899,12 +900,9 @@ function animate() {
   // El mixer de la isla siempre corre (olas en movimiento)
   if (islandMixer) islandMixer.update(delta);
   
-  // Mixer y giro continuo de Lara sujeto a la reproducción de audio
-  if (laraMixer) laraMixer.update(delta);
-  if (laraMesh && laraAction && !laraAction.paused) {
-    // Giro continuo sobre el eje Y coordinado con la animación
-    laraMesh.rotation.y += (Math.PI * 2 / (50 / 30)) * delta;
-  }
+// Animación de Lara sincronizada con la música
+if (laraMixer) laraMixer.update(delta);
+  
 
   if (michigrisMixer) michigrisMixer.update(delta);
 
