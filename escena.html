@@ -67,21 +67,6 @@
       outline: none;
     }
 
-    #water-flash {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 180, 255, 0.75);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      z-index: 1500;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
     #btn-reset {
       position: absolute;
       bottom: 16px;
@@ -323,8 +308,6 @@
 
 <body>
 
-<div id="water-flash"></div>
-
 <div id="overlay-inicio" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: white; transition: opacity 0.5s ease;">
   <h1 style="color: #00f0ff; font-family: monospace; text-shadow: 0 0 10px #00f0ff, 0 0 20px #ff007f; margin: 0; text-align: center; font-size: 26px; letter-spacing: 2px;">LA ISLA DE LA NOSTALGIA</h1>
   <p style="font-family: monospace; font-size: 11px; color: #94a3b8; margin: 0; text-align: center; letter-spacing: 1px; max-width: 80%;">ENTORNO 3D INTERACTIVO & METAVERSO DE LUIS</p>
@@ -390,7 +373,7 @@ const clock = new THREE.Clock();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 2;
-controls.maxDistance = 60;
+controls.maxDistance = 120;
 controls.target.set(0, 1, 0);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
@@ -451,10 +434,6 @@ function loadTrack(index, startPlaying = false) {
   const filename = playlist[currentTrackIndex];
   updateConsoleUI(filename, 'loading');
 
-  if (window.laraAction) {
-    window.laraAction.paused = true;
-  }
-
   audioLoader.load(filename, (buffer) => {
     if (soundSource.source) soundSource.source.onended = null;
     if (soundSource.isPlaying) soundSource.stop();
@@ -485,11 +464,6 @@ function executePlay() {
     try {
       soundSource.play();
       updateConsoleUI(playlist[currentTrackIndex], 'playing');
-      
-      if (window.laraAction) {
-        window.laraAction.paused = false; 
-        window.laraAction.play();        
-      }
       
       if (soundSource.source) {
         soundSource.source.onended = () => {
@@ -560,7 +534,6 @@ document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
     if (soundSource.source) soundSource.source.onended = null;
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
-    if (window.laraAction) window.laraAction.paused = true; 
   }
 });
 
@@ -613,14 +586,13 @@ function drawVuMeter() {
 }
 
 
-// --- CARGA DE ARCHIVOS 3D (GLB) ---
+// --- CARGA DE ARCHIVOS 3D (GLB) Y CONFIGURACIÓN DE ANIMACIONES ---
 const loader = new GLTFLoader();
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
 loader.setDRACOLoader(dracoLoader);
 
-// RAYCASTER PARA ADAPTACIÓN INTELIGENTE DE ALTURA SOBRE LA ISLA
 const raycaster = new THREE.Raycaster();
 const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
@@ -653,9 +625,8 @@ let michigris = null;
 let islandMixer = null; 
 let laraMixer = null; 
 let michigrisMixer = null;
-window.laraAction = null; 
 
-// CARGA DE LA ISLA DESDE HUGGING FACE
+// CARGA DE LA ISLA (OLAS Y MESH DE TERRENO EN LOOP CONTINUO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -678,9 +649,11 @@ loader.load("luis-acostado.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerAcostado = new THREE.AnimationMixer(modelAcostado);
-    const action = mixerAcostado.clipAction(gltf.animations[0]);
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.play();
+    gltf.animations.forEach((clip) => {
+      const action = mixerAcostado.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
 
@@ -693,13 +666,15 @@ loader.load("luis-camina.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
-    const action = mixerCamina.clipAction(gltf.animations[0]);
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.play();
+    gltf.animations.forEach((clip) => {
+      const action = mixerCamina.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
 
-// 3. LUIS HORA (IDLE / REPOSO DE PIE)
+// 3. LUIS HORA
 loader.load("luis-hora.glb", (gltf) => {
   modelHora = gltf.scene;
   modelHora.rotation.y = 0;
@@ -708,13 +683,13 @@ loader.load("luis-hora.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     mixerHora = new THREE.AnimationMixer(modelHora);
-    const action = mixerHora.clipAction(gltf.animations[0]);
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.play();
+    gltf.animations.forEach((clip) => {
+      const action = mixerHora.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
-
-let isResetting = false;
 
 function resetAvatarPosition() {
   avatarContainer.position.set(0, 0, 0);
@@ -728,26 +703,12 @@ function resetAvatarPosition() {
   controls.target.set(0, 1, 0);
 }
 
-function triggerWaterReset() {
-  if (isResetting) return;
-  isResetting = true;
-
-  const flash = document.getElementById('water-flash');
-  flash.style.opacity = '1';
-
-  setTimeout(() => {
-    resetAvatarPosition();
-    flash.style.opacity = '0';
-    setTimeout(() => { isResetting = false; }, 350);
-  }, 350);
-}
-
 document.getElementById('btn-reset').addEventListener('click', (e) => {
   e.stopPropagation();
   resetAvatarPosition();
 });
 
-
+// MICHIGRIS / MONITOS (ANIMACIÓN CONTINUA Y SIN PAUSAS)
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -770,13 +731,15 @@ loader.load("michigris.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     michigrisMixer = new THREE.AnimationMixer(michigris);
-    const action = michigrisMixer.clipAction(gltf.animations[0]);
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    action.play();
+    gltf.animations.forEach((clip) => {
+      const action = michigrisMixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
 
-// LARA BAILA (Sincronizada con la música, loop continuo de 50 frames)
+// LARA BAILA (EJECUCIÓN DIRECTA CONTINUA)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -785,10 +748,11 @@ loader.load("lara-baila.glb", (gltf) => {
   
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(lara);
-    window.laraAction = laraMixer.clipAction(gltf.animations[0]);
-    window.laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    window.laraAction.play();
-    if (!soundSource.isPlaying) window.laraAction.paused = true;
+    gltf.animations.forEach((clip) => {
+      const action = laraMixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.play();
+    });
   }
 });
 
@@ -969,13 +933,13 @@ function evaluarTeclado() {
 }
 
 
-// --- LOOP RENDER PRINCIPAL Y SIMULTANEO DE ANIMACIONES ---
+// --- LOOP RENDER PRINCIPAL ---
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
   const tiempoTotal = clock.getElapsedTime();
 
-  // Actualización de animaciones 3D en simultáneo
+  // Actualización ininterrumpida de todos los mixers de animación
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
@@ -1016,39 +980,26 @@ function animate() {
     }
   });
 
-  if (islaScene && !isResetting) {
+  // CONTROL DEL ALTURA CON SUAVIZADO Y SIN REINICIO AUTOMÁTICO AL ALEJARSE
+  if (islaScene) {
     const origin = avatarContainer.position.clone();
-    origin.y += 4.0;
+    origin.y += 5.0;
     raycaster.set(origin, downVector);
 
     const intersects = raycaster.intersectObject(islaScene, true);
-    let validGroundY = null;
-
-    for (let i = 0; i < intersects.length; i++) {
-      const hit = intersects[i];
-      if (hit.point.y <= avatarContainer.position.y + 0.7) {
-        validGroundY = hit.point.y;
-        break;
-      }
-    }
-
-    if (validGroundY !== null) {
-      if (validGroundY < -0.35) {
-        triggerWaterReset();
-      } else {
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validGroundY, 0.3);
-      }
-    } else {
-      const distCentro = Math.hypot(avatarContainer.position.x, avatarContainer.position.z);
-      if (distCentro > 22) {
-        triggerWaterReset();
+    if (intersects.length > 0) {
+      const hit = intersects[0];
+      const targetY = hit.point.y;
+      // Ajuste progresivo de desnivel para evitar saltos o caídas bruscas
+      if (Math.abs(targetY - avatarContainer.position.y) < 2.5) {
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetY, 0.15);
       }
     }
   }
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  if (isMoving && !isResetting) {
+  if (isMoving) {
     setAvatarState('camina');
 
     const camDir = new THREE.Vector3();
