@@ -634,16 +634,16 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA (OLAS Y ENTORNO CONTINUO)
+// CARGA DE LA ISLA (OLAS Y ENTORNO CONTINUO SIN PAUSAS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => {
-      clip.trim();
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
       action.play();
     });
   }
@@ -659,7 +659,6 @@ loader.load("luis-acostado.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerAcostado = new THREE.AnimationMixer(modelAcostado);
     gltf.animations.forEach((clip) => {
-      clip.trim();
       const action = mixerAcostado.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -677,7 +676,6 @@ loader.load("luis-camina.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
     gltf.animations.forEach((clip) => {
-      clip.trim();
       const action = mixerCamina.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -695,7 +693,6 @@ loader.load("luis-hora.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerHora = new THREE.AnimationMixer(modelHora);
     gltf.animations.forEach((clip) => {
-      clip.trim();
       const action = mixerHora.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -721,7 +718,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// LARA BAILA - Bucle independiente continuo a 55 frames
+// LARA BAILA - RECORTADO EXACTO A 55 FRAMES (SUBCLIP)
 // ============================================================
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
@@ -732,19 +729,15 @@ loader.load("lara-baila.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
-    const clip = gltf.animations[0];
+    const originalClip = gltf.animations[0];
 
-    // Ajuste de rango exacto de la animación (0 a 55 frames)
-    if (clip.duration > (55 / 24)) {
-      clip.duration = 55 / 24;
-    }
+    // Corta físicamente el archivo de 0 a 55 fotogramas a 24 fps
+    const subClip = THREE.AnimationUtils.subclip(originalClip, 'lara_loop', 0, 55, 24);
 
-    laraAction = laraMixer.clipAction(clip);
-    laraAction.reset();
+    laraAction = laraMixer.clipAction(subClip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.clampWhenFinished = false;
     laraAction.enabled = true;
-    laraAction.timeScale = 1.0;
     laraAction.play();
   }
 });
@@ -875,7 +868,7 @@ function animate() {
   // ISLA - OLAS
   if (islandMixer) islandMixer.update(delta);
 
-  // LARA - ANIMACIÓN CONTINUA (BUCLE INDEPENDIENTE)
+  // LARA - ANIMACIÓN CONTINUA
   if (laraMixer) laraMixer.update(delta);
 
   drawVuMeter();
