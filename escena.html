@@ -635,7 +635,7 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA Y EL MAR (CICLO CONTINUO SIN PAUSAS)
+// CARGA DE LA ISLA Y EL MAR (CORREGIDO: INTERPOLACIÓN LINEAL Y RECORTE DE FOTOGRAMA REPETIDO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -644,11 +644,19 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     
     gltf.animations.forEach((clip) => {
+      // 1. Forzar interpolación lineal para eliminar aceleraciones/frenados Bezier
+      clip.tracks.forEach(track => {
+        track.setInterpolation(THREE.InterpolateLinear);
+      });
+
+      // 2. Descontar 1 frame de la duración total para no mantener el fotograma final duplicado
+      if (clip.duration > 0.1) {
+        clip.duration = clip.duration - (1 / 30);
+      }
+
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
-      action.zeroSlopeAtStart = false; // Elimina la desaceleración/pausa al reiniciar el bucle
-      action.zeroSlopeAtEnd = false;
       action.enabled = true;
       action.timeScale = 1.0;
       action.play();
@@ -666,6 +674,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerAcostado = new THREE.AnimationMixer(modelAcostado);
     gltf.animations.forEach((clip) => {
+      clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerAcostado.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
@@ -685,6 +694,7 @@ loader.load("luis-camina.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
     gltf.animations.forEach((clip) => {
+      clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerCamina.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
@@ -704,6 +714,7 @@ loader.load("luis-hora.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerHora = new THREE.AnimationMixer(modelHora);
     gltf.animations.forEach((clip) => {
+      clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerHora.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
@@ -730,7 +741,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// CARGA DE LARA: RECORTADA EXACTAMENTE AL RANGO 1-55 FRAMES @ 24 FPS
+// CARGA DE LARA: SUBCLIP CON INTERPOLACIÓN LINEAL Y DURACIÓN EXACTA
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -741,15 +752,18 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    // Recorte preciso de subclip (frame 1 a 55 a 24fps)
     const rawClip = gltf.animations[0];
     const subClip = THREE.AnimationUtils.subclip(rawClip, "LaraBailaLoop", 1, 55, 24);
+
+    // Forzar línea continua sin desaceleraciones ni tiempos muertos
+    subClip.tracks.forEach(track => {
+      track.setInterpolation(THREE.InterpolateLinear);
+    });
+    subClip.duration = (55 - 1) / 24;
 
     laraAction = laraMixer.clipAction(subClip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.clampWhenFinished = false;
-    laraAction.zeroSlopeAtStart = false;
-    laraAction.zeroSlopeAtEnd = false;
     laraAction.enabled = true;
     laraAction.timeScale = 1.0;
     laraAction.play();
