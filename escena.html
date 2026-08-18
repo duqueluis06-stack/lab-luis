@@ -635,7 +635,7 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA Y EL MAR (SIN RECORTES, CICLO CONTINUO)
+// CARGA DE LA ISLA Y EL MAR (CICLO CONTINUO SIN PAUSAS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -647,6 +647,8 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.clampWhenFinished = false;
+      action.zeroSlopeAtStart = false; // Elimina la desaceleración/pausa al reiniciar el bucle
+      action.zeroSlopeAtEnd = false;
       action.enabled = true;
       action.timeScale = 1.0;
       action.play();
@@ -654,7 +656,7 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   }
 });
 
-// 1. LUIS ACOSTADO (Sincronizado a ciclo completo)
+// 1. LUIS ACOSTADO
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -728,7 +730,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// CARGA DE LARA: SIN RECORTAR, LEYENDO EL NVT/NLA DIRECTO DE BFORARTISTS (450 FRAMES COMPLETOS)
+// CARGA DE LARA: RECORTADA EXACTAMENTE AL RANGO 1-55 FRAMES @ 24 FPS
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -739,11 +741,15 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    // Leemos el clip completo exactamente como fue exportado
+    // Recorte preciso de subclip (frame 1 a 55 a 24fps)
     const rawClip = gltf.animations[0];
-    laraAction = laraMixer.clipAction(rawClip);
+    const subClip = THREE.AnimationUtils.subclip(rawClip, "LaraBailaLoop", 1, 55, 24);
+
+    laraAction = laraMixer.clipAction(subClip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.clampWhenFinished = false;
+    laraAction.zeroSlopeAtStart = false;
+    laraAction.zeroSlopeAtEnd = false;
     laraAction.enabled = true;
     laraAction.timeScale = 1.0;
     laraAction.play();
@@ -868,7 +874,6 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  // ACTUALIZACIÓN DIRECTA
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
