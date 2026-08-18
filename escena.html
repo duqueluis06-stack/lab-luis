@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <!-- 1. Codificación de caracteres -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- 2. Metadatos SEO e Indexación -->
   <title>La Isla de la Nostalgia — Entorno 3D Interactivo & Metaverso</title>
   <meta name="description" content="Explora el entorno virtual 3D inmersivo de La Isla de la Nostalgia. Experiencia interactiva con avatares 3D, consola DJ integrada, vúmetro neón, música envolvente y optimización Three.js WebGL.">
   <meta name="keywords" content="Metaverso, 3D, Three.js, WebGL, Isla Virtual, Luis, Avatar 3D, DJ Consola, Música Interactiva, Entorno Virtual, Programación Web">
@@ -13,7 +11,6 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://duquemartini.com/escena.html">
 
-  <!-- Open Graph / Redes Sociales -->
   <meta property="og:locale" content="es_ES">
   <meta property="og:type" content="website">
   <meta property="og:title" content="La Isla de la Nostalgia — Entorno 3D Interactivo de Luis">
@@ -21,12 +18,10 @@
   <meta property="og:url" content="https://duquemartini.com/escena.html">
   <meta property="og:site_name" content="Duque Martini Metaverso">
 
-  <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="La Isla de la Nostalgia — Entorno 3D Interactivo">
   <meta name="twitter:description" content="Entorno virtual 3D inmersivo con consola DJ interactiva y avatares animados optimizados.">
 
-  <!-- Datos Estructurados JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -58,7 +53,6 @@
   }
   </script>
 
-  <!-- 3. Analítica y seguimiento de Google -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=GT-MB642KNJ"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -95,7 +89,7 @@
       outline: none;
     }
 
-    /* PRESENTACIÓN ESPECTACULAR Y COMPLETA EN PC Y MÓVIL */
+    /* PRESENTACIÓN COMPLETA Y AJUSTADA EN PC Y MÓVIL */
     #overlay-inicio {
       position: absolute;
       top: 0;
@@ -127,7 +121,6 @@
       }
     }
 
-    /* SOL NEÓN DE FONDO DE PRESENTACIÓN */
     .neon-sun {
       position: absolute;
       top: 18%;
@@ -516,11 +509,6 @@ const sunMesh = new THREE.Mesh(sunGeo, sunMat);
 sunMesh.position.copy(sunLight.position).multiplyScalar(10);
 scene.add(sunMesh);
 
-// --- UNIFORMES DE SHADER GPU PARA EFECTO DE VIENTO EXCLUSIVO DE PALMERAS ---
-const windUniforms = {
-  uTime: { value: 0 }
-};
-
 // --- ENGINE DE AUDIO DJ ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
@@ -752,7 +740,7 @@ function drawVuMeter() {
   }
 }
 
-// --- CARGA DE ARCHIVOS 3D (GLB) Y SHADER FILTRADO EXCLUSIVO PARA PALMERAS ---
+// --- CARGA DE ARCHIVOS 3D (GLB) SIN SHADER DE VIENTO ALTERADO ---
 const loader = new GLTFLoader();
 
 const dracoLoader = new DRACOLoader();
@@ -789,49 +777,19 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA CON SHADER DE VIENTO EXCLUSIVO DE HOJAS/PALMERAS
+// 1. CARGA DE LA ISLA (GEOMETRÍA PURA)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
 
   islaScene.traverse((child) => {
     if (child.isMesh) {
       child.frustumCulled = false;
-
-      const name = (child.name || "").toLowerCase();
-      const matName = (child.material && child.material.name ? child.material.name : "").toLowerCase();
-
-      // Identificar de forma precisa las palmeras y follaje (excluyendo rocas y terreno)
-      const esPalmeraOFollaje = name.includes("palm") || name.includes("palmera") || name.includes("leaf") || name.includes("hoja") ||
-                                matName.includes("palm") || matName.includes("palmera") || matName.includes("leaf") || matName.includes("hoja");
-
-      if (child.material && esPalmeraOFollaje) {
-        const mat = child.material;
-        mat.onBeforeCompile = (shader) => {
-          shader.uniforms.uTime = windUniforms.uTime;
-          shader.vertexShader = `
-            uniform float uTime;
-            ${shader.vertexShader}
-          `;
-          shader.vertexShader = shader.vertexShader.replace(
-            '#include <begin_vertex>',
-            `
-            #include <begin_vertex>
-            // Deformación focalizada únicamente en zonas altas de palmeras/follaje
-            if (position.y > 1.2) {
-              float factor = pow((position.y - 1.2) * 0.45, 1.8);
-              float windWave = sin(uTime * 2.5 + position.x * 0.8 + position.z * 0.8) * 0.28 * factor;
-              transformed.x += windWave;
-              transformed.z += windWave * 0.6;
-            }
-            `
-          );
-        };
-      }
     }
   });
 
   scene.add(islaScene);
   
+  // Animaciones nativas integradas en el modelo (movimiento sutil de vegetación pequeña)
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(islaScene);
     
@@ -1066,7 +1024,7 @@ function evaluarTeclado() {
   }
 }
 
-// --- LOOP RENDER PRINCIPAL ---
+// --- LOOP RENDER PRINCIPAL Y COLISIONES ---
 const obstacleRaycaster = new THREE.Raycaster();
 
 function animate() {
@@ -1074,9 +1032,6 @@ function animate() {
 
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
-
-  // Actualizar uniforme de tiempo para el viento en GPU
-  windUniforms.uTime.value = tiempoTotal;
 
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
@@ -1120,7 +1075,7 @@ function animate() {
     }
   }
 
-  // MOVIMIENTO DEL AVATAR CON SISTEMA DE COLISIONES
+  // MOVIMIENTO DEL AVATAR CON COLISIÓN AMPLIADA PARA PALMERAS Y ESTRUCTURAS
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
@@ -1142,16 +1097,16 @@ function animate() {
     const speed = 2.2;
     const prevPosition = avatarContainer.position.clone();
 
-    // Detección de colisiones frontales con troncos de palmeras y obstáculos
+    // RAYCAST DE COLISIÓN FRONTAL PARA EVITAR ATRAVESAR PALMERAS
     let allowMovement = true;
     if (islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.5;
+      obsOrigin.y += 0.8; // Altura del pecho del avatar
       obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.65;
+      obstacleRaycaster.far = 0.9; // Distancia de choque
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
-      if (hits.length > 0 && hits.some(h => h.face && Math.abs(h.face.normal.y) < 0.5)) {
+      if (hits.length > 0) {
         allowMovement = false;
       }
     }
