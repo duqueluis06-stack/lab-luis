@@ -625,13 +625,13 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA Y EL MAR (ANIMACIÓN INDEPENDIENTE)
+// 1. CARGA DE LA ISLA Y EL MAR (ANIMACIÓN INDEPENDIENTE EN BUCLE ETERNO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
   
   if (gltf.animations && gltf.animations.length > 0) {
-    islandMixer = new THREE.AnimationMixer(gltf.scene);
+    islandMixer = new THREE.AnimationMixer(islaScene);
     
     gltf.animations.forEach((clip) => {
       clip.tracks.forEach(track => {
@@ -640,6 +640,7 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
 
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
       action.enabled = true;
       action.play();
     });
@@ -720,7 +721,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 5. CARGA DE LARA: VINCULADA ESTRICTAMENTE A LA MÚSICA
+// 5. CARGA DE LARA: BUCLES PERFECTOS NLA
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -731,16 +732,21 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
+    // Asigna el clip de NLA detectado
     const clip = gltf.animations[0];
     clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
 
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
+    laraAction.clampWhenFinished = false;
     laraAction.enabled = true;
-    laraAction.play();
 
-    // Iniciar pausada a menos que el reproductor de sonido ya esté activo
-    if (!soundSource.isPlaying) {
+    // Si la música ya estaba reproduciéndose al terminar la carga, la activa directamente
+    if (soundSource && soundSource.isPlaying) {
+      laraAction.play();
+      laraAction.paused = false;
+    } else {
+      laraAction.play();
       laraAction.paused = true;
     }
   }
@@ -868,6 +874,7 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
+  // Actualizar animación del mar/isla y de Lara en cada frame
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta);
 
