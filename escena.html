@@ -628,6 +628,7 @@ function setAvatarState(newState) {
 let michigris = null;
 let islandMixer = null; 
 let laraMixer = null; 
+let laraAction = null;
 let michigrisMixer = null;
 
 // CARGA DE LA ISLA
@@ -712,7 +713,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// MICHIGRIS (450 FRAMES)
+// MICHIGRIS (450 FRAMES COMPLETOS EN BUCLE)
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -735,18 +736,14 @@ loader.load("michigris.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     michigrisMixer = new THREE.AnimationMixer(michigris);
-    gltf.animations.forEach((clip) => {
-      const action = michigrisMixer.clipAction(clip);
-      action.reset();
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
-      action.enabled = true;
-      action.play();
-    });
+    const clip = gltf.animations[0];
+    const action = michigrisMixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.play();
   }
 });
 
-// LARA BAILA (50 FRAMES)
+// LARA BAILA (CORRECCIÓN DE BUCLE CONTINUO PREDETERMINADO DE 50 FRAMES)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -755,14 +752,16 @@ loader.load("lara-baila.glb", (gltf) => {
   
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(lara);
-    gltf.animations.forEach((clip) => {
-      const action = laraMixer.clipAction(clip);
-      action.reset();
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
-      action.enabled = true;
-      action.play();
-    });
+    const clip = gltf.animations[0];
+    
+    // Forzamos la duración del clip a exactamente 50 frames (a 30 fps = 1.666s)
+    // para eliminar pistas vacías al final del archivo exportado.
+    clip.duration = 50 / 30; 
+
+    laraAction = laraMixer.clipAction(clip);
+    laraAction.setLoop(THREE.LoopRepeat, Infinity);
+    laraAction.clampWhenFinished = false;
+    laraAction.play();
   }
 });
 
@@ -825,79 +824,6 @@ function crearBandada() {
 crearBandada();
 
 
-// --- DELFINES PROCEDIMENTALES ---
-const delfines = [];
-const numDelfines = 3;
-
-function crearManadaDelfines() {
-  const matDelfin = new THREE.MeshStandardMaterial({ color: 0x2c4e68, roughness: 0.15, metalness: 0.1 });
-  const matPanza = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.2 });
-
-  for (let i = 0; i < numDelfines; i++) {
-    const grupoDelfin = new THREE.Group();
-
-    const cuerpoGeo = new THREE.SphereGeometry(0.35, 16, 12);
-    const cuerpo = new THREE.Mesh(cuerpoGeo, matDelfin);
-    cuerpo.scale.set(0.6, 0.45, 3.5); 
-    grupoDelfin.add(cuerpo);
-
-    const panzaGeo = new THREE.SphereGeometry(0.26, 12, 12);
-    const panza = new THREE.Mesh(panzaGeo, matPanza);
-    panza.scale.set(0.5, 0.35, 2.6);
-    panza.position.set(0, -0.1, 0.1);
-    grupoDelfin.add(panza);
-
-    const hocicoGeo = new THREE.ConeGeometry(0.06, 0.5, 8);
-    hocicoGeo.rotateX(Math.PI / 2);
-    const hocico = new THREE.Mesh(hocicoGeo, matDelfin);
-    hocico.position.set(0, -0.04, 1.7);
-    grupoDelfin.add(hocico);
-
-    const aletaDorsalGeo = new THREE.ConeGeometry(0.06, 0.4, 6);
-    aletaDorsalGeo.rotateX(-Math.PI / 2.5);
-    const aletaDorsal = new THREE.Mesh(aletaDorsalGeo, matDelfin);
-    aletaDorsal.position.set(0, 0.3, -0.3);
-    grupoDelfin.add(aletaDorsal);
-
-    const aletaIzqGeo = new THREE.BoxGeometry(0.25, 0.02, 0.12);
-    const aletaIzq = new THREE.Mesh(aletaIzqGeo, matDelfin);
-    aletaIzq.position.set(-0.35, -0.08, 0.3);
-    aletaIzq.rotation.set(0, Math.PI / 6, -Math.PI / 6);
-    grupoDelfin.add(aletaIzq);
-
-    const aletaDerGeo = new THREE.BoxGeometry(0.25, 0.02, 0.12);
-    const aletaDer = new THREE.Mesh(aletaDerGeo, matDelfin);
-    aletaDer.position.set(0.35, -0.08, 0.3);
-    aletaDer.rotation.set(0, -Math.PI / 6, Math.PI / 6);
-    grupoDelfin.add(aletaDer);
-
-    const aletaColaGeo = new THREE.ConeGeometry(0.1, 0.35, 4);
-    aletaColaGeo.rotateX(Math.PI / 2);
-    aletaColaGeo.scale(2.0, 0.06, 1);
-    const aletaCola = new THREE.Mesh(aletaColaGeo, matDelfin);
-    aletaCola.position.set(0, 0, -1.6);
-    grupoDelfin.add(aletaCola);
-
-    grupoDelfin.scale.set(0.65, 0.65, 0.65);
-
-    const datosDelfin = {
-      malla: grupoDelfin,
-      radio: 42 + (i * 6),
-      velocidad: 0.38 + (i * 0.05),             
-      angulo: (Math.PI / 4) + (i * 1.5),         
-      alturaBase: -0.25,                        
-      maxAlturaSalto: 1.8 + (i * 0.3),
-      frecuenciaSalto: 1.4 - (i * 0.1),        
-      desfaseTiempo: i * 3.1                    
-    };
-
-    scene.add(grupoDelfin);
-    delfines.push(datosDelfin);
-  }
-}
-crearManadaDelfines();
-
-
 // --- SISTEMA INTERACTIVO DE JOYSTICK ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
@@ -954,7 +880,15 @@ function animate() {
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
   if (islandMixer) islandMixer.update(delta);
-  if (laraMixer) laraMixer.update(delta); 
+  
+  if (laraMixer) {
+    laraMixer.update(delta);
+    // Reinicio forzado si el tiempo excede la duración real de los 50 frames
+    if (laraAction && laraAction.time >= (50 / 30)) {
+      laraAction.time = 0;
+    }
+  }
+
   if (michigrisMixer) michigrisMixer.update(delta);
 
   drawVuMeter();
@@ -969,24 +903,6 @@ function animate() {
     const anguloAleteo = Math.sin(tiempoTotal * pajaro.frecuenciaAleteo + pajaro.desfase) * 0.35;
     pajaro.alaIzq.rotation.z = anguloAleteo;
     pajaro.alaDer.rotation.z = -anguloAleteo;
-  });
-
-  delfines.forEach((d) => {
-    d.angulo += d.velocidad * delta;
-    d.malla.position.x = Math.cos(d.angulo) * d.radio;
-    d.malla.position.z = Math.sin(d.angulo) * d.radio;
-    d.malla.rotation.y = -d.angulo;
-
-    const avanceSalto = ((tiempoTotal + d.desfaseTiempo) * d.frecuenciaSalto) % (Math.PI * 2);
-    const senoSalto = Math.sin(avanceSalto);
-    
-    if (senoSalto > 0) {
-      d.malla.position.y = d.alturaBase + (senoSalto * d.maxAlturaSalto);
-      d.malla.rotation.x = Math.cos(avanceSalto) * 0.6; 
-    } else {
-      d.malla.position.y = d.alturaBase + (senoSalto * 0.1);
-      d.malla.rotation.x = Math.cos(avanceSalto) * 0.08;
-    }
   });
 
   // DETECCIÓN DE ALTURA DEL TERRENO (RAYCASTER)
@@ -1027,7 +943,14 @@ function animate() {
     moveDirection.normalize();
 
     const speed = 2.2; 
+    
+    // Guardar posición previa para calcular el desplazamiento de cámara
+    const prevPosition = avatarContainer.position.clone();
     avatarContainer.position.addScaledVector(moveDirection, speed * delta);
+    
+    // SEGUIMIENTO RIGUROSO DE LA CÁMARA AL AVATAR
+    const deltaMove = avatarContainer.position.clone().sub(prevPosition);
+    camera.position.add(deltaMove);
 
     const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
