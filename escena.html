@@ -625,7 +625,7 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA Y EL MAR (ANIMACIÓN INDEPENDIENTE EN BUCLE ETERNO)
+// 1. CARGA DE LA ISLA Y EL MAR
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -721,18 +721,19 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 5. CARGA DE LARA: BUCLES PERFECTOS NLA
-loader.load("lara-baila.glb", (gltf) => {
+// 5. CARGA DE LARA DESDE HUGGING FACE (POSICIONADA CERCA DE LUIS ACOSTADO)
+loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
-  laraMesh.scale.set(0.48, 0.48, 0.48);
-  laraMesh.position.set(1.8, 0, -1);
+  laraMesh.scale.set(0.55, 0.55, 0.55);
+  // Posicionada a una distancia óptima cerca de Luis acostado en (0,0,0)
+  laraMesh.position.set(1.1, 0, 0.6);
+  laraMesh.rotation.y = -Math.PI / 4;
 
   scene.add(laraMesh);
 
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    // Asigna el clip de NLA detectado
     const clip = gltf.animations[0];
     clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
 
@@ -741,7 +742,7 @@ loader.load("lara-baila.glb", (gltf) => {
     laraAction.clampWhenFinished = false;
     laraAction.enabled = true;
 
-    // Si la música ya estaba reproduciéndose al terminar la carga, la activa directamente
+    // Se inicia bailando solo si el reproductor está activo
     if (soundSource && soundSource.isPlaying) {
       laraAction.play();
       laraAction.paused = false;
@@ -874,7 +875,6 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  // Actualizar animación del mar/isla y de Lara en cada frame
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta);
 
