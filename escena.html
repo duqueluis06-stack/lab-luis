@@ -112,28 +112,6 @@
       letter-spacing: 1px;
     }
 
-    #creditos-link {
-      position: absolute;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-      font-family: monospace;
-      font-size: 11px;
-      font-weight: bold;
-      color: #00f0ff;
-      text-decoration: none;
-      letter-spacing: 2px;
-      opacity: 0.6;
-      text-shadow: 0 0 4px #00f0ff;
-      transition: opacity 0.3s ease, text-shadow 0.3s ease;
-    }
-
-    #creditos-link:hover {
-      opacity: 1;
-      text-shadow: 0 0 8px #00f0ff, 0 0 15px #00f0ff;
-    }
-
     #media-console {
       position: absolute;
       top: 0;
@@ -265,7 +243,6 @@
       #vumeter-canvas { width: 80px; height: 20px; }
       .track-pill { font-size: 8px; padding: 4px 2px; }
       .dj-btn { padding: 4px 8px; font-size: 9px; }
-      #creditos-link { bottom: 8px; font-size: 9px; }
       #btn-reset { right: 90px; padding: 8px 12px; font-size: 10px; }
       #volver { padding: 8px 12px; font-size: 10px; }
     }
@@ -398,6 +375,22 @@ const vuCtx = vuCanvas.getContext("2d");
 vuCanvas.width = 90;
 vuCanvas.height = 24;
 
+let laraMesh = null;
+let laraMixer = null; 
+let laraAction = null;
+
+function setLaraDancing(shouldDance) {
+  if (!laraAction) return;
+  if (shouldDance) {
+    laraAction.paused = false;
+    if (!laraAction.isRunning()) {
+      laraAction.play();
+    }
+  } else {
+    laraAction.paused = true;
+  }
+}
+
 function cleanTrackName(filename) {
   return filename.replace(/-/g, ' ').replace('.mp3', '').toUpperCase();
 }
@@ -435,6 +428,7 @@ function loadTrack(index, startPlaying = false) {
   updateConsoleUI(filename, 'loading');
 
   if (soundSource.isPlaying) soundSource.stop();
+  setLaraDancing(false);
 
   audioLoader.load(filename, (buffer) => {
     isLoadingAudio = false;
@@ -467,13 +461,11 @@ function executePlay() {
     try {
       soundSource.play();
       updateConsoleUI(playlist[currentTrackIndex], 'playing');
-      
-      if (laraAction) {
-        laraAction.paused = false;
-      }
+      setLaraDancing(true);
 
       if (soundSource.source) {
         soundSource.source.onended = () => {
+          setLaraDancing(false);
           nextTrack();
         };
       }
@@ -481,6 +473,15 @@ function executePlay() {
       console.warn(e);
     }
   }
+}
+
+function pauseAudio() {
+  if (soundSource.isPlaying) {
+    if (soundSource.source) soundSource.source.onended = null;
+    soundSource.pause();
+    updateConsoleUI(playlist[currentTrackIndex], 'paused');
+  }
+  setLaraDancing(false);
 }
 
 function nextTrack() {
@@ -492,6 +493,7 @@ function detenerTodoElAudio() {
   if (soundSource && soundSource.isPlaying) {
     soundSource.stop();
   }
+  setLaraDancing(false);
   const ctx = THREE.AudioContext.getContext();
   if (ctx && ctx.state !== 'closed') {
     ctx.suspend();
@@ -536,15 +538,7 @@ document.getElementById("btn-play").addEventListener("pointerdown", (e) => {
 
 document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
-  if (soundSource.isPlaying) {
-    if (soundSource.source) soundSource.source.onended = null;
-    soundSource.pause();
-    updateConsoleUI(playlist[currentTrackIndex], 'paused');
-  }
-
-  if (laraAction) {
-    laraAction.paused = true;
-  }
+  pauseAudio();
 });
 
 document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
@@ -631,11 +625,7 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
-let laraMesh = null;
-let laraMixer = null; 
-let laraAction = null;
-
-// CARGA DE LA ISLA Y EL MAR (CORREGIDO: INTERPOLACIÓN LINEAL Y RECORTE DE FOTOGRAMA REPETIDO)
+// 1. CARGA DE LA ISLA Y EL MAR (ANIMACIÓN INDEPENDIENTE)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -644,27 +634,19 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     
     gltf.animations.forEach((clip) => {
-      // 1. Forzar interpolación lineal para eliminar aceleraciones/frenados Bezier
       clip.tracks.forEach(track => {
         track.setInterpolation(THREE.InterpolateLinear);
       });
 
-      // 2. Descontar 1 frame de la duración total para no mantener el fotograma final duplicado
-      if (clip.duration > 0.1) {
-        clip.duration = clip.duration - (1 / 30);
-      }
-
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.enabled = true;
-      action.timeScale = 1.0;
       action.play();
     });
   }
 });
 
-// 1. LUIS ACOSTADO
+// 2. LUIS ACOSTADO
 loader.load("luis-acostado.glb", (gltf) => {
   modelAcostado = gltf.scene;
   modelAcostado.rotation.y = Math.PI; 
@@ -677,14 +659,13 @@ loader.load("luis-acostado.glb", (gltf) => {
       clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerAcostado.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.enabled = true;
       action.play();
     });
   }
 });
 
-// 2. LUIS CAMINA
+// 3. LUIS CAMINA
 loader.load("luis-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
   modelCamina.rotation.y = 0; 
@@ -697,14 +678,13 @@ loader.load("luis-camina.glb", (gltf) => {
       clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerCamina.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.enabled = true;
       action.play();
     });
   }
 });
 
-// 3. LUIS HORA
+// 4. LUIS HORA
 loader.load("luis-hora.glb", (gltf) => {
   modelHora = gltf.scene;
   modelHora.rotation.y = 0;
@@ -717,7 +697,6 @@ loader.load("luis-hora.glb", (gltf) => {
       clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = mixerHora.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.enabled = true;
       action.play();
     });
@@ -741,7 +720,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// CARGA DE LARA: SUBCLIP CON INTERPOLACIÓN LINEAL Y DURACIÓN EXACTA
+// 5. CARGA DE LARA: VINCULADA ESTRICTAMENTE A LA MÚSICA
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -752,21 +731,18 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    const rawClip = gltf.animations[0];
-    const subClip = THREE.AnimationUtils.subclip(rawClip, "LaraBailaLoop", 1, 55, 24);
+    const clip = gltf.animations[0];
+    clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
 
-    // Forzar línea continua sin desaceleraciones ni tiempos muertos
-    subClip.tracks.forEach(track => {
-      track.setInterpolation(THREE.InterpolateLinear);
-    });
-    subClip.duration = (55 - 1) / 24;
-
-    laraAction = laraMixer.clipAction(subClip);
+    laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.clampWhenFinished = false;
     laraAction.enabled = true;
-    laraAction.timeScale = 1.0;
     laraAction.play();
+
+    // Iniciar pausada a menos que el reproductor de sonido ya esté activo
+    if (!soundSource.isPlaying) {
+      laraAction.paused = true;
+    }
   }
 });
 
