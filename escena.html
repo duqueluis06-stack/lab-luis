@@ -634,7 +634,7 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA (EL MAR FLUYE DE FORMA CONTINUA SEGÚN SU GLB)
+// CARGA DE LA ISLA (MAR EN BUCLE NATURAL Y FLUIDO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -717,8 +717,10 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// CARGA Y CONFIGURACIÓN DE LARA (REPRODUCCIÓN COMPLETA NATURAL)
+// CARGA Y CONFIGURACIÓN DE LARA (FORZADO AL FRAME 55 EXACTO: 1.833s)
 // ============================================================
+const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos exactos
+
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -729,6 +731,9 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     const clip = gltf.animations[0];
+
+    // Recortamos la duración interna del clip al fotograma 55
+    clip.duration = LARA_LOOP_TIME;
 
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
@@ -860,14 +865,17 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  // ISLA / MAR (FLUIDEZ CONTINUA SIN RECORTES DE TIEMPO)
+  // EL MAR (CORRE TOTALMENTE INDEPENDIENTE SIN CORTES)
   if (islandMixer) {
     islandMixer.update(delta);
   }
 
-  // LARA (ANIMACIÓN COMPLETA CONTINUA)
-  if (laraMixer) {
+  // LARA (CORTE MANUAL FORZADO EN EL FRAME 55 EXACTO)
+  if (laraMixer && laraAction) {
     laraMixer.update(delta);
+    if (laraAction.time >= LARA_LOOP_TIME) {
+      laraAction.time = 0;
+    }
   }
 
   drawVuMeter();
