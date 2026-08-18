@@ -317,7 +317,6 @@
 <button id="btn-reset">↺ Inicio</button>
 <button id="volver" onclick="salirDeEscena()">⬅ Salir</button>
 
-
 <div id="media-console">
   <div class="console-row-top">
     <div class="led-display">
@@ -380,7 +379,6 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.0));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(20, 40, 15);
 scene.add(dirLight);
-
 
 // --- ENGINE DE AUDIO DJ ---
 const listener = new THREE.AudioListener();
@@ -470,7 +468,6 @@ function executePlay() {
       soundSource.play();
       updateConsoleUI(playlist[currentTrackIndex], 'playing');
       
-      // Reanudar la animación de Lara cuando suena la música
       if (laraAction) {
         laraAction.paused = false;
       }
@@ -521,7 +518,6 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
   setTimeout(() => overlay.remove(), 500);
 });
 
-
 // --- HANDLERS TÁCTILES CONSOLA ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('pointerdown', (e) => {
@@ -546,7 +542,6 @@ document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
   }
 
-  // Pausar solo la animación de Lara, el mar sigue activo
   if (laraAction) {
     laraAction.paused = true;
   }
@@ -557,7 +552,6 @@ document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   userInteracted = true;
   nextTrack();
 });
-
 
 // --- DIBUJO DEL VÚMETRO ---
 function drawVuMeter() {
@@ -600,7 +594,6 @@ function drawVuMeter() {
   }
 }
 
-
 // --- CARGA DE ARCHIVOS 3D (GLB) Y CONFIGURACIÓN DE ANIMACIONES ---
 const loader = new GLTFLoader();
 
@@ -614,7 +607,6 @@ let islaScene = null;
 
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(0, 0, 0);
-// Ajuste de escala para reducir a Luis en las 3 poses simultáneamente
 avatarContainer.scale.set(0.65, 0.65, 0.65);
 scene.add(avatarContainer);
 
@@ -651,6 +643,8 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => {
+      // Recorte de frames vacíos al final del clip exportado
+      clip.trim();
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -668,6 +662,7 @@ loader.load("luis-acostado.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerAcostado = new THREE.AnimationMixer(modelAcostado);
     gltf.animations.forEach((clip) => {
+      clip.trim();
       const action = mixerAcostado.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -685,6 +680,7 @@ loader.load("luis-camina.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerCamina = new THREE.AnimationMixer(modelCamina);
     gltf.animations.forEach((clip) => {
+      clip.trim();
       const action = mixerCamina.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -702,6 +698,7 @@ loader.load("luis-hora.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     mixerHora = new THREE.AnimationMixer(modelHora);
     gltf.animations.forEach((clip) => {
+      clip.trim();
       const action = mixerHora.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
@@ -750,6 +747,7 @@ loader.load("michigris.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     michigrisMixer = new THREE.AnimationMixer(michigris);
     const clip = gltf.animations[0];
+    clip.trim();
     const action = michigrisMixer.clipAction(clip);
     action.setLoop(THREE.LoopRepeat, Infinity);
     action.play();
@@ -757,812 +755,249 @@ loader.load("michigris.glb", (gltf) => {
 });
 
 // ============================================================
-// LARA BAILA - Animación en bucle continuo
+// LARA BAILA - Recorte exacto y bucle independiente
 // ============================================================
 
 loader.load("lara-baila.glb", (gltf) => {
-
   laraMesh = gltf.scene;
-
   laraMesh.scale.set(0.48, 0.48, 0.48);
   laraMesh.position.set(1.8, 0, -1);
 
   scene.add(laraMesh);
 
   if (gltf.animations && gltf.animations.length > 0) {
-
     laraMixer = new THREE.AnimationMixer(laraMesh);
-
-    // Primera animación del GLB
     const clip = gltf.animations[0];
 
+    // Se elimina el tramo inactivo o sin keyframes del final del archivo exportado
+    clip.trim();
+
     laraAction = laraMixer.clipAction(clip);
-
-    // =====================================================
-    // LARA BAILA EN BUCLE INFINITO
-    // =====================================================
-
     laraAction.reset();
-
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-
     laraAction.clampWhenFinished = false;
-
     laraAction.enabled = true;
-
     laraAction.timeScale = 1.0;
-
-    // Comenzar inmediatamente
     laraAction.play();
-
-    console.log(
-      "Lara cargada correctamente. Duración de animación:",
-      clip.duration,
-      "segundos"
-    );
-
-  } else {
-
-    console.warn(
-      "lara-baila.glb no contiene animaciones."
-    );
   }
 });
 
-
-// ============================================================
 // --- GAVIOTAS PROCEDIMENTALES ---
-// ============================================================
-
 const gaviotas = [];
 const numGaviotas = 5;
 
 function crearBandada() {
-
-  const materialBlanco =
-    new THREE.MeshLambertMaterial({
-      color: 0xffffff
-    });
-
-  const materialPico =
-    new THREE.MeshLambertMaterial({
-      color: 0xffaa00
-    });
+  const materialBlanco = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const materialPico = new THREE.MeshLambertMaterial({ color: 0xffaa00 });
 
   for (let i = 0; i < numGaviotas; i++) {
+    const gaviotaGroup = new THREE.Group();
 
-    const gaviotaGroup =
-      new THREE.Group();
-
-
-    // CUERPO
-    const cuerpoGeo =
-      new THREE.ConeGeometry(
-        0.06,
-        0.4,
-        4
-      );
-
-    cuerpoGeo.rotateX(
-      Math.PI / 2
-    );
-
-    const cuerpo =
-      new THREE.Mesh(
-        cuerpoGeo,
-        materialBlanco
-      );
-
+    const cuerpoGeo = new THREE.ConeGeometry(0.06, 0.4, 4);
+    cuerpoGeo.rotateX(Math.PI / 2);
+    const cuerpo = new THREE.Mesh(cuerpoGeo, materialBlanco);
     gaviotaGroup.add(cuerpo);
 
-
-    // PICO
-    const picoGeo =
-      new THREE.ConeGeometry(
-        0.015,
-        0.1,
-        4
-      );
-
-    picoGeo.rotateX(
-      Math.PI / 2
-    );
-
-    picoGeo.translate(
-      0,
-      0,
-      0.23
-    );
-
-    const pico =
-      new THREE.Mesh(
-        picoGeo,
-        materialPico
-      );
-
+    const picoGeo = new THREE.ConeGeometry(0.015, 0.1, 4);
+    picoGeo.rotateX(Math.PI / 2);
+    picoGeo.translate(0, 0, 0.23);
+    const pico = new THREE.Mesh(picoGeo, materialPico);
     gaviotaGroup.add(pico);
 
+    const alaIzquierdaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
+    alaIzquierdaGeo.translate(-0.2, 0, 0);
+    const alaIzquierda = new THREE.Mesh(alaIzquierdaGeo, materialBlanco);
+    gaviotaGroup.add(alaIzquierda);
 
-    // ALA IZQUIERDA
-    const alaIzquierdaGeo =
-      new THREE.BoxGeometry(
-        0.4,
-        0.01,
-        0.12
-      );
-
-    alaIzquierdaGeo.translate(
-      -0.2,
-      0,
-      0
-    );
-
-    const alaIzquierda =
-      new THREE.Mesh(
-        alaIzquierdaGeo,
-        materialBlanco
-      );
-
-    gaviotaGroup.add(
-      alaIzquierda
-    );
-
-
-    // ALA DERECHA
-    const alaDerechaGeo =
-      new THREE.BoxGeometry(
-        0.4,
-        0.01,
-        0.12
-      );
-
-    alaDerechaGeo.translate(
-      0.2,
-      0,
-      0
-    );
-
-    const alaDerecha =
-      new THREE.Mesh(
-        alaDerechaGeo,
-        materialBlanco
-      );
-
-    gaviotaGroup.add(
-      alaDerecha
-    );
-
+    const alaDerechaGeo = new THREE.BoxGeometry(0.4, 0.01, 0.12);
+    alaDerechaGeo.translate(0.2, 0, 0);
+    const alaDerecha = new THREE.Mesh(alaDerechaGeo, materialBlanco);
+    gaviotaGroup.add(alaDerecha);
 
     const datosVuelo = {
-
       malla: gaviotaGroup,
-
       alaIzq: alaIzquierda,
-
       alaDer: alaDerecha,
-
-      radio:
-        8 + Math.random() * 6,
-
-      velocidad:
-        0.3 + Math.random() * 0.4,
-
-      angulo:
-        Math.random() *
-        Math.PI * 2,
-
-      alturaBase:
-        7 + Math.random() * 3,
-
-      frecuenciaAleteo:
-        6 + Math.random() * 4,
-
-      desfase:
-        Math.random() * 100
+      radio: 8 + Math.random() * 6,
+      velocidad: 0.3 + Math.random() * 0.4,
+      angulo: Math.random() * Math.PI * 2,
+      alturaBase: 7 + Math.random() * 3,
+      frecuenciaAleteo: 6 + Math.random() * 4,
+      desfase: Math.random() * 100
     };
 
-
-    scene.add(
-      gaviotaGroup
-    );
-
-    gaviotas.push(
-      datosVuelo
-    );
+    scene.add(gaviotaGroup);
+    gaviotas.push(datosVuelo);
   }
 }
 
 crearBandada();
 
-
-// ============================================================
 // --- SISTEMA INTERACTIVO DE JOYSTICK ---
-// ============================================================
-
-const moveInput = {
-  x: 0,
-  y: 0
-};
-
-const joystick =
-  document.getElementById(
-    'joystick-container'
-  );
-
-const knob =
-  document.getElementById(
-    'joystick-knob'
-  );
-
+const moveInput = { x: 0, y: 0 };
+const joystick = document.getElementById('joystick-container');
+const knob = document.getElementById('joystick-knob');
 let joystickActive = false;
-
 let jStartX = 0;
 let jStartY = 0;
-
 const maxRadius = 30;
 
+joystick.addEventListener('pointerdown', (e) => {
+  joystickActive = true;
+  jStartX = e.clientX;
+  jStartY = e.clientY;
+  joystick.setPointerCapture(e.pointerId);
+});
 
-joystick.addEventListener(
-  'pointerdown',
-  (e) => {
+joystick.addEventListener('pointermove', (e) => {
+  if (!joystickActive) return;
+  const dx = e.clientX - jStartX;
+  const dy = e.clientY - jStartY;
+  const distance = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadius);
+  const angle = Math.atan2(dy, dx);
+  const moveX = Math.cos(angle) * distance;
+  const moveY = Math.sin(angle) * distance;
+  knob.style.transform = `translate(${moveX}px, ${moveY}px)`;
+  moveInput.x = moveX / maxRadius;
+  moveInput.y = -moveY / maxRadius;
+});
 
-    joystickActive = true;
-
-    jStartX = e.clientX;
-    jStartY = e.clientY;
-
-    joystick.setPointerCapture(
-      e.pointerId
-    );
-  }
-);
-
-
-joystick.addEventListener(
-  'pointermove',
-  (e) => {
-
-    if (!joystickActive) return;
-
-    const dx =
-      e.clientX - jStartX;
-
-    const dy =
-      e.clientY - jStartY;
-
-    const distance =
-      Math.min(
-        Math.sqrt(
-          dx * dx +
-          dy * dy
-        ),
-        maxRadius
-      );
-
-    const angle =
-      Math.atan2(
-        dy,
-        dx
-      );
-
-    const moveX =
-      Math.cos(angle) *
-      distance;
-
-    const moveY =
-      Math.sin(angle) *
-      distance;
-
-    knob.style.transform =
-      `translate(${moveX}px, ${moveY}px)`;
-
-    moveInput.x =
-      moveX / maxRadius;
-
-    moveInput.y =
-      -moveY / maxRadius;
-  }
-);
-
-
-joystick.addEventListener(
-  'pointerup',
-  () => {
-
-    joystickActive = false;
-
-    knob.style.transform =
-      'translate(0px, 0px)';
-
-    moveInput.x = 0;
-    moveInput.y = 0;
-  }
-);
-
+joystick.addEventListener('pointerup', () => {
+  joystickActive = false;
+  knob.style.transform = 'translate(0px, 0px)';
+  moveInput.x = 0;
+  moveInput.y = 0;
+});
 
 const keys = {
-
-  w: false,
-  a: false,
-  s: false,
-  d: false,
-
-  arrowup: false,
-  arrowdown: false,
-  arrowleft: false,
-  arrowright: false
+  w: false, a: false, s: false, d: false,
+  arrowup: false, arrowdown: false, arrowleft: false, arrowright: false
 };
 
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key in keys) keys[key] = true;
+  evaluarTeclado();
+});
 
-window.addEventListener(
-  'keydown',
-  (e) => {
-
-    const key =
-      e.key.toLowerCase();
-
-    if (key in keys) {
-      keys[key] = true;
-    }
-
-    evaluarTeclado();
-  }
-);
-
-
-window.addEventListener(
-  'keyup',
-  (e) => {
-
-    const key =
-      e.key.toLowerCase();
-
-    if (key in keys) {
-      keys[key] = false;
-    }
-
-    evaluarTeclado();
-  }
-);
-
+window.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (key in keys) keys[key] = false;
+  evaluarTeclado();
+});
 
 function evaluarTeclado() {
-
   if (!joystickActive) {
-
-    moveInput.x =
-      (
-        keys.d ||
-        keys.arrowright
-        ? 1
-        : 0
-      ) -
-      (
-        keys.a ||
-        keys.arrowleft
-        ? 1
-        : 0
-      );
-
-
-    moveInput.y =
-      (
-        keys.w ||
-        keys.arrowup
-        ? 1
-        : 0
-      ) -
-      (
-        keys.s ||
-        keys.arrowdown
-        ? 1
-        : 0
-      );
+    moveInput.x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+    moveInput.y = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
   }
 }
 
-
-// ============================================================
 // --- LOOP RENDER PRINCIPAL ---
-// ============================================================
-
 function animate() {
+  requestAnimationFrame(animate);
 
-  requestAnimationFrame(
-    animate
-  );
+  const delta = Math.min(clock.getDelta(), 0.1);
+  const tiempoTotal = clock.getElapsedTime();
 
-  const delta =
-    Math.min(
-      clock.getDelta(),
-      0.1
-    );
-
-  const tiempoTotal =
-    clock.getElapsedTime();
-
-
-  // ==========================================================
   // AVATARES
-  // ==========================================================
+  if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
+  if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
+  if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  if (
-    mixerAcostado &&
-    avatarState === 'acostado'
-  ) {
-
-    mixerAcostado.update(
-      delta
-    );
-  }
-
-
-  if (
-    mixerCamina &&
-    avatarState === 'camina'
-  ) {
-
-    mixerCamina.update(
-      delta
-    );
-  }
-
-
-  if (
-    mixerHora &&
-    avatarState === 'hora'
-  ) {
-
-    mixerHora.update(
-      delta
-    );
-  }
-
-
-  // ==========================================================
   // ISLA - OLAS
-  // ==========================================================
+  if (islandMixer) islandMixer.update(delta);
 
-  if (islandMixer) {
+  // LARA - ANIMACIÓN CONTINUA
+  if (laraMixer) laraMixer.update(delta);
 
-    islandMixer.update(
-      delta
-    );
-  }
-
-
-  // ==========================================================
-  // LARA - SIEMPRE ANIMADA
-  // ==========================================================
-
-  if (laraMixer) {
-
-    laraMixer.update(
-      delta
-    );
-
-    // Evita que Lara quede pausada
-    if (
-      laraAction &&
-      laraAction.paused
-    ) {
-
-      laraAction.paused =
-        false;
-    }
-
-
-    // Si la acción se detiene,
-    // volver a arrancarla
-    if (
-      laraAction &&
-      !laraAction.isRunning()
-    ) {
-
-      laraAction.reset();
-
-      laraAction.play();
-    }
-  }
-
-
-  // ==========================================================
   // MICHIGRIS
-  // ==========================================================
-
-  if (michigrisMixer) {
-
-    michigrisMixer.update(
-      delta
-    );
-  }
-
+  if (michigrisMixer) michigrisMixer.update(delta);
 
   drawVuMeter();
 
-
-  // ==========================================================
   // GAVIOTAS
-  // ==========================================================
+  gaviotas.forEach((pajaro) => {
+    pajaro.angulo += pajaro.velocidad * delta;
+    pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
+    pajaro.malla.position.z = Math.sin(pajaro.angulo) * pajaro.radio;
+    pajaro.malla.position.y = pajaro.alturaBase + Math.sin(tiempoTotal * 1.2 + pajaro.desfase) * 0.15;
+    pajaro.malla.rotation.y = -pajaro.angulo + Math.PI;
 
-  gaviotas.forEach(
-    (pajaro) => {
+    const anguloAleteo = Math.sin(tiempoTotal * pajaro.frecuenciaAleteo + pajaro.desfase) * 0.35;
+    pajaro.alaIzq.rotation.z = anguloAleteo;
+    pajaro.alaDer.rotation.z = -anguloAleteo;
+  });
 
-      pajaro.angulo +=
-        pajaro.velocidad *
-        delta;
-
-
-      pajaro.malla.position.x =
-        Math.cos(
-          pajaro.angulo
-        ) *
-        pajaro.radio;
-
-
-      pajaro.malla.position.z =
-        Math.sin(
-          pajaro.angulo
-        ) *
-        pajaro.radio;
-
-
-      pajaro.malla.position.y =
-        pajaro.alturaBase +
-        Math.sin(
-          tiempoTotal * 1.2 +
-          pajaro.desfase
-        ) *
-        0.15;
-
-
-      pajaro.malla.rotation.y =
-        -pajaro.angulo +
-        Math.PI;
-
-
-      const anguloAleteo =
-        Math.sin(
-          tiempoTotal *
-          pajaro.frecuenciaAleteo +
-          pajaro.desfase
-        ) *
-        0.35;
-
-
-      pajaro.alaIzq.rotation.z =
-        anguloAleteo;
-
-      pajaro.alaDer.rotation.z =
-        -anguloAleteo;
-    }
-  );
-
-
-  // ==========================================================
   // RAYCASTER - ALTURA DEL TERRENO
-  // ==========================================================
-
   if (islaScene) {
-
-    const origin =
-      avatarContainer.position.clone();
-
+    const origin = avatarContainer.position.clone();
     origin.y += 3.0;
 
-
-    raycaster.set(
-      origin,
-      downVector
-    );
-
+    raycaster.set(origin, downVector);
     raycaster.far = 10;
 
-
-    const intersects =
-      raycaster.intersectObject(
-        islaScene,
-        true
-      );
-
-
-    if (
-      intersects.length > 0
-    ) {
-
-      const validHit =
-        intersects.find(
-          hit =>
-            hit.distance >= 2.0
-        );
-
-
+    const intersects = raycaster.intersectObject(islaScene, true);
+    if (intersects.length > 0) {
+      const validHit = intersects.find(hit => hit.distance >= 2.0);
       if (validHit) {
-
-        const targetY =
-          validHit.point.y;
-
-
-        if (
-          Math.abs(
-            targetY -
-            avatarContainer.position.y
-          ) < 2.0
-        ) {
-
-          avatarContainer.position.y =
-            THREE.MathUtils.lerp(
-              avatarContainer.position.y,
-              targetY,
-              0.15
-            );
+        const targetY = validHit.point.y;
+        if (Math.abs(targetY - avatarContainer.position.y) < 2.0) {
+          avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetY, 0.15);
         }
       }
     }
   }
 
-
-  // ==========================================================
   // MOVIMIENTO DEL AVATAR
-  // ==========================================================
-
-  const isMoving =
-    (
-      moveInput.x !== 0 ||
-      moveInput.y !== 0
-    );
-
+  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
+    setAvatarState('camina');
 
-    setAvatarState(
-      'camina'
-    );
-
-
-    const camDir =
-      new THREE.Vector3();
-
-
-    camera.getWorldDirection(
-      camDir
-    );
-
-
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
     camDir.y = 0;
-
     camDir.normalize();
 
+    const camRight = new THREE.Vector3();
+    camRight.crossVectors(camDir, camera.up).normalize();
 
-    const camRight =
-      new THREE.Vector3();
-
-
-    camRight.crossVectors(
-      camDir,
-      camera.up
-    ).normalize();
-
-
-    const moveDirection =
-      new THREE.Vector3();
-
-
-    moveDirection.addScaledVector(
-      camRight,
-      moveInput.x
-    );
-
-
-    moveDirection.addScaledVector(
-      camDir,
-      moveInput.y
-    );
-
-
+    const moveDirection = new THREE.Vector3();
+    moveDirection.addScaledVector(camRight, moveInput.x);
+    moveDirection.addScaledVector(camDir, moveInput.y);
     moveDirection.normalize();
 
-
     const speed = 2.2;
+    const prevPosition = avatarContainer.position.clone();
 
+    avatarContainer.position.addScaledVector(moveDirection, speed * delta);
 
-    const prevPosition =
-      avatarContainer.position.clone();
+    const deltaMove = avatarContainer.position.clone().sub(prevPosition);
+    camera.position.add(deltaMove);
 
+    const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+    avatarContainer.rotation.y = targetAngle;
 
-    avatarContainer.position.addScaledVector(
-      moveDirection,
-      speed * delta
-    );
-
-
-    // SEGUIMIENTO DE CÁMARA
-    const deltaMove =
-      avatarContainer.position
-        .clone()
-        .sub(
-          prevPosition
-        );
-
-
-    camera.position.add(
-      deltaMove
-    );
-
-
-    // ROTACIÓN DEL AVATAR
-    const targetAngle =
-      Math.atan2(
-        moveDirection.x,
-        moveDirection.z
-      );
-
-
-    avatarContainer.rotation.y =
-      targetAngle;
-
-
-    controls.target.copy(
-      avatarContainer.position
-    ).add(
-      new THREE.Vector3(
-        0,
-        1,
-        0
-      )
-    );
-
-
+    controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
   } else {
-
-    if (
-      avatarState ===
-      'camina'
-    ) {
-
-      setAvatarState(
-        'hora'
-      );
+    if (avatarState === 'camina') {
+      setAvatarState('hora');
     }
   }
 
-
-  // ==========================================================
-  // CÁMARA Y RENDER
-  // ==========================================================
-
   controls.update();
-
-  renderer.render(
-    scene,
-    camera
-  );
+  renderer.render(scene, camera);
 }
-
 
 animate();
 
-
-// ============================================================
 // --- RESIZE ---
-// ============================================================
-
-window.addEventListener(
-  "resize",
-  () => {
-
-    camera.aspect =
-      window.innerWidth /
-      window.innerHeight;
-
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-  }
-);
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 </script>
 
