@@ -594,28 +594,6 @@ function drawVuMeter() {
   }
 }
 
-// --- FUNCIÓN PARA RECORTAR KEYFRAMES AL CARGAR ---
-function recortarClipAnimacion(clip, tiempoMaximo) {
-  clip.duration = tiempoMaximo;
-  clip.tracks.forEach((track) => {
-    const nuevosTiempos = [];
-    const nuevosValores = [];
-    const stride = track.getValueSize();
-
-    for (let i = 0; i < track.times.length; i++) {
-      if (track.times[i] <= tiempoMaximo) {
-        nuevosTiempos.push(track.times[i]);
-        for (let j = 0; j < stride; j++) {
-          nuevosValores.push(track.values[i * stride + j]);
-        }
-      }
-    }
-    track.times = new Float32Array(nuevosTiempos);
-    track.values = new Float32Array(nuevosValores);
-  });
-  return clip;
-}
-
 // --- CARGA DE ARCHIVOS 3D (GLB) Y CONFIGURACIÓN DE ANIMACIONES ---
 const loader = new GLTFLoader();
 
@@ -652,25 +630,26 @@ function setAvatarState(newState) {
 }
 
 let islandMixer = null; 
-let islandAction = null;
 
 let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-const LARA_LOOP_TIME = 55 / 30; // 1.8333 segundos exactos (Frame 55 a 30 FPS)
-
-// CARGA DE LA ISLA Y EL MAR
+// CARGA DE LA ISLA Y EL MAR (ACTIVANDO TODOS LOS CLIPS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
+  
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(gltf.scene);
-    const clip = gltf.animations[0];
-
-    islandAction = islandMixer.clipAction(clip);
-    islandAction.setLoop(THREE.LoopRepeat, Infinity);
-    islandAction.play();
+    
+    // Activa de forma infinita cada clip presente en el GLB de la isla
+    gltf.animations.forEach((clip) => {
+      const action = islandMixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+      action.play();
+    });
   }
 });
 
@@ -742,7 +721,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// CARGA DE LARA CON RECORTE NATIVO DE ANIMACIÓN
+// CARGA DE LARA CON SUBCLIP NATIVO DE THREE.JS
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.48, 0.48, 0.48);
@@ -753,11 +732,12 @@ loader.load("lara-baila.glb", (gltf) => {
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
     
-    // Recortamos la animación exactamente al frame 55 antes de reproducir
-    const clipRecortado = recortarClipAnimacion(gltf.animations[0], LARA_LOOP_TIME);
+    // Subclip nativo seguro (clipOriginal, nombre, frameInicio, frameFin, fps)
+    const clipRecortado = THREE.AnimationUtils.subclip(gltf.animations[0], 'LaraLoop', 0, 55, 30);
 
     laraAction = laraMixer.clipAction(clipRecortado);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
+    laraAction.clampWhenFinished = false;
     laraAction.play();
   }
 });
@@ -880,7 +860,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  // ACTUALIZACIÓN DE BUCLE FLUIDO DE CADA ANIMACIÓN
+  // ACTUALIZACIÓN DIRECTA DE MIXERS
   if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
