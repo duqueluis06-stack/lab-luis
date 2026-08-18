@@ -470,6 +470,11 @@ function executePlay() {
       soundSource.play();
       updateConsoleUI(playlist[currentTrackIndex], 'playing');
       
+      // Reanudar la animación de Lara cuando suena la música
+      if (laraAction) {
+        laraAction.paused = false;
+      }
+
       if (soundSource.source) {
         soundSource.source.onended = () => {
           nextTrack();
@@ -539,6 +544,11 @@ document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
     if (soundSource.source) soundSource.source.onended = null;
     soundSource.pause();
     updateConsoleUI(playlist[currentTrackIndex], 'paused');
+  }
+
+  // Pausar solo la animación de Lara, el mar sigue activo
+  if (laraAction) {
+    laraAction.paused = true;
   }
 });
 
@@ -631,7 +641,7 @@ let laraMixer = null;
 let laraAction = null;
 let michigrisMixer = null;
 
-// CARGA DE LA ISLA
+// CARGA DE LA ISLA (OLAS Y ENTORNO CONTINUO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -713,7 +723,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// MICHIGRIS (450 FRAMES COMPLETOS EN BUCLE)
+// MICHIGRIS
 loader.load("michigris.glb", (gltf) => {
   michigris = gltf.scene;
   michigris.position.set(1.0, 0, 0.1); 
@@ -743,7 +753,7 @@ loader.load("michigris.glb", (gltf) => {
   }
 });
 
-// LARA BAILA (CORRECCIÓN DE BUCLE CONTINUO PREDETERMINADO DE 50 FRAMES)
+// LARA BAILA (Ajuste a 50 Frames de Bucle y control por Play/Pausa)
 loader.load("lara-baila.glb", (gltf) => {
   const lara = gltf.scene;
   lara.scale.set(0.48, 0.48, 0.48); 
@@ -754,14 +764,14 @@ loader.load("lara-baila.glb", (gltf) => {
     laraMixer = new THREE.AnimationMixer(lara);
     const clip = gltf.animations[0];
     
-    // Forzamos la duración del clip a exactamente 50 frames (a 30 fps = 1.666s)
-    // para eliminar pistas vacías al final del archivo exportado.
-    clip.duration = 50 / 30; 
-
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.clampWhenFinished = false;
     laraAction.play();
+    
+    // Si la música no ha comenzado, Lara arranca pausada
+    if (!soundSource.isPlaying) {
+      laraAction.paused = true;
+    }
   }
 });
 
@@ -879,15 +889,11 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
+  // El mixer de la isla siempre corre (olas en movimiento)
   if (islandMixer) islandMixer.update(delta);
   
-  if (laraMixer) {
-    laraMixer.update(delta);
-    // Reinicio forzado si el tiempo excede la duración real de los 50 frames
-    if (laraAction && laraAction.time >= (50 / 30)) {
-      laraAction.time = 0;
-    }
-  }
+  // Mixer de Lara sujeto al playback de audio
+  if (laraMixer) laraMixer.update(delta);
 
   if (michigrisMixer) michigrisMixer.update(delta);
 
@@ -905,7 +911,7 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // DETECCIÓN DE ALTURA DEL TERRENO (RAYCASTER)
+  // RAYCASTER PARA MANTENER LA ALTURA EN EL TERRENO
   if (islaScene) {
     const origin = avatarContainer.position.clone();
     origin.y += 3.0;
@@ -944,11 +950,10 @@ function animate() {
 
     const speed = 2.2; 
     
-    // Guardar posición previa para calcular el desplazamiento de cámara
     const prevPosition = avatarContainer.position.clone();
     avatarContainer.position.addScaledVector(moveDirection, speed * delta);
     
-    // SEGUIMIENTO RIGUROSO DE LA CÁMARA AL AVATAR
+    // SEGUIMIENTO DE CÁMARA
     const deltaMove = avatarContainer.position.clone().sub(prevPosition);
     camera.position.add(deltaMove);
 
