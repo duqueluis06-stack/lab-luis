@@ -630,12 +630,11 @@ function setAvatarState(newState) {
 }
 
 let islandMixer = null; 
-let islandActions = [];
 let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
-// CARGA DE LA ISLA (OLAS)
+// CARGA DE LA ISLA (EL MAR FLUYE DE FORMA CONTINUA SEGÚN SU GLB)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
   scene.add(islaScene);
@@ -643,8 +642,8 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
     islandMixer = new THREE.AnimationMixer(gltf.scene);
     gltf.animations.forEach((clip) => {
       const action = islandMixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
       action.play();
-      islandActions.push({ action: action, clip: clip });
     });
   }
 });
@@ -718,7 +717,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
 });
 
 // ============================================================
-// LARA BAILA
+// CARGA Y CONFIGURACIÓN DE LARA (REPRODUCCIÓN COMPLETA NATURAL)
 // ============================================================
 loader.load("lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
@@ -729,7 +728,11 @@ loader.load("lara-baila.glb", (gltf) => {
 
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
-    laraAction = laraMixer.clipAction(gltf.animations[0]);
+    const clip = gltf.animations[0];
+
+    laraAction = laraMixer.clipAction(clip);
+    laraAction.setLoop(THREE.LoopRepeat, Infinity);
+    laraAction.clampWhenFinished = false;
     laraAction.play();
   }
 });
@@ -857,23 +860,14 @@ function animate() {
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
-  // CONTROL DE BUCLE FORZADO EN CÓDIGO (ISLA)
+  // ISLA / MAR (FLUIDEZ CONTINUA SIN RECORTES DE TIEMPO)
   if (islandMixer) {
     islandMixer.update(delta);
-    islandActions.forEach(item => {
-      // Si llega al final o se pasa, reinicia el tiempo a 0
-      if (item.action.time >= 2.0) { 
-        item.action.time = 0;
-      }
-    });
   }
 
-  // CONTROL DE BUCLE FORZADO EN CÓDIGO (LARA: CORTA A LOS 2.29s EXACTOS)
-  if (laraMixer && laraAction) {
+  // LARA (ANIMACIÓN COMPLETA CONTINUA)
+  if (laraMixer) {
     laraMixer.update(delta);
-    if (laraAction.time >= 2.2916) { 
-      laraAction.time = 0; 
-    }
   }
 
   drawVuMeter();
