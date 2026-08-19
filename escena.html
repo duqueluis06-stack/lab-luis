@@ -89,7 +89,6 @@
       outline: none;
     }
 
-    /* PRESENTACIÓN COMPLETA Y AJUSTADA EN PC Y MÓVIL */
     #overlay-inicio {
       position: absolute;
       top: 0;
@@ -474,9 +473,9 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// CAMARA ENFOCADA EN CONJUNTO A LUIS-PLAYA-SENTADO Y MILA-SENTADA_MODEL
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(18.5, 2.0, -7.5); 
+// CAMARA EN PLANO MEDIO A NIVEL DE OJO ENTRE LUIS Y MILA
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
+camera.position.set(16.2, 0.7, -9.2); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -492,11 +491,11 @@ const clock = new THREE.Clock();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.minDistance = 2;
-controls.maxDistance = 120;
-controls.target.set(14.895, 0.8, -11.136);
+controls.minDistance = 1;
+controls.maxDistance = 100;
+controls.target.set(14.5, 0.4, -11.2);
 
-// --- ILUMINACIÓN CÁLIDA TROPICAL Y SOL ---
+// --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.2);
 scene.add(hemiLight);
 
@@ -510,7 +509,7 @@ const sunMesh = new THREE.Mesh(sunGeo, sunMat);
 sunMesh.position.copy(sunLight.position).multiplyScalar(10);
 scene.add(sunMesh);
 
-// --- ENGINE DE AUDIO DJ ---
+// --- AUDIO DJ ENGINE ---
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
@@ -673,7 +672,6 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
   setTimeout(() => overlay.remove(), 600);
 });
 
-// --- HANDLERS TÁCTILES CONSOLA ---
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
@@ -700,7 +698,6 @@ document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   nextTrack();
 });
 
-// --- DIBUJO DEL VÚMETRO ---
 function drawVuMeter() {
   vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
   vuCtx.fillStyle = "rgba(10, 15, 30, 0.4)";
@@ -741,9 +738,8 @@ function drawVuMeter() {
   }
 }
 
-// --- CARGA DE ARCHIVOS 3D (GLB) SIN SHADER DE VIENTO ALTERADO ---
+// --- CARGA DE ARCHIVOS 3D (GLB) ---
 const loader = new GLTFLoader();
-
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
 loader.setDRACOLoader(dracoLoader);
@@ -751,9 +747,11 @@ loader.setDRACOLoader(dracoLoader);
 const raycaster = new THREE.Raycaster();
 const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
+let luisSentadoObject = null;
 
+// CONTENEDOR CON LA ALTURA DE LA ARENA (-0.316m)
 const avatarContainer = new THREE.Group();
-avatarContainer.position.set(14.895, 0, -11.136);
+avatarContainer.position.set(14.895, -0.316, -11.136);
 avatarContainer.scale.set(0.65, 0.65, 0.65);
 scene.add(avatarContainer);
 
@@ -769,13 +767,18 @@ function setAvatarState(newState) {
   if (avatarState === newState) return;
   avatarState = newState;
 
+  // OCULTAR / MOSTRAR LUIS SENTADO DENTRO DE LA ISLA
+  if (luisSentadoObject) {
+    luisSentadoObject.visible = (newState === 'sentado');
+  }
+
   if (modelCamina) modelCamina.visible = (newState === 'camina');
   if (modelHora) modelHora.visible = (newState === 'hora');
 }
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA (INCLUYE A LUIS-PLAYA-SENTADO Y MILA-SENTADA_MODEL INTEGRADOS)
+// 1. CARGA DE LA ISLA
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
 
@@ -783,24 +786,24 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
     if (child.isMesh) {
       child.frustumCulled = false;
     }
+    if (child.name.toLowerCase().includes("luis-playa-sentado")) {
+      luisSentadoObject = child;
+    }
   });
+
+  if (!luisSentadoObject) {
+    luisSentadoObject = islaScene.getObjectByName("luis-playa-sentado");
+  }
 
   scene.add(islaScene);
   
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(islaScene);
-    
     gltf.animations.forEach((clip) => {
-      clip.tracks.forEach(track => {
-        track.setInterpolation(THREE.InterpolateLinear);
-      });
-
+      clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
       const action = islandMixer.clipAction(clip);
       action.setLoop(THREE.LoopRepeat, Infinity);
-      action.clampWhenFinished = false;
       action.enabled = true;
-      action.timeScale = 1;
-      action.reset();
       action.play();
     });
   }
@@ -845,15 +848,15 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lui
 });
 
 function resetAvatarPosition() {
-  avatarContainer.position.set(14.895, 0, -11.136);
+  avatarContainer.position.set(14.895, -0.316, -11.136);
   avatarContainer.rotation.y = 0;
 
   if (modelCamina) modelCamina.rotation.y = 0;
   if (modelHora) modelHora.rotation.y = 0;
 
   setAvatarState('sentado');
-  camera.position.set(18.5, 2.0, -7.5);
-  controls.target.set(14.895, 0.8, -11.136);
+  camera.position.set(16.2, 0.7, -9.2);
+  controls.target.set(14.5, 0.4, -11.2);
 }
 
 document.getElementById('btn-reset').addEventListener('click', (e) => {
@@ -861,7 +864,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA DE FRENTE AL AVATAR (CÓDIGO INTACTO)
+// 4. LARA DE FRENTE AL AVATAR
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.35, 0.35, 0.35);
@@ -872,13 +875,11 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
 
   if (gltf.animations && gltf.animations.length > 0) {
     laraMixer = new THREE.AnimationMixer(laraMesh);
-    
     const clip = gltf.animations[0];
     clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
 
     laraAction = laraMixer.clipAction(clip);
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
-    laraAction.clampWhenFinished = false;
     laraAction.enabled = true;
 
     if (soundSource && soundSource.isPlaying) {
@@ -1002,7 +1003,7 @@ function evaluarTeclado() {
   }
 }
 
-// --- LOOP RENDER PRINCIPAL Y COLISIONES ---
+// --- LOOP RENDER PRINCIPAL ---
 const obstacleRaycaster = new THREE.Raycaster();
 
 function animate() {
@@ -1032,27 +1033,29 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // RAYCASTER - ALTURA DEL TERRENO
+  // RAYCASTER ARENA TERRENO (FILTRANDO MUEBLES)
   if (islaScene) {
     const origin = avatarContainer.position.clone();
-    origin.y += 3.0;
+    origin.y += 2.0;
 
     raycaster.set(origin, downVector);
-    raycaster.far = 10;
+    raycaster.far = 5;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      const validHit = intersects.find(hit => hit.distance >= 2.0);
-      if (validHit) {
-        const targetY = validHit.point.y;
-        if (Math.abs(targetY - avatarContainer.position.y) < 2.0) {
-          avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetY, 0.15);
-        }
+      const validHit = intersects.find(hit => {
+        const name = hit.object.name.toLowerCase();
+        return !name.includes("sillon") && !name.includes("sombrilla") && !name.includes("bar") && !name.includes("silla");
+      });
+      
+      const hit = validHit || intersects[0];
+      if (hit && Math.abs(hit.point.y - avatarContainer.position.y) < 1.5) {
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, hit.point.y, 0.15);
       }
     }
   }
 
-  // MOVIMIENTO DEL AVATAR CON COLISIÓN AMPLIADA PARA PALMERAS Y ESTRUCTURAS
+  // MOVIMIENTO CON JOYSTICK
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
@@ -1074,13 +1077,12 @@ function animate() {
     const speed = 2.2;
     const prevPosition = avatarContainer.position.clone();
 
-    // RAYCAST DE COLISIÓN FRONTAL PARA EVITAR ATRAVESAR PALMERAS
     let allowMovement = true;
     if (islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.8; 
+      obsOrigin.y += 0.5; 
       obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.9;
+      obstacleRaycaster.far = 0.8;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       if (hits.length > 0) {
@@ -1090,7 +1092,6 @@ function animate() {
 
     if (allowMovement) {
       avatarContainer.position.addScaledVector(moveDirection, speed * delta);
-
       const deltaMove = avatarContainer.position.clone().sub(prevPosition);
       camera.position.add(deltaMove);
     }
@@ -1111,7 +1112,6 @@ function animate() {
 
 animate();
 
-// --- RESIZE ---
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
