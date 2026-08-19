@@ -473,9 +473,18 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// CÁMARA INICIAL: Alejada y corrida a la derecha
+// --- CONFIGURACIÓN DE CÁMARA (GLOBAL -> CERCANA CINEMATOGRÁFICA) ---
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(18.8, 1.15, -7.2); 
+
+// Puntos clave de cámara
+const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);   // Panorama elevado e inicial
+const closeCamPos = new THREE.Vector3(18.8, 1.15, -7.2);   // Encuadre cercano profesional
+
+const startTargetPos = new THREE.Vector3(14.5, 1.0, -11.2); 
+const closeTargetPos = new THREE.Vector3(14.5, 0.4, -11.2); 
+
+// Posicionamiento inicial en la vista panorámica global
+camera.position.copy(startCamPos);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -498,7 +507,12 @@ controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
 controls.minDistance = 1;
 controls.maxDistance = 100;
-controls.target.set(14.5, 0.4, -11.2);
+controls.target.copy(startTargetPos);
+
+// Sistema de animación fluida de cámara
+let isCamTransitioning = false;
+let camTransitionTime = 0;
+const camTransitionDuration = 2.8; // Duración en segundos del traveling suave
 
 // --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.2);
@@ -672,6 +686,10 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
   userInteracted = true;
   executePlay();
   
+  // Activa el traveling suave hacia el encuadre cercano profesional
+  isCamTransitioning = true;
+  camTransitionTime = 0;
+
   const overlay = document.getElementById('overlay-inicio');
   overlay.style.opacity = '0';
   setTimeout(() => overlay.remove(), 600);
@@ -859,8 +877,9 @@ function resetAvatarPosition() {
   if (modelHora) modelHora.rotation.y = 0;
 
   setAvatarState('sentado');
-  camera.position.set(18.8, 1.15, -7.2);
-  controls.target.set(14.5, 0.4, -11.2);
+  isCamTransitioning = false;
+  camera.position.copy(closeCamPos);
+  controls.target.copy(closeTargetPos);
 }
 
 document.getElementById('btn-reset').addEventListener('click', (e) => {
@@ -1016,6 +1035,24 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
+  // TRANSICIÓN CINEMATOGRÁFICA DE CÁMARA
+  if (isCamTransitioning) {
+    camTransitionTime += delta;
+    let progress = Math.min(camTransitionTime / camTransitionDuration, 1.0);
+    
+    // Curva de aceleración suave (easeInOutCubic)
+    let ease = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    camera.position.lerpVectors(startCamPos, closeCamPos, ease);
+    controls.target.lerpVectors(startTargetPos, closeTargetPos, ease);
+
+    if (progress >= 1.0) {
+      isCamTransitioning = false;
+    }
+  }
+
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
@@ -1037,7 +1074,7 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // RAYCASTER DE SUELO: Iniciado desde la cadera (+0.8m) para ignorar copa de palmeras
+  // RAYCASTER DE SUELO
   if (islaScene) {
     const origin = avatarContainer.position.clone();
     origin.y += 0.8; 
@@ -1047,7 +1084,6 @@ function animate() {
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      // Tomamos la primera intersección por debajo o cerca de los pies
       const validHit = intersects.find(hit => hit.point.y <= avatarContainer.position.y + 0.5);
       if (validHit) {
         avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validHit.point.y, 0.25);
@@ -1079,7 +1115,7 @@ function animate() {
 
     let allowMovement = true;
 
-    // Colisión con Lara mediante distancia directa limpia
+    // Colisión con Lara
     if (laraMesh) {
       const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
       if (distToLara < 0.85) {
@@ -1087,17 +1123,16 @@ function animate() {
       }
     }
 
-    // Colisión con la Isla: Solo bloquea si encuentra una pared/tronco vertical (normal.y muy bajo)
+    // Colisión con la Isla
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4; // Altura del pecho/cintura
+      obsOrigin.y += 0.4; 
 
       obstacleRaycaster.set(obsOrigin, moveDirection);
       obstacleRaycaster.far = 0.55;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       if (hits.length > 0) {
-        // Si el rayo impacta contra una superficie con inclinación vertical (troncos, barras)
         const hitFace = hits[0].face;
         if (hitFace && Math.abs(hitFace.normal.y) < 0.5) {
           allowMovement = false;
