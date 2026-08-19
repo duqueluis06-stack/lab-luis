@@ -473,7 +473,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// CAMARA INICIAL: Alejada un poco más hacia atrás y con inclinación despejada hacia la derecha
+// CÁMARA INICIAL: Alejada y corrida a la derecha
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 camera.position.set(18.8, 1.15, -7.2); 
 
@@ -489,11 +489,11 @@ document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
 
-// CONTROLES DE CAMARA CON MENOS SENSIBILIDAD
+// CONTROLES DE CÁMARA CON SENSIBILIDAD SUAVE
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.rotateSpeed = 0.4;  // Reducido para suavidad al girar
+controls.rotateSpeed = 0.4;
 controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
 controls.minDistance = 1;
@@ -772,7 +772,6 @@ function setAvatarState(newState) {
   if (avatarState === newState) return;
   avatarState = newState;
 
-  // OCULTAR / MOSTRAR LUIS SENTADO DENTRO DE LA ISLA
   if (luisSentadoObject) {
     luisSentadoObject.visible = (newState === 'sentado');
   }
@@ -869,7 +868,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA DE FRENTE AL AVATAR
+// 4. LARA DE FRENTE AL AVATAR (POSICIONADA CON ESPACIO LIBRE)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.35, 0.35, 0.35);
@@ -1038,35 +1037,25 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // RAYCASTER DE SUELO / TERRENO CON DESCENSO AUTOMÁTICO
+  // RAYCASTER DE SUELO: Iniciado desde la cadera (+0.8m) para ignorar copa de palmeras
   if (islaScene) {
     const origin = avatarContainer.position.clone();
-    origin.y += 3.0; 
+    origin.y += 0.8; 
 
     raycaster.set(origin, downVector);
-    raycaster.far = 10;
+    raycaster.far = 3.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      // Filtrar plantas, sillas y objetos decorativos para pisar únicamente el suelo/arena
-      const groundHit = intersects.find(hit => {
-        const name = hit.object.name.toLowerCase();
-        return !name.includes("sillon") && !name.includes("sombrilla") && 
-               !name.includes("bar") && !name.includes("silla") && 
-               !name.includes("planta") && !name.includes("hoja") && 
-               !name.includes("palmera") && !name.includes("tree") &&
-               !name.includes("leaf") && !name.includes("bush");
-      });
-      
-      const hit = groundHit || intersects[0];
-      if (hit) {
-        // Suaviza la bajada y subida manteniendo el avatar firme sobre la arena
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, hit.point.y, 0.2);
+      // Tomamos la primera intersección por debajo o cerca de los pies
+      const validHit = intersects.find(hit => hit.point.y <= avatarContainer.position.y + 0.5);
+      if (validHit) {
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validHit.point.y, 0.25);
       }
     }
   }
 
-  // MOVIMIENTO E IMPEDIMENTO DE ATRAVESAR OBSTÁCULOS / OTROS AVATARES
+  // MOVIMIENTO E IMPEDIMENTO DE BLOQUEOS FALSOS
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
@@ -1089,40 +1078,28 @@ function animate() {
     const prevPosition = avatarContainer.position.clone();
 
     let allowMovement = true;
-    const targetsToTest = [];
-    if (islaScene) targetsToTest.push(islaScene);
-    if (laraMesh) targetsToTest.push(laraMesh);
 
-    if (targetsToTest.length > 0) {
-      // Detección con abanico multirrayo para no atravesar troncos, bar ni avatares
-      const angles = [0, -0.3, 0.3];
-      const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.5;
-
-      for (let angleOffset of angles) {
-        const testDir = moveDirection.clone();
-        if (angleOffset !== 0) testDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleOffset);
-
-        obstacleRaycaster.set(obsOrigin, testDir);
-        obstacleRaycaster.far = 0.75;
-
-        for (let targetObj of targetsToTest) {
-          const hits = obstacleRaycaster.intersectObject(targetObj, true);
-          if (hits.length > 0) {
-            const hitName = hits[0].object.name.toLowerCase();
-            if (!hitName.includes("terreno") && !hitName.includes("arena") && !hitName.includes("suelo") && !hitName.includes("beach")) {
-              allowMovement = false;
-              break;
-            }
-          }
-        }
-        if (!allowMovement) break;
+    // Colisión con Lara mediante distancia directa limpia
+    if (laraMesh) {
+      const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
+      if (distToLara < 0.85) {
+        allowMovement = false;
       }
+    }
 
-      // Distancia de colisión directa con Lara
-      if (allowMovement && laraMesh) {
-        const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
-        if (distToLara < 1.1) {
+    // Colisión con la Isla: Solo bloquea si encuentra una pared/tronco vertical (normal.y muy bajo)
+    if (allowMovement && islaScene) {
+      const obsOrigin = avatarContainer.position.clone();
+      obsOrigin.y += 0.4; // Altura del pecho/cintura
+
+      obstacleRaycaster.set(obsOrigin, moveDirection);
+      obstacleRaycaster.far = 0.55;
+
+      const hits = obstacleRaycaster.intersectObject(islaScene, true);
+      if (hits.length > 0) {
+        // Si el rayo impacta contra una superficie con inclinación vertical (troncos, barras)
+        const hitFace = hits[0].face;
+        if (hitFace && Math.abs(hitFace.normal.y) < 0.5) {
           allowMovement = false;
         }
       }
