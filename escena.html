@@ -474,8 +474,9 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
+// CAMARA ENFOCADA EN CONJUNTO A LUIS-PLAYA-SENTADO Y MILA-SENTADA_MODEL
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-camera.position.set(0, 4, 10); 
+camera.position.set(18.5, 2.0, -7.5); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -493,7 +494,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 2;
 controls.maxDistance = 120;
-controls.target.set(0, 1, 0);
+controls.target.set(14.895, 0.8, -11.136);
 
 // --- ILUMINACIÓN CÁLIDA TROPICAL Y SOL ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.2);
@@ -752,32 +753,29 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 
 const avatarContainer = new THREE.Group();
-avatarContainer.position.set(0, 0, 0);
+avatarContainer.position.set(14.895, 0, -11.136);
 avatarContainer.scale.set(0.65, 0.65, 0.65);
 scene.add(avatarContainer);
 
-let modelAcostado = null;
 let modelCamina = null;
 let modelHora = null;
 
-let mixerAcostado = null;
 let mixerCamina = null;
 let mixerHora = null;
 
-let avatarState = 'acostado';
+let avatarState = 'sentado';
 
 function setAvatarState(newState) {
   if (avatarState === newState) return;
   avatarState = newState;
 
-  if (modelAcostado) modelAcostado.visible = (newState === 'acostado');
   if (modelCamina) modelCamina.visible = (newState === 'camina');
   if (modelHora) modelHora.visible = (newState === 'hora');
 }
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA (GEOMETRÍA PURA)
+// 1. CARGA DE LA ISLA (INCLUYE A LUIS-PLAYA-SENTADO Y MILA-SENTADA_MODEL INTEGRADOS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
 
@@ -789,7 +787,6 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
 
   scene.add(islaScene);
   
-  // Animaciones nativas integradas en el modelo (movimiento sutil de vegetación pequeña)
   if (gltf.animations && gltf.animations.length > 0) {
     islandMixer = new THREE.AnimationMixer(islaScene);
     
@@ -809,27 +806,8 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
   }
 });
 
-// 2. LUIS ACOSTADO
-loader.load("luis-acostado.glb", (gltf) => {
-  modelAcostado = gltf.scene;
-  modelAcostado.rotation.y = Math.PI; 
-  modelAcostado.visible = true;
-  avatarContainer.add(modelAcostado);
-
-  if (gltf.animations && gltf.animations.length > 0) {
-    mixerAcostado = new THREE.AnimationMixer(modelAcostado);
-    gltf.animations.forEach((clip) => {
-      clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
-      const action = mixerAcostado.clipAction(clip);
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.enabled = true;
-      action.play();
-    });
-  }
-});
-
-// 3. LUIS CAMINA
-loader.load("luis-camina.glb", (gltf) => {
+// 2. LUIS CAMINA
+loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/luis-playa-camina.glb", (gltf) => {
   modelCamina = gltf.scene;
   modelCamina.rotation.y = 0; 
   modelCamina.visible = false; 
@@ -847,8 +825,8 @@ loader.load("luis-camina.glb", (gltf) => {
   }
 });
 
-// 4. LUIS HORA
-loader.load("luis-hora.glb", (gltf) => {
+// 3. LUIS HORA
+loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/luis-playa-hora.glb", (gltf) => {
   modelHora = gltf.scene;
   modelHora.rotation.y = 0;
   modelHora.visible = false;
@@ -867,15 +845,15 @@ loader.load("luis-hora.glb", (gltf) => {
 });
 
 function resetAvatarPosition() {
-  avatarContainer.position.set(0, 0, 0);
+  avatarContainer.position.set(14.895, 0, -11.136);
   avatarContainer.rotation.y = 0;
 
-  if (modelAcostado) modelAcostado.rotation.y = Math.PI;
   if (modelCamina) modelCamina.rotation.y = 0;
   if (modelHora) modelHora.rotation.y = 0;
 
-  setAvatarState('acostado');
-  controls.target.set(0, 1, 0);
+  setAvatarState('sentado');
+  camera.position.set(18.5, 2.0, -7.5);
+  controls.target.set(14.895, 0.8, -11.136);
 }
 
 document.getElementById('btn-reset').addEventListener('click', (e) => {
@@ -883,7 +861,7 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 5. LARA DE FRENTE AL AVATAR
+// 4. LARA DE FRENTE AL AVATAR (CÓDIGO INTACTO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.35, 0.35, 0.35);
@@ -1033,7 +1011,6 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  if (mixerAcostado && avatarState === 'acostado') mixerAcostado.update(delta);
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
 
@@ -1101,9 +1078,9 @@ function animate() {
     let allowMovement = true;
     if (islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.8; // Altura del pecho del avatar
+      obsOrigin.y += 0.8; 
       obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.9; // Distancia de choque
+      obstacleRaycaster.far = 0.9;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       if (hits.length > 0) {
