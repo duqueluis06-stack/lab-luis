@@ -472,10 +472,11 @@ scene.background = new THREE.Color(0x7ec0ee);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);
+// CÁMARA INICIAL: MÁS A LA DERECHA Y MÁS ALEJADA PARA MEJOR PANORÁMICA
+const startCamPos = new THREE.Vector3(52.0, 22.0, 32.0);
 const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); 
 
-const startTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
+const startTargetPos = new THREE.Vector3(12.0, 0.5, -8.0); 
 const closeTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
 
 camera.position.copy(startCamPos);
@@ -500,7 +501,7 @@ controls.rotateSpeed = 0.4;
 controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
 controls.minDistance = 1;
-controls.maxDistance = 100;
+controls.maxDistance = 120;
 controls.target.copy(startTargetPos);
 
 let isCamTransitioning = false;
@@ -718,7 +719,6 @@ function drawVuMeter() {
   vuCtx.fillStyle = "rgba(2, 6, 23, 0.9)";
   vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
 
-  // Líneas de cuadrícula sutiles
   vuCtx.strokeStyle = "rgba(0, 240, 255, 0.12)";
   vuCtx.lineWidth = 1;
   for (let x = 0; x < vuCanvas.width; x += 10) {
@@ -752,7 +752,6 @@ function drawVuMeter() {
       );
     }
   } else {
-    // Estado estático / reposo
     vuCtx.fillStyle = "rgba(0, 240, 255, 0.25)";
     vuCtx.fillRect(2, vuCanvas.height - 3, vuCanvas.width - 4, 2);
   }
@@ -769,10 +768,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// AVATAR CON TAMAÑO INCREMENTADO
+// AVATAR CON TAMAÑO REDUCIDO A PROPORCIÓN AJUSTADA
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.95, 0.95, 0.95); 
+avatarContainer.scale.set(0.68, 0.68, 0.68); 
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -1075,7 +1074,7 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // ALTURA EXCLUSIVA SOBRE LA ARENA (SIN ATRAVESAR NI SUBIR A PLANTAS/PALMERAS)
+  // ALTURA EXCLUSIVA SOBRE LA ARENA DE LA PLAYA
   if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
     origin.y += 2.0; 
@@ -1122,26 +1121,36 @@ function animate() {
 
     let allowMovement = true;
 
+    // COLISIÓN DIRIGIDA CON LARA: SOLO BLOQUEA SI INTENTAS AVANZAR HACIA ELLA
     if (laraMesh) {
-      const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
-      if (distToLara < 0.9) {
-        allowMovement = false;
+      const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
+      toLara.y = 0;
+      const distToLara = toLara.length();
+      if (distToLara < 0.55) {
+        if (moveDirection.dot(toLara.normalize()) > 0) {
+          allowMovement = false;
+        }
       }
     }
 
-    // BLOQUEAR SÓLO SILLAS Y BARRA TIKI
+    // BLOQUEO EXCLUSIVO DE ESTRUCTURAS RÍGIDAS (FILTRA VEGETACIÓN PARA NO ATRANCARSE)
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4; 
+      obsOrigin.y += 0.3; 
 
       obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.5;
+      obstacleRaycaster.far = 0.35;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       const blockingHits = hits.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        const isChairOrBar = name.includes("silla") || name.includes("chair") || name.includes("sillón") || name.includes("bar");
-        return isChairOrBar && hit.distance > 0.08 && hit.distance < 0.38;
+
+        // Ignorar vegetación
+        const isPlant = name.includes("planta") || name.includes("palma") || name.includes("arbol") || name.includes("hoja") || name.includes("foliage") || name.includes("leaf") || name.includes("tree") || name.includes("bush");
+        if (isPlant) return false;
+
+        const isChairOrBar = name.includes("silla") || name.includes("chair") || name.includes("sillón") || name.includes("bar") || name.includes("tiki");
+        return isChairOrBar && hit.distance > 0.05 && hit.distance < 0.35;
       });
 
       if (blockingHits.length > 0) {
