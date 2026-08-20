@@ -1068,24 +1068,24 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // RAYCASTING DE TERRENO CON MARGEN DE SEGURIDAD PARA EVITAR HUNDIMIENTO EN ARENA
-  if (isMoving && islaScene) {
+  // AJUSTE DE CONTACTO DIRECTO CON LA ARENA
+  if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
-    origin.y += 1.0; 
+    origin.y += 2.0; 
 
     raycaster.set(origin, downVector);
-    raycaster.far = 4.0;
+    raycaster.far = 10.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      const validHits = intersects.filter(hit => {
+      const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        return !name.includes("silla") && !name.includes("chair") && hit.point.y <= avatarContainer.position.y + 0.6;
+        return !name.includes("silla") && !name.includes("chair") && !name.includes("luis");
       });
-      if (validHits.length > 0) {
-        // Margen vertical de +0.08 para mantener los pies apoyados sobre la superficie de la arena
-        const targetGroundY = validHits[0].point.y + 0.08;
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.25);
+      if (terrainHits.length > 0) {
+        // Alineación vertical exacta sobre la malla del suelo
+        const targetGroundY = terrainHits[0].point.y;
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
       }
     }
   }
