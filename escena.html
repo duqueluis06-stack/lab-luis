@@ -472,8 +472,8 @@ scene.background = new THREE.Color(0x7ec0ee);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-// CÁMARA INICIAL: MÁS A LA DERECHA Y MÁS DISTANTE PARA ENFOCAR EL GRUPO
-const startCamPos = new THREE.Vector3(72.0, 28.0, 38.0);
+// CÁMARA INICIAL: MÁS A LA DERECHA Y ALEJADA PARA LIBERAR LA VISIÓN DEL TIKI BAR Y ENFOCAR AL GRUPO
+const startCamPos = new THREE.Vector3(85.0, 32.0, 45.0);
 const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); 
 
 const startTargetPos = new THREE.Vector3(14.5, 0.4, -10.0); 
@@ -714,7 +714,7 @@ document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   nextTrack();
 });
 
-// --- RENDERIZADO DEL VÚMETRO / BOOMMETER ---
+// --- RENDERIZADO DEL VÚMETRO ---
 function drawVuMeter() {
   vuCtx.fillStyle = "rgba(2, 6, 23, 0.9)";
   vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
@@ -768,7 +768,6 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// AVATAR CON ESCALA PERSONALIZADA 0.78
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
 avatarContainer.scale.set(0.78, 0.78, 0.78); 
@@ -1030,6 +1029,35 @@ function evaluarTeclado() {
 // --- LOOP RENDER PRINCIPAL ---
 const obstacleRaycaster = new THREE.Raycaster();
 
+function checkStructureCollision(origin, direction, maxDistance) {
+  if (!islaScene) return null;
+  obstacleRaycaster.set(origin, direction);
+  obstacleRaycaster.far = maxDistance;
+
+  const hits = obstacleRaycaster.intersectObject(islaScene, true);
+  for (let i = 0; i < hits.length; i++) {
+    const hit = hits[i];
+    const name = (hit.object.name || "").toLowerCase();
+
+    // Ignorar elementos de vegetación
+    const isPlant = name.includes("planta") || name.includes("palma") || name.includes("arbol") || 
+                    name.includes("hoja") || name.includes("foliage") || name.includes("leaf") || 
+                    name.includes("tree") || name.includes("bush");
+    if (isPlant) continue;
+
+    // Detectar exclusivamente paredes de madera, casita, bar o sillas
+    const isSolidMesh = name.includes("casa") || name.includes("casita") || name.includes("wall") || 
+                        name.includes("pared") || name.includes("house") || name.includes("madera") || 
+                        name.includes("wood") || name.includes("silla") || name.includes("chair") || 
+                        name.includes("sillón") || name.includes("bar") || name.includes("tiki");
+
+    if (isSolidMesh && hit.distance > 0.02 && hit.distance <= maxDistance) {
+      return hit;
+    }
+  }
+  return null;
+}
+
 function animate() {
   requestAnimationFrame(animate);
 
@@ -1074,7 +1102,7 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // DETECCIÓN EXCLUSIVA DE ALTURA SOBRE EL SUELO/ARENA (FILTRA TECHOS Y PAREDES DE LA CASA)
+  // DETECCIÓN DE ALTURA DEL SUELO DENTRO Y FUERA DE LA CASITA
   if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
     origin.y += 2.0; 
@@ -1086,14 +1114,10 @@ function animate() {
     if (intersects.length > 0) {
       const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        
-        // Excluir elementos que no son terreno (palmeras, muebles, casa, techo, paredes)
         const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
                              name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
-                             name.includes("silla") || name.includes("chair") || name.includes("luis") || 
-                             name.includes("lara") || name.includes("casa") || name.includes("casita") || 
-                             name.includes("techo") || name.includes("roof") || name.includes("wall") || 
-                             name.includes("pared") || name.includes("house") || name.includes("bar") || name.includes("tiki");
+                             name.includes("luis") || name.includes("lara") || name.includes("techo") || 
+                             name.includes("roof");
         if (isNonTerrain) return false;
 
         return hit.face && hit.face.normal.y > 0.3;
@@ -1125,47 +1149,47 @@ function animate() {
     const speed = 2.2;
     const prevPosition = avatarContainer.position.clone();
 
+    // BLOQUEO LARA
     let allowMovement = true;
-
-    // COLISIÓN CON LARA: BLOQUEO DE FRENTE CON RADIO AMPLIADO (1.0M)
     if (laraMesh) {
       const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
       toLara.y = 0;
-      const distToLara = toLara.length();
-      if (distToLara < 1.0) {
-        if (moveDirection.dot(toLara.clone().normalize()) > 0) {
-          allowMovement = false;
-        }
+      if (toLara.length() < 1.0 && moveDirection.dot(toLara.clone().normalize()) > 0) {
+        allowMovement = false;
       }
     }
 
-    // BLOQUEO FÍSICO CONTRA ESTRUCTURAS (CASA, PAREDES Y MUEBLES)
+    // SISTEMA ANTI-ATRAPAMIENTO CON DESLIZAMIENTO FLUIDO EN PAREDES DE MADERA Y MUEBLES
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4; 
+      obsOrigin.y += 0.4; // Altura de torso
 
-      obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.55; 
+      const checkRadius = 0.42; 
+      const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
 
-      const hits = obstacleRaycaster.intersectObject(islaScene, true);
-      const blockingHits = hits.filter(hit => {
-        const name = (hit.object.name || "").toLowerCase();
+      if (frontHit) {
+        const normal = frontHit.face ? frontHit.face.normal.clone().transformDirection(frontHit.object.matrixWorld).normalize() : null;
+        
+        if (normal) {
+          normal.y = 0;
+          normal.normalize();
 
-        // Ignorar vegetación
-        const isPlant = name.includes("planta") || name.includes("palma") || name.includes("arbol") || 
-                        name.includes("hoja") || name.includes("foliage") || name.includes("leaf") || 
-                        name.includes("tree") || name.includes("bush");
-        if (isPlant) return false;
+          // Descomponer el movimiento para deslizar libremente por las paredes sin atorarse
+          const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
 
-        // Colisionar con construcciones, paredes, muebles o bar
-        const isSolidMesh = name.includes("casa") || name.includes("casita") || name.includes("wall") || 
-                            name.includes("pared") || name.includes("house") || name.includes("silla") || 
-                            name.includes("chair") || name.includes("sillón") || name.includes("bar") || name.includes("tiki");
-        return isSolidMesh && hit.distance > 0.05 && hit.distance < 0.55;
-      });
-
-      if (blockingHits.length > 0) {
-        allowMovement = false;
+          if (slideDirection.lengthSq() > 0.01) {
+            const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
+            if (!sideHit) {
+              moveDirection.copy(slideDirection);
+            } else {
+              allowMovement = false;
+            }
+          } else {
+            allowMovement = false;
+          }
+        } else {
+          allowMovement = false;
+        }
       }
     }
 
