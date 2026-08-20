@@ -469,7 +469,6 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// --- CONFIGURACIÓN DE CÁMARA (ENFOQUE EXCLUSIVO A LUIS-PLAYA-SENTADO) ---
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
 const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);
@@ -480,13 +479,15 @@ const closeTargetPos = new THREE.Vector3(14.895, 0.4, -11.136);
 
 camera.position.copy(startCamPos);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// OPTIMIZACIÓN TÉRMICA: Limitar resolución máxima para evitar que la GPU caliente el teléfono
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.35;
+renderer.toneMappingExposure = 1.25;
 
 document.body.appendChild(renderer.domElement);
 
@@ -507,14 +508,14 @@ let camTransitionTime = 0;
 const camTransitionDuration = 2.8;
 
 // --- ILUMINACIÓN ---
-const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.2);
+const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.0);
 scene.add(hemiLight);
 
-const sunLight = new THREE.DirectionalLight(0xfff2a3, 3.0);
+const sunLight = new THREE.DirectionalLight(0xfff2a3, 2.8);
 sunLight.position.set(35, 45, 20);
 scene.add(sunLight);
 
-const sunGeo = new THREE.SphereGeometry(3, 32, 32);
+const sunGeo = new THREE.SphereGeometry(3, 16, 16);
 const sunMat = new THREE.MeshBasicMaterial({ color: 0xfffae0 });
 const sunMesh = new THREE.Mesh(sunGeo, sunMat);
 sunMesh.position.copy(sunLight.position).multiplyScalar(10);
@@ -602,7 +603,7 @@ function loadTrack(index, startPlaying = false) {
     soundSource.setVolume(0.5);
     
     if (!audioAnalyser) {
-      audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
+      audioAnalyser = new THREE.AudioAnalyser(soundSource, 16);
     }
 
     if (startPlaying || userInteracted) {
@@ -763,10 +764,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// CONTENEDOR DE LUIS CON ESCALA 0.88
+// CONTENEDOR DE LUIS: Escala reducida a 0.75
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.88, 0.88, 0.88);
+avatarContainer.scale.set(0.75, 0.75, 0.75);
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -780,7 +781,6 @@ let avatarState = 'sentado';
 function setAvatarState(newState) {
   if (avatarState === newState) return;
 
-  // Al pasar de sentado a caminando, dar un paso limpio fuera de la geometría de la silla
   if (avatarState === 'sentado' && newState === 'camina') {
     avatarContainer.position.z += 0.35; 
   }
@@ -797,13 +797,13 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
-// 1. CARGA DE LA ISLA
+// 1. ISLA
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
 
   islaScene.traverse((child) => {
     if (child.isMesh) {
-      child.frustumCulled = false;
+      child.frustumCulled = true;
     }
     if (child.name.toLowerCase().includes("luis-playa-sentado")) {
       luisSentadoObject = child;
@@ -884,13 +884,13 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA BAILA (UBICADA LEJOS EN LA ZONA DEL TIKI BAR Y A 1M DEL MICHI GRIS)
+// 4. LARA BAILA (Sartén/Suelo elevado a Y: -0.15 para no enterrarse en la arena)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.42, 0.42, 0.42);
   
-  // Posición distante de la cámara inicial y cerca del gato gris / tiki bar
-  laraMesh.position.set(6.2, -0.316, -4.8);
+  // Elevada de -0.316 a -0.15 para apoyo perfecto
+  laraMesh.position.set(6.2, -0.15, -4.8);
   laraMesh.rotation.y = 0.8;
 
   scene.add(laraMesh);
@@ -916,7 +916,7 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
 
 // --- GAVIOTAS PROCEDIMENTALES ---
 const gaviotas = [];
-const numGaviotas = 5;
+const numGaviotas = 4;
 
 function crearBandada() {
   const materialBlanco = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -965,7 +965,7 @@ function crearBandada() {
 
 crearBandada();
 
-// --- SISTEMA INTERACTIVO DE JOYSTICK ---
+// --- CONTROLES DE MOVIMIENTO ---
 const moveInput = { x: 0, y: 0 };
 const joystick = document.getElementById('joystick-container');
 const knob = document.getElementById('joystick-knob');
@@ -1070,8 +1070,10 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // RAYCASTING DE ALTURA (IGNORA SILLAS PARA NO QUEDAR ELEVADO)
-  if (islaScene) {
+  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
+
+  // RAYCASTING SOLO MIENTRAS SE DESPLAZA
+  if (isMoving && islaScene) {
     const origin = avatarContainer.position.clone();
     origin.y += 0.8; 
 
@@ -1089,8 +1091,6 @@ function animate() {
       }
     }
   }
-
-  const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
     setAvatarState('camina');
@@ -1120,7 +1120,6 @@ function animate() {
       }
     }
 
-    // DETECTOR DE OBSTÁCULOS (EXCLUYE LAS SILLAS PARA NO QUEDAR TRABADO)
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
