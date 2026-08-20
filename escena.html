@@ -362,18 +362,19 @@
     #btn-next { color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
 
     #vumeter-canvas {
-      width: 90px;
-      height: 24px;
-      background: rgba(2, 6, 23, 0.3);
+      width: 100px;
+      height: 26px;
+      background: rgba(2, 6, 23, 0.85);
       border-radius: 4px;
-      border: 1px solid rgba(0, 255, 102, 0.2);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
     }
 
     @media (max-width: 600px) {
       #media-console { padding: 4px 10px; gap: 4px; }
       .led-display { max-width: 130px; padding: 2px 6px; }
       .track-title { font-size: 9px; }
-      #vumeter-canvas { width: 80px; height: 20px; }
+      #vumeter-canvas { width: 85px; height: 22px; }
       .track-pill { font-size: 8px; padding: 4px 2px; }
       .dj-btn { padding: 4px 8px; font-size: 9px; }
       #btn-reset { right: 90px; padding: 8px 12px; font-size: 10px; }
@@ -535,8 +536,8 @@ let isLoadingAudio = false;
 
 const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
-vuCanvas.width = 90;
-vuCanvas.height = 24;
+vuCanvas.width = 100;
+vuCanvas.height = 26;
 
 let laraMesh = null;
 let laraMixer = null; 
@@ -602,7 +603,7 @@ function loadTrack(index, startPlaying = true) {
     soundSource.setVolume(0.5);
     
     if (!audioAnalyser) {
-      audioAnalyser = new THREE.AudioAnalyser(soundSource, 16);
+      audioAnalyser = new THREE.AudioAnalyser(soundSource, 32);
     }
 
     if (startPlaying || userInteracted) {
@@ -712,13 +713,14 @@ document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   nextTrack();
 });
 
+// --- RENDERIZADO DEL VÚMETRO / BOOMMETER ---
 function drawVuMeter() {
-  vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
-  vuCtx.fillStyle = "rgba(10, 15, 30, 0.4)";
+  vuCtx.fillStyle = "rgba(2, 6, 23, 0.9)";
   vuCtx.fillRect(0, 0, vuCanvas.width, vuCanvas.height);
-  vuCtx.strokeStyle = "rgba(0, 255, 102, 0.1)";
-  vuCtx.lineWidth = 0.5;
-  
+
+  // Líneas de cuadrícula sutiles
+  vuCtx.strokeStyle = "rgba(0, 240, 255, 0.12)";
+  vuCtx.lineWidth = 1;
   for (let x = 0; x < vuCanvas.width; x += 10) {
     vuCtx.beginPath(); vuCtx.moveTo(x, 0); vuCtx.lineTo(x, vuCanvas.height); vuCtx.stroke();
   }
@@ -726,29 +728,33 @@ function drawVuMeter() {
     vuCtx.beginPath(); vuCtx.moveTo(0, y); vuCtx.lineTo(vuCanvas.width, y); vuCtx.stroke();
   }
 
-  vuCtx.lineWidth = 1.2;
-  vuCtx.strokeStyle = "#00ff66"; 
-
   if (audioAnalyser && soundSource.isPlaying) {
     const data = audioAnalyser.getFrequencyData();
-    vuCtx.beginPath();
-    const sliceWidth = vuCanvas.width / data.length;
-    let x = 0;
-    for (let i = 0; i < data.length; i++) {
+    const barCount = data.length;
+    const gap = 2;
+    const barWidth = (vuCanvas.width - (barCount * gap)) / barCount;
+
+    for (let i = 0; i < barCount; i++) {
       const value = data[i] / 255;
-      const amplitude = value * (vuCanvas.height / 1.5);
-      const y = (vuCanvas.height / 2) + (i % 2 === 0 ? amplitude : -amplitude) * Math.sin(i * 0.3);
-      if (i === 0) vuCtx.moveTo(x, y);
-      else vuCtx.lineTo(x, y);
-      x += sliceWidth;
+      const barHeight = Math.max(3, value * vuCanvas.height * 0.9);
+
+      const grad = vuCtx.createLinearGradient(0, vuCanvas.height, 0, 0);
+      grad.addColorStop(0, '#00ff66');
+      grad.addColorStop(0.5, '#00f0ff');
+      grad.addColorStop(1, '#ff007f');
+
+      vuCtx.fillStyle = grad;
+      vuCtx.fillRect(
+        i * (barWidth + gap) + gap,
+        vuCanvas.height - barHeight,
+        barWidth,
+        barHeight
+      );
     }
-    vuCtx.stroke();
   } else {
-    vuCtx.strokeStyle = "rgba(0, 255, 102, 0.2)";
-    vuCtx.beginPath();
-    vuCtx.moveTo(0, vuCanvas.height / 2);
-    vuCtx.lineTo(vuCanvas.width, vuCanvas.height / 2);
-    vuCtx.stroke();
+    // Estado estático / reposo
+    vuCtx.fillStyle = "rgba(0, 240, 255, 0.25)";
+    vuCtx.fillRect(2, vuCanvas.height - 3, vuCanvas.width - 4, 2);
   }
 }
 
@@ -763,9 +769,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
+// AVATAR CON TAMAÑO INCREMENTADO
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.75, 0.75, 0.75);
+avatarContainer.scale.set(0.95, 0.95, 0.95); 
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -1068,7 +1075,7 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // ALTURA EXCLUSIVA SOBRE LA ARENA (EXCLUYENDO PLANTAS Y PALMERAS)
+  // ALTURA EXCLUSIVA SOBRE LA ARENA (SIN ATRAVESAR NI SUBIR A PLANTAS/PALMERAS)
   if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
     origin.y += 2.0; 
@@ -1080,7 +1087,6 @@ function animate() {
     if (intersects.length > 0) {
       const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        // Ignorar vegetación, palmeras, árboles, sillas y avatares para la altura del suelo
         if (name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
             name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
             name.includes("silla") || name.includes("chair") || name.includes("luis") || name.includes("lara")) {
@@ -1123,7 +1129,7 @@ function animate() {
       }
     }
 
-    // COLISIONES: SÓLO BLOQUEAR SILLAS / SILLONES (LAS PLANTAS SE ATRAVIESAN)
+    // BLOQUEAR SÓLO SILLAS Y BARRA TIKI
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
@@ -1134,7 +1140,6 @@ function animate() {
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       const blockingHits = hits.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        // Solo bloquear si el objeto es una silla, sillón o barra tiki
         const isChairOrBar = name.includes("silla") || name.includes("chair") || name.includes("sillón") || name.includes("bar");
         return isChairOrBar && hit.distance > 0.08 && hit.distance < 0.38;
       });
