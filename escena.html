@@ -484,7 +484,7 @@ scene.background = new THREE.Color(0x7ec0ee);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-// POSICIÓN INICIAL: Inclinada a la derecha enfocado en Luis sentado
+// POSICIÓN INICIAL
 const startCamPos = new THREE.Vector3(32.0, 9.0, -2.0);
 const startTargetPos = new THREE.Vector3(14.895, 1.0, -11.136); 
 
@@ -506,20 +506,16 @@ const clock = new THREE.Clock();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.rotateSpeed = 0.4;
+controls.rotateSpeed = 0.5;
 controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
 controls.minDistance = 1.5;
 controls.maxDistance = 150;
 
-// RESTRICCIÓN VERTICAL: Evita que la cámara baje del nivel del mar/isla
+// RESTRICCIÓN VERTICAL: Evita que la cámara baje del nivel del horizonte
 controls.maxPolarAngle = Math.PI / 2.05; 
 
 controls.target.copy(startTargetPos);
-
-let isCamTransitioning = false;
-let camTransitionTime = 0;
-const camTransitionDuration = 1.5;
 
 // --- CONTROL DE INACTIVIDAD Y CÁMARA AUTOMÁTICA ---
 let lastUserInteractionTime = Date.now();
@@ -907,7 +903,6 @@ function resetAvatarPosition() {
   if (modelHora) modelHora.rotation.y = 0;
 
   setAvatarState('sentado');
-  isCamTransitioning = false;
   camera.position.copy(startCamPos);
   controls.target.copy(startTargetPos);
   resetInteractionTimer();
@@ -1212,18 +1207,14 @@ function animate() {
     if (allowMovement) {
       avatarContainer.position.addScaledVector(moveDirection, speed * delta);
       const deltaMove = avatarContainer.position.clone().sub(prevPosition);
+      
+      // TRASLADAR CÁMARA Y PUNTO DE ENFOQUE JUNTO CON EL AVATAR SIN FORZAR LA PERSPECTIVA
       camera.position.add(deltaMove);
+      controls.target.add(deltaMove);
     }
 
     const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
-
-    // CÁMARA CERCANA Y CENITAL SOBRE EL AVATAR CUANDO CAMINA
-    const targetHeadPos = avatarContainer.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-    controls.target.lerp(targetHeadPos, 0.15);
-
-    const closeTopCamPos = avatarContainer.position.clone().add(new THREE.Vector3(0, 3.2, 2.2));
-    camera.position.lerp(closeTopCamPos, 0.12);
 
   } else {
     if (avatarState === 'camina') {
