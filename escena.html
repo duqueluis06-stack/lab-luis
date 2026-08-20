@@ -473,17 +473,15 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// --- CONFIGURACIÓN DE CÁMARA (GLOBAL -> CERCANA CINEMATOGRÁFICA) ---
+// --- CONFIGURACIÓN DE CÁMARA ---
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-// Puntos clave de cámara
-const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);   // Panorama elevado e inicial
-const closeCamPos = new THREE.Vector3(18.8, 1.15, -7.2);   // Encuadre cercano profesional
+const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);
+const closeCamPos = new THREE.Vector3(18.8, 1.15, -7.2);
 
 const startTargetPos = new THREE.Vector3(14.5, 1.0, -11.2); 
 const closeTargetPos = new THREE.Vector3(14.5, 0.4, -11.2); 
 
-// Posicionamiento inicial en la vista panorámica global
 camera.position.copy(startCamPos);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -498,7 +496,6 @@ document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
 
-// CONTROLES DE CÁMARA CON SENSIBILIDAD SUAVE
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -509,10 +506,9 @@ controls.minDistance = 1;
 controls.maxDistance = 100;
 controls.target.copy(startTargetPos);
 
-// Sistema de animación fluida de cámara
 let isCamTransitioning = false;
 let camTransitionTime = 0;
-const camTransitionDuration = 2.8; // Duración en segundos del traveling suave
+const camTransitionDuration = 2.8;
 
 // --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.2);
@@ -686,7 +682,6 @@ document.getElementById('btn-entrar').addEventListener('click', (e) => {
   userInteracted = true;
   executePlay();
   
-  // Activa el traveling suave hacia el encuadre cercano profesional
   isCamTransitioning = true;
   camTransitionTime = 0;
 
@@ -772,10 +767,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// CONTENEDOR CON LA ALTURA DE LA ARENA (-0.316m)
+// CONTENEDOR DE LUIS CON ESCALA LEVEMENTE AUMENTADA (0.75)
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.65, 0.65, 0.65);
+avatarContainer.scale.set(0.75, 0.75, 0.75);
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -887,12 +882,12 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA DE FRENTE AL AVATAR (POSICIONADA CON ESPACIO LIBRE)
+// 4. LARA BAILA (AUMENTADA A ESCALA 0.42 Y UBICADA PRÓXIMA AL MICHI GRIS SIN PEGARSE DEMASIADO)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
-  laraMesh.scale.set(0.35, 0.35, 0.35);
-  laraMesh.position.set(14.2, -0.316, -13.0);
-  laraMesh.rotation.y = 0;
+  laraMesh.scale.set(0.42, 0.42, 0.42);
+  laraMesh.position.set(15.4, -0.316, -12.3);
+  laraMesh.rotation.y = -0.5;
 
   scene.add(laraMesh);
 
@@ -1035,12 +1030,10 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  // TRANSICIÓN CINEMATOGRÁFICA DE CÁMARA
   if (isCamTransitioning) {
     camTransitionTime += delta;
     let progress = Math.min(camTransitionTime / camTransitionDuration, 1.0);
     
-    // Curva de aceleración suave (easeInOutCubic)
     let ease = progress < 0.5
       ? 4 * progress * progress * progress
       : 1 - Math.pow(-2 * progress + 2, 3) / 2;
@@ -1061,7 +1054,6 @@ function animate() {
 
   drawVuMeter();
 
-  // GAVIOTAS
   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
@@ -1074,7 +1066,6 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
-  // RAYCASTER DE SUELO
   if (islaScene) {
     const origin = avatarContainer.position.clone();
     origin.y += 0.8; 
@@ -1091,7 +1082,6 @@ function animate() {
     }
   }
 
-  // MOVIMIENTO E IMPEDIMENTO DE BLOQUEOS FALSOS
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (isMoving) {
@@ -1115,15 +1105,13 @@ function animate() {
 
     let allowMovement = true;
 
-    // Colisión con Lara
     if (laraMesh) {
       const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
-      if (distToLara < 0.85) {
+      if (distToLara < 0.95) {
         allowMovement = false;
       }
     }
 
-    // Colisión con la Isla
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
