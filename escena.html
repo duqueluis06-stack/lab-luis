@@ -18,10 +18,6 @@
   <meta property="og:url" content="https://duquemartini.com/escena.html">
   <meta property="og:site_name" content="Duque Martini Metaverso">
 
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="La Isla de la Nostalgia — Entorno 3D Interactivo">
-  <meta name="twitter:description" content="Entorno virtual 3D inmersivo con consola DJ interactiva y avatares animados optimizados.">
-
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -473,14 +469,14 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// --- CONFIGURACIÓN DE CÁMARA ---
+// --- CONFIGURACIÓN DE CÁMARA (ENFOQUE A LUIS-PLAYA-SENTADO CON DISTANCIA CÓMODA) ---
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
 const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);
-const closeCamPos = new THREE.Vector3(18.8, 1.15, -7.2);
+const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); // Encuadre cómodo a Luis sentado
 
-const startTargetPos = new THREE.Vector3(14.5, 1.0, -11.2); 
-const closeTargetPos = new THREE.Vector3(14.5, 0.4, -11.2); 
+const startTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
+const closeTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
 
 camera.position.copy(startCamPos);
 
@@ -767,10 +763,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// CONTENEDOR DE LUIS CON ESCALA LEVEMENTE AUMENTADA (0.75)
+// LUIS CAMINA Y HORA: ESCALA UN POCO MÁS GRANDE (0.85)
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.75, 0.75, 0.75);
+avatarContainer.scale.set(0.85, 0.85, 0.85);
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -882,11 +878,11 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA BAILA (AUMENTADA A ESCALA 0.42 Y UBICADA PRÓXIMA AL MICHI GRIS SIN PEGARSE DEMASIADO)
+// 4. LARA BAILA (A ~1 METRO DEL MICHI GRIS Y FUERA DE LAS PLANTAS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.42, 0.42, 0.42);
-  laraMesh.position.set(15.4, -0.316, -12.3);
+  laraMesh.position.set(15.2, -0.316, -11.8);
   laraMesh.rotation.y = -0.5;
 
   scene.add(laraMesh);
@@ -1107,23 +1103,27 @@ function animate() {
 
     if (laraMesh) {
       const distToLara = avatarContainer.position.distanceTo(laraMesh.position);
-      if (distToLara < 0.95) {
+      if (distToLara < 0.9) {
         allowMovement = false;
       }
     }
 
+    // CONTROL DE COLISIÓN AJUSTADO PARA EVITAR ATASCOS EN SILLAS Y MUEBLES
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
 
       obstacleRaycaster.set(obsOrigin, moveDirection);
-      obstacleRaycaster.far = 0.55;
+      obstacleRaycaster.far = 0.5;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       if (hits.length > 0) {
-        const hitFace = hits[0].face;
-        if (hitFace && Math.abs(hitFace.normal.y) < 0.5) {
-          allowMovement = false;
+        const hit = hits[0];
+        // Bloquea movimiento solo en obstáculo cercano frontal sin quedar atrapado dentro
+        if (hit.distance > 0.08 && hit.distance < 0.38) {
+          if (hit.face && Math.abs(hit.face.normal.y) < 0.5) {
+            allowMovement = false;
+          }
         }
       }
     }
