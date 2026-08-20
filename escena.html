@@ -569,15 +569,31 @@ let laraMesh = null;
 let laraMixer = null; 
 let laraAction = null;
 
+let croftMesh = null;
+let croftMixer = null;
+let croftAction = null;
+
 function setLaraDancing(shouldDance) {
-  if (!laraAction) return;
-  if (shouldDance) {
-    laraAction.paused = false;
-    if (!laraAction.isRunning()) {
-      laraAction.play();
+  if (laraAction) {
+    if (shouldDance) {
+      laraAction.paused = false;
+      if (!laraAction.isRunning()) {
+        laraAction.play();
+      }
+    } else {
+      laraAction.paused = true;
     }
-  } else {
-    laraAction.paused = true;
+  }
+
+  if (croftAction) {
+    if (shouldDance) {
+      croftAction.paused = false;
+      if (!croftAction.isRunning()) {
+        croftAction.play();
+      }
+    } else {
+      croftAction.paused = true;
+    }
   }
 }
 
@@ -941,6 +957,34 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
   }
 });
 
+// 5. CROFT BAILA (Detrás del Tiki Bar, cerca de Luis sentado)
+loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/croft-baila.glb", (gltf) => {
+  croftMesh = gltf.scene;
+  croftMesh.scale.set(0.42, 0.42, 0.42);
+  croftMesh.position.set(13.8, -0.316, -12.8);
+  croftMesh.rotation.y = 0.5;
+
+  scene.add(croftMesh);
+
+  if (gltf.animations && gltf.animations.length > 0) {
+    croftMixer = new THREE.AnimationMixer(croftMesh);
+    const clip = gltf.animations[0];
+    clip.tracks.forEach(track => track.setInterpolation(THREE.InterpolateLinear));
+
+    croftAction = croftMixer.clipAction(clip);
+    croftAction.setLoop(THREE.LoopRepeat, Infinity);
+    croftAction.enabled = true;
+
+    if (soundSource && soundSource.isPlaying) {
+      croftAction.play();
+      croftAction.paused = false;
+    } else {
+      croftAction.play();
+      croftAction.paused = true;
+    }
+  }
+});
+
 // --- GAVIOTAS PROCEDIMENTALES ---
 const gaviotas = [];
 const numGaviotas = 4;
@@ -1099,6 +1143,7 @@ function animate() {
 
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta);
+  if (croftMixer) croftMixer.update(delta);
 
   drawVuMeter();
 
@@ -1130,8 +1175,8 @@ function animate() {
         const name = (hit.object.name || "").toLowerCase();
         const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
                              name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
-                             name.includes("luis") || name.includes("lara") || name.includes("techo") || 
-                             name.includes("roof");
+                             name.includes("luis") || name.includes("lara") || name.includes("croft") ||
+                             name.includes("techo") || name.includes("roof");
         if (isNonTerrain) return false;
 
         return hit.face && hit.face.normal.y > 0.3;
@@ -1168,6 +1213,14 @@ function animate() {
       const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
       toLara.y = 0;
       if (toLara.length() < 1.0 && moveDirection.dot(toLara.clone().normalize()) > 0) {
+        allowMovement = false;
+      }
+    }
+
+    if (croftMesh) {
+      const toCroft = new THREE.Vector3().subVectors(croftMesh.position, avatarContainer.position);
+      toCroft.y = 0;
+      if (toCroft.length() < 1.0 && moveDirection.dot(toCroft.clone().normalize()) > 0) {
         allowMovement = false;
       }
     }
