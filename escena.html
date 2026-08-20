@@ -484,12 +484,9 @@ scene.background = new THREE.Color(0x7ec0ee);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-// NADA DE ESTAR PEGANOS AL TECHO: CÁMARA ALEJADA Y ELEVADA CON PANORÁMICA LIMPIA
-const startCamPos = new THREE.Vector3(45.0, 18.0, 20.0);
-const closeCamPos = new THREE.Vector3(24.0, 6.0, -2.0); 
-
+// POSICIÓN INICIAL: Inclinada a la derecha enfocado en Luis sentado
+const startCamPos = new THREE.Vector3(32.0, 9.0, -2.0);
 const startTargetPos = new THREE.Vector3(14.895, 1.0, -11.136); 
-const closeTargetPos = new THREE.Vector3(14.895, 1.0, -11.136); 
 
 camera.position.copy(startCamPos);
 
@@ -512,13 +509,33 @@ controls.dampingFactor = 0.05;
 controls.rotateSpeed = 0.4;
 controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
-controls.minDistance = 2;
+controls.minDistance = 1.5;
 controls.maxDistance = 150;
+
+// RESTRICCIÓN VERTICAL: Evita que la cámara baje del nivel del mar/isla
+controls.maxPolarAngle = Math.PI / 2.05; 
+
 controls.target.copy(startTargetPos);
 
 let isCamTransitioning = false;
 let camTransitionTime = 0;
-const camTransitionDuration = 2.5;
+const camTransitionDuration = 1.5;
+
+// --- CONTROL DE INACTIVIDAD Y CÁMARA AUTOMÁTICA ---
+let lastUserInteractionTime = Date.now();
+let isAutoOrbiting = false;
+
+function resetInteractionTimer() {
+  lastUserInteractionTime = Date.now();
+  if (isAutoOrbiting) {
+    isAutoOrbiting = false;
+    controls.autoRotate = false;
+  }
+}
+
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(eventType => {
+  window.addEventListener(eventType, resetInteractionTimer, { passive: true });
+});
 
 // --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.0);
@@ -690,10 +707,8 @@ loadTrack(0, true);
 document.getElementById('btn-entrar').addEventListener('click', (e) => {
   e.stopPropagation();
   userInteracted = true;
+  resetInteractionTimer();
   executePlay();
-  
-  isCamTransitioning = true;
-  camTransitionTime = 0;
 
   const overlay = document.getElementById('overlay-inicio');
   overlay.style.opacity = '0';
@@ -704,6 +719,7 @@ document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
     userInteracted = true;
+    resetInteractionTimer();
     let trackIdx = parseInt(e.target.getAttribute('data-track'));
     loadTrack(trackIdx, true);
   });
@@ -712,16 +728,19 @@ document.querySelectorAll('.track-pill').forEach(pill => {
 document.getElementById("btn-play").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
   userInteracted = true;
+  resetInteractionTimer();
   executePlay();
 });
 
 document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
+  resetInteractionTimer();
   pauseAudio();
 });
 
 document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
+  resetInteractionTimer();
   nextTrack();
 });
 
@@ -889,8 +908,9 @@ function resetAvatarPosition() {
 
   setAvatarState('sentado');
   isCamTransitioning = false;
-  camera.position.copy(closeCamPos);
-  controls.target.copy(closeTargetPos);
+  camera.position.copy(startCamPos);
+  controls.target.copy(startTargetPos);
+  resetInteractionTimer();
 }
 
 document.getElementById('btn-reset').addEventListener('click', (e) => {
@@ -987,6 +1007,7 @@ let jStartY = 0;
 const maxRadius = 30;
 
 joystick.addEventListener('pointerdown', (e) => {
+  resetInteractionTimer();
   joystickActive = true;
   jStartX = e.clientX;
   jStartY = e.clientY;
@@ -995,6 +1016,7 @@ joystick.addEventListener('pointerdown', (e) => {
 
 joystick.addEventListener('pointermove', (e) => {
   if (!joystickActive) return;
+  resetInteractionTimer();
   const dx = e.clientX - jStartX;
   const dy = e.clientY - jStartY;
   const distance = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadius);
@@ -1007,6 +1029,7 @@ joystick.addEventListener('pointermove', (e) => {
 });
 
 joystick.addEventListener('pointerup', () => {
+  resetInteractionTimer();
   joystickActive = false;
   knob.style.transform = 'translate(0px, 0px)';
   moveInput.x = 0;
@@ -1019,12 +1042,14 @@ const keys = {
 };
 
 window.addEventListener('keydown', (e) => {
+  resetInteractionTimer();
   const key = e.key.toLowerCase();
   if (key in keys) keys[key] = true;
   evaluarTeclado();
 });
 
 window.addEventListener('keyup', (e) => {
+  resetInteractionTimer();
   const key = e.key.toLowerCase();
   if (key in keys) keys[key] = false;
   evaluarTeclado();
@@ -1050,7 +1075,6 @@ function checkStructureCollision(origin, direction, maxDistance) {
     const hit = hits[i];
     const name = (hit.object.name || "").toLowerCase();
 
-    // Excluir elementos del terreno/arena y plantas de baja colisión
     const isTerrainOrPlant = name.includes("arena") || name.includes("sand") || name.includes("ground") ||
                              name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
                              name.includes("planta") || name.includes("hoja") || name.includes("leaf");
@@ -1068,20 +1092,11 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const tiempoTotal = clock.getElapsedTime();
 
-  if (isCamTransitioning) {
-    camTransitionTime += delta;
-    let progress = Math.min(camTransitionTime / camTransitionDuration, 1.0);
-    
-    let ease = progress < 0.5
-      ? 4 * progress * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-    camera.position.lerpVectors(startCamPos, closeCamPos, ease);
-    controls.target.lerpVectors(startTargetPos, closeTargetPos, ease);
-
-    if (progress >= 1.0) {
-      isCamTransitioning = false;
-    }
+  // VERIFICACIÓN DE INACTIVIDAD (30 SEGUNDOS)
+  if (Date.now() - lastUserInteractionTime > 30000 && !isAutoOrbiting) {
+    isAutoOrbiting = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.2;
   }
 
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
@@ -1153,7 +1168,6 @@ function animate() {
     const speed = 2.2;
     const prevPosition = avatarContainer.position.clone();
 
-    // BLOQUEO DE DISTANCIA CON LARA
     let allowMovement = true;
     if (laraMesh) {
       const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
@@ -1163,7 +1177,6 @@ function animate() {
       }
     }
 
-    // BLOQUEO RIGIDO Y DESLIZAMIENTO SOBRE MUEBLES / CASITA
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4;
@@ -1205,7 +1218,13 @@ function animate() {
     const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
 
-    controls.target.copy(avatarContainer.position).add(new THREE.Vector3(0, 1, 0));
+    // CÁMARA CERCANA Y CENITAL SOBRE EL AVATAR CUANDO CAMINA
+    const targetHeadPos = avatarContainer.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+    controls.target.lerp(targetHeadPos, 0.15);
+
+    const closeTopCamPos = avatarContainer.position.clone().add(new THREE.Vector3(0, 3.2, 2.2));
+    camera.position.lerp(closeTopCamPos, 0.12);
+
   } else {
     if (avatarState === 'camina') {
       setAvatarState('hora');
