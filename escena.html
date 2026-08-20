@@ -482,7 +482,6 @@ camera.position.copy(startCamPos);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
-// OPTIMIZACIÓN TÉRMICA: Limitar resolución máxima para evitar que la GPU caliente el teléfono
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
@@ -585,7 +584,7 @@ function updateConsoleUI(filename, status) {
   }
 }
 
-function loadTrack(index, startPlaying = false) {
+function loadTrack(index, startPlaying = true) {
   currentTrackIndex = index;
   const filename = playlist[currentTrackIndex];
   isLoadingAudio = true;
@@ -672,7 +671,7 @@ window.salirDeEscena = function() {
 window.addEventListener('beforeunload', detenerTodoElAudio);
 window.addEventListener('pagehide', detenerTodoElAudio);
 
-loadTrack(0, false);
+loadTrack(0, true);
 
 document.getElementById('btn-entrar').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -764,7 +763,6 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// CONTENEDOR DE LUIS: Escala reducida a 0.75
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
 avatarContainer.scale.set(0.75, 0.75, 0.75);
@@ -884,12 +882,10 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA BAILA (Sartén/Suelo elevado a Y: -0.15 para no enterrarse en la arena)
+// 4. LARA BAILA
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.42, 0.42, 0.42);
-  
-  // Elevada de -0.316 a -0.15 para apoyo perfecto
   laraMesh.position.set(6.2, -0.15, -4.8);
   laraMesh.rotation.y = 0.8;
 
@@ -1072,22 +1068,24 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // RAYCASTING SOLO MIENTRAS SE DESPLAZA
+  // RAYCASTING DE TERRENO CON MARGEN DE SEGURIDAD PARA EVITAR HUNDIMIENTO EN ARENA
   if (isMoving && islaScene) {
     const origin = avatarContainer.position.clone();
-    origin.y += 0.8; 
+    origin.y += 1.0; 
 
     raycaster.set(origin, downVector);
-    raycaster.far = 3.0;
+    raycaster.far = 4.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
       const validHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        return !name.includes("silla") && !name.includes("chair") && hit.point.y <= avatarContainer.position.y + 0.5;
+        return !name.includes("silla") && !name.includes("chair") && hit.point.y <= avatarContainer.position.y + 0.6;
       });
       if (validHits.length > 0) {
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validHits[0].point.y, 0.25);
+        // Margen vertical de +0.08 para mantener los pies apoyados sobre la superficie de la arena
+        const targetGroundY = validHits[0].point.y + 0.08;
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.25);
       }
     }
   }
