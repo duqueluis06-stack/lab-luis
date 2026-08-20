@@ -1068,7 +1068,7 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // AJUSTE DE CONTACTO DIRECTO CON LA ARENA
+  // ALTURA EXCLUSIVA SOBRE LA ARENA (EXCLUYENDO PLANTAS Y PALMERAS)
   if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
     origin.y += 2.0; 
@@ -1080,10 +1080,15 @@ function animate() {
     if (intersects.length > 0) {
       const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        return !name.includes("silla") && !name.includes("chair") && !name.includes("luis");
+        // Ignorar vegetación, palmeras, árboles, sillas y avatares para la altura del suelo
+        if (name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
+            name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
+            name.includes("silla") || name.includes("chair") || name.includes("luis") || name.includes("lara")) {
+          return false;
+        }
+        return hit.face && hit.face.normal.y > 0.3;
       });
       if (terrainHits.length > 0) {
-        // Alineación vertical exacta sobre la malla del suelo
         const targetGroundY = terrainHits[0].point.y;
         avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
       }
@@ -1118,6 +1123,7 @@ function animate() {
       }
     }
 
+    // COLISIONES: SÓLO BLOQUEAR SILLAS / SILLONES (LAS PLANTAS SE ATRAVIESAN)
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
@@ -1128,8 +1134,9 @@ function animate() {
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
       const blockingHits = hits.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        if (name.includes("silla") || name.includes("chair")) return false; 
-        return hit.distance > 0.08 && hit.distance < 0.38 && hit.face && Math.abs(hit.face.normal.y) < 0.5;
+        // Solo bloquear si el objeto es una silla, sillón o barra tiki
+        const isChairOrBar = name.includes("silla") || name.includes("chair") || name.includes("sillón") || name.includes("bar");
+        return isChairOrBar && hit.distance > 0.08 && hit.distance < 0.38;
       });
 
       if (blockingHits.length > 0) {
