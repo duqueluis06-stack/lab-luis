@@ -469,11 +469,11 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
-// --- CONFIGURACIÓN DE CÁMARA (ENFOQUE A LUIS-PLAYA-SENTADO CON DISTANCIA CÓMODA) ---
+// --- CONFIGURACIÓN DE CÁMARA (ENFOQUE EXCLUSIVO A LUIS-PLAYA-SENTADO) ---
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
 const startCamPos = new THREE.Vector3(38.0, 16.0, 14.0);
-const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); // Encuadre cómodo a Luis sentado
+const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); 
 
 const startTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
 const closeTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
@@ -763,10 +763,10 @@ const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
-// LUIS CAMINA Y HORA: ESCALA UN POCO MÁS GRANDE (0.85)
+// CONTENEDOR DE LUIS CON ESCALA 0.88
 const avatarContainer = new THREE.Group();
 avatarContainer.position.set(14.895, -0.316, -11.136);
-avatarContainer.scale.set(0.85, 0.85, 0.85);
+avatarContainer.scale.set(0.88, 0.88, 0.88);
 scene.add(avatarContainer);
 
 let modelCamina = null;
@@ -779,6 +779,12 @@ let avatarState = 'sentado';
 
 function setAvatarState(newState) {
   if (avatarState === newState) return;
+
+  // Al pasar de sentado a caminando, dar un paso limpio fuera de la geometría de la silla
+  if (avatarState === 'sentado' && newState === 'camina') {
+    avatarContainer.position.z += 0.35; 
+  }
+
   avatarState = newState;
 
   if (luisSentadoObject) {
@@ -878,12 +884,14 @@ document.getElementById('btn-reset').addEventListener('click', (e) => {
   resetAvatarPosition();
 });
 
-// 4. LARA BAILA (A ~1 METRO DEL MICHI GRIS Y FUERA DE LAS PLANTAS)
+// 4. LARA BAILA (UBICADA LEJOS EN LA ZONA DEL TIKI BAR Y A 1M DEL MICHI GRIS)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lara-baila.glb", (gltf) => {
   laraMesh = gltf.scene;
   laraMesh.scale.set(0.42, 0.42, 0.42);
-  laraMesh.position.set(15.2, -0.316, -11.8);
-  laraMesh.rotation.y = -0.5;
+  
+  // Posición distante de la cámara inicial y cerca del gato gris / tiki bar
+  laraMesh.position.set(6.2, -0.316, -4.8);
+  laraMesh.rotation.y = 0.8;
 
   scene.add(laraMesh);
 
@@ -1062,6 +1070,7 @@ function animate() {
     pajaro.alaDer.rotation.z = -anguloAleteo;
   });
 
+  // RAYCASTING DE ALTURA (IGNORA SILLAS PARA NO QUEDAR ELEVADO)
   if (islaScene) {
     const origin = avatarContainer.position.clone();
     origin.y += 0.8; 
@@ -1071,9 +1080,12 @@ function animate() {
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
-      const validHit = intersects.find(hit => hit.point.y <= avatarContainer.position.y + 0.5);
-      if (validHit) {
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validHit.point.y, 0.25);
+      const validHits = intersects.filter(hit => {
+        const name = (hit.object.name || "").toLowerCase();
+        return !name.includes("silla") && !name.includes("chair") && hit.point.y <= avatarContainer.position.y + 0.5;
+      });
+      if (validHits.length > 0) {
+        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, validHits[0].point.y, 0.25);
       }
     }
   }
@@ -1108,7 +1120,7 @@ function animate() {
       }
     }
 
-    // CONTROL DE COLISIÓN AJUSTADO PARA EVITAR ATASCOS EN SILLAS Y MUEBLES
+    // DETECTOR DE OBSTÁCULOS (EXCLUYE LAS SILLAS PARA NO QUEDAR TRABADO)
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
       obsOrigin.y += 0.4; 
@@ -1117,14 +1129,14 @@ function animate() {
       obstacleRaycaster.far = 0.5;
 
       const hits = obstacleRaycaster.intersectObject(islaScene, true);
-      if (hits.length > 0) {
-        const hit = hits[0];
-        // Bloquea movimiento solo en obstáculo cercano frontal sin quedar atrapado dentro
-        if (hit.distance > 0.08 && hit.distance < 0.38) {
-          if (hit.face && Math.abs(hit.face.normal.y) < 0.5) {
-            allowMovement = false;
-          }
-        }
+      const blockingHits = hits.filter(hit => {
+        const name = (hit.object.name || "").toLowerCase();
+        if (name.includes("silla") || name.includes("chair")) return false; 
+        return hit.distance > 0.08 && hit.distance < 0.38 && hit.face && Math.abs(hit.face.normal.y) < 0.5;
+      });
+
+      if (blockingHits.length > 0) {
+        allowMovement = false;
       }
     }
 
