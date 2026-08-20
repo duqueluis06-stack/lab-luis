@@ -484,12 +484,12 @@ scene.background = new THREE.Color(0x7ec0ee);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-// CÁMARA INICIAL: DESPLAZADA A LA DERECHA Y ELEVADA PARA NO SER TAPADA POR TIKIBAR-2
-const startCamPos = new THREE.Vector3(105.0, 36.0, 25.0);
-const closeCamPos = new THREE.Vector3(18.5, 1.2, -7.8); 
+// NADA DE ESTAR PEGANOS AL TECHO: CÁMARA ALEJADA Y ELEVADA CON PANORÁMICA LIMPIA
+const startCamPos = new THREE.Vector3(45.0, 18.0, 20.0);
+const closeCamPos = new THREE.Vector3(24.0, 6.0, -2.0); 
 
-const startTargetPos = new THREE.Vector3(22.0, 0.8, -6.0); 
-const closeTargetPos = new THREE.Vector3(14.895, 0.4, -11.136); 
+const startTargetPos = new THREE.Vector3(14.895, 1.0, -11.136); 
+const closeTargetPos = new THREE.Vector3(14.895, 1.0, -11.136); 
 
 camera.position.copy(startCamPos);
 
@@ -512,13 +512,13 @@ controls.dampingFactor = 0.05;
 controls.rotateSpeed = 0.4;
 controls.zoomSpeed = 0.6;
 controls.panSpeed = 0.5;
-controls.minDistance = 1;
-controls.maxDistance = 120;
+controls.minDistance = 2;
+controls.maxDistance = 150;
 controls.target.copy(startTargetPos);
 
 let isCamTransitioning = false;
 let camTransitionTime = 0;
-const camTransitionDuration = 2.8;
+const camTransitionDuration = 2.5;
 
 // --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x3d5a80, 2.0);
@@ -722,7 +722,6 @@ document.getElementById("btn-pause").addEventListener("pointerdown", (e) => {
 
 document.getElementById("btn-next").addEventListener("pointerdown", (e) => {
   e.stopPropagation();
-  userInteracted = true;
   nextTrack();
 });
 
@@ -1051,19 +1050,12 @@ function checkStructureCollision(origin, direction, maxDistance) {
     const hit = hits[i];
     const name = (hit.object.name || "").toLowerCase();
 
-    // Ignorar elementos de vegetación
-    const isPlant = name.includes("planta") || name.includes("palma") || name.includes("arbol") || 
-                    name.includes("hoja") || name.includes("foliage") || name.includes("leaf") || 
-                    name.includes("tree") || name.includes("bush");
-    if (isPlant) continue;
-
-    // Detectar exclusivamente paredes de madera, casita, bar o sillas
-    const isSolidMesh = name.includes("casa") || name.includes("casita") || name.includes("wall") || 
-                        name.includes("pared") || name.includes("house") || name.includes("madera") || 
-                        name.includes("wood") || name.includes("silla") || name.includes("chair") || 
-                        name.includes("sillón") || name.includes("bar") || name.includes("tiki");
-
-    if (isSolidMesh && hit.distance > 0.02 && hit.distance <= maxDistance) {
+    // Excluir elementos del terreno/arena y plantas de baja colisión
+    const isTerrainOrPlant = name.includes("arena") || name.includes("sand") || name.includes("ground") ||
+                             name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
+                             name.includes("planta") || name.includes("hoja") || name.includes("leaf");
+    
+    if (!isTerrainOrPlant && hit.distance > 0.05 && hit.distance <= maxDistance) {
       return hit;
     }
   }
@@ -1114,7 +1106,7 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // DETECCIÓN DE ALTURA DEL SUELO DENTRO Y FUERA DE LA CASITA
+  // DETECCIÓN DE ALTURA DEL SUELO
   if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
     const origin = avatarContainer.position.clone();
     origin.y += 2.0; 
@@ -1161,7 +1153,7 @@ function animate() {
     const speed = 2.2;
     const prevPosition = avatarContainer.position.clone();
 
-    // BLOQUEO LARA
+    // BLOQUEO DE DISTANCIA CON LARA
     let allowMovement = true;
     if (laraMesh) {
       const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
@@ -1171,12 +1163,12 @@ function animate() {
       }
     }
 
-    // SISTEMA ANTI-ATRAPAMIENTO CON DESLIZAMIENTO FLUIDO EN PAREDES DE MADERA Y MUEBLES
+    // BLOQUEO RIGIDO Y DESLIZAMIENTO SOBRE MUEBLES / CASITA
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4; // Altura de torso
+      obsOrigin.y += 0.4;
 
-      const checkRadius = 0.42; 
+      const checkRadius = 0.5; 
       const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
 
       if (frontHit) {
@@ -1186,7 +1178,6 @@ function animate() {
           normal.y = 0;
           normal.normalize();
 
-          // Descomponer el movimiento para deslizar libremente por las paredes sin atorarse
           const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
 
           if (slideDirection.lengthSq() > 0.01) {
