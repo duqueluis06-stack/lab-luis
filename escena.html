@@ -7,7 +7,7 @@
   <title>La Isla de la Nostalgia — Entorno 3D Interactivo & Metaverso</title>
   <meta name="description" content="Explora el entorno virtual 3D inmersivo de La Isla de la Nostalgia. Experiencia interactiva con avatares 3D, consola DJ integrada, vúmetro neón, música envolvente y optimización Three.js WebGL.">
   <meta name="keywords" content="Metaverso, 3D, Three.js, WebGL, Isla Virtual, Luis, Avatar 3D, DJ Consola, Música Interactiva, Entorno Virtual, Programación Web">
-  <meta name="author" content="Luis Duque Martini">
+  <meta name="author" content="Luis">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://duquemartini.com/escena.html">
 
@@ -310,15 +310,18 @@
       text-overflow: ellipsis;
     }
 
+    /* FIX: Permitir que los botones envuelvan (wrap) en móviles y ajustar espaciado */
     .dj-track-selector {
       display: flex;
       gap: 6px;
       flex: 1;
       max-width: 500px;
+      flex-wrap: wrap; /* Permitir múltiples líneas */
     }
 
+    /* FIX: Ajustar tamaño de píldoras para que quepan mejor al envolver */
     .track-pill {
-      flex: 1;
+      /* flex: 1; Eliminado para que el wrap funcione correctamente */
       background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(51, 65, 85, 0.6);
       border-radius: 4px;
@@ -326,13 +329,14 @@
       font-family: monospace;
       font-size: 10px;
       font-weight: bold;
-      padding: 6px 4px;
+      padding: 6px 8px; /* Un poco más de padding lateral */
       cursor: pointer;
       text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       transition: all 0.2s;
+      margin-bottom: 2px; /* Pequeño margen inferior para separación entre líneas */
     }
 
     .track-pill:hover {
@@ -347,9 +351,22 @@
       box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
     }
 
+    /* Estilo para el separador de álbum */
+    .album-separator {
+      width: 100%;
+      color: #ff007f; /* Color neón rosa para destacar */
+      font-family: monospace;
+      font-size: 9px;
+      text-align: center;
+      margin: 4px 0 2px 0;
+      text-shadow: 0 0 5px #ff007f;
+      pointer-events: none; /* No interactuable */
+    }
+
     .btn-group {
       display: flex;
       gap: 6px;
+      align-self: flex-start; /* Alinear arriba si hay múltiples líneas de tracks */
     }
 
     .dj-btn {
@@ -383,12 +400,15 @@
     }
 
     @media (max-width: 600px) {
-      #media-console { padding: 4px 10px; gap: 4px; }
+      #media-console { padding: 4px 10px; gap: 4px; position: relative; height: auto; min-height: 80px;} /* Ajuste altura consola móvil */
+      .console-row-bottom { flex-direction: column; align-items: flex-start; gap: 4px; } /* Tracks arriba, controles abajo */
+      .dj-track-selector { max-width: 100%; justify-content: center; margin-bottom: 4px;}
+      .track-pill { font-size: 9px; padding: 5px 6px; }
       .led-display { max-width: 130px; padding: 2px 6px; }
       .track-title { font-size: 9px; }
       #vumeter-canvas { width: 85px; height: 22px; }
-      .track-pill { font-size: 8px; padding: 4px 2px; }
-      .dj-btn { padding: 4px 8px; font-size: 9px; }
+      .btn-group { align-self: center; width: 100%; justify-content: center; } /* Controles centrados abajo */
+      .dj-btn { padding: 5px 10px; font-size: 10px; }
       #btn-reset { right: 90px; padding: 8px 12px; font-size: 10px; }
       #volver { padding: 8px 12px; font-size: 10px; }
       .intro-card { padding: 25px 20px; }
@@ -455,10 +475,15 @@
   
   <div class="console-row-bottom">
     <div class="dj-track-selector">
+      <!-- Música Francesa -->
       <button class="track-pill" data-track="0" id="pill-0" aria-label="Reproducir Entre Tes Ombres">ENTRE TES OMBRES</button>
       <button class="track-pill" data-track="1" id="pill-1" aria-label="Reproducir Stade De Nos Reves">STADE DE NOS REVES</button>
       <button class="track-pill" data-track="2" id="pill-2" aria-label="Reproducir Cumbia De Minuit">CUMBIA DE MINUIT</button>
-      <!-- Nuevas canciones -->
+      
+      <!-- FIX: Separador visual de Álbum -->
+      <div class="album-separator">--- ÁLBUM: CAPOEIRA ---</div>
+      
+      <!-- Nuevos temas (Capoeira) -->
       <button class="track-pill" data-track="3" id="pill-3" aria-label="Reproducir Amazonas">AMAZONAS</button>
       <button class="track-pill" data-track="4" id="pill-4" aria-label="Reproducir Berimbau">BERIMBAU</button>
       <button class="track-pill" data-track="5" id="pill-5" aria-label="Reproducir Bonefire">BONEFIRE</button>
@@ -560,15 +585,15 @@ const soundSource = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 let audioAnalyser = null;
 
-// Lista de reproducción actualizada con las nuevas canciones en minúscula
+// Playlist actualizada con rutas correctas en minúsculas
 const playlist = [
   "audio/entre-tes-ombres.mp3", 
   "audio/stade-de-nos-reves.mp3", 
   "audio/cumbia-de-minuit.mp3",
-  "audio/amazonas.mp3",
-  "audio/berimbau.mp3",
-  "audio/bonefire.mp3",
-  "audio/capoeira.mp3"
+  "audio/amazonas.mp3",    // data-track="3"
+  "audio/berimbau.mp3",    // data-track="4"
+  "audio/bonefire.mp3",    // data-track="5"
+  "audio/capoeira.mp3"     // data-track="6"
 ];
 let currentTrackIndex = 0;
 let userInteracted = false; 
@@ -612,7 +637,9 @@ function setLaraDancing(shouldDance) {
 }
 
 function cleanTrackName(filename) {
-  return filename.replace(/-/g, ' ').replace('.mp3', '').replace('audio/', '').toUpperCase();
+  // Eliminar ruta 'audio/' y extensión '.mp3', reemplazar guiones por espacios
+  let name = filename.replace('audio/', '').replace('.mp3', '').replace(/-/g, ' ');
+  return name.toUpperCase();
 }
 
 function updateConsoleUI(filename, status) {
@@ -620,12 +647,11 @@ function updateConsoleUI(filename, status) {
   const playBtn = document.getElementById('btn-play');
   const pauseBtn = document.getElementById('btn-pause');
 
-  playlist.forEach((_, idx) => {
-    const pill = document.getElementById(`pill-${idx}`);
-    if (pill) {
-      if (idx === currentTrackIndex) pill.classList.add('active-track');
+  // Actualizar estado activo de las píldoras (excluyendo separadores si los hubiera dinámicos)
+  document.querySelectorAll('.track-pill').forEach((pill) => {
+      let trackIdx = parseInt(pill.getAttribute('data-track'));
+      if (trackIdx === currentTrackIndex) pill.classList.add('active-track');
       else pill.classList.remove('active-track');
-    }
   });
 
   if (status === 'loading') {
@@ -642,6 +668,7 @@ function updateConsoleUI(filename, status) {
 }
 
 function loadTrack(index, startPlaying = true) {
+  if (index < 0 || index >= playlist.length) return; // Seguridad
   currentTrackIndex = index;
   const filename = playlist[currentTrackIndex];
   isLoadingAudio = true;
@@ -668,7 +695,7 @@ function loadTrack(index, startPlaying = true) {
   }, undefined, (err) => {
     isLoadingAudio = false;
     document.getElementById('track-display').innerText = "ERROR 404";
-    console.error(err);
+    console.error("Error cargando audio:", filename, err);
   });
 }
 
@@ -690,7 +717,7 @@ function executePlay() {
         };
       }
     } catch (e) {
-      console.warn(e);
+      console.warn("Error en play:", e);
     }
   }
 }
@@ -728,19 +755,21 @@ window.salirDeEscena = function() {
 window.addEventListener('beforeunload', detenerTodoElAudio);
 window.addEventListener('pagehide', detenerTodoElAudio);
 
-loadTrack(0, true);
+// Carga inicial (pista 0, sin auto-play hasta interactuar)
+loadTrack(0, false);
 
 document.getElementById('btn-entrar').addEventListener('click', (e) => {
   e.stopPropagation();
   userInteracted = true;
   resetInteractionTimer();
-  executePlay();
+  executePlay(); // Forzar play al entrar
 
   const overlay = document.getElementById('overlay-inicio');
   overlay.style.opacity = '0';
   setTimeout(() => overlay.remove(), 600);
 });
 
+// Eventos para las píldoras de track (usando delegación o foreach individual)
 document.querySelectorAll('.track-pill').forEach(pill => {
   pill.addEventListener('pointerdown', (e) => {
     e.stopPropagation(); 
@@ -961,13 +990,9 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
     laraAction.setLoop(THREE.LoopRepeat, Infinity);
     laraAction.enabled = true;
 
-    if (soundSource && soundSource.isPlaying) {
-      laraAction.play();
-      laraAction.paused = false;
-    } else {
-      laraAction.play();
-      laraAction.paused = true;
-    }
+    // Play inicial pausado hasta que haya música
+    laraAction.play();
+    laraAction.paused = true;
   }
 });
 
@@ -975,7 +1000,6 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/croft-baila.glb", (gltf) => {
   croftMesh = gltf.scene;
   croftMesh.scale.set(0.62, 0.62, 0.62);
-  // POSICIÓN AJUSTADA: Movido de 13.8 a 11.8 en X (hacia la izquierda)
   croftMesh.position.set(11.8, -0.68, -12.8);
   croftMesh.rotation.y = 0.5;
 
@@ -990,13 +1014,9 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/cro
     croftAction.setLoop(THREE.LoopRepeat, Infinity);
     croftAction.enabled = true;
 
-    if (soundSource && soundSource.isPlaying) {
-      croftAction.play();
-      croftAction.paused = false;
-    } else {
-      croftAction.play();
-      croftAction.paused = true;
-    }
+    // Play inicial pausado hasta que haya música
+    croftAction.play();
+    croftAction.paused = true;
   }
 });
 
@@ -1129,12 +1149,13 @@ function checkStructureCollision(origin, direction, maxDistance) {
     const hit = hits[i];
     const name = (hit.object.name || "").toLowerCase();
 
+    // Ignorar colisiones con el suelo y vegetación traspasable
     const isTerrainOrPlant = name.includes("arena") || name.includes("sand") || name.includes("ground") ||
                              name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
                              name.includes("planta") || name.includes("hoja") || name.includes("leaf");
     
     if (!isTerrainOrPlant && hit.distance > 0.05 && hit.distance <= maxDistance) {
-      return hit;
+      return hit; // Retornar la primera colisión válida (estructura)
     }
   }
   return null;
@@ -1153,16 +1174,17 @@ function animate() {
     controls.autoRotateSpeed = 1.2;
   }
 
+  // Actualizar Mixers
   if (mixerCamina && avatarState === 'camina') mixerCamina.update(delta);
   if (mixerHora && avatarState === 'hora') mixerHora.update(delta);
-
   if (islandMixer) islandMixer.update(delta);
   if (laraMixer) laraMixer.update(delta);
   if (croftMixer) croftMixer.update(delta);
 
   drawVuMeter();
 
-  gaviotas.forEach((pajaro) => {
+  // Animación Gaviotas
+   gaviotas.forEach((pajaro) => {
     pajaro.angulo += pajaro.velocidad * delta;
     pajaro.malla.position.x = Math.cos(pajaro.angulo) * pajaro.radio;
     pajaro.malla.position.z = Math.sin(pajaro.angulo) * pajaro.radio;
@@ -1176,34 +1198,36 @@ function animate() {
 
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
-  // DETECCIÓN DE ALTURA DEL SUELO
-  if (islaScene && (avatarState === 'camina' || avatarState === 'hora')) {
+  // DETECCIÓN DE ALTURA DEL SUELO (Solo si está cargada la isla y el avatar no está sentado)
+  if (islaScene && avatarState !== 'sentado') {
     const origin = avatarContainer.position.clone();
-    origin.y += 2.0; 
+    origin.y += 2.0; // Raycast desde arriba
 
     raycaster.set(origin, downVector);
     raycaster.far = 10.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
+      // Filtrar para encontrar mallas de terreno (ignorar palmas, etc., para altura)
       const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
+        // Excluir objetos altos o traspasables de la detección de altura del suelo
         const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
                              name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
                              name.includes("luis") || name.includes("lara") || name.includes("croft") ||
                              name.includes("techo") || name.includes("roof");
-        if (isNonTerrain) return false;
-
-        return hit.face && hit.face.normal.y > 0.3;
+        return !isNonTerrain;
       });
 
       if (terrainHits.length > 0) {
+        // Usar la primera colisión válida de terreno
         const targetGroundY = terrainHits[0].point.y;
         avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
       }
     }
   }
 
+  // Lógica de Movimiento y Colisiones
   if (isMoving) {
     setAvatarState('camina');
 
@@ -1224,67 +1248,71 @@ function animate() {
     const prevPosition = avatarContainer.position.clone();
 
     let allowMovement = true;
+    
+    // 1. Colisión con NPCs (Lara y Croft) - Radios simples
     if (laraMesh) {
       const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
       toLara.y = 0;
-      if (toLara.length() < 1.0 && moveDirection.dot(toLara.clone().normalize()) > 0) {
-        allowMovement = false;
-      }
+      if (toLara.length() < 1.0 && moveDirection.dot(toLara.clone().normalize()) > 0) allowMovement = false;
     }
-
-    if (croftMesh) {
+    if (croftMesh && allowMovement) {
       const toCroft = new THREE.Vector3().subVectors(croftMesh.position, avatarContainer.position);
       toCroft.y = 0;
-      if (toCroft.length() < 1.0 && moveDirection.dot(toCroft.clone().normalize()) > 0) {
-        allowMovement = false;
-      }
+      if (toCroft.length() < 1.0 && moveDirection.dot(toCroft.clone().normalize()) > 0) allowMovement = false;
     }
 
+    // 2. Colisión con Estructuras de la Isla (Raycasting horizontal)
     if (allowMovement && islaScene) {
       const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4;
+      obsOrigin.y += 0.4; // Altura del rayo colisor
 
-      const checkRadius = 0.5; 
+      const checkRadius = 0.5; // Distancia de seguridad
       const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
 
       if (frontHit) {
+        // Intento de "deslizamiento" por la pared
         const normal = frontHit.face ? frontHit.face.normal.clone().transformDirection(frontHit.object.matrixWorld).normalize() : null;
         
         if (normal) {
           normal.y = 0;
           normal.normalize();
 
+          // Calcular dirección de deslizamiento
           const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
 
           if (slideDirection.lengthSq() > 0.01) {
-            const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
-            if (!sideHit) {
-              moveDirection.copy(slideDirection);
-            } else {
-              allowMovement = false;
-            }
+             // Chequear si el camino de deslizamiento está libre
+             const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
+             if (!sideHit) {
+               moveDirection.copy(slideDirection); // Deslizar
+             } else {
+               allowMovement = false; // Bloqueado por esquina/otra pared
+             }
           } else {
-            allowMovement = false;
+            allowMovement = false; // Impacto directo, no se puede deslizar
           }
         } else {
-          allowMovement = false;
+          allowMovement = false; // No hay normal, bloquear
         }
       }
     }
 
+    // Aplicar movimiento si está permitido
     if (allowMovement) {
       avatarContainer.position.addScaledVector(moveDirection, speed * delta);
       const deltaMove = avatarContainer.position.clone().sub(prevPosition);
       
-      // TRASLADAR CÁMARA Y PUNTO DE ENFOQUE JUNTO CON EL AVATAR SIN FORZAR LA PERSPECTIVA
+      // Mover cámara y target junto al avatar
       camera.position.add(deltaMove);
       controls.target.add(deltaMove);
     }
 
+    // Rotar avatar hacia dirección de movimiento
     const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
 
   } else {
+    // No hay input, pasar a estado 'hora' (idle) si estaba caminando
     if (avatarState === 'camina') {
       setAvatarState('hora');
     }
