@@ -842,6 +842,29 @@ function setAvatarState(newState) {
 
 let islandMixer = null; 
 
+// FUNCIÓN PARA AJUSTAR ALTURA DE CROFT AL SUELO
+function ajustarCroftAlSuelo() {
+  if (!croftMesh || !islaScene) return;
+  const origin = new THREE.Vector3(croftMesh.position.x, 10.0, croftMesh.position.z);
+  raycaster.set(origin, downVector);
+  raycaster.far = 30.0;
+  const intersects = raycaster.intersectObject(islaScene, true);
+  if (intersects.length > 0) {
+    const terrainHits = intersects.filter(hit => {
+      const name = (hit.object.name || "").toLowerCase();
+      const matName = (hit.object.material ? hit.object.material.name : "").toLowerCase();
+      const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
+                           name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
+                           name.includes("techo") || name.includes("roof") || matName.includes("leaf");
+      return !isNonTerrain && hit.face && hit.face.normal.y > 0.3;
+    });
+
+    if (terrainHits.length > 0) {
+      croftMesh.position.y = terrainHits[0].point.y;
+    }
+  }
+}
+
 // 1. ISLA
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isla.glb", (gltf) => {
   islaScene = gltf.scene;
@@ -871,6 +894,8 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/isl
       action.play();
     });
   }
+
+  ajustarCroftAlSuelo();
 });
 
 // 2. LUIS CAMINA
@@ -957,14 +982,15 @@ loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/lar
   }
 });
 
-// 5. CROFT BAILA (Detrás del Tiki Bar, cerca de Luis sentado)
+// 5. CROFT BAILA (Alineada al nivel real de la arena)
 loader.load("https://huggingface.co/datasets/Luis-Fernando/isla/resolve/main/croft-baila.glb", (gltf) => {
   croftMesh = gltf.scene;
   croftMesh.scale.set(0.62, 0.62, 0.62);
-  croftMesh.position.set(13.8, -0.316, -12.8);
+  croftMesh.position.set(13.8, -0.68, -12.8);
   croftMesh.rotation.y = 0.5;
 
   scene.add(croftMesh);
+  ajustarCroftAlSuelo();
 
   if (gltf.animations && gltf.animations.length > 0) {
     croftMixer = new THREE.AnimationMixer(croftMesh);
@@ -1104,6 +1130,14 @@ function evaluarTeclado() {
 // --- LOOP RENDER PRINCIPAL ---
 const obstacleRaycaster = new THREE.Raycaster();
 
+const plantKeywords = [
+  "arena", "sand", "ground", "terreno", "sea", "mar",
+  "planta", "plant", "hoja", "leaf", "leaves", "palma", "palm",
+  "pasto", "grass", "hierba", "weed", "arbusto", "bush",
+  "foliage", "vegetacion", "vegetation", "arbol", "tree",
+  "flora", "rama", "branch", "flor", "flower", "tronco", "stem", "pino"
+];
+
 function checkStructureCollision(origin, direction, maxDistance) {
   if (!islaScene) return null;
   obstacleRaycaster.set(origin, direction);
@@ -1112,11 +1146,12 @@ function checkStructureCollision(origin, direction, maxDistance) {
   const hits = obstacleRaycaster.intersectObject(islaScene, true);
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i];
-    const name = (hit.object.name || "").toLowerCase();
+    const objName = (hit.object.name || "").toLowerCase();
+    const parentName = (hit.object.parent ? hit.object.parent.name : "").toLowerCase();
+    const matName = (hit.object.material ? hit.object.material.name : "").toLowerCase();
+    const fullName = `${objName} ${parentName} ${matName}`;
 
-    const isTerrainOrPlant = name.includes("arena") || name.includes("sand") || name.includes("ground") ||
-                             name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
-                             name.includes("planta") || name.includes("hoja") || name.includes("leaf");
+    const isTerrainOrPlant = plantKeywords.some(kw => fullName.includes(kw));
     
     if (!isTerrainOrPlant && hit.distance > 0.05 && hit.distance <= maxDistance) {
       return hit;
@@ -1172,11 +1207,14 @@ function animate() {
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
       const terrainHits = intersects.filter(hit => {
-        const name = (hit.object.name || "").toLowerCase();
-        const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
-                             name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
-                             name.includes("luis") || name.includes("lara") || name.includes("croft") ||
-                             name.includes("techo") || name.includes("roof");
+        const objName = (hit.object.name || "").toLowerCase();
+        const matName = (hit.object.material ? hit.object.material.name : "").toLowerCase();
+        const fullName = `${objName} ${matName}`;
+
+        const isNonTerrain = fullName.includes("palma") || fullName.includes("arbol") || fullName.includes("planta") || 
+                             fullName.includes("foliage") || fullName.includes("hoja") || fullName.includes("tronco") ||
+                             fullName.includes("luis") || fullName.includes("lara") || fullName.includes("croft") ||
+                             fullName.includes("techo") || fullName.includes("roof") || fullName.includes("leaf");
         if (isNonTerrain) return false;
 
         return hit.face && hit.face.normal.y > 0.3;
@@ -1261,7 +1299,7 @@ function animate() {
       avatarContainer.position.addScaledVector(moveDirection, speed * delta);
       const deltaMove = avatarContainer.position.clone().sub(prevPosition);
       
-      // TRASLADAR CÁMARA Y PUNTO DE ENFOQUE JUNTO CON EL AVATAR SIN FORZAR LA PERSPECTIVA
+      // TRASLADAR CÁMARA Y PUNTO DE ENFOQUE JUNTO CON EL AVATAR
       camera.position.add(deltaMove);
       controls.target.add(deltaMove);
     }
