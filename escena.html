@@ -1141,12 +1141,19 @@ function checkStructureCollision(origin, direction, maxDistance) {
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i];
     const name = (hit.object.name || "").toLowerCase();
-
-    const isTerrainOrPlant = name.includes("arena") || name.includes("sand") || name.includes("ground") ||
-                             name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
-                             name.includes("planta") || name.includes("hoja") || name.includes("leaf");
     
-    if (!isTerrainOrPlant && hit.distance > 0.05 && hit.distance <= maxDistance) {
+    let parent = hit.object.parent;
+    let parentName = parent ? (parent.name || "").toLowerCase() : "";
+
+    // Solo la arena, el terreno base o el agua se consideran caminables.
+    // Las plantas, palmeras, troncos y hojas ahora se detectan correctamente como obstáculos.
+    const isTerrain = (name.includes("arena") || name.includes("sand") || name.includes("ground") ||
+                       name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
+                       name.includes("playa") || name.includes("beach")) &&
+                      !name.includes("planta") && !name.includes("hoja") && !name.includes("palma") &&
+                      !parentName.includes("palma") && !parentName.includes("planta");
+    
+    if (!isTerrain && hit.distance > 0.05 && hit.distance <= maxDistance) {
       return hit;
     }
   }
@@ -1189,25 +1196,58 @@ function animate() {
 
   if (islaScene && avatarState !== 'sentado') {
     const origin = avatarContainer.position.clone();
-    origin.y += 2.0;
+    origin.y += 3.0; // Proyectamos el rayo desde más arriba para medir altura del terreno de forma precisa
 
     raycaster.set(origin, downVector);
-    raycaster.far = 10.0;
+    raycaster.far = 15.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
     if (intersects.length > 0) {
       const terrainHits = intersects.filter(hit => {
         const name = (hit.object.name || "").toLowerCase();
-        const isNonTerrain = name.includes("palma") || name.includes("arbol") || name.includes("planta") || 
-                             name.includes("foliage") || name.includes("hoja") || name.includes("tronco") ||
-                             name.includes("luis") || name.includes("lara") || name.includes("croft") ||
-                             name.includes("techo") || name.includes("roof");
-        return !isNonTerrain;
+
+        // Filtro exhaustivo para descartar cualquier parte de vegetación, troncos o palmeras
+        let isObstacle = name.includes("palma") || name.includes("palm") || name.includes("arbol") || 
+                         name.includes("tree") || name.includes("planta") || name.includes("plant") || 
+                         name.includes("foliage") || name.includes("hoja") || name.includes("leaf") || 
+                         name.includes("leaves") || name.includes("tronco") || name.includes("trunk") || 
+                         name.includes("rama") || name.includes("branch") || name.includes("vegeta") || 
+                         name.includes("bush") || name.includes("arbusto") || name.includes("luis") || 
+                         name.includes("lara") || name.includes("croft") || name.includes("techo") || 
+                         name.includes("roof") || name.includes("tiki") || name.includes("bar");
+
+        let parent = hit.object.parent;
+        let depth = 0;
+        while (parent && depth < 4) {
+          const pName = (parent.name || "").toLowerCase();
+          if (pName.includes("palma") || pName.includes("palm") || pName.includes("arbol") || 
+              pName.includes("tree") || pName.includes("planta") || pName.includes("plant") || 
+              pName.includes("foliage") || pName.includes("hoja") || pName.includes("leaf") || 
+              pName.includes("tronco") || pName.includes("trunk") || pName.includes("vegeta") || 
+              pName.includes("bush") || pName.includes("techo") || pName.includes("bar")) {
+            isObstacle = true;
+            break;
+          }
+          parent = parent.parent;
+          depth++;
+        }
+
+        // Límite de altura del suelo de la playa: si la colisión está por encima de Y = 1.2, es copa/rama de palmera o planta
+        if (hit.point.y > 1.2) {
+          isObstacle = true;
+        }
+
+        return !isObstacle;
       });
 
       if (terrainHits.length > 0) {
         const targetGroundY = terrainHits[0].point.y;
-        avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
+        const yDiff = targetGroundY - avatarContainer.position.y;
+        
+        // Solo permite ajustar la altura si el cambio es suave (evita saltos repentinos a palmeras)
+        if (yDiff < 0.35) {
+          avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
+        }
       }
     }
   }
@@ -1245,33 +1285,50 @@ function animate() {
     }
 
     if (allowMovement && islaScene) {
-      const obsOrigin = avatarContainer.position.clone();
-      obsOrigin.y += 0.4;
+      // Control de escalón/altura frontal (impide avanzar si enfrente hay un obstáculo elevado o tronco)
+      const testNextPos = avatarContainer.position.clone().addScaledVector(moveDirection, 0.4);
+      testNextPos.y += 3.0;
+      raycaster.set(testNextPos, downVector);
+      const aheadHits = raycaster.intersectObject(islaScene, true);
+      
+      if (aheadHits.length > 0) {
+        const validAhead = aheadHits.find(hit => hit.point.y <= 1.2);
+        if (validAhead) {
+          if (validAhead.point.y - avatarContainer.position.y > 0.35) {
+            allowMovement = false;
+          }
+        }
+      }
 
-      const checkRadius = 0.5;
-      const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
+      if (allowMovement) {
+        const obsOrigin = avatarContainer.position.clone();
+        obsOrigin.y += 0.4;
 
-      if (frontHit) {
-        const normal = frontHit.face ? frontHit.face.normal.clone().transformDirection(frontHit.object.matrixWorld).normalize() : null;
-        
-        if (normal) {
-          normal.y = 0;
-          normal.normalize();
+        const checkRadius = 0.55;
+        const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
 
-          const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
+        if (frontHit) {
+          const normal = frontHit.face ? frontHit.face.normal.clone().transformDirection(frontHit.object.matrixWorld).normalize() : null;
+          
+          if (normal) {
+            normal.y = 0;
+            normal.normalize();
 
-          if (slideDirection.lengthSq() > 0.01) {
-             const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
-             if (!sideHit) {
-               moveDirection.copy(slideDirection);
-             } else {
-               allowMovement = false;
-             }
+            const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
+
+            if (slideDirection.lengthSq() > 0.01) {
+               const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
+               if (!sideHit) {
+                 moveDirection.copy(slideDirection);
+               } else {
+                 allowMovement = false;
+               }
+            } else {
+              allowMovement = false;
+            }
           } else {
             allowMovement = false;
           }
-        } else {
-          allowMovement = false;
         }
       }
     }
