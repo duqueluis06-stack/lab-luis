@@ -419,6 +419,7 @@ let estaCaminando = false;
 const clock = new THREE.Clock();
 const raycasterPiso = new THREE.Raycaster();
 const raycasterPared = new THREE.Raycaster();
+const raycasterCamara = new THREE.Raycaster(); // Colisión para la cámara en templos/pasillos
 const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
@@ -554,7 +555,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 // --------------------------------------------------
-// FILTRADO ESPACIAL
+// FILTRADO ESPACIAL Y COLISIONES AJUSTADAS
 // --------------------------------------------------
 
 function obtenerNombreJerarquia(obj) {
@@ -574,7 +575,11 @@ function registrarMeshesEscenario(root) {
   root.traverse((child) => {
     if (child.isMesh) {
       const jer = obtenerNombreJerarquia(child);
-      if (!jer.includes("niebla") && !jer.includes("fog") && !jer.includes("cielo") && !jer.includes("sky")) {
+      
+      // Filtrado para ignorar plantas/palmeras y evitar quedar atrapado en escaleras
+      const esVegetacion = jer.includes("planta") || jer.includes("palmera") || jer.includes("hoja") || jer.includes("plant");
+
+      if (!jer.includes("niebla") && !jer.includes("fog") && !jer.includes("cielo") && !jer.includes("sky") && !esVegetacion) {
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(m => { m.side = THREE.DoubleSide; });
@@ -969,7 +974,7 @@ function seguirAvatar() {
   vecObjetivoPunto.copy(avatarGroup.position);
   vecObjetivoPunto.y += 1.2 * ESCALA_AVATAR;
 
-  const distancia = 3.5 * ESCALA_AVATAR;
+  let distancia = 3.5 * ESCALA_AVATAR;
   const radY = THREE.MathUtils.degToRad(anguloCamaraY);
   const radX = THREE.MathUtils.degToRad(anguloCamaraX);
 
@@ -981,8 +986,23 @@ function seguirAvatar() {
 
   vecPosDeseadaCam.copy(avatarGroup.position).add(vecOffsetCam);
 
-  camera.position.lerp(vecPosDeseadaCam, 0.2);
-  cameraTarget.lerp(vecObjetivoPunto, 0.25);
+  // Sistema de evasión para recintos cerrados/templos
+  const dirCamara = new THREE.Vector3().subVectors(vecPosDeseadaCam, vecObjetivoPunto).normalize();
+  raycasterCamara.set(vecObjetivoPunto, dirCamara);
+  raycasterCamara.far = distancia;
+
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 15);
+  const impactos = raycasterCamara.intersectObjects(candidatos, false);
+
+  if (impactos.length > 0) {
+    const distColision = impactos[0].distance - 0.3;
+    if (distColision > 0.5) {
+      vecPosDeseadaCam.copy(vecObjetivoPunto).addScaledVector(dirCamara, distColision);
+    }
+  }
+
+  camera.position.lerp(vecPosDeseadaCam, 0.25);
+  cameraTarget.lerp(vecObjetivoPunto, 0.3);
   camera.lookAt(cameraTarget);
 }
 
