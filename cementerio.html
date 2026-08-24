@@ -804,7 +804,7 @@ function cargarAvatares() {
 }
 
 // --------------------------------------------------
-// FÍSICAS Y COLISIONES CORREGIDAS
+// FÍSICAS Y CAÍDA POR GRAVEDAD
 // --------------------------------------------------
 
 const teclas = {};
@@ -814,16 +814,14 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 25);
-  if (candidatos.length === 0) return;
-
+  // Evaluamos directamente todosLosMeshes para detectar siempre el piso inferior
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 2.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 100.0; // Alcance para detectar caídas al cementerio
+  raycasterPiso.far = 300.0; // Largo alcance para caídas de gran altura
 
-  const impactos = raycasterPiso.intersectObjects(candidatos, false);
+  const impactos = raycasterPiso.intersectObjects(todosLosMeshes, false);
 
   let mejorY = -Infinity;
   let encontrado = false;
@@ -834,8 +832,9 @@ function ajustarAlturaSuelo() {
 
     normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-    if (normalMundo.y > 0.25) {
-      if (hit.point.y <= avatarGroup.position.y + 2.0) {
+    // Considerar planos caminables
+    if (normalMundo.y > 0.2) {
+      if (hit.point.y <= avatarGroup.position.y + 2.2) {
         if (hit.point.y > mejorY) {
           mejorY = hit.point.y;
           encontrado = true;
@@ -849,9 +848,14 @@ function ajustarAlturaSuelo() {
     const diff = alturaObjetivo - avatarGroup.position.y;
     
     if (Math.abs(diff) > 0.005) {
-      const factorLerp = diff < -1.0 ? 0.65 : (diff > 0 ? 0.45 : 0.3); 
+      // Si la distancia es grande (precipicio), cae rápidamente
+      const factorLerp = diff < -0.8 ? 0.6 : (diff > 0 ? 0.4 : 0.25); 
       avatarGroup.position.y += diff * factorLerp;
     }
+  } else {
+    // Si camina hacia el vacío total (sin mesh debajo), la gravedad lo hace caer
+    avatarGroup.position.y -= 0.5;
+    if (avatarGroup.position.y < 0) avatarGroup.position.y = 0;
   }
 }
 
