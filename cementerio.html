@@ -310,6 +310,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // --------------------------------------------------
 // CONFIGURACIÓN Y CONSTANTES
@@ -367,6 +370,22 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
+// --------------------------------------------------
+// POST-PROCESAMIENTO: EFECTO BLOOM / RESPLANDOR
+// --------------------------------------------------
+
+const renderScene = new RenderPass(scene, camera);
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  1.5, // Intensidad del brillo
+  0.4, // Radio
+  0.25 // Umbral (Threshold): afecta elementos con alta luz emissive
+);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(renderScene);
+composer.addPass(bloomPass);
+
 // ILUMINACIÓN GENERAL Y LUNAR
 const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.95);
 scene.add(ambientLight);
@@ -375,7 +394,7 @@ const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.2);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
 
-// LUZ CÁLIDA DEDICADA AL QUERUBÍN
+// LUZ CÁLIDA DEDICADA AL QUERUBÍN (ANUBIS)
 const querubinIlluminator = new THREE.DirectionalLight(0xfff5ea, 2.2);
 querubinIlluminator.position.set(-150, 160, -150);
 scene.add(querubinIlluminator);
@@ -715,13 +734,29 @@ function cargarQuerubin() {
         querubinMesh.traverse((child) => {
           if (child.isMesh) {
             child.frustumCulled = false;
-            if (child.material) {
-              child.material.roughness = 0.35;
-              child.material.metalness = 0.3;
 
-              if (child.material.emissive) {
-                child.material.emissive.setHex(0x3a0d05);
-                child.material.emissiveIntensity = 0.5;
+            // CONFIGURACIÓN DE MATERIALES Y LUZ INTENSA PARA ANUBIS
+            if (child.material) {
+              const nameLower = child.name.toLowerCase();
+
+              // Si la sub-malla corresponde a los ojos
+              if (nameLower.includes("eye") || nameLower.includes("ojo")) {
+                child.material = new THREE.MeshBasicMaterial({
+                  color: 0xff0000,
+                  emissive: 0xff0000,
+                  emissiveIntensity: 10.0
+                });
+              } else {
+                // Cuerpo con resplandor emisivo blanco/divino
+                if (Array.isArray(child.material)) {
+                  child.material.forEach(mat => {
+                    mat.emissive = new THREE.Color(0xffffff);
+                    mat.emissiveIntensity = 2.5;
+                  });
+                } else {
+                  child.material.emissive = new THREE.Color(0xffffff);
+                  child.material.emissiveIntensity = 2.5;
+                }
               }
             }
           }
@@ -729,13 +764,29 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        const luzCoreOjo = new THREE.PointLight(0xff3300, 3.5, 20);
-        luzCoreOjo.position.set(0, 0, 0);
-        querubinGroup.add(luzCoreOjo);
+        // COLISIÓN INVISIBLE PARA EVITAR QUE EL AVATAR ATRAVIESE A ANUBIS
+        const colisionAnubis = new THREE.Mesh(
+          new THREE.CylinderGeometry(2.5, 2.5, 12, 12),
+          new THREE.MeshBasicMaterial({ visible: false })
+        );
+        colisionAnubis.position.set(0, 6, 0);
+        querubinGroup.add(colisionAnubis);
+        
+        // Registrar la malla de colisión dentro de la detección física
+        colisionAnubis.updateMatrixWorld(true);
+        colisionAnubis.geometry.computeBoundingSphere();
+        colisionAnubis.userData.worldCenter = colisionAnubis.position.clone();
+        colisionAnubis.userData.radius = 4.0;
+        todosLosMeshes.push(colisionAnubis);
 
-        const luzAuraAnillos = new THREE.PointLight(0xff9900, 2.0, 35);
-        luzAuraAnillos.position.set(0, 1, 0);
-        querubinGroup.add(luzAuraAnillos);
+        // LUZ INTENSA DENTRO DEL MODELO
+        const luzOjosRojos = new THREE.PointLight(0xff0000, 8.0, 15);
+        luzOjosRojos.position.set(0, 7, 1);
+        querubinGroup.add(luzOjosRojos);
+
+        const luzResplandorBlanco = new THREE.PointLight(0xffffff, 12.0, 50);
+        luzResplandorBlanco.position.set(0, 5, 0);
+        querubinGroup.add(luzResplandorBlanco);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
           const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0, true);
@@ -814,12 +865,11 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  // Evaluamos directamente todosLosMeshes para detectar siempre el piso inferior
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 2.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 300.0; // Largo alcance para caídas de gran altura
+  raycasterPiso.far = 300.0;
 
   const impactos = raycasterPiso.intersectObjects(todosLosMeshes, false);
 
@@ -832,7 +882,6 @@ function ajustarAlturaSuelo() {
 
     normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
-    // Considerar planos caminables
     if (normalMundo.y > 0.2) {
       if (hit.point.y <= avatarGroup.position.y + 2.2) {
         if (hit.point.y > mejorY) {
@@ -848,12 +897,10 @@ function ajustarAlturaSuelo() {
     const diff = alturaObjetivo - avatarGroup.position.y;
     
     if (Math.abs(diff) > 0.005) {
-      // Si la distancia es grande (precipicio), cae rápidamente
       const factorLerp = diff < -0.8 ? 0.6 : (diff > 0 ? 0.4 : 0.25); 
       avatarGroup.position.y += diff * factorLerp;
     }
   } else {
-    // Si camina hacia el vacío total (sin mesh debajo), la gravedad lo hace caer
     avatarGroup.position.y -= 0.5;
     if (avatarGroup.position.y < 0) avatarGroup.position.y = 0;
   }
@@ -1040,7 +1087,8 @@ function animate() {
   actualizarQuerubin();
   seguirAvatar();
 
-  renderer.render(scene, camera);
+  // Renderizado a través del composer para aplicar el resplandor Bloom
+  composer.render();
 }
 
 animate();
@@ -1049,6 +1097,7 @@ window.addEventListener("resize", function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 </script>
