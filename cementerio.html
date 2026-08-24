@@ -419,7 +419,7 @@ let estaCaminando = false;
 const clock = new THREE.Clock();
 const raycasterPiso = new THREE.Raycaster();
 const raycasterPared = new THREE.Raycaster();
-const raycasterCamara = new THREE.Raycaster(); // Colisión para la cámara en templos/pasillos
+const raycasterCamara = new THREE.Raycaster();
 const dirAbajo = new THREE.Vector3(0, -1, 0);
 
 const cameraTarget = new THREE.Vector3();
@@ -576,7 +576,6 @@ function registrarMeshesEscenario(root) {
     if (child.isMesh) {
       const jer = obtenerNombreJerarquia(child);
       
-      // Filtrado para ignorar plantas/palmeras y evitar quedar atrapado en escaleras
       const esVegetacion = jer.includes("planta") || jer.includes("palmera") || jer.includes("hoja") || jer.includes("plant");
 
       if (!jer.includes("niebla") && !jer.includes("fog") && !jer.includes("cielo") && !jer.includes("sky") && !esVegetacion) {
@@ -605,7 +604,7 @@ function registrarMeshesEscenario(root) {
   });
 }
 
-function obtenerMeshesCercanos(posicion, radio = 20) {
+function obtenerMeshesCercanos(posicion, radio = 25) {
   candidatosCercanos.length = 0;
   for (let i = 0; i < todosLosMeshes.length; i++) {
     const mesh = todosLosMeshes[i];
@@ -815,14 +814,14 @@ window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 function ajustarAlturaSuelo() {
   if (todosLosMeshes.length === 0 || !avatarGroup) return;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 6);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 25);
   if (candidatos.length === 0) return;
 
   vecOrigenPiso.copy(avatarGroup.position);
   vecOrigenPiso.y += 2.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
-  raycasterPiso.far = 4.0;
+  raycasterPiso.far = 100.0; // Alcance para detectar caídas al cementerio
 
   const impactos = raycasterPiso.intersectObjects(candidatos, false);
 
@@ -836,7 +835,7 @@ function ajustarAlturaSuelo() {
     normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
     if (normalMundo.y > 0.25) {
-      if (hit.point.y <= avatarGroup.position.y + 1.2) {
+      if (hit.point.y <= avatarGroup.position.y + 2.0) {
         if (hit.point.y > mejorY) {
           mejorY = hit.point.y;
           encontrado = true;
@@ -850,7 +849,7 @@ function ajustarAlturaSuelo() {
     const diff = alturaObjetivo - avatarGroup.position.y;
     
     if (Math.abs(diff) > 0.005) {
-      const factorLerp = diff > 0 ? 0.45 : 0.3; 
+      const factorLerp = diff < -1.0 ? 0.65 : (diff > 0 ? 0.45 : 0.3); 
       avatarGroup.position.y += diff * factorLerp;
     }
   }
@@ -986,7 +985,6 @@ function seguirAvatar() {
 
   vecPosDeseadaCam.copy(avatarGroup.position).add(vecOffsetCam);
 
-  // Sistema de evasión para recintos cerrados/templos
   const dirCamara = new THREE.Vector3().subVectors(vecPosDeseadaCam, vecObjetivoPunto).normalize();
   raycasterCamara.set(vecObjetivoPunto, dirCamara);
   raycasterCamara.far = distancia;
