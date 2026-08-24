@@ -310,9 +310,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // --------------------------------------------------
 // CONFIGURACIÓN Y CONSTANTES
@@ -370,22 +367,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-// --------------------------------------------------
-// POST-PROCESAMIENTO: EFECTO BLOOM / RESPLANDOR
-// --------------------------------------------------
-
-const renderScene = new RenderPass(scene, camera);
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.5, // Intensidad del brillo
-  0.4, // Radio
-  0.25 // Umbral (Threshold): afecta elementos con alta luz emissive
-);
-
-const composer = new EffectComposer(renderer);
-composer.addPass(renderScene);
-composer.addPass(bloomPass);
-
 // ILUMINACIÓN GENERAL Y LUNAR
 const ambientLight = new THREE.HemisphereLight(0x90a4ae, 0x263238, 0.95);
 scene.add(ambientLight);
@@ -393,11 +374,6 @@ scene.add(ambientLight);
 const moonLight = new THREE.DirectionalLight(0xd1e8ff, 1.2);
 moonLight.position.set(50, 150, 50);
 scene.add(moonLight);
-
-// LUZ CÁLIDA DEDICADA AL QUERUBÍN (ANUBIS)
-const querubinIlluminator = new THREE.DirectionalLight(0xfff5ea, 2.2);
-querubinIlluminator.position.set(-150, 160, -150);
-scene.add(querubinIlluminator);
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/");
@@ -735,27 +711,19 @@ function cargarQuerubin() {
           if (child.isMesh) {
             child.frustumCulled = false;
 
-            // CONFIGURACIÓN DE MATERIALES Y LUZ INTENSA PARA ANUBIS
+            // Conservar texturas originales y definir suavemente materiales
             if (child.material) {
               const nameLower = child.name.toLowerCase();
 
-              // Si la sub-malla corresponde a los ojos
+              // Ojos rojos tenues si el nombre coincide
               if (nameLower.includes("eye") || nameLower.includes("ojo")) {
-                child.material = new THREE.MeshBasicMaterial({
-                  color: 0xff0000,
-                  emissive: 0xff0000,
-                  emissiveIntensity: 10.0
-                });
+                child.material.emissive = new THREE.Color(0xff0000);
+                child.material.emissiveIntensity = 0.8;
               } else {
-                // Cuerpo con resplandor emisivo blanco/divino
-                if (Array.isArray(child.material)) {
-                  child.material.forEach(mat => {
-                    mat.emissive = new THREE.Color(0xffffff);
-                    mat.emissiveIntensity = 2.5;
-                  });
-                } else {
-                  child.material.emissive = new THREE.Color(0xffffff);
-                  child.material.emissiveIntensity = 2.5;
+                // Sombra de contorno oscura para resaltar relieve sin quemar la superficie
+                if (child.material.emissive) {
+                  child.material.emissive = new THREE.Color(0x050a15);
+                  child.material.emissiveIntensity = 0.2;
                 }
               }
             }
@@ -764,29 +732,33 @@ function cargarQuerubin() {
 
         querubinGroup.add(querubinMesh);
 
-        // COLISIÓN INVISIBLE PARA EVITAR QUE EL AVATAR ATRAVIESE A ANUBIS
-        const colisionAnubis = new THREE.Mesh(
-          new THREE.CylinderGeometry(2.5, 2.5, 12, 12),
-          new THREE.MeshBasicMaterial({ visible: false })
-        );
-        colisionAnubis.position.set(0, 6, 0);
+        // LUZ DE CONTORNO (Rim Light) posterior suave que perfila a Anubis desde atrás
+        const luzRimContorno = new THREE.PointLight(0x00f3ff, 2.5, 12);
+        luzRimContorno.position.set(0, 3, -3);
+        querubinGroup.add(luzRimContorno);
+
+        // LUZ ROJA SUTIL frontal enfocada en la zona de la cabeza
+        const luzFocoOjos = new THREE.PointLight(0xff0000, 1.2, 5);
+        luzFocoOjos.position.set(0, 4.5, 0.8);
+        querubinGroup.add(luzFocoOjos);
+
+        // COLISIÓN INVISIBLE AJUSTADA EN COORDENADAS DE MUNDO REAL
+        const colisionGeo = new THREE.CylinderGeometry(2.2, 2.2, 10, 12);
+        const colisionMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+        const colisionAnubis = new THREE.Mesh(colisionGeo, colisionMat);
+        colisionAnubis.position.set(0, 5, 0);
         querubinGroup.add(colisionAnubis);
-        
-        // Registrar la malla de colisión dentro de la detección física
-        colisionAnubis.updateMatrixWorld(true);
+
+        // Calcular posición en el espacio 3D global correctamente
+        querubinGroup.updateMatrixWorld(true);
         colisionAnubis.geometry.computeBoundingSphere();
-        colisionAnubis.userData.worldCenter = colisionAnubis.position.clone();
-        colisionAnubis.userData.radius = 4.0;
+        
+        const localCenter = colisionAnubis.geometry.boundingSphere.center.clone();
+        colisionAnubis.userData.worldCenter = localCenter.applyMatrix4(colisionAnubis.matrixWorld);
+        colisionAnubis.userData.radius = 4.5;
+
+        // Registrar cilindro en el motor de colisiones
         todosLosMeshes.push(colisionAnubis);
-
-        // LUZ INTENSA DENTRO DEL MODELO
-        const luzOjosRojos = new THREE.PointLight(0xff0000, 8.0, 15);
-        luzOjosRojos.position.set(0, 7, 1);
-        querubinGroup.add(luzOjosRojos);
-
-        const luzResplandorBlanco = new THREE.PointLight(0xffffff, 12.0, 50);
-        luzResplandorBlanco.position.set(0, 5, 0);
-        querubinGroup.add(luzResplandorBlanco);
 
         if (gltfQuerubin.animations && gltfQuerubin.animations.length > 0) {
           const res = crearYEjecutarMixer(gltfQuerubin, querubinMesh, 1.0, true);
@@ -909,7 +881,7 @@ function ajustarAlturaSuelo() {
 function hayColisionPared(dirMovimiento, pasoDistancia) {
   if (todosLosMeshes.length === 0 || !avatarGroup) return false;
 
-  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 5);
+  const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
   if (candidatos.length === 0) return false;
 
   const posAv = avatarGroup.position;
@@ -924,7 +896,7 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
       vecRayDir.copy(dirMovimiento).applyAxisAngle(vecEjeY, angulosRayos[i]);
       raycasterPared.set(vecOrigenPared, vecRayDir);
       
-      raycasterPared.far = 0.38 + pasoDistancia;
+      raycasterPared.far = 0.45 + pasoDistancia;
 
       const impactos = raycasterPared.intersectObjects(candidatos, false);
       for (let j = 0; j < impactos.length; j++) {
@@ -1087,8 +1059,7 @@ function animate() {
   actualizarQuerubin();
   seguirAvatar();
 
-  // Renderizado a través del composer para aplicar el resplandor Bloom
-  composer.render();
+  renderer.render(scene, camera);
 }
 
 animate();
@@ -1097,7 +1068,6 @@ window.addEventListener("resize", function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 </script>
