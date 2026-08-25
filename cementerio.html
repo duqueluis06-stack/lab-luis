@@ -317,6 +317,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const ESCALA_AVATAR = 2.0;
 const OFFSET_PIES = 0.0; 
+const ALTURA_ESCALON_MAXIMA = 0.75; // Permite subir escalones de hasta 0.75 unidades de altura sin atorarse
 
 const CEMENTERIO_URL =
   "https://huggingface.co/datasets/Luis-Fernando/Cementerio/resolve/main/cementerio.glb";
@@ -434,6 +435,7 @@ const vecSlideZ = new THREE.Vector3();
 const vecObjetivoPunto = new THREE.Vector3();
 const vecOffsetCam = new THREE.Vector3();
 const vecPosDeseadaCam = new THREE.Vector3();
+const vecPosFutura = new THREE.Vector3();
 
 let anguloCamaraY = 0;
 let anguloCamaraX = 20;
@@ -572,8 +574,10 @@ function registrarMeshesEscenario(root) {
       const jer = obtenerNombreJerarquia(child);
       
       const esVegetacion = jer.includes("planta") || jer.includes("palmera") || jer.includes("hoja") || jer.includes("plant");
+      // EXCLUSIÓN DE AGUA: Si la malla o jerarquía se llama "water" o "agua", se ignora para colisiones
+      const esAgua = jer.includes("water") || jer.includes("agua");
 
-      if (!jer.includes("niebla") && !jer.includes("fog") && !jer.includes("cielo") && !jer.includes("sky") && !esVegetacion) {
+      if (!jer.includes("niebla") && !jer.includes("fog") && !jer.includes("cielo") && !jer.includes("sky") && !esVegetacion && !esAgua) {
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(m => { m.side = THREE.DoubleSide; });
@@ -834,19 +838,19 @@ const teclas = {};
 window.addEventListener("keydown", (e) => { teclas[e.code] = true; });
 window.addEventListener("keyup", (e) => { teclas[e.code] = false; });
 
-function ajustarAlturaSuelo() {
-  if (todosLosMeshes.length === 0 || !avatarGroup) return;
+function obtenerAlturaSueloEnPosicion(posicion) {
+  if (todosLosMeshes.length === 0) return -Infinity;
 
-  vecOrigenPiso.copy(avatarGroup.position);
-  vecOrigenPiso.y += 2.0;
+  vecOrigenPiso.copy(posicion);
+  vecOrigenPiso.y += 3.0;
 
   raycasterPiso.set(vecOrigenPiso, dirAbajo);
   raycasterPiso.far = 300.0;
 
-  const impactos = raycasterPiso.intersectObjects(todosLosMeshes, false);
+  const candidatos = obtenerMeshesCercanos(posicion, 15);
+  const impactos = raycasterPiso.intersectObjects(candidatos, false);
 
   let mejorY = -Infinity;
-  let encontrado = false;
 
   for (let i = 0; i < impactos.length; i++) {
     const hit = impactos[i];
@@ -855,21 +859,29 @@ function ajustarAlturaSuelo() {
     normalMundo.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
 
     if (normalMundo.y > 0.2) {
-      if (hit.point.y <= avatarGroup.position.y + 2.2) {
+      if (hit.point.y <= posicion.y + 3.2) {
         if (hit.point.y > mejorY) {
           mejorY = hit.point.y;
-          encontrado = true;
         }
       }
     }
   }
 
-  if (encontrado) {
+  return mejorY;
+}
+
+function ajustarAlturaSuelo() {
+  if (todosLosMeshes.length === 0 || !avatarGroup) return;
+
+  const mejorY = obtenerAlturaSueloEnPosicion(avatarGroup.position);
+
+  if (mejorY !== -Infinity) {
     const alturaObjetivo = mejorY + OFFSET_PIES;
     const diff = alturaObjetivo - avatarGroup.position.y;
     
     if (Math.abs(diff) > 0.005) {
-      const factorLerp = diff < -0.8 ? 0.6 : (diff > 0 ? 0.4 : 0.25); 
+      // Si subimos (como en una escalera), la elevación es inmediata y fluida
+      const factorLerp = diff > 0 ? 0.75 : (diff < -0.8 ? 0.6 : 0.35); 
       avatarGroup.position.y += diff * factorLerp;
     }
   } else {
@@ -884,8 +896,22 @@ function hayColisionPared(dirMovimiento, pasoDistancia) {
   const candidatos = obtenerMeshesCercanos(avatarGroup.position, 10);
   if (candidatos.length === 0) return false;
 
+  // AUTO-STEP / SUBIDA DE ESCALERAS:
+  // Verificamos si la elevación en el siguiente punto es una escalera subible
+  vecPosFutura.copy(avatarGroup.position).addScaledVector(dirMovimiento, pasoDistancia);
+  const alturaSueloFutura = obtenerAlturaSueloEnPosicion(vecPosFutura);
+
+  if (alturaSueloFutura !== -Infinity) {
+    const elevacionSuelo = alturaSueloFutura - avatarGroup.position.y;
+    // Si la superficie frontal sube dentro de la tolerancia de un escalón, permitimos la subida y omitimos el choque frontal
+    if (elevacionSuelo > 0.05 && elevacionSuelo <= ALTURA_ESCALON_MAXIMA) {
+      return false;
+    }
+  }
+
   const posAv = avatarGroup.position;
-  const alturas = [0.8, 1.6];
+  // Elevamos los rayos de colisión horizontal por encima del escalón para no colisionar con los peldaños
+  const alturas = [ALTURA_ESCALON_MAXIMA + 0.2, 1.8];
   const angulosRayos = [0, -0.35, 0.35];
 
   for (let h = 0; h < alturas.length; h++) {
