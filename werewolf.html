@@ -40,6 +40,7 @@
     <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
     <script>
+        // COMPONENTE PARA FORZAR LA LECTURA DE ANIMACIONES TRAS LA CARGA DEL GLB
         AFRAME.registerComponent('fix-animacion', {
             schema: {
                 clip: { type: 'string', default: '*' },
@@ -84,6 +85,7 @@
             -webkit-user-select: none; color: #fff;
         }
 
+        /* PORTADA CON IMAGEN DE FONDO (were.jpg) Y EFECTO NEÓN ROJO */
         #custom-loader { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: url('were.jpg') no-repeat center center / cover; 
@@ -120,6 +122,7 @@
         .load-progress { width: 220px; height: 4px; background: rgba(255,255,255,0.15); margin: 15px auto; border-radius: 2px; overflow: hidden; box-shadow: 0 0 8px rgba(255, 0, 0, 0.5); }
         #progress-bar { width: 0%; height: 100%; background: var(--ui-red); transition: width 0.2s ease; }
 
+        /* FIRMA DEL AUTOR CON RESPLANDOR NEÓN */
         .author-tag {
             z-index: 2; color: #ffffff; font-family: monospace; font-size: 1.3rem; font-weight: bold;
             letter-spacing: 2px; text-shadow: 0 0 4px #ff0000, 0 0 12px #ff0000, 0 0 25px #ff0000;
@@ -208,6 +211,7 @@
 </head>
 <body>
 
+    <!-- PORTADA Y CARGADOR CON LA IMAGEN were.jpg -->
     <div id="custom-loader">
         <div class="overlay-glow"></div>
         
@@ -261,7 +265,6 @@
         
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="barrio2-model" src="barrio2_model.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
@@ -276,13 +279,13 @@
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
         </a-entity>
         
+        <!-- Lluvia reducida para optimización térmica -->
         <a-entity particle-system="preset: rain; color: #333; particleCount: 100; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
-        <a-entity id="entorno-barrio2" gltf-model="#barrio2-model" position="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
 
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
@@ -515,7 +518,7 @@
 
         const ENT = {
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
-            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'), entornoBarrio2: document.getElementById('entorno-barrio2'),
+            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), atento: document.getElementById('luis-mesh-atento') },
             wwRig: document.getElementById('werewolf-rig'),
@@ -526,6 +529,8 @@
 
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
+            sueloMeshCache = [];
+            colisionBarrioCache = [];
 
             objetoRaiz.updateMatrixWorld(true);
 
@@ -545,21 +550,13 @@
                     }
 
                     if (!esCasa) {
-                        if (!colisionBarrioCache.includes(child)) {
-                            colisionBarrioCache.push(child);
-                        }
+                        colisionBarrioCache.push(child);
                         if (child.geometry) {
                             child.geometry.computeBoundingSphere();
-                            if (child.geometry.boundingSphere) {
-                                child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                                child.userData.worldRadius = child.geometry.boundingSphere.radius;
-                            }
+                            child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
+                            child.userData.worldRadius = child.geometry.boundingSphere.radius;
                         }
                     }
-
-                    const esAsfaltoOFloor = objName.includes("asfalto") || objName.includes("road") || 
-                                            objName.includes("street") || objName.includes("floor") || 
-                                            objName.includes("suelo") || objName.includes("barrio2");
 
                     const esObstaculoOTecho = 
                         objName.includes("tree") || objName.includes("arbol") || 
@@ -570,10 +567,8 @@
                         objName.includes("ceiling") || objName.includes("pared") || 
                         objName.includes("wall") || objName.includes("cubierta");
 
-                    if (esAsfaltoOFloor || (!esObstaculoOTecho && !esCasa)) {
-                        if (!sueloMeshCache.includes(child)) {
-                            sueloMeshCache.push(child);
-                        }
+                    if (!esObstaculoOTecho) {
+                        sueloMeshCache.push(child);
                     }
                 }
             });
@@ -597,6 +592,7 @@
 
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
+            ZONAS_REFUGIO = [];
             
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
@@ -674,8 +670,8 @@
             if (GAME_STATE.escenaIniciada) return;
             GAME_STATE.escenaIniciada = true;
             
-            if (ENT.rig && ENT.rig.object3D) ENT.rig.object3D.position.set(0, 0, 25);
-            if (ENT.wwRig && ENT.wwRig.object3D) ENT.wwRig.object3D.position.set(60, 0, -60);
+            ENT.rig.object3D.position.set(0, 0, 25);
+            ENT.wwRig.object3D.position.set(60, 0, -60);
             GAME_STATE.pos.set(0, 0, 25);
             
             if (ENT.entorno) {
@@ -687,18 +683,8 @@
                     }
                 });
             }
-
-            if (ENT.entornoBarrio2) {
-                ENT.entornoBarrio2.addEventListener('model-loaded', () => {
-                    let meshBarrio2 = ENT.entornoBarrio2.getObject3D('mesh');
-                    if (meshBarrio2) {
-                        extraerMallasSuelo(meshBarrio2);
-                        escanearCasasAutomaticas(meshBarrio2);
-                    }
-                });
-            }
             
-            UI.loaderAction.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 16px 40px; font-weight: 900; border-radius: 8px; cursor: pointer; font-size: 16px; letter-spacing: 4px; box-shadow: 0 0 25px rgba(239,42,42,0.8); text-transform: uppercase;">ENTRAR</button>`;
+            UI.loaderAction.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 16px 32px; font-weight: 900; border-radius: 8px; cursor: pointer; font-size: 14px; letter-spacing: 3px; box-shadow: 0 0 25px rgba(239,42,42,0.8); text-transform: uppercase;">¡ENTRAR AL SUEÑO!</button>`;
             
             document.getElementById('btn-play-engine').addEventListener('click', () => {
                 UI.loader.classList.add('hidden');
@@ -713,12 +699,6 @@
                 if(mesh) {
                     extraerMallasSuelo(mesh);
                     escanearCasasAutomaticas(mesh);
-                }
-
-                let meshBarrio2 = ENT.entornoBarrio2 ? ENT.entornoBarrio2.getObject3D('mesh') : null;
-                if(meshBarrio2) {
-                    extraerMallasSuelo(meshBarrio2);
-                    escanearCasasAutomaticas(meshBarrio2);
                 }
                 
                 GAME_STATE.introCompletada = false; 
@@ -818,10 +798,8 @@
         }
 
         function gestionarPerspectivaYAvatar() {
-            const camaraEl = document.getElementById('main-camera');
-            if (!camaraEl) return;
-
-            const camObj = camaraEl.getObject3D('camera');
+            const camara = document.getElementById('main-camera');
+            if (!camara) return;
 
             if (GAME_STATE.esInterior) {
                 const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
@@ -829,33 +807,25 @@
                                    GAME_STATE.refugioActualNombre.includes('luis_model');
 
                 const alturaCamara = esCasaLuis ? 0.95 : 1.35;
-                camaraEl.object3D.position.set(0, alturaCamara, 0.0);
 
-                if (camObj && GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camObj.fov = 65;
-                    camObj.near = 0.05;
-                    camObj.updateProjectionMatrix();
+                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
+                    camara.object3D.position.set(0, alturaCamara, 0.0);
+                    camara.setAttribute('camera', 'fov', 65);
+                    camara.setAttribute('camera', 'near', 0.05);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
-                for (let key in ENT.meshes) {
-                    if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
-                }
+                for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
             } else {
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camaraEl.object3D.position.set(0, 1.5, 2.2);
-                    if (camObj) {
-                        camObj.fov = 70;
-                        camObj.near = 0.1;
-                        camObj.updateProjectionMatrix();
-                    }
+                    camara.object3D.position.set(0, 1.5, 2.2); 
+                    camara.setAttribute('camera', 'fov', 70);
+                    camara.setAttribute('camera', 'near', 0.1);
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
                 let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
                 for (let key in ENT.meshes) {
-                    if (ENT.meshes[key]) {
-                        if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
-                        else ENT.meshes[key].setAttribute('scale', '0 0 0');
-                    }
+                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
+                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
                 }
             }
         }
@@ -884,8 +854,6 @@
             if (!GAME_STATE.juegoActivo || GAME_STATE.isDead) return;
 
             try {
-                if (!ENT.rig || !ENT.rig.object3D || !ENT.camYaw || !ENT.camYaw.object3D || !ENT.camPitch || !ENT.camPitch.object3D) return;
-
                 GAME_STATE.frameTicks++;
 
                 if (time - GAME_STATE.tiempoUltimoAullido > 60000) {
@@ -944,9 +912,9 @@
                 }
 
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.0, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 3.5;
+                    RAYCASTER_REUTILIZABLE.far = 2.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -957,7 +925,7 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.9)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -993,7 +961,7 @@
 
                 UI.telemetry.textContent = `📡 RADAR // X[${GAME_STATE.pos.x.toFixed(1)}] Y[${GAME_STATE.pos.y.toFixed(1)}] Z[${GAME_STATE.pos.z.toFixed(1)}] | SAFE_ZONE: ${GAME_STATE.esInterior ? GAME_STATE.refugioActualNombre.toUpperCase() : 'NONE'}`;
 
-                if (GAME_STATE.inputMoviendo && ENT.avatar && ENT.avatar.object3D) {
+                if (GAME_STATE.inputMoviendo) {
                     let targetAngle = Math.atan2(dx, dz);
                     let diff = targetAngle - ENT.avatar.object3D.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -1011,7 +979,6 @@
                 }
                 UI.staminaBar.style.width = ((GAME_STATE.stamina / CONFIG.staminaMax) * 100) + '%';
 
-                if (!ENT.wwRig || !ENT.wwRig.object3D) return;
                 let loboPos = ENT.wwRig.object3D.position;
                 let distJugadorLobo = GAME_STATE.pos.distanceTo(loboPos);
 
@@ -1096,18 +1063,19 @@
         }
 
         function triggerThunder() {
-            if (!GAME_STATE.juegoActivo || !ENT.luzRelampago) return;
+            if (!GAME_STATE.juegoActivo) return;
             try {
-                ENT.luzRelampago.setAttribute('light', 'intensity', '2.5');
-                setTimeout(() => {
-                    if (ENT.luzRelampago) ENT.luzRelampago.setAttribute('light', 'intensity', '0');
+                const luz = ENT.luzRelampago.object3D.element;
+                if(luz) {
+                    luz.setAttribute('light', 'intensity', '2.5');
                     setTimeout(() => {
-                        if (ENT.luzRelampago) ENT.luzRelampago.setAttribute('light', 'intensity', '1.8');
+                        luz.setAttribute('light', 'intensity', '0');
                         setTimeout(() => {
-                            if (ENT.luzRelampago) ENT.luzRelampago.setAttribute('light', 'intensity', '0');
-                        }, 90);
-                    }, 50);
-                }, 120);
+                            luz.setAttribute('light', 'intensity', '1.8');
+                            setTimeout(() => luz.setAttribute('light', 'intensity', '0'), 90);
+                        }, 50);
+                    }, 120);
+                }
             } catch(e){}
         }
 
@@ -1120,17 +1088,15 @@
             GAME_STATE.refugioActualNombre = '';
             GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
             
-            if (ENT.rig && ENT.rig.object3D) ENT.rig.object3D.position.set(0, 0, 25);
-            if (ENT.wwRig && ENT.wwRig.object3D) ENT.wwRig.object3D.position.set(60, 0, -60);
+            ENT.rig.object3D.position.set(0, 0, 25);
+            ENT.wwRig.object3D.position.set(60, 0, -60);
             GAME_STATE.pos.set(0, 0, 25);
             
             INPUT.camYaw = 0; INPUT.camPitch = 0;
             UI.btnSprint.classList.remove('active', 'cooldown');
             UI.fade.style.opacity = "0"; UI.damage.className = ''; UI.jumpscare.classList.remove('active');
 
-            for (let key in ENT.meshes) {
-                if (ENT.meshes[key]) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            }
+            for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
             if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
             
             GAME_STATE.introCompletada = false;
