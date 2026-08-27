@@ -542,14 +542,14 @@
                     let p = child;
                     while (p) {
                         let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio")) {
+                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("casa-arquitecto") || pName.includes("casa_arquitecto") || pName.includes("arquitecto")) {
                             esCasa = true;
                             break;
                         }
                         p = p.parent;
                     }
 
-                    if (!esCasa) {
+                    if (!esCasa || objName.includes("mueble") || objName.includes("reja") || objName.includes("piscina") || objName.includes("pared") || objName.includes("wall") || objName.includes("fence") || objName.includes("pool") || objName.includes("furniture")) {
                         colisionBarrioCache.push(child);
                         if (child.geometry) {
                             child.geometry.computeBoundingSphere();
@@ -565,9 +565,10 @@
                         objName.includes("bush") || objName.includes("reja") ||
                         objName.includes("techo") || objName.includes("roof") || 
                         objName.includes("ceiling") || objName.includes("pared") || 
-                        objName.includes("wall") || objName.includes("cubierta");
+                        objName.includes("wall") || objName.includes("cubierta") ||
+                        objName.includes("mueble") || objName.includes("piscina") || objName.includes("fence") || objName.includes("pool") || objName.includes("furniture");
 
-                    if (!esObstaculoOTecho) {
+                    if (!esObstaculoOTecho || objName.includes("escalera") || objName.includes("stair") || objName.includes("step")) {
                         sueloMeshCache.push(child);
                     }
                 }
@@ -596,7 +597,7 @@
             
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
-                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
+                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model') || n.includes('casa-arquitecto') || n.includes('casa_arquitecto') || n.includes('arquitecto')) {
                     let caja = new THREE.Box3().setFromObject(child);
                     caja.min.y -= 1.0;
                     caja.max.y += 3.5;
@@ -805,8 +806,12 @@
                 const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
                                    GAME_STATE.refugioActualNombre.includes('casa_luis') || 
                                    GAME_STATE.refugioActualNombre.includes('luis_model');
+                
+                const esCasaArquitecto = GAME_STATE.refugioActualNombre.includes('casa-arquitecto') || 
+                                         GAME_STATE.refugioActualNombre.includes('casa_arquitecto') || 
+                                         GAME_STATE.refugioActualNombre.includes('arquitecto');
 
-                const alturaCamara = esCasaLuis ? 0.95 : 1.35;
+                const alturaCamara = (esCasaLuis || esCasaArquitecto) ? 0.95 : 1.35;
 
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
                     camara.object3D.position.set(0, alturaCamara, 0.0);
@@ -893,7 +898,7 @@
                 let pasoPermitido = true;
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !GAME_STATE.esInterior) {
+                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
@@ -912,9 +917,9 @@
                 }
 
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.0;
+                    RAYCASTER_REUTILIZABLE.far = 3.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -925,7 +930,7 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
