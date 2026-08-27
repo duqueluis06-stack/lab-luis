@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v16.0</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.0. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v17.0</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v17.0. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v16.0">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v17.0">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.0">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v17.0">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -292,7 +292,7 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.5 2.2">
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.1; far: 300;" position="0 1.5 2.2">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -494,7 +494,7 @@
             velY: 0, enElSuelo: true,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
-            esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
+            esInterior: false, refugioActualNombre: '', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
@@ -531,30 +531,8 @@
                 if (child.isMesh) {
                     sueloMeshCache.push(child);
                     colisionBarrioCache.push(child);
-
-                    if (child.geometry) {
-                        if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
-                        child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                        child.userData.worldRadius = child.geometry.boundingSphere.radius;
-                    }
                 }
             });
-        }
-
-        function obtenerColisionesCercanas(pos, maxDist = 8) {
-            let cercanas = [];
-            for (let i = 0; i < colisionBarrioCache.length; i++) {
-                let mesh = colisionBarrioCache[i];
-                if (mesh.userData && mesh.userData.worldSphereCenter) {
-                    let d = pos.distanceTo(mesh.userData.worldSphereCenter);
-                    if (d < maxDist + mesh.userData.worldRadius) {
-                        cercanas.push(mesh);
-                    }
-                } else {
-                    cercanas.push(mesh);
-                }
-            }
-            return cercanas;
         }
 
         function escanearCasasAutomaticas(rootNode) {
@@ -584,28 +562,42 @@
             }
         }
 
-        // SENSOR MULTIRRAYO EN ABANICO (Detecta cristales y muros delgados)
+        // DETECCION DE COLISIÓN MULTI-ALTURA (Detecta rejas finas y muros)
         function verificarPasoLibre(posActual, vecDirX, vecDirZ, colisiones) {
             if (colisiones.length === 0) return true;
             
-            const distRevision = 0.55; 
-            const angulos = [0, -0.42, 0.42]; 
+            const distRevision = 0.65; 
+            const angulos = [0, -0.45, 0.45]; 
+            const alturasPrueba = [0.3, 0.9, 1.4]; // Pies, Cintura y Pecho
 
-            for (let i = 0; i < angulos.length; i++) {
-                let ang = angulos[i];
-                let rx = vecDirX * Math.cos(ang) - vecDirZ * Math.sin(ang);
-                let rz = vecDirX * Math.sin(ang) + vecDirZ * Math.cos(ang);
+            for (let h = 0; h < alturasPrueba.length; h++) {
+                let alt = alturasPrueba[h];
+                for (let i = 0; i < angulos.length; i++) {
+                    let ang = angulos[i];
+                    let rx = vecDirX * Math.cos(ang) - vecDirZ * Math.sin(ang);
+                    let rz = vecDirX * Math.sin(ang) + vecDirZ * Math.cos(ang);
 
-                V_POOL.rayOrigin.set(posActual.x, posActual.y + 0.8, posActual.z);
-                V_POOL.dirAvance.set(rx, 0, rz).normalize();
-                
-                RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                RAYCASTER_REUTILIZABLE.far = distRevision;
+                    V_POOL.rayOrigin.set(posActual.x, posActual.y + alt, posActual.z);
+                    V_POOL.dirAvance.set(rx, 0, rz).normalize();
+                    
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+                    RAYCASTER_REUTILIZABLE.far = distRevision;
 
-                let choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisiones, false);
-                if (choques.length > 0) return false;
+                    let choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisiones, false);
+                    if (choques.length > 0) return false;
+                }
             }
             return true;
+        }
+
+        // FRENO DE SEGURIDAD PARA EVITAR CAER AL VACÍO
+        function haySueloMasAdelante(intentoX, intentoY, intentoZ) {
+            if (sueloMeshCache.length === 0) return true;
+            V_POOL.rayOrigin.set(intentoX, intentoY + 0.8, intentoZ);
+            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
+            RAYCASTER_REUTILIZABLE.far = 3.5;
+            let choquesAbajo = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+            return choquesAbajo.length > 0;
         }
 
         function moverLoboConColision(loboPos, dirVector, velocidad, dt) {
@@ -615,16 +607,15 @@
             let dz = dirVector.z;
 
             let pasoLoboPermitido = true;
-            let colisionesCercanas = obtenerColisionesCercanas(loboPos, 8);
             
-            if (colisionesCercanas.length > 0) {
+            if (colisionBarrioCache.length > 0) {
                 V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
                 V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                 RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
                 RAYCASTER_REUTILIZABLE.far = 1.2; 
 
-                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
+                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionBarrioCache, false);
                 if (choquesLobo.length > 0) {
                     pasoLoboPermitido = false;
                 }
@@ -764,7 +755,6 @@
                 toggleSprint(!GAME_STATE.modoCorrerActive);
             });
 
-            // JOYSTICK FLUIDO CON CAPTURA MULTITÁCTIL DIRECTA
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
             let joyActive = false;
@@ -825,30 +815,19 @@
             }
         }
 
+        // VISTA EN TERCERA PERSONA SIEMPRE ACTIVA (Avatar visible en todo momento)
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
-            if (GAME_STATE.esInterior) {
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 1.4, 0.0);
-                    camara.setAttribute('camera', 'fov', 68);
-                    camara.setAttribute('camera', 'near', 0.05);
-                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
-                }
-                for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
-            } else {
-                if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camara.object3D.position.set(0, 1.5, 2.2); 
-                    camara.setAttribute('camera', 'fov', 70);
-                    camara.setAttribute('camera', 'near', 0.1);
-                    GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
-                }
-                let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
-                for (let key in ENT.meshes) {
-                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
-                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
-                }
+            camara.object3D.position.set(0, 1.5, 2.2); 
+            camara.setAttribute('camera', 'fov', 70);
+            camara.setAttribute('camera', 'near', 0.1);
+
+            let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
+            for (let key in ENT.meshes) {
+                if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
+                else ENT.meshes[key].setAttribute('scale', '0 0 0');
             }
         }
 
@@ -909,40 +888,37 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // --- SISTEMA DE NAVEGACIÓN CON DESLIZAMIENTO DE PAREDES (Wall-Sliding) ---
-                let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
-
+                // NAVEGACIÓN Y COLISIONES (Con freno anti-caída)
                 if (GAME_STATE.inputMoviendo) {
                     let intentoX = GAME_STATE.pos.x + dx * speed * dt;
                     let intentoZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                    // 1. Probar avance directo (diagonal)
-                    if (verificarPasoLibre(GAME_STATE.pos, dx, dz, colisionesCercanasPlayer)) {
-                        GAME_STATE.pos.x = intentoX;
-                        GAME_STATE.pos.z = intentoZ;
-                    } else {
-                        // 2. Deslizamiento por Paredes en X (Permite bordear esquinas y escaleras)
-                        if (Math.abs(dx) > 0.01 && verificarPasoLibre(GAME_STATE.pos, Math.sign(dx), 0, colisionesCercanasPlayer)) {
+                    let seguroAvanzar = haySueloMasAdelante(intentoX, GAME_STATE.pos.y, intentoZ);
+
+                    if (seguroAvanzar) {
+                        if (verificarPasoLibre(GAME_STATE.pos, dx, dz, colisionBarrioCache)) {
                             GAME_STATE.pos.x = intentoX;
-                        }
-                        // 3. Deslizamiento por Paredes en Z
-                        if (Math.abs(dz) > 0.01 && verificarPasoLibre(GAME_STATE.pos, 0, Math.sign(dz), colisionesCercanasPlayer)) {
                             GAME_STATE.pos.z = intentoZ;
+                        } else {
+                            if (Math.abs(dx) > 0.01 && verificarPasoLibre(GAME_STATE.pos, Math.sign(dx), 0, colisionBarrioCache)) {
+                                GAME_STATE.pos.x = intentoX;
+                            }
+                            if (Math.abs(dz) > 0.01 && verificarPasoLibre(GAME_STATE.pos, 0, Math.sign(dz), colisionBarrioCache)) {
+                                GAME_STATE.pos.z = intentoZ;
+                            }
                         }
                     }
                 }
 
-                // --- DETECCION DE SUELO Y ESCALERAS OPTIMIZADA ---
+                // DETECCIÓN DE SUELO Y ESCALERAS OPTIMIZADA (Evita levitación en pasillos estrechos)
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.6, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.2;
+                    RAYCASTER_REUTILIZABLE.far = 2.5;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
-                    let maxPuntoY = -Infinity;
-
-                    const OFFSET_PIES = 0.06; 
+                    const OFFSET_PIES = 0.02; 
                     const ALTURA_BASE_MAPA = 0.0;
 
                     for (let i = 0; i < colisiones.length; i++) {
@@ -954,10 +930,9 @@
                             V_POOL.worldNormal.set(0, 1, 0);
                         }
 
-                        // Permite subir peldaños de hasta 0.55m sin atascos
-                        if (V_POOL.worldNormal.y > 0.35 && hit.point.y <= (GAME_STATE.pos.y + 0.55)) {
-                            if (hit.point.y > maxPuntoY) {
-                                maxPuntoY = hit.point.y; 
+                        // Solo acepta planos horizontales (normal.y > 0.65) y peldaños de máximo 0.38m para evitar levitaciones con techos/marcos
+                        if (V_POOL.worldNormal.y > 0.65 && hit.point.y <= (GAME_STATE.pos.y + 0.38)) {
+                            if (mejorAltura === null || hit.point.y > mejorAltura) {
                                 mejorAltura = hit.point.y; 
                             }
                         }
@@ -981,10 +956,10 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.5) {
+                    if (Math.abs(deltaY) > 0.4) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        GAME_STATE.pos.y += deltaY * 0.45;
+                        GAME_STATE.pos.y += deltaY * 0.4;
                     }
                 }
 
@@ -1115,7 +1090,7 @@
             GAME_STATE.stamina = CONFIG.staminaMax;
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
-            GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
+            GAME_STATE.cachedAlturaSuelo = 0;
             GAME_STATE.refugioActualNombre = '';
             GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
             
