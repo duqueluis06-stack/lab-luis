@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v16.3</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.3. Explora el entorno 3D, gestiona tu energía y busca refugio.">
+    <title>ARK - Werewolf Nightmare v16.4</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.4. Explora el entorno 3D, gestiona tu energía y busca refugio.">
     <meta name="robots" content="index, follow">
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph & Twitter Card -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v16.3">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v16.4">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. Escape del Hombre Lobo.">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.3">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.4">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -287,7 +287,7 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.01; far: 300;" position="0 1.2 1.3">
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.01; far: 300;" position="0 1.2 0.8">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -306,12 +306,7 @@
         window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
         let ZONAS_REFUGIO = [];
-        let PUNTOS_MERODEO_CASA = [
-            new THREE.Vector3(0, 0, 6.0),    
-            new THREE.Vector3(-8.0, 0, -2),  
-            new THREE.Vector3(8.0, 0, -2),   
-            new THREE.Vector3(0, 0, -9.5)    
-        ];
+        let CASA_ARQUITECTO_BOX = null;
 
         const V_POOL = {
             dirALugar: new THREE.Vector3(),
@@ -386,15 +381,15 @@
                 } catch(err) { console.warn("Audio Engine Err:", err); }
             },
             actualizarProximidad(estado, distancia) {
-                if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35 || GAME_STATE.esInterior) {
+                if (estado === 'GRACIA_INICIAL' || estado === 'BOSQUE' || distancia > 35) {
                     this.fadeTo('enojado', 0.0);
                     this.fadeTo('stalk', 0.0);
                     return;
                 }
                 
                 if (estado === 'MERODEANDO_CASA') {
-                    this.fadeTo('stalk', 0.35);
-                    this.fadeTo('enojado', 0.10);
+                    this.fadeTo('stalk', 0.40);
+                    this.fadeTo('enojado', 0.15);
                     return;
                 }
 
@@ -475,7 +470,7 @@
             staminaMax: 200, 
             staminaGasto: 15.0,        
             staminaRecuperacion: 20.0,  
-            wwVelAcecho: 0.85,  
+            wwVelAcecho: 0.90,  
             wwVelAtaque: 2.3,   
             distDeteccionLobo: 85, 
             distAtaqueLobo: 14,
@@ -490,7 +485,7 @@
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
             esInterior: false, refugioActualNombre: '', frameTicks: 0, cachedAlturaSuelo: 0,
-            aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
+            aiTimer: 0, aiAnguloMerodeo: 0, tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
 
@@ -568,6 +563,8 @@
                     caja.min.y -= 0.1;
                     caja.max.y += 3.5;
                     
+                    CASA_ARQUITECTO_BOX = caja;
+
                     ZONAS_REFUGIO.push({
                         nombre: 'casa-arquitecto',
                         box: caja
@@ -580,6 +577,7 @@
                     new THREE.Vector3(-4.0, -1.0, -4.0),
                     new THREE.Vector3(4.0, 3.5, 4.0)
                 );
+                CASA_ARQUITECTO_BOX = defaultBox;
                 ZONAS_REFUGIO.push({ nombre: 'default', box: defaultBox });
             }
         }
@@ -594,16 +592,21 @@
             let cerca = obtenerColisionesCercanas(posOriginal, 5);
             if (cerca.length === 0) return false;
 
-            // Detección precisa de paredes (evita atrancarse en escalones bajos)
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.4, posOriginal.z);
+            // Inclusión estricta de ventanales/vidrios a tres niveles de altura
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.3, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
-            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.38;
+            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, true).length > 0) return true;
 
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.0, posOriginal.z);
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.9, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
-            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.38;
+            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, true).length > 0) return true;
+
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.5, posOriginal.z);
+            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+            RAYCASTER_REUTILIZABLE.far = dist + 0.38;
+            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, true).length > 0) return true;
 
             return false;
         }
@@ -624,7 +627,7 @@
                 RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
                 RAYCASTER_REUTILIZABLE.far = 1.2; 
 
-                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
+                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, true);
                 if (choquesLobo.length > 0) {
                     pasoLoboPermitido = false;
                 }
@@ -873,19 +876,19 @@
                     }
                 }
 
-                // CÁLCULO DIRECTO Y RÁPIDO DE ESCALERAS/SUELO
+                // CÁLCULO PRECISO DE SUELO (Sin falsas elevaciones por vigas/techos)
                 if (sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirDown);
-                    RAYCASTER_REUTILIZABLE.far = 4.0;
+                    RAYCASTER_REUTILIZABLE.far = 3.0;
                     
-                    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+                    const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, true);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.5)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -893,16 +896,13 @@
                     
                     if (mejorAltura !== null) {
                         GAME_STATE.cachedAlturaSuelo = mejorAltura;
-                    } else {
-                        GAME_STATE.cachedAlturaSuelo = 0.0;
                     }
                 }
 
-                // GRAVEDAD FIRME Y SNAP EN ESCALONES (Cero levitación)
+                // GRAVEDAD Y SNAP DIRECTO A ESCALONES
                 let diferenciaSuelo = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
 
                 if (diferenciaSuelo < -0.6 || !GAME_STATE.enElSuelo) {
-                    // Caída firme con gravedad real (32 m/s²)
                     GAME_STATE.velY -= 32.0 * dt;
                     GAME_STATE.pos.y += GAME_STATE.velY * dt;
 
@@ -912,24 +912,24 @@
                         GAME_STATE.enElSuelo = true;
                     }
                 } else {
-                    // Snap inmediato a escalones (sube y baja al instante sin levitar)
                     GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     GAME_STATE.velY = 0;
                     GAME_STATE.enElSuelo = true;
                 }
 
-                // CONTROL DE TECHO CONTRA CORTE DE CÁMARA
-                if (GAME_STATE.esInterior && sueloMeshCache.length > 0) {
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z);
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirUp);
-                    RAYCASTER_REUTILIZABLE.far = 1.4;
+                // CÁMARA ANTI-RECORTE EN PASILLOS
+                if (sueloMeshCache.length > 0) {
+                    let dirCam = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), INPUT.camYaw);
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z);
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, dirCam);
+                    RAYCASTER_REUTILIZABLE.far = 0.8;
                     
-                    const choquesTecho = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
-                    if (choquesTecho.length > 0) {
-                        let distTecho = choquesTecho[0].distance;
-                        if (distTecho < 0.5) {
-                            GAME_STATE.pos.y -= (0.5 - distTecho);
-                        }
+                    let paredAtrás = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, true);
+                    if (paredAtrás.length > 0) {
+                        let distDistancia = Math.max(0.2, paredAtrás[0].distance - 0.15);
+                        ENT.mainCam.object3D.position.z = distDistancia;
+                    } else {
+                        ENT.mainCam.object3D.position.z = 0.8;
                     }
                 }
 
@@ -972,36 +972,27 @@
                 } else if (GAME_STATE.esInterior) {
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
+                    GAME_STATE.loboEstado = 'MERODEANDO_CASA';
                     
-                    if (GAME_STATE.loboEstado !== 'MERODEANDO_CASA' && GAME_STATE.loboEstado !== 'RETIRADA') {
-                        GAME_STATE.loboEstado = 'MERODEANDO_CASA';
-                        GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
-                        UI.alert.textContent = "🔊 Ruidos pesados rodean las ventanas...";
+                    // IA DE ACECHO ALREDEDOR DE LA CASA (Incapaz de entrar)
+                    let centroCasa = CASA_ARQUITECTO_BOX ? CASA_ARQUITECTO_BOX.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, 0);
+                    GAME_STATE.aiAnguloMerodeo += dt * 0.4;
+                    
+                    let radioMerodeo = 5.5; 
+                    let objetivoX = centroCasa.x + Math.cos(GAME_STATE.aiAnguloMerodeo) * radioMerodeo;
+                    let objetivoZ = centroCasa.z + Math.sin(GAME_STATE.aiAnguloMerodeo) * radioMerodeo;
+
+                    V_POOL.dirALugar.set(objetivoX - loboPos.x, 0, objetivoZ - loboPos.z);
+                    let distObjetivo = V_POOL.dirALugar.length();
+
+                    if (distObjetivo > 0.2) {
+                        V_POOL.dirALugar.normalize();
+                        moverLoboConColision(loboPos, V_POOL.dirALugar, CONFIG.wwVelAcecho, dt);
+                        ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirALugar.x, V_POOL.dirALugar.z);
                     }
 
-                    if (GAME_STATE.loboEstado === 'MERODEANDO_CASA') {
-                        V_POOL.dirALugar.subVectors(GAME_STATE.aiPuntoObjetivo, loboPos); V_POOL.dirALugar.y = 0;
-                        let distAlPunto = V_POOL.dirALugar.length();
-                        if (distAlPunto > 0.5) {
-                            V_POOL.dirALugar.normalize();
-                            moverLoboConColision(loboPos, V_POOL.dirALugar, CONFIG.wwVelAcecho, dt);
-                            ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirALugar.x, V_POOL.dirALugar.z);
-                        } else {
-                            if (GAME_STATE.frameTicks % 200 === 0) GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
-                            GAME_STATE.aiTimer += dt;
-                            if (GAME_STATE.aiTimer > 25) {
-                                GAME_STATE.loboEstado = 'RETIRADA'; GAME_STATE.aiPuntoObjetivo.set(60, 0, -60);
-                                UI.alert.textContent = "🔊 Los gruñidos se desvanecen en el bosque...";
-                            }
-                        }
-                    } else if (GAME_STATE.loboEstado === 'RETIRADA') {
-                        V_POOL.dirAlBosque.subVectors(GAME_STATE.aiPuntoObjetivo, loboPos); V_POOL.dirAlBosque.y = 0;
-                        if (V_POOL.dirAlBosque.length() > 1.0) {
-                            V_POOL.dirAlBosque.normalize();
-                            moverLoboConColision(loboPos, V_POOL.dirAlBosque, CONFIG.wwVelAcecho, dt);
-                            ENT.wwRig.object3D.rotation.y = Math.atan2(V_POOL.dirAlBosque.x, V_POOL.dirAlBosque.z);
-                        } else { GAME_STATE.loboEstado = 'BOSQUE'; GAME_STATE.aiTimer = 0; }
-                    }
+                    UI.alert.textContent = "👁️ La bestia merodea rodeando los ventanales...";
+
                 } else {
                     GAME_STATE.aiTimer = 0;
                     if (distJugadorLobo >= CONFIG.distDeteccionLobo) {
