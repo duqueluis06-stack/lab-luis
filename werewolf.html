@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.8 (Custom Camera & Thermal Fix)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.8. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.9</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.9. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -15,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.9">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.9">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -39,7 +38,6 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
     
     <script>
-        // COMPONENTE PARA FORZAR LA LECTURA DE ANIMACIONES TRAS LA CARGA DEL GLB
         AFRAME.registerComponent('fix-animacion', {
             schema: {
                 clip: { type: 'string', default: '*' },
@@ -84,7 +82,6 @@
             -webkit-user-select: none; color: #fff;
         }
 
-        /* PORTADA CON IMAGEN DE FONDO (were.jpg) Y EFECTO NEÓN ROJO */
         #custom-loader { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: url('were.jpg') no-repeat center center / cover; 
@@ -121,7 +118,6 @@
         .load-progress { width: 220px; height: 4px; background: rgba(255,255,255,0.15); margin: 15px auto; border-radius: 2px; overflow: hidden; box-shadow: 0 0 8px rgba(255, 0, 0, 0.5); }
         #progress-bar { width: 0%; height: 100%; background: var(--ui-red); transition: width 0.2s ease; }
 
-        /* FIRMA DEL AUTOR CON RESPLANDOR NEÓN */
         .author-tag {
             z-index: 2; color: #ffffff; font-family: monospace; font-size: 1.3rem; font-weight: bold;
             letter-spacing: 2px; text-shadow: 0 0 4px #ff0000, 0 0 12px #ff0000, 0 0 25px #ff0000;
@@ -210,7 +206,6 @@
 </head>
 <body>
 
-    <!-- PORTADA Y CARGADOR CON LA IMAGEN were.jpg -->
     <div id="custom-loader">
         <div class="overlay-glow"></div>
         
@@ -380,7 +375,7 @@
                                 Pistas[key].pause();
                                 Pistas[key].currentTime = 0;
                             }
-                        } catch(e) { console.log("Canal diferido: " + key); }
+                        } catch(e) {}
                     }
 
                     Object.keys(Pistas).forEach(key => {
@@ -534,41 +529,25 @@
                 if (child.isMesh) {
                     const objName = (child.name || "").toLowerCase();
                     
-                    let esCasa = false;
-                    let p = child;
-                    while (p) {
-                        let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("arquitecto")) {
-                            esCasa = true;
-                            break;
-                        }
-                        p = p.parent;
-                    }
+                    // Registro general para cálculo de suelo y escaleras
+                    sueloMeshCache.push(child);
 
-                    if (!esCasa) {
+                    // Registro de barreras físicas frontales
+                    const esObstaculoFrontal = 
+                    objName.includes("tree") || objName.includes("arbol") || 
+                    objName.includes("trunk") || objName.includes("reja") ||
+                    objName.includes("pared") || objName.includes("wall") ||
+                    objName.includes("vidrio") || objName.includes("cristal") ||
+                    objName.includes("glass") || objName.includes("window") ||
+                    objName.includes("ventana") || objName.includes("puerta");
+
+                    if (esObstaculoFrontal) {
                         colisionBarrioCache.push(child);
                         if (child.geometry) {
                             child.geometry.computeBoundingSphere();
                             child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
                             child.userData.worldRadius = child.geometry.boundingSphere.radius;
                         }
-                    }
-
-                    // Se incluyen vidrios y ventanas explícitamente como obstáculos sólidos
-                    const esObstaculoOTecho = 
-                    objName.includes("tree") || objName.includes("arbol") || 
-                    objName.includes("leave") || objName.includes("hoja") || 
-                    objName.includes("trunk") || objName.includes("branch") || 
-                    objName.includes("bush") || objName.includes("reja") ||
-                    objName.includes("vidrio") || objName.includes("cristal") ||
-                    objName.includes("glass") || objName.includes("window") ||
-                    objName.includes("ventana") || objName.includes("vidrieras") ||
-                    objName.includes("techo") || objName.includes("roof") || 
-                    objName.includes("ceiling") || objName.includes("pared") || 
-                    objName.includes("wall") || objName.includes("cubierta");
-
-                    if (!esObstaculoOTecho) {
-                        sueloMeshCache.push(child);
                     }
                 }
             });
@@ -599,7 +578,7 @@
                 if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model') || n.includes('arquitecto')) {
                     let caja = new THREE.Box3().setFromObject(child);
                     caja.min.y -= 1.0;
-                    caja.max.y += 3.5;
+                    caja.max.y += 4.5;
                     
                     ZONAS_REFUGIO.push({
                         nombre: n,
@@ -733,7 +712,7 @@
                 
                 if(e.code === 'Space' || e.key === ' ') {
                     e.preventDefault();
-                    if (GAME_STATE.enElSuelo && !GAME_STATE.esInterior) {
+                    if (GAME_STATE.enElSuelo) {
                         GAME_STATE.velY = 5.2;
                         GAME_STATE.enElSuelo = false;
                     }
@@ -802,15 +781,9 @@
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
-                const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
-                                   GAME_STATE.refugioActualNombre.includes('casa_luis') || 
-                                   GAME_STATE.refugioActualNombre.includes('luis_model');
-
-                const alturaCamara = esCasaLuis ? 0.95 : 1.35;
-
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
-                    camara.object3D.position.set(0, alturaCamara, 0.0);
-                    camara.setAttribute('camera', 'fov', 65);
+                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
+                    camara.object3D.position.set(0, 1.4, 0.0);
+                    camara.setAttribute('camera', 'fov', 68);
                     camara.setAttribute('camera', 'near', 0.05);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
@@ -823,7 +796,6 @@
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
                 let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
-                // Se unifica la escala de 0.45 en todos los parámetros visuales del avatar
                 for (let key in ENT.meshes) {
                     if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
                     else ENT.meshes[key].setAttribute('scale', '0 0 0');
@@ -894,7 +866,7 @@
                 let pasoPermitido = true;
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !GAME_STATE.esInterior) {
+                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
@@ -913,9 +885,9 @@
                 }
 
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.0;
+                    RAYCASTER_REUTILIZABLE.far = 3.5;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -926,7 +898,7 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -953,8 +925,7 @@
                     if (Math.abs(deltaY) > 0.4) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
-                        GAME_STATE.pos.y += deltaY * factorSuavizado;
+                        GAME_STATE.pos.y += deltaY * 0.4;
                     }
                 }
 
@@ -995,7 +966,6 @@
                     AudioController.fadeTo('enojado', 0.0);
                     AudioController.fadeTo('stalk', 0.0);
                 } else if (GAME_STATE.esInterior) {
-                    // Zona Segura Garantizada: se resetean contadores de daño y no se ejecuta lógica de ataque
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
                     
