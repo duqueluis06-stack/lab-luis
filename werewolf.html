@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v16.0</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.0. Explora el entorno 3D, gestiona tu energía y busca refugio.">
+    <title>ARK - Werewolf Nightmare v16.1</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.1. Explora el entorno 3D, gestiona tu energía y busca refugio.">
     <meta name="robots" content="index, follow">
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph & Twitter Card -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v16.0">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v16.1">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. Escape del Hombre Lobo.">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.0">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.1">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -289,6 +289,8 @@
                 <a-entity id="camera-pitch" rotation="0 0 0">
                     <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.6 2.0">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
+                        <!-- LUZ INTERIOR DE APOYO PARA NAVEGACIÓN LIMPIA -->
+                        <a-entity id="indoor-ambient-light" light="type: point; intensity: 0.0; distance: 6; color: #ffffff;" position="0 0 0"></a-entity>
                     </a-entity>
                 </a-entity>
             </a-entity>
@@ -507,6 +509,7 @@
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
             rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
+            indoorLight: document.getElementById('indoor-ambient-light'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), atento: document.getElementById('luis-mesh-atento') },
             wwRig: document.getElementById('werewolf-rig'),
             wwMeshes: { beast: document.getElementById('ww-mesh-beast') }
@@ -550,7 +553,6 @@
             return cercanas;
         }
 
-        // UNICAMENTE SE ESCANEA CASA-ARQUITECTO
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
             ZONAS_REFUGIO = [];
@@ -593,14 +595,15 @@
             let cerca = obtenerColisionesCercanas(posOriginal, 5);
             if (cerca.length === 0) return false;
 
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.5, posOriginal.z);
+            // Altura de raycast ajustada para permitir subir escalones sin golpear alzadas
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.6, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.45;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
             V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.2, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.45;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
             return false;
@@ -749,7 +752,7 @@
                 if (!INPUT.isDraggingCam) return;
                 let dx = e.clientX - INPUT.lastMouseX; let dy = e.clientY - INPUT.lastMouseY;
                 INPUT.camYaw -= dx * 0.0035; INPUT.camPitch -= dy * 0.0035;
-                INPUT.camPitch = Math.max(-0.4, Math.min(0.4, INPUT.camPitch));
+                INPUT.camPitch = Math.max(-0.6, Math.min(0.6, INPUT.camPitch));
                 INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
             });
             window.addEventListener('pointerup', () => INPUT.isDraggingCam = false);
@@ -793,21 +796,25 @@
             let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
 
             if (GAME_STATE.esInterior) {
-                if (GAME_STATE.camPerspectiveState !== 'INTERIOR_OTS') {
-                    camara.object3D.position.set(0.3, 1.4, 1.2); 
-                    camara.setAttribute('camera', 'fov', 70);
-                    camara.setAttribute('camera', 'near', 0.05);
-                    GAME_STATE.camPerspectiveState = 'INTERIOR_OTS';
+                // EN INTERIORES: PRIMERA PERSONA REAL PARA NO COLISIONAR CON MUROS/TECHOS NI PERDER VISUAL
+                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
+                    camara.object3D.position.set(0, 1.35, 0.05); 
+                    camara.setAttribute('camera', 'fov', 75);
+                    camara.setAttribute('camera', 'near', 0.01);
+                    if (ENT.indoorLight) ENT.indoorLight.setAttribute('light', 'intensity', '1.2');
+                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
+                // OCULTAR AVATAR EN INTERIORES PARA VACÍAR LA VISTA COMPLETAMENTE
                 for (let key in ENT.meshes) {
-                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
-                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
+                    ENT.meshes[key].setAttribute('scale', '0 0 0');
                 }
             } else {
+                // EN EXTERIORES: TERCERA PERSONA CON AVATAR VISIBLE
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
                     camara.object3D.position.set(0, 1.6, 2.0); 
                     camara.setAttribute('camera', 'fov', 70);
                     camara.setAttribute('camera', 'near', 0.1);
+                    if (ENT.indoorLight) ENT.indoorLight.setAttribute('light', 'intensity', '0.0');
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
                 for (let key in ENT.meshes) {
@@ -895,20 +902,21 @@
                 }
 
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
+                    // Raycast descendente desde mayor altura para detectar escalones superiores e inferiores
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.0, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 4.0;
+                    RAYCASTER_REUTILIZABLE.far = 5.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
-                    const OFFSET_PIES = 0.05; 
+                    const OFFSET_PIES = 0.02; 
                     const ALTURA_BASE_MAPA = 0.0;
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.0)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.2)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -932,10 +940,11 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.5) {
+                    if (Math.abs(deltaY) > 0.8) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        let factorSuavizado = 0.4;
+                        // Respuesta fluida para bajar/subir escaleras
+                        let factorSuavizado = 0.6;
                         GAME_STATE.pos.y += deltaY * factorSuavizado;
                     }
                 }
