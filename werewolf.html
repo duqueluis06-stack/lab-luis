@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v16.1</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.1. Explora el entorno 3D, gestiona tu energía y busca refugio.">
+    <title>ARK - Werewolf Nightmare v16.2</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.2. Explora el entorno 3D, gestiona tu energía y busca refugio.">
     <meta name="robots" content="index, follow">
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph & Twitter Card -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v16.1">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v16.2">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. Escape del Hombre Lobo.">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.1">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.2">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -287,10 +287,9 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.6 2.0">
+                    <!-- CÁMARA BAJADA Y CERCANA (Evita atravesar techos en interiores) -->
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.01; far: 300;" position="0 1.2 1.3">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
-                        <!-- LUZ INTERIOR DE APOYO PARA NAVEGACIÓN LIMPIA -->
-                        <a-entity id="indoor-ambient-light" light="type: point; intensity: 0.0; distance: 6; color: #ffffff;" position="0 0 0"></a-entity>
                     </a-entity>
                 </a-entity>
             </a-entity>
@@ -320,7 +319,8 @@
             dirAlBosque: new THREE.Vector3(),
             dirHaciaTi: new THREE.Vector3(),
             rayOrigin: new THREE.Vector3(),
-            rayDir: new THREE.Vector3(0, -1, 0),
+            rayDirDown: new THREE.Vector3(0, -1, 0),
+            rayDirUp: new THREE.Vector3(0, 1, 0),
             dirAvance: new THREE.Vector3()
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
@@ -490,7 +490,7 @@
             velY: 0, enElSuelo: true,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
-            esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
+            esInterior: false, refugioActualNombre: '', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
@@ -509,7 +509,7 @@
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
             rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
-            indoorLight: document.getElementById('indoor-ambient-light'),
+            mainCam: document.getElementById('main-camera'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), atento: document.getElementById('luis-mesh-atento') },
             wwRig: document.getElementById('werewolf-rig'),
             wwMeshes: { beast: document.getElementById('ww-mesh-beast') }
@@ -595,15 +595,15 @@
             let cerca = obtenerColisionesCercanas(posOriginal, 5);
             if (cerca.length === 0) return false;
 
-            // Altura de raycast ajustada para permitir subir escalones sin golpear alzadas
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.6, posOriginal.z);
+            // Detección de paredes optimizada para escaleras
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.4, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.3;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.2, posOriginal.z);
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.1, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.3;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
             return false;
@@ -752,7 +752,7 @@
                 if (!INPUT.isDraggingCam) return;
                 let dx = e.clientX - INPUT.lastMouseX; let dy = e.clientY - INPUT.lastMouseY;
                 INPUT.camYaw -= dx * 0.0035; INPUT.camPitch -= dy * 0.0035;
-                INPUT.camPitch = Math.max(-0.6, Math.min(0.6, INPUT.camPitch));
+                INPUT.camPitch = Math.max(-0.4, Math.min(0.4, INPUT.camPitch));
                 INPUT.lastMouseX = e.clientX; INPUT.lastMouseY = e.clientY;
             });
             window.addEventListener('pointerup', () => INPUT.isDraggingCam = false);
@@ -789,38 +789,11 @@
             }
         }
 
-        function gestionarPerspectivaYAvatar() {
-            const camara = document.getElementById('main-camera');
-            if (!camara) return;
-
+        function actualizarMallaAvatar() {
             let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
-
-            if (GAME_STATE.esInterior) {
-                // EN INTERIORES: PRIMERA PERSONA REAL PARA NO COLISIONAR CON MUROS/TECHOS NI PERDER VISUAL
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON') {
-                    camara.object3D.position.set(0, 1.35, 0.05); 
-                    camara.setAttribute('camera', 'fov', 75);
-                    camara.setAttribute('camera', 'near', 0.01);
-                    if (ENT.indoorLight) ENT.indoorLight.setAttribute('light', 'intensity', '1.2');
-                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
-                }
-                // OCULTAR AVATAR EN INTERIORES PARA VACÍAR LA VISTA COMPLETAMENTE
-                for (let key in ENT.meshes) {
-                    ENT.meshes[key].setAttribute('scale', '0 0 0');
-                }
-            } else {
-                // EN EXTERIORES: TERCERA PERSONA CON AVATAR VISIBLE
-                if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camara.object3D.position.set(0, 1.6, 2.0); 
-                    camara.setAttribute('camera', 'fov', 70);
-                    camara.setAttribute('camera', 'near', 0.1);
-                    if (ENT.indoorLight) ENT.indoorLight.setAttribute('light', 'intensity', '0.0');
-                    GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
-                }
-                for (let key in ENT.meshes) {
-                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
-                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
-                }
+            for (let key in ENT.meshes) {
+                if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
+                else ENT.meshes[key].setAttribute('scale', '0 0 0');
             }
         }
 
@@ -901,22 +874,22 @@
                     }
                 }
 
+                // CÁLCULO DE PISO Y ESCALERAS
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    // Raycast descendente desde mayor altura para detectar escalones superiores e inferiores
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 2.0, GAME_STATE.pos.z); 
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 5.0;
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.8, GAME_STATE.pos.z); 
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirDown);
+                    RAYCASTER_REUTILIZABLE.far = 4.5;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
-                    const OFFSET_PIES = 0.02; 
+                    const OFFSET_PIES = 0.01; 
                     const ALTURA_BASE_MAPA = 0.0;
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.2)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.0)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -943,9 +916,25 @@
                     if (Math.abs(deltaY) > 0.8) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        // Respuesta fluida para bajar/subir escaleras
-                        let factorSuavizado = 0.6;
+                        // Respuesta súper fluida para subir/bajar los escalones
+                        let factorSuavizado = 0.55;
                         GAME_STATE.pos.y += deltaY * factorSuavizado;
+                    }
+                }
+
+                // CONTROL DE TECHO PARA EVITAR CORTE DE VISIÓN / PANTALLA NEGRA
+                if (GAME_STATE.esInterior && sueloMeshCache.length > 0) {
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z);
+                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirUp);
+                    RAYCASTER_REUTILIZABLE.far = 1.6;
+                    
+                    const choquesTecho = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
+                    if (choquesTecho.length > 0) {
+                        let distTecho = choquesTecho[0].distance;
+                        if (distTecho < 0.6) {
+                            // Ajusta suavemente la altura para no entrar a la losa superior
+                            GAME_STATE.pos.y -= (0.6 - distTecho) * 0.3;
+                        }
                     }
                 }
 
@@ -960,7 +949,7 @@
                     ENT.avatar.object3D.rotation.y += diff * CONFIG.suavizadoGiroAvatar;
                 }
 
-                gestionarPerspectivaYAvatar();
+                actualizarMallaAvatar();
 
                 if (GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo) {
                     GAME_STATE.stamina = Math.max(0, GAME_STATE.stamina - (CONFIG.staminaGasto * dt));
@@ -1076,7 +1065,7 @@
             GAME_STATE.stamina = CONFIG.staminaMax;
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
-            GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
+            GAME_STATE.cachedAlturaSuelo = 0;
             GAME_STATE.refugioActualNombre = '';
             GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
             
