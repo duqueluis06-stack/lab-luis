@@ -323,7 +323,8 @@
             dirHaciaTi: new THREE.Vector3(),
             rayOrigin: new THREE.Vector3(),
             rayDir: new THREE.Vector3(0, -1, 0),
-            dirAvance: new THREE.Vector3()
+            dirAvance: new THREE.Vector3(),
+            worldNormal: new THREE.Vector3()
         };
         const RAYCASTER_REUTILIZABLE = new THREE.Raycaster();
         
@@ -527,33 +528,20 @@
 
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
-                    const objName = (child.name || "").toLowerCase();
-                    
-                    // Registro general para cálculo de suelo y escaleras
+                    // REGISTRO TOTAL: Todas las mallas del GLTF son colisionables físicamente
                     sueloMeshCache.push(child);
+                    colisionBarrioCache.push(child);
 
-                    // Registro de barreras físicas frontales
-                    const esObstaculoFrontal = 
-                    objName.includes("tree") || objName.includes("arbol") || 
-                    objName.includes("trunk") || objName.includes("reja") ||
-                    objName.includes("pared") || objName.includes("wall") ||
-                    objName.includes("vidrio") || objName.includes("cristal") ||
-                    objName.includes("glass") || objName.includes("window") ||
-                    objName.includes("ventana") || objName.includes("puerta");
-
-                    if (esObstaculoFrontal) {
-                        colisionBarrioCache.push(child);
-                        if (child.geometry) {
-                            child.geometry.computeBoundingSphere();
-                            child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                            child.userData.worldRadius = child.geometry.boundingSphere.radius;
-                        }
+                    if (child.geometry) {
+                        if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+                        child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
+                        child.userData.worldRadius = child.geometry.boundingSphere.radius;
                     }
                 }
             });
         }
 
-        function obtenerColisionesCercanas(pos, maxDist = 10) {
+        function obtenerColisionesCercanas(pos, maxDist = 8) {
             let cercanas = [];
             for (let i = 0; i < colisionBarrioCache.length; i++) {
                 let mesh = colisionBarrioCache[i];
@@ -863,15 +851,17 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
+                // --- COLISIÓN HORIZONTAL SÓLIDA (Muros, Cristales y Estructuras) ---
                 let pasoPermitido = true;
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
                 if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
+                    // Raycast a la altura del pecho (0.9m) para bloquear sin frenar en escalones
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 0.55; 
+                    RAYCASTER_REUTILIZABLE.far = 0.65; 
 
                     const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanasPlayer, false);
                     if (choques.length > 0) {
@@ -884,10 +874,12 @@
                     GAME_STATE.pos.z = siguienteZ; 
                 }
 
+                // --- DETECCION DE SUELO Y ESCALERAS (Bloquea saltos al techo) ---
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
+                    // Raycast desde 0.5m sobre los pies para descartar tejados y techos superiores
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 3.5;
+                    RAYCASTER_REUTILIZABLE.far = 2.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -898,9 +890,20 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
-                            maxPuntoY = hit.point.y; 
-                            mejorAltura = hit.point.y; 
+                        
+                        if (hit.face) {
+                            V_POOL.worldNormal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+                        } else {
+                            V_POOL.worldNormal.set(0, 1, 0);
+                        }
+
+                        // Solo acepta planos horizontales orientados hacia arriba (suelos/escalones)
+                        // y NUNCA estructuras por encima del cuerpo actual (+0.45m máximo)
+                        if (V_POOL.worldNormal.y > 0.4 && hit.point.y <= (GAME_STATE.pos.y + 0.45)) {
+                            if (hit.point.y > maxPuntoY) {
+                                maxPuntoY = hit.point.y; 
+                                mejorAltura = hit.point.y; 
+                            }
                         }
                     }
                     
