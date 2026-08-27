@@ -265,7 +265,6 @@
         
         <a-assets>
             <a-asset-item id="pueblo-model" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/pueblo.glb" crossorigin="anonymous"></a-asset-item>
-            <a-asset-item id="casa-arquitecto-model" src="casa-arquitecto.glb" crossorigin="anonymous"></a-asset-item>
             <a-asset-item id="ww-beast-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/Werewolf_Beast.glb" crossorigin="anonymous"></a-asset-item>
             
             <a-asset-item id="luis-walk-src" src="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/luis-camina.glb" crossorigin="anonymous"></a-asset-item>
@@ -287,7 +286,6 @@
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
 
         <a-entity id="entorno" gltf-model="#pueblo-model" position="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
-        <a-entity id="casa-arquitecto" gltf-model="#casa-arquitecto-model" position="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
 
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
@@ -520,7 +518,7 @@
 
         const ENT = {
             scene: document.getElementById('escena-principal'), luzRelampago: document.getElementById('luz-relampago'),
-            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'), casaArquitecto: document.getElementById('casa-arquitecto'),
+            rig: document.getElementById('player-rig'), avatar: document.getElementById('avatar-container'), entorno: document.getElementById('entorno'),
             camYaw: document.getElementById('camera-yaw'), camPitch: document.getElementById('camera-pitch'),
             meshes: { walk: document.getElementById('luis-mesh-walk'), run: document.getElementById('luis-mesh-run'), atento: document.getElementById('luis-mesh-atento') },
             wwRig: document.getElementById('werewolf-rig'),
@@ -531,6 +529,8 @@
 
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
+            sueloMeshCache = [];
+            colisionBarrioCache = [];
 
             objetoRaiz.updateMatrixWorld(true);
 
@@ -542,7 +542,7 @@
                     let p = child;
                     while (p) {
                         let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("arquitecto")) {
+                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio")) {
                             esCasa = true;
                             break;
                         }
@@ -592,21 +592,19 @@
 
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
+            ZONAS_REFUGIO = [];
             
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
-                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model') || n.includes('arquitecto') || n.includes('casa')) {
+                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
                     let caja = new THREE.Box3().setFromObject(child);
                     caja.min.y -= 1.0;
-                    caja.max.y += 4.5;
+                    caja.max.y += 3.5;
                     
-                    // Evitar duplicar zonas de refugio
-                    if (!ZONAS_REFUGIO.some(z => z.nombre === n)) {
-                        ZONAS_REFUGIO.push({
-                            nombre: n,
-                            box: caja
-                        });
-                    }
+                    ZONAS_REFUGIO.push({
+                        nombre: n,
+                        box: caja
+                    });
                 }
             });
 
@@ -626,29 +624,18 @@
             let dz = dirVector.z;
 
             let pasoLoboPermitido = true;
-            let posFutura = loboPos.clone().add(new THREE.Vector3(dx * velocidad * dt, 0, dz * velocidad * dt));
+            let colisionesCercanas = obtenerColisionesCercanas(loboPos, 8);
+            
+            if (colisionesCercanas.length > 0) {
+                V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
+                V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
-            // Anticolisión: Impedir que el Hombre Lobo penetre en cualquier casa o refugio
-            for (let i = 0; i < ZONAS_REFUGIO.length; i++) {
-                if (ZONAS_REFUGIO[i].box.containsPoint(posFutura)) {
+                RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+                RAYCASTER_REUTILIZABLE.far = 1.2; 
+
+                const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
+                if (choquesLobo.length > 0) {
                     pasoLoboPermitido = false;
-                    break;
-                }
-            }
-
-            if (pasoLoboPermitido) {
-                let colisionesCercanas = obtenerColisionesCercanas(loboPos, 8);
-                if (colisionesCercanas.length > 0) {
-                    V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
-                    V_POOL.dirAvance.set(dx, 0, dz).normalize();
-
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 1.2; 
-
-                    const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
-                    if (choquesLobo.length > 0) {
-                        pasoLoboPermitido = false;
-                    }
                 }
             }
 
@@ -696,16 +683,6 @@
                     }
                 });
             }
-
-            if (ENT.casaArquitecto) {
-                ENT.casaArquitecto.addEventListener('model-loaded', () => {
-                    let mesh = ENT.casaArquitecto.getObject3D('mesh');
-                    if (mesh) {
-                        extraerMallasSuelo(mesh);
-                        escanearCasasAutomaticas(mesh);
-                    }
-                });
-            }
             
             UI.loaderAction.innerHTML = `<button id="btn-play-engine" style="background: var(--ui-red); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 16px 32px; font-weight: 900; border-radius: 8px; cursor: pointer; font-size: 14px; letter-spacing: 3px; box-shadow: 0 0 25px rgba(239,42,42,0.8); text-transform: uppercase;">¡ENTRAR AL SUEÑO!</button>`;
             
@@ -718,20 +695,10 @@
                     ENT.scene.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
                 }
 
-                sueloMeshCache = [];
-                colisionBarrioCache = [];
-                ZONAS_REFUGIO = [];
-
-                let meshPueblo = ENT.entorno ? ENT.entorno.getObject3D('mesh') : null;
-                if(meshPueblo) {
-                    extraerMallasSuelo(meshPueblo);
-                    escanearCasasAutomaticas(meshPueblo);
-                }
-
-                let meshCasa = ENT.casaArquitecto ? ENT.casaArquitecto.getObject3D('mesh') : null;
-                if(meshCasa) {
-                    extraerMallasSuelo(meshCasa);
-                    escanearCasasAutomaticas(meshCasa);
+                let mesh = ENT.entorno ? ENT.entorno.getObject3D('mesh') : null;
+                if(mesh) {
+                    extraerMallasSuelo(mesh);
+                    escanearCasasAutomaticas(mesh);
                 }
                 
                 GAME_STATE.introCompletada = false; 
@@ -835,11 +802,15 @@
             if (!camara) return;
 
             if (GAME_STATE.esInterior) {
-                const alturaCamara = 1.45; // Altura optimizada para vista en 1ª persona en interiores y escaleras
+                const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
+                                   GAME_STATE.refugioActualNombre.includes('casa_luis') || 
+                                   GAME_STATE.refugioActualNombre.includes('luis_model');
+
+                const alturaCamara = esCasaLuis ? 0.95 : 1.35;
 
                 if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
                     camara.object3D.position.set(0, alturaCamara, 0.0);
-                    camara.setAttribute('camera', 'fov', 75);
+                    camara.setAttribute('camera', 'fov', 65);
                     camara.setAttribute('camera', 'near', 0.05);
                     GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
                 }
@@ -941,9 +912,9 @@
                 }
 
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.5;
+                    RAYCASTER_REUTILIZABLE.far = 2.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -954,7 +925,7 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.4)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -978,10 +949,10 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.6) {
+                    if (Math.abs(deltaY) > 0.4) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        let factorSuavizado = GAME_STATE.esInterior ? 0.35 : 0.5;
+                        let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
                         GAME_STATE.pos.y += deltaY * factorSuavizado;
                     }
                 }
