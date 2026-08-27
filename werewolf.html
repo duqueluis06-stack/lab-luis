@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.8 (Custom Camera & Thermal Fix)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.8. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.9 (Fixed Collisions & Avatar)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.9. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -15,13 +15,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.9">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.9">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -296,7 +296,7 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.5 2.2">
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.3 2.0">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -497,7 +497,7 @@
             velY: 0, enElSuelo: true,
             modoCorrerActive: false, enCooldownSprint: false, inputMoviendo: false, isDead: false,
             loboEstado: 'GRACIA_INICIAL', lastFrameTime: 0,
-            esInterior: false, refugioActualNombre: '', camPerspectiveState: 'NONE', frameTicks: 0, cachedAlturaSuelo: 0,
+            esInterior: false, refugioActualNombre: '', frameTicks: 0, cachedAlturaSuelo: 0,
             aiTimer: 0, aiPuntoObjetivo: new THREE.Vector3(60, 0, -60), tiempoUltimoAullido: 0,
             tiempoContactoFisico: 0, tiempoGraciaInicial: 10.0
         };
@@ -532,74 +532,45 @@
 
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
-                    const objName = (child.name || "").toLowerCase();
+                    let fullPathName = "";
+                    let curr = child;
+                    while (curr) {
+                        fullPathName += (curr.name || "").toLowerCase() + " ";
+                        curr = curr.parent;
+                    }
+
+                    const isGround = fullPathName.includes("suelo") || fullPathName.includes("piso") || fullPathName.includes("ground") || fullPathName.includes("terrain") || fullPathName.includes("grass") || fullPathName.includes("grama");
+                    const isFoliageOrSky = fullPathName.includes("leave") || fullPathName.includes("hoja") || fullPathName.includes("sky") || fullPathName.includes("nube");
+
+                    // Si no es terreno plano o follaje, es un objeto/estructura con colisión física
+                    if (!isGround && !isFoliageOrSky) {
+                        colisionBarrioCache.push(child);
+                        if (child.geometry) {
+                            if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+                            let sphere = child.geometry.boundingSphere.clone();
+                            sphere.applyMatrix4(child.matrixWorld);
+                            child.userData.worldSphereCenter = sphere.center;
+                            child.userData.worldRadius = sphere.radius;
+                        }
+                    }
+
+                    // Mallas para detectar altura del suelo/escaleras
+                    const isWalkable = isGround || fullPathName.includes("escalera") || fullPathName.includes("stair") || fullPathName.includes("piso") || fullPathName.includes("floor") || fullPathName.includes("camino") || fullPathName.includes("road") || fullPathName.includes("acera") || fullPathName.includes("walkway");
                     
-                    let esCasa = false;
-                    let p = child;
-                    while (p) {
-                        let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("house_arquitecto") || pName.includes("arquitecto")) {
-                            esCasa = true;
-                            break;
-                        }
-                        p = p.parent;
-                    }
-
-                    if (!esCasa || objName.includes("reja") || objName.includes("escalera") || objName.includes("barandilla") || objName.includes("railing") || objName.includes("stair") || objName.includes("fence")) {
-                        colisionBarrioCache.push(child);
-                        if (child.geometry) {
-                            child.geometry.computeBoundingSphere();
-                            child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                            child.userData.worldRadius = child.geometry.boundingSphere.radius;
-                        }
-                    }
-
-                    const esObstaculoOTecho = 
-                        objName.includes("tree") || objName.includes("arbol") || 
-                        objName.includes("leave") || objName.includes("hoja") || 
-                        objName.includes("trunk") || objName.includes("branch") || 
-                        objName.includes("bush") || objName.includes("vidrio") ||
-                        objName.includes("cristal") || objName.includes("glass") ||
-                        objName.includes("window") || objName.includes("ventana") ||
-                        objName.includes("techo") || objName.includes("roof") || 
-                        objName.includes("ceiling") || objName.includes("cubierta");
-
-                    const esObstaculoColisionExtra =
-                        objName.includes("material-866a8a000088cbfa_67") ||
-                        objName.includes("object_134.008") ||
-                        objName.includes("object_134.026") ||
-                        objName.includes("reja") ||
-                        objName.includes("barandilla") ||
-                        objName.includes("railing") ||
-                        objName.includes("escalera") ||
-                        objName.includes("stair");
-
-                    if (esObstaculoColisionExtra && !colisionBarrioCache.includes(child)) {
-                        colisionBarrioCache.push(child);
-                        
-                        if (child.geometry) {
-                            child.geometry.computeBoundingSphere();
-                            child.userData.worldSphereCenter =
-                                child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                            child.userData.worldRadius =
-                                child.geometry.boundingSphere.radius;
-                        }
-                    }
-
-                    if (!esObstaculoOTecho) {
+                    if (isWalkable || (!fullPathName.includes("techo") && !fullPathName.includes("roof") && !fullPathName.includes("ceiling"))) {
                         sueloMeshCache.push(child);
                     }
                 }
             });
         }
 
-        function obtenerColisionesCercanas(pos, maxDist = 10) {
+        function obtenerColisionesCercanas(pos, maxDist = 8) {
             let cercanas = [];
             for (let i = 0; i < colisionBarrioCache.length; i++) {
                 let mesh = colisionBarrioCache[i];
                 if (mesh.userData && mesh.userData.worldSphereCenter) {
                     let d = pos.distanceTo(mesh.userData.worldSphereCenter);
-                    if (d < maxDist + mesh.userData.worldRadius) {
+                    if (d < maxDist + (mesh.userData.worldRadius || 2)) {
                         cercanas.push(mesh);
                     }
                 } else {
@@ -646,11 +617,11 @@
             let colisionesCercanas = obtenerColisionesCercanas(loboPos, 8);
             
             if (colisionesCercanas.length > 0) {
-                V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.9, loboPos.z);
+                V_POOL.rayOrigin.set(loboPos.x, loboPos.y + 0.6, loboPos.z);
                 V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                 RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                RAYCASTER_REUTILIZABLE.far = 1.2; 
+                RAYCASTER_REUTILIZABLE.far = 1.0;
 
                 const choquesLobo = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanas, false);
                 if (choquesLobo.length > 0) {
@@ -820,33 +791,22 @@
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
+            // Ajuste suave de altura de cámara (bajada ligera en interiores para no atravesar techos al subir escaleras)
             if (GAME_STATE.esInterior) {
-                const esCasaBaja = GAME_STATE.refugioActualNombre.includes('casaluis') || 
-                                  GAME_STATE.refugioActualNombre.includes('casa_luis') || 
-                                  GAME_STATE.refugioActualNombre.includes('luis_model') ||
-                                  GAME_STATE.refugioActualNombre.includes('house_arquitecto') ||
-                                  GAME_STATE.refugioActualNombre.includes('arquitecto');
-
-                const alturaCamara = esCasaBaja ? 0.75 : 0.85;
-
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
-                    camara.object3D.position.set(0, alturaCamara, 0.0);
-                    camara.setAttribute('camera', 'fov', 65);
-                    camara.setAttribute('camera', 'near', 0.05);
-                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
-                }
-                for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
+                camara.object3D.position.set(0, 1.1, 1.6);
+                camara.setAttribute('camera', 'fov', 65);
             } else {
-                if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camara.object3D.position.set(0, 1.5, 2.2); 
-                    camara.setAttribute('camera', 'fov', 70);
-                    camara.setAttribute('camera', 'near', 0.1);
-                    GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
-                }
-                let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
-                for (let key in ENT.meshes) {
-                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
-                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
+                camara.object3D.position.set(0, 1.3, 2.0);
+                camara.setAttribute('camera', 'fov', 70);
+            }
+
+            // El avatar PERMANECE VISIBLE siempre a escala 0.45 0.45 0.45
+            let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
+            for (let key in ENT.meshes) {
+                if (key === meshActivo) {
+                    ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
+                } else {
+                    ENT.meshes[key].setAttribute('scale', '0 0 0');
                 }
             }
         }
@@ -914,12 +874,13 @@
                 let pasoPermitido = true;
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0 && !GAME_STATE.esInterior) {
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
+                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
+                    // Raycast a la altura del cuerpo del avatar scaled (Y + 0.4) para no traspasar rejas ni muros
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.4, GAME_STATE.pos.z);
                     V_POOL.dirAvance.set(dx, 0, dz).normalize();
 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 0.55; 
+                    RAYCASTER_REUTILIZABLE.far = 0.7; 
 
                     const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanasPlayer, false);
                     if (choques.length > 0) {
@@ -1105,8 +1066,7 @@
             GAME_STATE.stamina = CONFIG.staminaMax;
             GAME_STATE.modoCorrerActive = false; GAME_STATE.enCooldownSprint = false; GAME_STATE.esInterior = false;
             GAME_STATE.isDead = false; GAME_STATE.aiTimer = 0; GAME_STATE.tiempoContactoFisico = 0;
-            GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.camPerspectiveState = 'NONE';
-            GAME_STATE.refugioActualNombre = '';
+            GAME_STATE.cachedAlturaSuelo = 0; GAME_STATE.refugioActualNombre = '';
             GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
             
             ENT.rig.object3D.position.set(0, 0, 25);
