@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v15.9</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.9. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v16.0</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.0. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.9">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v16.0">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.9">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.0">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -80,6 +80,7 @@
             font-family: 'Segoe UI', Roboto, sans-serif; 
             background-color: var(--bg-dark); user-select: none; 
             -webkit-user-select: none; color: #fff;
+            touch-action: none;
         }
 
         #custom-loader { 
@@ -152,8 +153,8 @@
         }
 
         #btn-sprint { 
-            position: fixed; bottom: 30px; left: 30px; width: 68px; height: 68px; 
-            border-radius: 50%; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;
+            position: fixed; bottom: 30px; left: 30px; width: 75px; height: 75px; 
+            border-radius: 50%; font-size: 11px; font-weight: 900; letter-spacing: 0.5px;
             text-transform: uppercase; border: 3px solid #ff0055; background: #070a14;
             box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); z-index: 1000; pointer-events: auto; color: #fff;
         }
@@ -174,9 +175,9 @@
         #fade-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9990; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
 
         .control-wrapper { position: absolute; z-index: 999; pointer-events: auto; }
-        #joystick-wrapper { bottom: 30px; right: 30px; width: 100px; height: 100px; }
-        #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; position: relative; touch-action: none; }
-        #joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); touch-action: none; }
+        #joystick-wrapper { bottom: 25px; right: 25px; width: 120px; height: 120px; }
+        #joystick-container { width: 100%; height: 100%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; position: relative; touch-action: none; cursor: pointer; }
+        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: var(--ui-red); border-radius: 50%; box-shadow: 0 0 15px rgba(255, 42, 42, 0.7); touch-action: none; pointer-events: none; }
 
         #telemetry-hud {
             position: fixed; 
@@ -528,7 +529,6 @@
 
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
-                    // REGISTRO TOTAL: Todas las mallas del GLTF son colisionables físicamente
                     sueloMeshCache.push(child);
                     colisionBarrioCache.push(child);
 
@@ -582,6 +582,30 @@
                 );
                 ZONAS_REFUGIO.push({ nombre: 'default', box: defaultBox });
             }
+        }
+
+        // SENSOR MULTIRRAYO EN ABANICO (Detecta cristales y muros delgados)
+        function verificarPasoLibre(posActual, vecDirX, vecDirZ, colisiones) {
+            if (colisiones.length === 0) return true;
+            
+            const distRevision = 0.55; 
+            const angulos = [0, -0.42, 0.42]; 
+
+            for (let i = 0; i < angulos.length; i++) {
+                let ang = angulos[i];
+                let rx = vecDirX * Math.cos(ang) - vecDirZ * Math.sin(ang);
+                let rz = vecDirX * Math.sin(ang) + vecDirZ * Math.cos(ang);
+
+                V_POOL.rayOrigin.set(posActual.x, posActual.y + 0.8, posActual.z);
+                V_POOL.dirAvance.set(rx, 0, rz).normalize();
+                
+                RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+                RAYCASTER_REUTILIZABLE.far = distRevision;
+
+                let choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisiones, false);
+                if (choques.length > 0) return false;
+            }
+            return true;
         }
 
         function moverLoboConColision(loboPos, dirVector, velocidad, dt) {
@@ -740,20 +764,57 @@
                 toggleSprint(!GAME_STATE.modoCorrerActive);
             });
 
+            // JOYSTICK FLUIDO CON CAPTURA MULTITÁCTIL DIRECTA
             const knob = document.getElementById('joystick-knob');
             const container = document.getElementById('joystick-container');
-            let joyActive = false; let jStartX = 0, jStartY = 0;
+            let joyActive = false;
+            let joyPointerId = null;
+            let jStartX = 0, jStartY = 0;
 
-            knob.addEventListener('pointerdown', (e) => { joyActive = true; const rect = container.getBoundingClientRect(); jStartX = rect.left + rect.width / 2; jStartY = rect.top + rect.height / 2; });
-            window.addEventListener('pointermove', e => {
-                if (!joyActive) return;
-                let dx = e.clientX - jStartX; let dy = e.clientY - jStartY;
-                const maxLen = 35; const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist > maxLen) { dx = (dx / dist) * maxLen; dy = (dy / dist) * maxLen; }
+            const actualizarJoystick = (clientX, clientY) => {
+                let dx = clientX - jStartX;
+                let dy = clientY - jStartY;
+                const maxLen = 42;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > maxLen) {
+                    dx = (dx / dist) * maxLen;
+                    dy = (dy / dist) * maxLen;
+                }
                 knob.style.transform = `translate(${dx}px, ${dy}px)`;
-                INPUT.joyMove.x = dx / maxLen; INPUT.joyMove.y = dy / maxLen;
+                INPUT.joyMove.x = dx / maxLen;
+                INPUT.joyMove.y = dy / maxLen;
+            };
+
+            container.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                joyActive = true;
+                joyPointerId = e.pointerId;
+                try { container.setPointerCapture(e.pointerId); } catch(err){}
+                
+                const rect = container.getBoundingClientRect();
+                jStartX = rect.left + rect.width / 2;
+                jStartY = rect.top + rect.height / 2;
+                actualizarJoystick(e.clientX, e.clientY);
             });
-            window.addEventListener('pointerup', () => { joyActive = false; knob.style.transform = 'translate(0px,0px)'; INPUT.joyMove.x = 0; INPUT.joyMove.y = 0; });
+
+            container.addEventListener('pointermove', (e) => {
+                if (!joyActive || e.pointerId !== joyPointerId) return;
+                actualizarJoystick(e.clientX, e.clientY);
+            });
+
+            const finalizarJoystick = (e) => {
+                if (joyPointerId !== null && e.pointerId === joyPointerId) {
+                    joyActive = false;
+                    joyPointerId = null;
+                    knob.style.transform = 'translate(0px,0px)';
+                    INPUT.joyMove.x = 0;
+                    INPUT.joyMove.y = 0;
+                    try { container.releasePointerCapture(e.pointerId); } catch(err){}
+                }
+            };
+
+            container.addEventListener('pointerup', finalizarJoystick);
+            container.addEventListener('pointercancel', finalizarJoystick);
         }
 
         function toggleSprint(active) {
@@ -836,9 +897,6 @@
                 let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
                 let dz = mz * Math.cos(angle) - mx * Math.sin(angle);
 
-                let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
-                let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
-
                 let deVerdadEstaDentro = false;
                 GAME_STATE.refugioActualNombre = '';
 
@@ -851,41 +909,40 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // --- COLISIÓN HORIZONTAL SÓLIDA (Muros, Cristales y Estructuras) ---
-                let pasoPermitido = true;
+                // --- SISTEMA DE NAVEGACIÓN CON DESLIZAMIENTO DE PAREDES (Wall-Sliding) ---
                 let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
 
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
-                    // Raycast a la altura del pecho (0.9m) para bloquear sin frenar en escalones
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
-                    V_POOL.dirAvance.set(dx, 0, dz).normalize();
+                if (GAME_STATE.inputMoviendo) {
+                    let intentoX = GAME_STATE.pos.x + dx * speed * dt;
+                    let intentoZ = GAME_STATE.pos.z + dz * speed * dt;
 
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 0.65; 
-
-                    const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanasPlayer, false);
-                    if (choques.length > 0) {
-                        pasoPermitido = false; 
+                    // 1. Probar avance directo (diagonal)
+                    if (verificarPasoLibre(GAME_STATE.pos, dx, dz, colisionesCercanasPlayer)) {
+                        GAME_STATE.pos.x = intentoX;
+                        GAME_STATE.pos.z = intentoZ;
+                    } else {
+                        // 2. Deslizamiento por Paredes en X (Permite bordear esquinas y escaleras)
+                        if (Math.abs(dx) > 0.01 && verificarPasoLibre(GAME_STATE.pos, Math.sign(dx), 0, colisionesCercanasPlayer)) {
+                            GAME_STATE.pos.x = intentoX;
+                        }
+                        // 3. Deslizamiento por Paredes en Z
+                        if (Math.abs(dz) > 0.01 && verificarPasoLibre(GAME_STATE.pos, 0, Math.sign(dz), colisionesCercanasPlayer)) {
+                            GAME_STATE.pos.z = intentoZ;
+                        }
                     }
                 }
 
-                if (GAME_STATE.inputMoviendo && pasoPermitido) { 
-                    GAME_STATE.pos.x = siguienteX; 
-                    GAME_STATE.pos.z = siguienteZ; 
-                }
-
-                // --- DETECCION DE SUELO Y ESCALERAS (Bloquea saltos al techo) ---
+                // --- DETECCION DE SUELO Y ESCALERAS OPTIMIZADA ---
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    // Raycast desde 0.5m sobre los pies para descartar tejados y techos superiores
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.6, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.0;
+                    RAYCASTER_REUTILIZABLE.far = 2.2;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
-                    const OFFSET_PIES = 0.08; 
+                    const OFFSET_PIES = 0.06; 
                     const ALTURA_BASE_MAPA = 0.0;
 
                     for (let i = 0; i < colisiones.length; i++) {
@@ -897,9 +954,8 @@
                             V_POOL.worldNormal.set(0, 1, 0);
                         }
 
-                        // Solo acepta planos horizontales orientados hacia arriba (suelos/escalones)
-                        // y NUNCA estructuras por encima del cuerpo actual (+0.45m máximo)
-                        if (V_POOL.worldNormal.y > 0.4 && hit.point.y <= (GAME_STATE.pos.y + 0.45)) {
+                        // Permite subir peldaños de hasta 0.55m sin atascos
+                        if (V_POOL.worldNormal.y > 0.35 && hit.point.y <= (GAME_STATE.pos.y + 0.55)) {
                             if (hit.point.y > maxPuntoY) {
                                 maxPuntoY = hit.point.y; 
                                 mejorAltura = hit.point.y; 
@@ -925,10 +981,10 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.4) {
+                    if (Math.abs(deltaY) > 0.5) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        GAME_STATE.pos.y += deltaY * 0.4;
+                        GAME_STATE.pos.y += deltaY * 0.45;
                     }
                 }
 
