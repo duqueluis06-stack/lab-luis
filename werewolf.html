@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO Normal & Meta Etiquetas -->
-    <title>ARK - Werewolf Nightmare v15.8 (Custom Camera & Thermal Fix)</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.8. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v15.9 (Fixed House Physics & OTS Camera)</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v15.9. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -15,13 +15,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v15.9">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.8">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v15.9">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -279,7 +279,7 @@
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
         </a-entity>
         
-        <!-- Lluvia reducida para optimización térmica -->
+        <!-- Lluvia optimizada -->
         <a-entity particle-system="preset: rain; color: #333; particleCount: 100; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
@@ -293,14 +293,14 @@
         <!-- RIG JUGADOR -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
-                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0.38 0.38 0.38" fix-animacion="clip: *; loop: repeat;"></a-entity>
                 <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.38 0.38 0.38" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.5 2.2">
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.05; far: 300;" position="0 1.6 2.0">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -527,6 +527,7 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
+        // REGISTRO TOTAL DE COLISIONES SÓLIDAS Y TERRENOS TRANSITABLES
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -536,46 +537,21 @@
 
             objetoRaiz.traverse(child => {
                 if (child.isMesh) {
-                    const objName = (child.name || "").toLowerCase();
-                    
-                    let esCasa = false;
-                    let p = child;
-                    while (p) {
-                        let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("casa-arquitecto") || pName.includes("casa_arquitecto") || pName.includes("arquitecto")) {
-                            esCasa = true;
-                            break;
-                        }
-                        p = p.parent;
+                    // Todas las mallas del escenario actúan como obstáculos sólidos para los rayos horizontales
+                    colisionBarrioCache.push(child);
+                    if (child.geometry) {
+                        if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+                        child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
+                        child.userData.worldRadius = child.geometry.boundingSphere.radius;
                     }
 
-                    if (!esCasa || objName.includes("mueble") || objName.includes("reja") || objName.includes("piscina") || objName.includes("pared") || objName.includes("wall") || objName.includes("fence") || objName.includes("pool") || objName.includes("furniture")) {
-                        colisionBarrioCache.push(child);
-                        if (child.geometry) {
-                            child.geometry.computeBoundingSphere();
-                            child.userData.worldSphereCenter = child.geometry.boundingSphere.center.clone().applyMatrix4(child.matrixWorld);
-                            child.userData.worldRadius = child.geometry.boundingSphere.radius;
-                        }
-                    }
-
-                    const esObstaculoOTecho = 
-                        objName.includes("tree") || objName.includes("arbol") || 
-                        objName.includes("leave") || objName.includes("hoja") || 
-                        objName.includes("trunk") || objName.includes("branch") || 
-                        objName.includes("bush") || objName.includes("reja") ||
-                        objName.includes("techo") || objName.includes("roof") || 
-                        objName.includes("ceiling") || objName.includes("pared") || 
-                        objName.includes("wall") || objName.includes("cubierta") ||
-                        objName.includes("mueble") || objName.includes("piscina") || objName.includes("fence") || objName.includes("pool") || objName.includes("furniture");
-
-                    if (!esObstaculoOTecho || objName.includes("escalera") || objName.includes("stair") || objName.includes("step")) {
-                        sueloMeshCache.push(child);
-                    }
+                    // Todas las mallas son candidatas a piso/escaleras para la gravedad
+                    sueloMeshCache.push(child);
                 }
             });
         }
 
-        function obtenerColisionesCercanas(pos, maxDist = 10) {
+        function obtenerColisionesCercanas(pos, maxDist = 8) {
             let cercanas = [];
             for (let i = 0; i < colisionBarrioCache.length; i++) {
                 let mesh = colisionBarrioCache[i];
@@ -591,6 +567,7 @@
             return cercanas;
         }
 
+        // ES CANEO AJUSTADO DE CASAS (SOLO SE ACTIVA AL ESTAR ESTRICTAMENTE DENTRO)
         function escanearCasasAutomaticas(rootNode) {
             if (!rootNode) return;
             ZONAS_REFUGIO = [];
@@ -599,7 +576,13 @@
                 let n = (child.name || "").toLowerCase();
                 if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model') || n.includes('casa-arquitecto') || n.includes('casa_arquitecto') || n.includes('arquitecto')) {
                     let caja = new THREE.Box3().setFromObject(child);
-                    caja.min.y -= 1.0;
+                    
+                    // Reducir la caja hacia adentro para requerir estar dentro de las paredes
+                    caja.min.x += 0.5;
+                    caja.max.x -= 0.5;
+                    caja.min.z += 0.5;
+                    caja.max.z -= 0.5;
+                    caja.min.y -= 0.1;
                     caja.max.y += 3.5;
                     
                     ZONAS_REFUGIO.push({
@@ -611,11 +594,37 @@
 
             if (ZONAS_REFUGIO.length === 0) {
                 let defaultBox = new THREE.Box3(
-                    new THREE.Vector3(-4.5, -2.0, -4.5),
-                    new THREE.Vector3(4.5, 4.0, 4.5)
+                    new THREE.Vector3(-4.0, -1.0, -4.0),
+                    new THREE.Vector3(4.0, 3.5, 4.0)
                 );
                 ZONAS_REFUGIO.push({ nombre: 'default', box: defaultBox });
             }
+        }
+
+        // VERIFICACIÓN MULTI-ALTURA DE COLISIÓN DE PAREDES CON DESLIZAMIENTO
+        function hayColisionPared(posOriginal, posX, posZ) {
+            let dx = posX - posOriginal.x;
+            let dz = posZ - posOriginal.z;
+            let dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < 0.0001) return false;
+
+            V_POOL.dirAvance.set(dx, 0, dz).normalize();
+            let cerca = obtenerColisionesCercanas(posOriginal, 5);
+            if (cerca.length === 0) return false;
+
+            // Nivel 1: Cadera (0.5m)
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.5, posOriginal.z);
+            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+            RAYCASTER_REUTILIZABLE.far = dist + 0.45;
+            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
+
+            // Nivel 2: Pecho (1.2m)
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.2, posOriginal.z);
+            RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
+            RAYCASTER_REUTILIZABLE.far = dist + 0.45;
+            if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
+
+            return false;
         }
 
         function moverLoboConColision(loboPos, dirVector, velocidad, dt) {
@@ -798,36 +807,33 @@
             }
         }
 
+        // CÁMARA AJUSTADA: PERSPECTIVA CERCANA EN INTERIORES MANTENIENDO VISIBLE AL AVATAR
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
 
+            let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
+
             if (GAME_STATE.esInterior) {
-                const esCasaLuis = GAME_STATE.refugioActualNombre.includes('casaluis') || 
-                                   GAME_STATE.refugioActualNombre.includes('casa_luis') || 
-                                   GAME_STATE.refugioActualNombre.includes('luis_model');
-                
-                const esCasaArquitecto = GAME_STATE.refugioActualNombre.includes('casa-arquitecto') || 
-                                         GAME_STATE.refugioActualNombre.includes('casa_arquitecto') || 
-                                         GAME_STATE.refugioActualNombre.includes('arquitecto');
-
-                const alturaCamara = (esCasaLuis || esCasaArquitecto) ? 0.95 : 1.35;
-
-                if (GAME_STATE.camPerspectiveState !== 'FIRST_PERSON' || camara.object3D.position.y !== alturaCamara) {
-                    camara.object3D.position.set(0, alturaCamara, 0.0);
-                    camara.setAttribute('camera', 'fov', 65);
+                // Vista de cerca sobre el hombro (OTS) para interiores
+                if (GAME_STATE.camPerspectiveState !== 'INTERIOR_OTS') {
+                    camara.object3D.position.set(0.3, 1.4, 1.2); 
+                    camara.setAttribute('camera', 'fov', 70);
                     camara.setAttribute('camera', 'near', 0.05);
-                    GAME_STATE.camPerspectiveState = 'FIRST_PERSON';
+                    GAME_STATE.camPerspectiveState = 'INTERIOR_OTS';
                 }
-                for (let key in ENT.meshes) { ENT.meshes[key].setAttribute('scale', '0 0 0'); }
+                for (let key in ENT.meshes) {
+                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
+                    else ENT.meshes[key].setAttribute('scale', '0 0 0');
+                }
             } else {
+                // Vista estándar en tercera persona para exteríores
                 if (GAME_STATE.camPerspectiveState !== 'THIRD_PERSON') {
-                    camara.object3D.position.set(0, 1.5, 2.2); 
+                    camara.object3D.position.set(0, 1.6, 2.0); 
                     camara.setAttribute('camera', 'fov', 70);
                     camara.setAttribute('camera', 'near', 0.1);
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
-                let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
                 for (let key in ENT.meshes) {
                     if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
                     else ENT.meshes[key].setAttribute('scale', '0 0 0');
@@ -883,6 +889,7 @@
                 let siguienteX = GAME_STATE.pos.x + dx * speed * dt;
                 let siguienteZ = GAME_STATE.pos.z + dz * speed * dt;
 
+                // ESCANEO PRECISO DE REFUGIO
                 let deVerdadEstaDentro = false;
                 GAME_STATE.refugioActualNombre = '';
 
@@ -895,42 +902,42 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                let pasoPermitido = true;
-                let colisionesCercanasPlayer = obtenerColisionesCercanas(GAME_STATE.pos, 6);
-
-                if (GAME_STATE.inputMoviendo && colisionesCercanasPlayer.length > 0) {
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.9, GAME_STATE.pos.z);
-                    V_POOL.dirAvance.set(dx, 0, dz).normalize();
-
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-                    RAYCASTER_REUTILIZABLE.far = 0.55; 
-
-                    const choques = RAYCASTER_REUTILIZABLE.intersectObjects(colisionesCercanasPlayer, false);
-                    if (choques.length > 0) {
-                        pasoPermitido = false; 
+                // MOVI MIENTO JUGADOR CON DETECCIÓN DE PAREDES Y SLIDING
+                if (GAME_STATE.inputMoviendo) {
+                    let choqueTotal = hayColisionPared(GAME_STATE.pos, siguienteX, siguienteZ);
+                    if (!choqueTotal) {
+                        GAME_STATE.pos.x = siguienteX;
+                        GAME_STATE.pos.z = siguienteZ;
+                    } else {
+                        // Probar deslizamiento en eje X
+                        let choqueX = hayColisionPared(GAME_STATE.pos, siguienteX, GAME_STATE.pos.z);
+                        if (!choqueX) {
+                            GAME_STATE.pos.x = siguienteX;
+                        }
+                        // Probar deslizamiento en eje Z
+                        let choqueZ = hayColisionPared(GAME_STATE.pos, GAME_STATE.pos.x, siguienteZ);
+                        if (!choqueZ) {
+                            GAME_STATE.pos.z = siguienteZ;
+                        }
                     }
                 }
 
-                if (GAME_STATE.inputMoviendo && pasoPermitido) { 
-                    GAME_STATE.pos.x = siguienteX; 
-                    GAME_STATE.pos.z = siguienteZ; 
-                }
-
+                // LECTURA PRECISA DE SUELO Y ESCALERAS
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 3.0;
+                    RAYCASTER_REUTILIZABLE.far = 4.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
-                    const OFFSET_PIES = 0.08; 
+                    const OFFSET_PIES = 0.05; 
                     const ALTURA_BASE_MAPA = 0.0;
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.0)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
@@ -954,10 +961,10 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.4) {
+                    if (Math.abs(deltaY) > 0.5) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        let factorSuavizado = GAME_STATE.esInterior ? 0.3 : 0.5;
+                        let factorSuavizado = 0.4;
                         GAME_STATE.pos.y += deltaY * factorSuavizado;
                     }
                 }
