@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v17.0</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v17.0. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v17.1</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v17.1. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v17.0">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v17.1">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v17.0">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v17.1">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -285,9 +285,9 @@
         <!-- RIG JUGADOR -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
-                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0 0 0" fix-animacion="clip: *; loop: repeat;"></a-entity>
-                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.45 0.45 0.45" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0.45 0.45 0.45" visible="false" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-run" gltf-model="#luis-run-src" scale="0.45 0.45 0.45" visible="false" fix-animacion="clip: *; loop: repeat;"></a-entity>
+                <a-entity id="luis-mesh-atento" gltf-model="#luis-atento-src" scale="0.45 0.45 0.45" visible="true" fix-animacion="clip: *; loop: repeat;"></a-entity>
             </a-entity>
 
             <a-entity id="camera-yaw" rotation="0 0 0">
@@ -474,14 +474,14 @@
         window.addEventListener('keydown', unlockAudioContext);
 
         const CONFIG = {
-            velCaminar: 2.1,           
-            velCorrer: 4.5,            
+            velCaminar: 3.2,           
+            velCorrer: 6.2,            
             suavizadoGiroAvatar: 0.25,
             staminaMax: 200, 
             staminaGasto: 15.0,        
             staminaRecuperacion: 20.0,  
-            wwVelAcecho: 0.85,  
-            wwVelAtaque: 2.3,   
+            wwVelAcecho: 0.95,  
+            wwVelAtaque: 2.6,   
             distDeteccionLobo: 85, 
             distAtaqueLobo: 14,
             tiempoForcejeoMax: 2.5     
@@ -562,13 +562,13 @@
             }
         }
 
-        // DETECCION DE COLISIÓN MULTI-ALTURA (Detecta rejas finas y muros)
+        // Detección de colisión lateral ajustada para no trabar escalones de subida
         function verificarPasoLibre(posActual, vecDirX, vecDirZ, colisiones) {
             if (colisiones.length === 0) return true;
             
-            const distRevision = 0.65; 
-            const angulos = [0, -0.45, 0.45]; 
-            const alturasPrueba = [0.3, 0.9, 1.4]; // Pies, Cintura y Pecho
+            const distRevision = 0.55; 
+            const angulos = [0, -0.4, 0.4]; 
+            const alturasPrueba = [0.45, 1.0, 1.5]; // 0.45m por encima del escalón, cintura y pecho
 
             for (let h = 0; h < alturasPrueba.length; h++) {
                 let alt = alturasPrueba[h];
@@ -590,10 +590,10 @@
             return true;
         }
 
-        // FRENO DE SEGURIDAD PARA EVITAR CAER AL VACÍO
+        // Freno preventivo para caídas al vacío
         function haySueloMasAdelante(intentoX, intentoY, intentoZ) {
             if (sueloMeshCache.length === 0) return true;
-            V_POOL.rayOrigin.set(intentoX, intentoY + 0.8, intentoZ);
+            V_POOL.rayOrigin.set(intentoX, intentoY + 1.2, intentoZ);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
             RAYCASTER_REUTILIZABLE.far = 3.5;
             let choquesAbajo = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
@@ -815,7 +815,8 @@
             }
         }
 
-        // VISTA EN TERCERA PERSONA SIEMPRE ACTIVA (Avatar visible en todo momento)
+        // Conmutación limpia de visibilidad para animaciones fluidas
+        let ultimoMeshActivo = '';
         function gestionarPerspectivaYAvatar() {
             const camara = document.getElementById('main-camera');
             if (!camara) return;
@@ -825,9 +826,16 @@
             camara.setAttribute('camera', 'near', 0.1);
 
             let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
-            for (let key in ENT.meshes) {
-                if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
-                else ENT.meshes[key].setAttribute('scale', '0 0 0');
+            
+            if (meshActivo !== ultimoMeshActivo) {
+                for (let key in ENT.meshes) {
+                    if (key === meshActivo) {
+                        ENT.meshes[key].setAttribute('visible', 'true');
+                    } else {
+                        ENT.meshes[key].setAttribute('visible', 'false');
+                    }
+                }
+                ultimoMeshActivo = meshActivo;
             }
         }
 
@@ -870,7 +878,10 @@
                 if (INPUT.keys.a) mx = -1; if (INPUT.keys.d) mx = 1;
                 if (Math.abs(INPUT.joyMove.x) > 0.05 || Math.abs(INPUT.joyMove.y) > 0.05) { mx = INPUT.joyMove.x; mz = INPUT.joyMove.y; }
 
-                GAME_STATE.inputMoviendo = (Math.abs(mx) > 0.05 || Math.abs(mz) > 0.05);
+                let len = Math.sqrt(mx * mx + mz * mz);
+                if (len > 0.01) { mx /= len; mz /= len; }
+
+                GAME_STATE.inputMoviendo = (len > 0.05);
                 let speed = GAME_STATE.modoCorrerActive ? CONFIG.velCorrer : CONFIG.velCaminar;
                 let angle = INPUT.camYaw;
                 let dx = mx * Math.cos(angle) + mz * Math.sin(angle);
@@ -888,7 +899,7 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // NAVEGACIÓN Y COLISIONES (Con freno anti-caída)
+                // NAVEGACIÓN Y COLISIONES LATERALES
                 if (GAME_STATE.inputMoviendo) {
                     let intentoX = GAME_STATE.pos.x + dx * speed * dt;
                     let intentoZ = GAME_STATE.pos.z + dz * speed * dt;
@@ -910,11 +921,11 @@
                     }
                 }
 
-                // DETECCIÓN DE SUELO Y ESCALERAS OPTIMIZADA (Evita levitación en pasillos estrechos)
+                // DETECCIÓN Y SUBIDA CONTINUA DE ESCALERAS
                 if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z); 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 2.5;
+                    RAYCASTER_REUTILIZABLE.far = 3.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -930,8 +941,8 @@
                             V_POOL.worldNormal.set(0, 1, 0);
                         }
 
-                        // Solo acepta planos horizontales (normal.y > 0.65) y peldaños de máximo 0.38m para evitar levitaciones con techos/marcos
-                        if (V_POOL.worldNormal.y > 0.65 && hit.point.y <= (GAME_STATE.pos.y + 0.38)) {
+                        // Acepta pendientes y peldaños hasta una diferencia de 0.5m
+                        if (V_POOL.worldNormal.y > 0.5 && hit.point.y <= (GAME_STATE.pos.y + 0.5)) {
                             if (mejorAltura === null || hit.point.y > mejorAltura) {
                                 mejorAltura = hit.point.y; 
                             }
@@ -956,10 +967,10 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.4) {
+                    if (Math.abs(deltaY) > 0.6) {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     } else {
-                        GAME_STATE.pos.y += deltaY * 0.4;
+                        GAME_STATE.pos.y += deltaY * 12.0 * dt;
                     }
                 }
 
@@ -1093,6 +1104,7 @@
             GAME_STATE.cachedAlturaSuelo = 0;
             GAME_STATE.refugioActualNombre = '';
             GAME_STATE.velY = 0; GAME_STATE.enElSuelo = true;
+            ultimoMeshActivo = '';
             
             ENT.rig.object3D.position.set(0, 0, 25);
             ENT.wwRig.object3D.position.set(60, 0, -60);
@@ -1102,8 +1114,8 @@
             UI.btnSprint.classList.remove('active', 'cooldown');
             UI.fade.style.opacity = "0"; UI.damage.className = ''; UI.jumpscare.classList.remove('active');
 
-            for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.45 0.45 0.45');
+            for (let key in ENT.meshes) ENT.meshes[key].setAttribute('visible', 'false');
+            if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('visible', 'true');
             
             GAME_STATE.introCompletada = false;
             AudioController.reproducirMusicaFondo();
