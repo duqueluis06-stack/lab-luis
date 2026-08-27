@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v17.1</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v17.1. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
+    <title>ARK - Werewolf Nightmare v17.2</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v17.2. Explora el entorno 3D, gestiona tu energía y busca refugio antes de ser atrapado por la bestia.">
     <meta name="keywords" content="ARK, Werewolf Nightmare, juego 3D web, WebGL, A-Frame, survival horror, juego navegador">
     <link rel="canonical" href="https://duquemartini.com/werewolf.html">
     
@@ -14,13 +14,13 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v17.1">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v17.2">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. ¿Lograrás escapar del Hombre Lobo y llegar al refugio?">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v17.1">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v17.2">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador en A-Frame.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -282,7 +282,7 @@
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
 
-        <!-- RIG JUGADOR ORIGINAL RESTAURADO -->
+        <!-- RIG JUGADOR ORIGINAL -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0.45 0.45 0.45" visible="false" fix-animacion="clip: *; loop: repeat;"></a-entity>
@@ -473,7 +473,6 @@
         window.addEventListener('touchstart', unlockAudioContext);
         window.addEventListener('keydown', unlockAudioContext);
 
-        // VELOCIDADES Y VALORES ORIGINALES ESTABLES RESTAURADOS
         const CONFIG = {
             velCaminar: 2.2,           
             velCorrer: 4.8,            
@@ -521,6 +520,7 @@
 
         const INPUT = { keys: { w: false, a: false, s: false, d: false }, joyMove: { x: 0, y: 0 }, camYaw: 0, camPitch: 0, isDraggingCam: false, lastMouseX: 0, lastMouseY: 0 };
 
+        // FILTRADO DE MALLAS EXACTO
         function extraerMallasSuelo(objetoRaiz) {
             if (!objetoRaiz) return;
             sueloMeshCache = [];
@@ -563,13 +563,13 @@
             }
         }
 
-        // COLISIÓN LATERAL ORIGINAL RESTAURADA (Muros y Rejas Firmes)
+        // COLISIÓN LATERAL MULTIDIRECCIONAL (8 DIRECCIONES Y 3 ALTURAS PARA NO ATRAVESAR REJAS O PAREDES)
         function verificarPasoLibre(posActual, vecDirX, vecDirZ, colisiones) {
             if (colisiones.length === 0) return true;
             
-            const distRevision = 0.45; 
-            const angulos = [0, -0.4, 0.4]; 
-            const alturasPrueba = [0.8, 1.4]; 
+            const distRevision = 0.55; 
+            const alturasPrueba = [0.3, 0.9, 1.5]; 
+            const angulos = [0, -0.38, 0.38, -0.75, 0.75, -1.1, 1.1, 3.14]; 
 
             for (let h = 0; h < alturasPrueba.length; h++) {
                 let alt = alturasPrueba[h];
@@ -898,7 +898,7 @@
                 }
                 GAME_STATE.esInterior = deVerdadEstaDentro;
 
-                // NAVEGACIÓN Y COLISIONES LATERALES FIRMES
+                // NAVEGACIÓN CON VERIFICACIÓN MULTIDIRECCIONAL
                 if (GAME_STATE.inputMoviendo) {
                     let intentoX = GAME_STATE.pos.x + dx * speed * dt;
                     let intentoZ = GAME_STATE.pos.z + dz * speed * dt;
@@ -920,11 +920,11 @@
                     }
                 }
 
-                // CORRECCIÓN EXACTA DE ESCALERAS: Detección vertical progresiva hasta 0.45m sin levitación
+                // DETECCIÓN VERTICAL EXCLUSIVA DE SUPERFICIES HORIZONTALES (Resuelve el atasco del balcón)
                 if (sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDir);
-                    RAYCASTER_REUTILIZABLE.far = 3.0;
+                    RAYCASTER_REUTILIZABLE.far = 3.2;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
@@ -933,7 +933,13 @@
 
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y <= (GAME_STATE.pos.y + 0.45)) { // Permite escalones reales hasta 45cm sin bloquear ni volar
+                        // Solo aceptamos planos horizontales (Normals hacia arriba) para no atascarse con losas o techado superior
+                        if (hit.face && hit.face.normal) {
+                            V_POOL.worldNormal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+                            if (V_POOL.worldNormal.y < 0.4) continue; // Descarta techos, barandillas o paredes
+                        }
+
+                        if (hit.point.y <= (GAME_STATE.pos.y + 0.5)) { 
                             if (mejorAltura === null || hit.point.y > mejorAltura) {
                                 mejorAltura = hit.point.y; 
                             }
@@ -947,7 +953,7 @@
                     }
                 }
 
-                // GRAVEDAD Y SUBIDA SUAVE DE PELDAÑOS (Sin acelerar ni levitar)
+                // APLICACIÓN DE ALTURA SUAVE
                 if (!GAME_STATE.enElSuelo) {
                     GAME_STATE.velY -= 15.0 * dt;
                     GAME_STATE.pos.y += GAME_STATE.velY * dt;
@@ -959,8 +965,8 @@
                     }
                 } else {
                     let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) < 0.35) {
-                        GAME_STATE.pos.y += deltaY * 8.0 * dt; // Subida paso a paso natural sin empujones repentinos
+                    if (Math.abs(deltaY) < 0.4) {
+                        GAME_STATE.pos.y += deltaY * 10.0 * dt;
                     } else {
                         GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     }
