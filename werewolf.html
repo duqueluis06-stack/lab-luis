@@ -277,7 +277,7 @@
         <a-entity id="luz-interior-cocina" light="type: point; intensity: 1.4; distance: 8; color: #ffbc73;" position="4.5 1.1 -3.2"></a-entity>
         <a-entity id="luz-interior-salon" light="type: point; intensity: 1.0; distance: 10; color: #9bb7f0;" position="-2.0 1.1 -1.5"></a-entity>
 
-        <!-- RIG JUGADOR -->
+        <!-- RIG JUGADOR CON CÁMARA ORIGINAL -->
         <a-entity id="player-rig" position="0 0 25">
             <a-entity id="avatar-container" position="0 0 0">
                 <a-entity id="luis-mesh-walk" gltf-model="#luis-walk-src" scale="0.38 0.38 0.38" fix-animacion="clip: *; loop: repeat;"></a-entity>
@@ -287,7 +287,8 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <a-entity id="main-camera" camera="fov: 70; near: 0.01; far: 300;" position="0 1.2 0.8">
+                    <!-- Posición original de cámara en 3ª persona completamente visible -->
+                    <a-entity id="main-camera" camera="fov: 70; near: 0.1; far: 300;" position="0 1.4 1.8">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
                 </a-entity>
@@ -592,7 +593,7 @@
             let cerca = obtenerColisionesCercanas(posOriginal, 5);
             if (cerca.length === 0) return false;
 
-            // Inclusión estricta de ventanales/vidrios a tres niveles de altura
+            // Detección física en ventanales/vidrios y muros
             V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.3, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
             RAYCASTER_REUTILIZABLE.far = dist + 0.38;
@@ -876,7 +877,7 @@
                     }
                 }
 
-                // CÁLCULO PRECISO DE SUELO (Sin falsas elevaciones por vigas/techos)
+                // CÁLCULO DE SUELO SIN LEVITACIÓN HASTA TECHOS/VIGAS
                 if (sueloMeshCache.length > 0) { 
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirDown);
@@ -899,7 +900,7 @@
                     }
                 }
 
-                // GRAVEDAD Y SNAP DIRECTO A ESCALONES
+                // GRAVEDAD Y SNAP
                 let diferenciaSuelo = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
 
                 if (diferenciaSuelo < -0.6 || !GAME_STATE.enElSuelo) {
@@ -915,22 +916,6 @@
                     GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
                     GAME_STATE.velY = 0;
                     GAME_STATE.enElSuelo = true;
-                }
-
-                // CÁMARA ANTI-RECORTE EN PASILLOS
-                if (sueloMeshCache.length > 0) {
-                    let dirCam = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), INPUT.camYaw);
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.2, GAME_STATE.pos.z);
-                    RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, dirCam);
-                    RAYCASTER_REUTILIZABLE.far = 0.8;
-                    
-                    let paredAtrás = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, true);
-                    if (paredAtrás.length > 0) {
-                        let distDistancia = Math.max(0.2, paredAtrás[0].distance - 0.15);
-                        ENT.mainCam.object3D.position.z = distDistancia;
-                    } else {
-                        ENT.mainCam.object3D.position.z = 0.8;
-                    }
                 }
 
                 ENT.rig.object3D.position.set(GAME_STATE.pos.x, GAME_STATE.pos.y, GAME_STATE.pos.z);
@@ -974,7 +959,7 @@
                     UI.damage.className = '';
                     GAME_STATE.loboEstado = 'MERODEANDO_CASA';
                     
-                    // IA DE ACECHO ALREDEDOR DE LA CASA (Incapaz de entrar)
+                    // IA DE ACECHO ALREDEDOR DE LA CASA
                     let centroCasa = CASA_ARQUITECTO_BOX ? CASA_ARQUITECTO_BOX.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, 0);
                     GAME_STATE.aiAnguloMerodeo += dt * 0.4;
                     
