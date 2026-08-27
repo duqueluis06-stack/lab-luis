@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>ARK - Werewolf Nightmare v16.2</title>
-    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.2. Explora el entorno 3D, gestiona tu energía y busca refugio.">
+    <title>ARK - Werewolf Nightmare v16.3</title>
+    <meta name="description" content="Sobrevive a la noche en ARK: Werewolf Nightmare v16.3. Explora el entorno 3D, gestiona tu energía y busca refugio.">
     <meta name="robots" content="index, follow">
     <meta name="author" content="ARK Studio">
 
     <!-- Open Graph & Twitter Card -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ARK - Werewolf Nightmare v16.2">
+    <meta property="og:title" content="ARK - Werewolf Nightmare v16.3">
     <meta property="og:description" content="Juego 3D interactivo en el navegador. Escape del Hombre Lobo.">
     <meta property="og:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.2">
+    <meta name="twitter:title" content="ARK - Werewolf Nightmare v16.3">
     <meta name="twitter:description" content="Sobrevive al acecho en este simulador 3D para navegador.">
     <meta name="twitter:image" content="https://huggingface.co/datasets/Luis-Fernando/werewolf/resolve/main/preview.jpg">
 
@@ -287,7 +287,6 @@
 
             <a-entity id="camera-yaw" rotation="0 0 0">
                 <a-entity id="camera-pitch" rotation="0 0 0">
-                    <!-- CÁMARA BAJADA Y CERCANA (Evita atravesar techos en interiores) -->
                     <a-entity id="main-camera" camera="fov: 70; near: 0.01; far: 300;" position="0 1.2 1.3">
                         <a-entity id="flashlight" light="type: spot; intensity: 2.8; distance: 40; angle: 38; penumbra: 0.5; color: #fffde6;" position="0 -0.2 -0.2"></a-entity>
                     </a-entity>
@@ -595,15 +594,15 @@
             let cerca = obtenerColisionesCercanas(posOriginal, 5);
             if (cerca.length === 0) return false;
 
-            // Detección de paredes optimizada para escaleras
+            // Detección precisa de paredes (evita atrancarse en escalones bajos)
             V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 0.4, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.3;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
-            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.1, posOriginal.z);
+            V_POOL.rayOrigin.set(posOriginal.x, posOriginal.y + 1.0, posOriginal.z);
             RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.dirAvance);
-            RAYCASTER_REUTILIZABLE.far = dist + 0.3;
+            RAYCASTER_REUTILIZABLE.far = dist + 0.35;
             if (RAYCASTER_REUTILIZABLE.intersectObjects(cerca, false).length > 0) return true;
 
             return false;
@@ -726,7 +725,7 @@
                 if(e.code === 'Space' || e.key === ' ') {
                     e.preventDefault();
                     if (GAME_STATE.enElSuelo && !GAME_STATE.esInterior) {
-                        GAME_STATE.velY = 5.2;
+                        GAME_STATE.velY = 6.5;
                         GAME_STATE.enElSuelo = false;
                     }
                 }
@@ -874,36 +873,37 @@
                     }
                 }
 
-                // CÁLCULO DE PISO Y ESCALERAS
-                if (GAME_STATE.frameTicks % 2 === 0 && sueloMeshCache.length > 0) { 
-                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.8, GAME_STATE.pos.z); 
+                // CÁLCULO DIRECTO Y RÁPIDO DE ESCALERAS/SUELO
+                if (sueloMeshCache.length > 0) { 
+                    V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 1.5, GAME_STATE.pos.z); 
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirDown);
-                    RAYCASTER_REUTILIZABLE.far = 4.5;
+                    RAYCASTER_REUTILIZABLE.far = 4.0;
                     
                     const colisiones = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     let mejorAltura = null; 
                     let maxPuntoY = -Infinity;
 
-                    const OFFSET_PIES = 0.01; 
-                    const ALTURA_BASE_MAPA = 0.0;
-
                     for (let i = 0; i < colisiones.length; i++) {
                         const hit = colisiones[i];
-                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 1.0)) { 
+                        if (hit.point.y > maxPuntoY && hit.point.y <= (GAME_STATE.pos.y + 0.8)) { 
                             maxPuntoY = hit.point.y; 
                             mejorAltura = hit.point.y; 
                         }
                     }
                     
                     if (mejorAltura !== null) {
-                        GAME_STATE.cachedAlturaSuelo = mejorAltura + OFFSET_PIES;
+                        GAME_STATE.cachedAlturaSuelo = mejorAltura;
                     } else {
-                        GAME_STATE.cachedAlturaSuelo = ALTURA_BASE_MAPA;
+                        GAME_STATE.cachedAlturaSuelo = 0.0;
                     }
                 }
 
-                if (!GAME_STATE.enElSuelo) {
-                    GAME_STATE.velY -= 15.0 * dt;
+                // GRAVEDAD FIRME Y SNAP EN ESCALONES (Cero levitación)
+                let diferenciaSuelo = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
+
+                if (diferenciaSuelo < -0.6 || !GAME_STATE.enElSuelo) {
+                    // Caída firme con gravedad real (32 m/s²)
+                    GAME_STATE.velY -= 32.0 * dt;
                     GAME_STATE.pos.y += GAME_STATE.velY * dt;
 
                     if (GAME_STATE.pos.y <= GAME_STATE.cachedAlturaSuelo) {
@@ -912,28 +912,23 @@
                         GAME_STATE.enElSuelo = true;
                     }
                 } else {
-                    let deltaY = GAME_STATE.cachedAlturaSuelo - GAME_STATE.pos.y;
-                    if (Math.abs(deltaY) > 0.8) {
-                        GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
-                    } else {
-                        // Respuesta súper fluida para subir/bajar los escalones
-                        let factorSuavizado = 0.55;
-                        GAME_STATE.pos.y += deltaY * factorSuavizado;
-                    }
+                    // Snap inmediato a escalones (sube y baja al instante sin levitar)
+                    GAME_STATE.pos.y = GAME_STATE.cachedAlturaSuelo;
+                    GAME_STATE.velY = 0;
+                    GAME_STATE.enElSuelo = true;
                 }
 
-                // CONTROL DE TECHO PARA EVITAR CORTE DE VISIÓN / PANTALLA NEGRA
+                // CONTROL DE TECHO CONTRA CORTE DE CÁMARA
                 if (GAME_STATE.esInterior && sueloMeshCache.length > 0) {
                     V_POOL.rayOrigin.set(GAME_STATE.pos.x, GAME_STATE.pos.y + 0.8, GAME_STATE.pos.z);
                     RAYCASTER_REUTILIZABLE.set(V_POOL.rayOrigin, V_POOL.rayDirUp);
-                    RAYCASTER_REUTILIZABLE.far = 1.6;
+                    RAYCASTER_REUTILIZABLE.far = 1.4;
                     
                     const choquesTecho = RAYCASTER_REUTILIZABLE.intersectObjects(sueloMeshCache, false);
                     if (choquesTecho.length > 0) {
                         let distTecho = choquesTecho[0].distance;
-                        if (distTecho < 0.6) {
-                            // Ajusta suavemente la altura para no entrar a la losa superior
-                            GAME_STATE.pos.y -= (0.6 - distTecho) * 0.3;
+                        if (distTecho < 0.5) {
+                            GAME_STATE.pos.y -= (0.5 - distTecho);
                         }
                     }
                 }
