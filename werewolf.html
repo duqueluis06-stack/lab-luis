@@ -37,7 +37,6 @@
     <!-- Librerías A-Frame -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/idea-space/aframe-particle-system-component@v1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
     <script>
         // COMPONENTE PARA FORZAR LA LECTURA DE ANIMACIONES TRAS LA CARGA DEL GLB
@@ -278,9 +277,6 @@
             <a-sphere radius="2.2" color="#e2e8f0" material="shader: flat; fog: false;"></a-sphere>
             <a-entity light="type: directional; intensity: 0.35; color: #556a9e; castShadow: false;"></a-entity>
         </a-entity>
-        
-        <!-- Lluvia reducida para optimización térmica -->
-        <a-entity particle-system="preset: rain; color: #333; particleCount: 100; size: 0.25; velocityValue: 0 18 0; opacity: 0.15;"></a-entity>
         
         <a-entity id="luz-ambiental" light="type: ambient; intensity: 0.25; color: #1a2238"></a-entity>
         <a-entity id="luz-relampago" light="type: directional; intensity: 0; color: #ffffff;" position="0 80 0"></a-entity>
@@ -542,7 +538,7 @@
                     let p = child;
                     while (p) {
                         let pName = (p.name || "").toLowerCase();
-                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio")) {
+                        if (pName.includes("casa") || pName.includes("luis_model") || pName.includes("refugio") || pName.includes("arquitecto")) {
                             esCasa = true;
                             break;
                         }
@@ -558,17 +554,18 @@
                         }
                     }
 
-    const esObstaculoOTecho = 
-    objName.includes("tree") || objName.includes("arbol") || 
-    objName.includes("leave") || objName.includes("hoja") || 
-    objName.includes("trunk") || objName.includes("branch") || 
-    objName.includes("bush") || objName.includes("reja") ||
-    objName.includes("vidrio") || objName.includes("cristal") ||
-    objName.includes("glass") || objName.includes("window") ||
-    objName.includes("ventana") ||
-    objName.includes("techo") || objName.includes("roof") || 
-    objName.includes("ceiling") || objName.includes("pared") || 
-    objName.includes("wall") || objName.includes("cubierta");
+                    // Se incluyen vidrios y ventanas explícitamente como obstáculos sólidos
+                    const esObstaculoOTecho = 
+                    objName.includes("tree") || objName.includes("arbol") || 
+                    objName.includes("leave") || objName.includes("hoja") || 
+                    objName.includes("trunk") || objName.includes("branch") || 
+                    objName.includes("bush") || objName.includes("reja") ||
+                    objName.includes("vidrio") || objName.includes("cristal") ||
+                    objName.includes("glass") || objName.includes("window") ||
+                    objName.includes("ventana") || objName.includes("vidrieras") ||
+                    objName.includes("techo") || objName.includes("roof") || 
+                    objName.includes("ceiling") || objName.includes("pared") || 
+                    objName.includes("wall") || objName.includes("cubierta");
 
                     if (!esObstaculoOTecho) {
                         sueloMeshCache.push(child);
@@ -599,7 +596,7 @@
             
             rootNode.traverse(child => {
                 let n = (child.name || "").toLowerCase();
-                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model')) {
+                if (n.includes('casa77') || n.includes('casa_77') || n.includes('casaluis') || n.includes('casa_luis') || n.includes('luis_model') || n.includes('arquitecto')) {
                     let caja = new THREE.Box3().setFromObject(child);
                     caja.min.y -= 1.0;
                     caja.max.y += 3.5;
@@ -826,8 +823,9 @@
                     GAME_STATE.camPerspectiveState = 'THIRD_PERSON';
                 }
                 let meshActivo = GAME_STATE.modoCorrerActive && GAME_STATE.inputMoviendo ? 'run' : (GAME_STATE.inputMoviendo ? 'walk' : 'atento');
+                // Se unifica la escala de 0.45 en todos los parámetros visuales del avatar
                 for (let key in ENT.meshes) {
-                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.38 0.38 0.38');
+                    if (key === meshActivo) ENT.meshes[key].setAttribute('scale', '0.45 0.45 0.45');
                     else ENT.meshes[key].setAttribute('scale', '0 0 0');
                 }
             }
@@ -997,13 +995,14 @@
                     AudioController.fadeTo('enojado', 0.0);
                     AudioController.fadeTo('stalk', 0.0);
                 } else if (GAME_STATE.esInterior) {
+                    // Zona Segura Garantizada: se resetean contadores de daño y no se ejecuta lógica de ataque
                     GAME_STATE.tiempoContactoFisico = 0;
                     UI.damage.className = '';
                     
                     if (GAME_STATE.loboEstado !== 'MERODEANDO_CASA' && GAME_STATE.loboEstado !== 'RETIRADA') {
                         GAME_STATE.loboEstado = 'MERODEANDO_CASA';
                         GAME_STATE.aiPuntoObjetivo = PUNTOS_MERODEO_CASA[Math.floor(Math.random() * PUNTOS_MERODEO_CASA.length)];
-                        UI.alert.textContent = "🔊 Ruidos pesados rodean las ventanas...";
+                        UI.alert.textContent = "🛡️ REFUGIO SEGURO // Ruidos pesados afuera...";
                     }
 
                     if (GAME_STATE.loboEstado === 'MERODEANDO_CASA') {
@@ -1100,7 +1099,7 @@
             UI.fade.style.opacity = "0"; UI.damage.className = ''; UI.jumpscare.classList.remove('active');
 
             for (let key in ENT.meshes) ENT.meshes[key].setAttribute('scale', '0 0 0');
-            if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.38 0.38 0.38');
+            if (ENT.meshes.atento) ENT.meshes.atento.setAttribute('scale', '0.45 0.45 0.45');
             
             GAME_STATE.introCompletada = false;
             AudioController.reproducirMusicaFondo();
