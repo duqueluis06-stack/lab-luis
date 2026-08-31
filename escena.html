@@ -505,6 +505,20 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
+// --- REUTILIZACIÓN DE VECTORES (Previene acumulación en memoria RAM y sobrecalentamiento) ---
+const downVector = new THREE.Vector3(0, -1, 0);
+const _rayOrigin = new THREE.Vector3();
+const _camDir = new THREE.Vector3();
+const _camRight = new THREE.Vector3();
+const _moveDirection = new THREE.Vector3();
+const _prevPosition = new THREE.Vector3();
+const _toLara = new THREE.Vector3();
+const _toCroft = new THREE.Vector3();
+const _testNextPos = new THREE.Vector3();
+const _obsOrigin = new THREE.Vector3();
+const _slideDirection = new THREE.Vector3();
+const _deltaMove = new THREE.Vector3();
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ec0ee);
 
@@ -599,6 +613,18 @@ const vuCanvas = document.getElementById("vumeter-canvas");
 const vuCtx = vuCanvas.getContext("2d");
 vuCanvas.width = 100;
 vuCanvas.height = 26;
+
+// Gradiente estático en memoria para evitar instanciaciones de CanvasGradient en cada frame
+let vuGradient = null;
+function getVuGradient() {
+  if (!vuGradient) {
+    vuGradient = vuCtx.createLinearGradient(0, vuCanvas.height, 0, 0);
+    vuGradient.addColorStop(0, '#00ff66');
+    vuGradient.addColorStop(0.5, '#00f0ff');
+    vuGradient.addColorStop(1, '#ff007f');
+  }
+  return vuGradient;
+}
 
 let laraMesh = null;
 let laraMixer = null; 
@@ -818,12 +844,7 @@ function drawVuMeter() {
       const value = data[i] / 255;
       const barHeight = Math.max(3, value * vuCanvas.height * 0.9);
 
-      const grad = vuCtx.createLinearGradient(0, vuCanvas.height, 0, 0);
-      grad.addColorStop(0, '#00ff66');
-      grad.addColorStop(0.5, '#00f0ff');
-      grad.addColorStop(1, '#ff007f');
-
-      vuCtx.fillStyle = grad;
+      vuCtx.fillStyle = getVuGradient();
       vuCtx.fillRect(
         i * (barWidth + gap) + gap,
         vuCanvas.height - barHeight,
@@ -837,14 +858,30 @@ function drawVuMeter() {
   }
 }
 
+// --- GESTIÓN DE CARGA (LoadingManager) ---
+const loadingManager = new THREE.LoadingManager();
+const btnEntrar = document.getElementById('btn-entrar');
+
+loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+  const percent = Math.round((itemsLoaded / itemsTotal) * 100);
+  if (btnEntrar && !userInteracted) {
+    btnEntrar.innerText = `CARGANDO RECURSOS (${percent}%) 🎵`;
+  }
+};
+
+loadingManager.onLoad = () => {
+  if (btnEntrar && !userInteracted) {
+    btnEntrar.innerText = `ENTRAR Y ACTIVAR AUDIO 🎵`;
+  }
+};
+
 // --- CARGA DE ARCHIVOS 3D (GLB) ---
-const loader = new GLTFLoader();
+const loader = new GLTFLoader(loadingManager);
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
 loader.setDRACOLoader(dracoLoader);
 
 const raycaster = new THREE.Raycaster();
-const downVector = new THREE.Vector3(0, -1, 0);
 let islaScene = null;
 let luisSentadoObject = null;
 
@@ -1146,7 +1183,6 @@ function checkStructureCollision(origin, direction, maxDistance) {
     let parentName = parent ? (parent.name || "").toLowerCase() : "";
 
     // Solo la arena, el terreno base o el agua se consideran caminables.
-    // Las plantas, palmeras, troncos y hojas ahora se detectan correctamente como obstáculos.
     const isTerrain = (name.includes("arena") || name.includes("sand") || name.includes("ground") ||
                        name.includes("terreno") || name.includes("sea") || name.includes("mar") ||
                        name.includes("playa") || name.includes("beach")) &&
@@ -1195,10 +1231,10 @@ function animate() {
   const isMoving = (moveInput.x !== 0 || moveInput.y !== 0);
 
   if (islaScene && avatarState !== 'sentado') {
-    const origin = avatarContainer.position.clone();
-    origin.y += 3.0; // Proyectamos el rayo desde más arriba para medir altura del terreno de forma precisa
+    _rayOrigin.copy(avatarContainer.position);
+    _rayOrigin.y += 3.0; // Proyectamos el rayo desde más arriba para medir altura del terreno de forma precisa
 
-    raycaster.set(origin, downVector);
+    raycaster.set(_rayOrigin, downVector);
     raycaster.far = 15.0;
 
     const intersects = raycaster.intersectObject(islaScene, true);
@@ -1244,7 +1280,7 @@ function animate() {
         const targetGroundY = terrainHits[0].point.y;
         const yDiff = targetGroundY - avatarContainer.position.y;
         
-        // Solo permite ajustar la altura si el cambio es suave (evita saltos repentinos a palmeras)
+        // Solo permite ajustar la altura si el cambio es suave
         if (yDiff < 0.35) {
           avatarContainer.position.y = THREE.MathUtils.lerp(avatarContainer.position.y, targetGroundY, 0.2);
         }
@@ -1255,40 +1291,38 @@ function animate() {
   if (isMoving) {
     setAvatarState('camina');
 
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    camDir.y = 0;
-    camDir.normalize();
+    camera.getWorldDirection(_camDir);
+    _camDir.y = 0;
+    _camDir.normalize();
 
-    const camRight = new THREE.Vector3();
-    camRight.crossVectors(camDir, camera.up).normalize();
+    _camRight.crossVectors(_camDir, camera.up).normalize();
 
-    const moveDirection = new THREE.Vector3();
-    moveDirection.addScaledVector(camRight, moveInput.x);
-    moveDirection.addScaledVector(camDir, moveInput.y);
-    moveDirection.normalize();
+    _moveDirection.set(0, 0, 0);
+    _moveDirection.addScaledVector(_camRight, moveInput.x);
+    _moveDirection.addScaledVector(_camDir, moveInput.y);
+    _moveDirection.normalize();
 
     const speed = 2.2;
-    const prevPosition = avatarContainer.position.clone();
+    _prevPosition.copy(avatarContainer.position);
 
     let allowMovement = true;
     
     if (laraMesh) {
-      const toLara = new THREE.Vector3().subVectors(laraMesh.position, avatarContainer.position);
-      toLara.y = 0;
-      if (toLara.length() < 1.0 && moveDirection.dot(toLara.clone().normalize()) > 0) allowMovement = false;
+      _toLara.subVectors(laraMesh.position, avatarContainer.position);
+      _toLara.y = 0;
+      if (_toLara.length() < 1.0 && _moveDirection.dot(_toLara.clone().normalize()) > 0) allowMovement = false;
     }
     if (croftMesh && allowMovement) {
-      const toCroft = new THREE.Vector3().subVectors(croftMesh.position, avatarContainer.position);
-      toCroft.y = 0;
-      if (toCroft.length() < 1.0 && moveDirection.dot(toCroft.clone().normalize()) > 0) allowMovement = false;
+      _toCroft.subVectors(croftMesh.position, avatarContainer.position);
+      _toCroft.y = 0;
+      if (_toCroft.length() < 1.0 && _moveDirection.dot(_toCroft.clone().normalize()) > 0) allowMovement = false;
     }
 
     if (allowMovement && islaScene) {
-      // Control de escalón/altura frontal (impide avanzar si enfrente hay un obstáculo elevado o tronco)
-      const testNextPos = avatarContainer.position.clone().addScaledVector(moveDirection, 0.4);
-      testNextPos.y += 3.0;
-      raycaster.set(testNextPos, downVector);
+      // Control de escalón/altura frontal
+      _testNextPos.copy(avatarContainer.position).addScaledVector(_moveDirection, 0.4);
+      _testNextPos.y += 3.0;
+      raycaster.set(_testNextPos, downVector);
       const aheadHits = raycaster.intersectObject(islaScene, true);
       
       if (aheadHits.length > 0) {
@@ -1301,11 +1335,11 @@ function animate() {
       }
 
       if (allowMovement) {
-        const obsOrigin = avatarContainer.position.clone();
-        obsOrigin.y += 0.4;
+        _obsOrigin.copy(avatarContainer.position);
+        _obsOrigin.y += 0.4;
 
         const checkRadius = 0.55;
-        const frontHit = checkStructureCollision(obsOrigin, moveDirection, checkRadius);
+        const frontHit = checkStructureCollision(_obsOrigin, _moveDirection, checkRadius);
 
         if (frontHit) {
           const normal = frontHit.face ? frontHit.face.normal.clone().transformDirection(frontHit.object.matrixWorld).normalize() : null;
@@ -1314,12 +1348,12 @@ function animate() {
             normal.y = 0;
             normal.normalize();
 
-            const slideDirection = moveDirection.clone().sub(normal.clone().multiplyScalar(moveDirection.dot(normal))).normalize();
+            _slideDirection.copy(_moveDirection).sub(normal.clone().multiplyScalar(_moveDirection.dot(normal))).normalize();
 
-            if (slideDirection.lengthSq() > 0.01) {
-               const sideHit = checkStructureCollision(obsOrigin, slideDirection, checkRadius);
+            if (_slideDirection.lengthSq() > 0.01) {
+               const sideHit = checkStructureCollision(_obsOrigin, _slideDirection, checkRadius);
                if (!sideHit) {
-                 moveDirection.copy(slideDirection);
+                 _moveDirection.copy(_slideDirection);
                } else {
                  allowMovement = false;
                }
@@ -1334,14 +1368,14 @@ function animate() {
     }
 
     if (allowMovement) {
-      avatarContainer.position.addScaledVector(moveDirection, speed * delta);
-      const deltaMove = avatarContainer.position.clone().sub(prevPosition);
+      avatarContainer.position.addScaledVector(_moveDirection, speed * delta);
+      _deltaMove.subVectors(avatarContainer.position, _prevPosition);
       
-      camera.position.add(deltaMove);
-      controls.target.add(deltaMove);
+      camera.position.add(_deltaMove);
+      controls.target.add(_deltaMove);
     }
 
-    const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+    const targetAngle = Math.atan2(_moveDirection.x, _moveDirection.z);
     avatarContainer.rotation.y = targetAngle;
 
   } else {
@@ -1359,6 +1393,7 @@ animate();
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateMatrix();
+  camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
