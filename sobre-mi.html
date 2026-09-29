@@ -395,6 +395,20 @@
             </div>
         </article>
 
+        <!-- MÓDULO VISUAL 3D SUBTERRÁNEO DE ALTO IMPACTO -->
+        <article class="panel">
+            <h2 class="text-3d-phosphor" style="margin-top:0; font-size:1.05rem; margin-bottom: 12px;">📡 ESCÁNER TECTÓNICO SUBTERRÁNEO 3D [MARSEILLE SUBSURFACE]</h2>
+            <div style="position:relative; width:100%; height:230px; background:#000502; border:1px solid var(--sonar-green-dim); border-radius:2px; overflow:hidden;">
+                <canvas id="subterranean-3d-canvas" style="width:100%; height:100%; display:block; cursor:grab;"></canvas>
+                <div style="position:absolute; top:8px; left:8px; font-size:0.65rem; color:var(--sonar-green); font-weight:bold; pointer-events:none; background:rgba(0,10,5,0.85); padding:4px 8px; border:1px solid var(--sonar-green-dim);">
+                    DEPTH: 0 TO -15 KM // ROTAR: ARRASTRAR CURSOR
+                </div>
+                <div style="position:absolute; bottom:8px; right:8px; font-size:0.65rem; color:#ffffff; pointer-events:none; background:rgba(0,10,5,0.85); padding:4px 8px; border:1px solid var(--sonar-green-dim);">
+                    LASER SCANNER: ACTIVO // BARRIDO DE CORTEZA
+                </div>
+            </div>
+        </article>
+
         <article class="panel">
             <h2 class="text-3d-phosphor" style="margin-top:0; font-size:1.05rem; margin-bottom: 15px;">🔬 CORES DE INVESTIGACIÓN ACTIVA</h2>
             <div class="grid-hardware">
@@ -669,6 +683,188 @@ function fetchWendyStationData() {
 
 fetchWendyStationData();
 setInterval(fetchWendyStationData, 300000);
+
+/* --- MOTOR VISUAL 3D SUBTERRÁNEO E INTERACTIVO --- */
+const subCanvas = document.getElementById("subterranean-3d-canvas");
+const subCtx = subCanvas ? subCanvas.getContext("2d") : null;
+
+if (subCtx) {
+    let rotX = 0.5;
+    let rotY = -0.55;
+    let isDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    let scanZ = 0;
+    let scanDir = 1;
+
+    function resizeSubCanvas() {
+        subCanvas.width = subCanvas.clientWidth;
+        subCanvas.height = subCanvas.clientHeight;
+    }
+    window.addEventListener('resize', resizeSubCanvas);
+    resizeSubCanvas();
+
+    subCanvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        subCanvas.style.cursor = 'grabbing';
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        if (subCanvas) subCanvas.style.cursor = 'grab';
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let deltaX = e.clientX - lastMouseX;
+        let deltaY = e.clientY - lastMouseY;
+        rotY += deltaX * 0.008;
+        rotX += deltaY * 0.008;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+    });
+
+    const GRID_SIZE = 16;
+    const SPACING = 14;
+    const hypocenters = [
+        { x: -35, y: 35, z: 20, r: 0, maxR: 16, color: '#ff3344' },
+        { x: 30, y: 50, z: -15, r: 6, maxR: 22, color: '#00ffff' },
+        { x: 5, y: 20, z: 40, r: 11, maxR: 18, color: '#ffff00' }
+    ];
+
+    function project3D(x, y, z, width, height) {
+        let cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+        let cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+
+        let x1 = x * cosY + z * sinY;
+        let z1 = -x * sinY + z * cosY;
+
+        let y2 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+
+        let fov = 260;
+        let distance = 240;
+        let scale = fov / (fov + z2 + distance);
+
+        return {
+            x: width / 2 + x1 * scale,
+            y: height / 2 + y2 * scale,
+            scale: scale,
+            z: z2
+        };
+    }
+
+    function renderSubterranean3D() {
+        requestAnimationFrame(renderSubterranean3D);
+        const w = subCanvas.width;
+        const h = subCanvas.height;
+
+        subCtx.fillStyle = '#000502';
+        subCtx.fillRect(0, 0, w, h);
+
+        scanZ += scanDir * 0.8;
+        if (scanZ > (GRID_SIZE * SPACING) / 2 || scanZ < -(GRID_SIZE * SPACING) / 2) {
+            scanDir *= -1;
+        }
+
+        if (!isDragging) {
+            rotY += 0.0025;
+        }
+
+        const half = (GRID_SIZE * SPACING) / 2;
+
+        subCtx.strokeStyle = "rgba(0, 255, 102, 0.12)";
+        subCtx.lineWidth = 1;
+
+        let c1 = project3D(-half, -10, -half, w, h);
+        let c2 = project3D(half, -10, -half, w, h);
+        let c3 = project3D(half, -10, half, w, h);
+        let c4 = project3D(-half, -10, half, w, h);
+
+        let b1 = project3D(-half, 70, -half, w, h);
+        let b2 = project3D(half, 70, -half, w, h);
+        let b3 = project3D(half, 70, half, w, h);
+        let b4 = project3D(-half, 70, half, w, h);
+
+        subCtx.beginPath();
+        subCtx.moveTo(c1.x, c1.y); subCtx.lineTo(c2.x, c2.y);
+        subCtx.lineTo(c3.x, c3.y); subCtx.lineTo(c4.x, c4.y);
+        subCtx.closePath(); subCtx.stroke();
+
+        subCtx.beginPath();
+        subCtx.moveTo(b1.x, b1.y); subCtx.lineTo(b2.x, b2.y);
+        subCtx.lineTo(b3.x, b3.y); subCtx.lineTo(b4.x, b4.y);
+        subCtx.closePath(); subCtx.stroke();
+
+        subCtx.beginPath();
+        subCtx.moveTo(c1.x, c1.y); subCtx.lineTo(b1.x, b1.y);
+        subCtx.moveTo(c2.x, c2.y); subCtx.lineTo(b2.x, b2.y);
+        subCtx.moveTo(c3.x, c3.y); subCtx.lineTo(b3.x, b3.y);
+        subCtx.moveTo(c4.x, c4.y); subCtx.lineTo(b4.x, b4.y);
+        subCtx.stroke();
+
+        subCtx.strokeStyle = "rgba(0, 255, 102, 0.55)";
+        subCtx.lineWidth = 1;
+
+        for (let i = 0; i < GRID_SIZE; i++) {
+            subCtx.beginPath();
+            for (let j = 0; j < GRID_SIZE; j++) {
+                let gx = (i - GRID_SIZE / 2) * SPACING;
+                let gz = (j - GRID_SIZE / 2) * SPACING;
+                let gy = Math.sin(i * 0.45) * 7 + Math.cos(j * 0.5) * 10 + (i > 7 ? (i - 7) * 2.5 : 0);
+
+                let p = project3D(gx, gy, gz, w, h);
+                if (j === 0) subCtx.moveTo(p.x, p.y);
+                else subCtx.lineTo(p.x, p.y);
+            }
+            subCtx.stroke();
+        }
+
+        for (let j = 0; j < GRID_SIZE; j++) {
+            subCtx.beginPath();
+            for (let i = 0; i < GRID_SIZE; i++) {
+                let gx = (i - GRID_SIZE / 2) * SPACING;
+                let gz = (j - GRID_SIZE / 2) * SPACING;
+                let gy = Math.sin(i * 0.45) * 7 + Math.cos(j * 0.5) * 10 + (i > 7 ? (i - 7) * 2.5 : 0);
+
+                let p = project3D(gx, gy, gz, w, h);
+                if (i === 0) subCtx.moveTo(p.x, p.y);
+                else subCtx.lineTo(p.x, p.y);
+            }
+            subCtx.stroke();
+        }
+
+        let l1 = project3D(-half, 15, scanZ, w, h);
+        let l2 = project3D(half, 15, scanZ, w, h);
+        subCtx.strokeStyle = "#00ffff";
+        subCtx.lineWidth = 2;
+        subCtx.shadowColor = "#00ffff";
+        subCtx.shadowBlur = 8;
+        subCtx.beginPath();
+        subCtx.moveTo(l1.x, l1.y);
+        subCtx.lineTo(l2.x, l2.y);
+        subCtx.stroke();
+        subCtx.shadowBlur = 0;
+
+        hypocenters.forEach(hNode => {
+            hNode.r += 0.25;
+            if (hNode.r > hNode.maxR) hNode.r = 0;
+
+            let hp = project3D(hNode.x, hNode.y, hNode.z, w, h);
+            subCtx.strokeStyle = hNode.color;
+            subCtx.lineWidth = 1.5;
+            subCtx.beginPath();
+            subCtx.arc(hp.x, hp.y, hNode.r * hp.scale, 0, Math.PI * 2);
+            subCtx.stroke();
+
+            subCtx.fillStyle = hNode.color;
+            subCtx.beginPath();
+            subCtx.arc(hp.x, hp.y, 2.5 * hp.scale, 0, Math.PI * 2);
+            subCtx.fill();
+        });
+    }
+
+    renderSubterranean3D();
+}
 </script>
 </body>
 </html>
